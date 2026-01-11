@@ -106,6 +106,7 @@ pub struct PaneManager {
     root: Pane,
     next_id: usize,
     focused_id: usize,
+    fullscreen_pane_id: Option<usize>,
 }
 
 impl PaneManager {
@@ -115,6 +116,7 @@ impl PaneManager {
             root: Pane::new(0, area),
             next_id: 1,
             focused_id: 0,
+            fullscreen_pane_id: None,
         }
     }
 
@@ -190,6 +192,55 @@ impl PaneManager {
         }
     }
 
+    /// Toggle fullscreen for the focused pane
+    pub fn toggle_fullscreen(&mut self) {
+        if self.fullscreen_pane_id.is_some() {
+            // Exit fullscreen
+            self.fullscreen_pane_id = None;
+        } else {
+            // Enter fullscreen with focused pane
+            self.fullscreen_pane_id = Some(self.focused_id);
+        }
+    }
+
+    /// Check if a pane is in fullscreen mode
+    pub fn is_fullscreen(&self) -> bool {
+        self.fullscreen_pane_id.is_some()
+    }
+
+    /// Get the fullscreen pane ID if in fullscreen mode
+    pub fn fullscreen_pane_id(&self) -> Option<usize> {
+        self.fullscreen_pane_id
+    }
+
+    /// Get the area for rendering a specific pane
+    pub fn get_pane_area(&self, pane_id: usize, full_area: Rect) -> Option<Rect> {
+        // If in fullscreen mode and this is the fullscreen pane, return full area
+        if let Some(fs_id) = self.fullscreen_pane_id {
+            if fs_id == pane_id {
+                return Some(full_area);
+            } else {
+                // Pane is hidden in fullscreen mode
+                return None;
+            }
+        }
+
+        // Not in fullscreen, find the pane's normal area
+        Self::find_pane_area(&self.root, pane_id)
+    }
+
+    /// Helper to find a pane's area in the tree
+    fn find_pane_area(pane: &Pane, target_id: usize) -> Option<Rect> {
+        if pane.id == target_id {
+            Some(pane.area)
+        } else if let Some(split) = &pane.split {
+            Self::find_pane_area(&split.first, target_id)
+                .or_else(|| Self::find_pane_area(&split.second, target_id))
+        } else {
+            None
+        }
+    }
+
     /// Update layout when terminal is resized
     pub fn resize(&mut self, new_area: Rect) {
         self.root.area = new_area;
@@ -261,5 +312,37 @@ mod tests {
 
         manager.focus_next();
         assert_eq!(manager.focused_id(), 0); // Only one pane, wraps around
+    }
+
+    #[test]
+    fn test_fullscreen_toggle() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        assert!(!manager.is_fullscreen());
+        assert_eq!(manager.fullscreen_pane_id(), None);
+
+        manager.toggle_fullscreen();
+        assert!(manager.is_fullscreen());
+        assert_eq!(manager.fullscreen_pane_id(), Some(0));
+
+        manager.toggle_fullscreen();
+        assert!(!manager.is_fullscreen());
+        assert_eq!(manager.fullscreen_pane_id(), None);
+    }
+
+    #[test]
+    fn test_fullscreen_pane_area() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        // Normal mode - pane gets its area
+        let pane_area = manager.get_pane_area(0, area);
+        assert_eq!(pane_area, Some(area));
+
+        // Enter fullscreen
+        manager.toggle_fullscreen();
+        let fs_area = manager.get_pane_area(0, area);
+        assert_eq!(fs_area, Some(area));
     }
 }

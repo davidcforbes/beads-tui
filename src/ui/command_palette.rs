@@ -2,6 +2,29 @@
 
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
+/// Application context for context-sensitive commands
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppContext {
+    /// Global commands available everywhere
+    Global,
+    /// Commands specific to the Issues view
+    Issues,
+    /// Commands specific to the Issue Detail view
+    IssueDetail,
+    /// Commands specific to the Dependencies view
+    Dependencies,
+    /// Commands specific to the Dependency Graph view
+    DependencyGraph,
+    /// Commands specific to the Labels view
+    Labels,
+    /// Commands specific to the Database view
+    Database,
+    /// Commands specific to the Help view
+    Help,
+    /// Commands specific to the Settings view
+    Settings,
+}
+
 /// Available commands in the application
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Command {
@@ -10,6 +33,7 @@ pub struct Command {
     pub description: String,
     pub category: CommandCategory,
     pub keys: Vec<String>,
+    pub contexts: Vec<AppContext>,
 }
 
 /// Command categories for organization
@@ -46,6 +70,7 @@ pub struct CommandPalette {
     selected_index: usize,
     history: Vec<String>,
     max_history: usize,
+    current_context: AppContext,
 }
 
 impl Default for CommandPalette {
@@ -64,21 +89,34 @@ impl CommandPalette {
             selected_index: 0,
             history: Vec::new(),
             max_history: 100,
+            current_context: AppContext::Global,
         };
 
         palette.register_default_commands();
         palette
     }
 
+    /// Set the current application context
+    pub fn set_context(&mut self, context: AppContext) {
+        self.current_context = context;
+        self.selected_index = 0; // Reset selection when context changes
+    }
+
+    /// Get the current context
+    pub fn context(&self) -> AppContext {
+        self.current_context
+    }
+
     /// Register default commands
     fn register_default_commands(&mut self) {
-        // Navigation commands
+        // Navigation commands (available globally)
         self.add_command(Command {
             id: "nav.issues".to_string(),
             name: "Go to Issues".to_string(),
             description: "Navigate to issues view".to_string(),
             category: CommandCategory::Navigation,
             keys: vec!["1".to_string()],
+            contexts: vec![AppContext::Global],
         });
 
         self.add_command(Command {
@@ -87,6 +125,7 @@ impl CommandPalette {
             description: "Navigate to dependencies view".to_string(),
             category: CommandCategory::Navigation,
             keys: vec!["2".to_string()],
+            contexts: vec![AppContext::Global],
         });
 
         self.add_command(Command {
@@ -95,6 +134,7 @@ impl CommandPalette {
             description: "Navigate to labels view".to_string(),
             category: CommandCategory::Navigation,
             keys: vec!["3".to_string()],
+            contexts: vec![AppContext::Global],
         });
 
         self.add_command(Command {
@@ -103,6 +143,7 @@ impl CommandPalette {
             description: "Navigate to database view".to_string(),
             category: CommandCategory::Navigation,
             keys: vec!["4".to_string()],
+            contexts: vec![AppContext::Global],
         });
 
         self.add_command(Command {
@@ -111,6 +152,7 @@ impl CommandPalette {
             description: "Show help and keyboard shortcuts".to_string(),
             category: CommandCategory::Navigation,
             keys: vec!["?".to_string()],
+            contexts: vec![AppContext::Global],
         });
 
         self.add_command(Command {
@@ -119,6 +161,7 @@ impl CommandPalette {
             description: "Navigate to previous view".to_string(),
             category: CommandCategory::Navigation,
             keys: vec!["Backspace".to_string()],
+            contexts: vec![AppContext::Global],
         });
 
         self.add_command(Command {
@@ -127,15 +170,17 @@ impl CommandPalette {
             description: "Navigate to next view in history".to_string(),
             category: CommandCategory::Navigation,
             keys: vec!["Shift+Backspace".to_string()],
+            contexts: vec![AppContext::Global],
         });
 
-        // Issue commands
+        // Issue commands (context-sensitive)
         self.add_command(Command {
             id: "issue.new".to_string(),
             name: "New Issue".to_string(),
             description: "Create a new issue".to_string(),
             category: CommandCategory::Issue,
             keys: vec!["n".to_string()],
+            contexts: vec![AppContext::Issues, AppContext::Global],
         });
 
         self.add_command(Command {
@@ -144,6 +189,7 @@ impl CommandPalette {
             description: "Close the selected issue".to_string(),
             category: CommandCategory::Issue,
             keys: vec!["c".to_string()],
+            contexts: vec![AppContext::Issues, AppContext::IssueDetail],
         });
 
         self.add_command(Command {
@@ -152,15 +198,17 @@ impl CommandPalette {
             description: "Edit the selected issue".to_string(),
             category: CommandCategory::Issue,
             keys: vec!["e".to_string()],
+            contexts: vec![AppContext::Issues, AppContext::IssueDetail],
         });
 
-        // View commands
+        // View commands (global)
         self.add_command(Command {
             id: "view.fullscreen".to_string(),
             name: "Toggle Fullscreen".to_string(),
             description: "Toggle fullscreen mode for focused pane".to_string(),
             category: CommandCategory::View,
             keys: vec!["f".to_string()],
+            contexts: vec![AppContext::Global],
         });
 
         self.add_command(Command {
@@ -169,6 +217,7 @@ impl CommandPalette {
             description: "Split current pane horizontally".to_string(),
             category: CommandCategory::View,
             keys: vec!["Ctrl+|".to_string()],
+            contexts: vec![AppContext::Global],
         });
 
         self.add_command(Command {
@@ -177,15 +226,17 @@ impl CommandPalette {
             description: "Split current pane vertically".to_string(),
             category: CommandCategory::View,
             keys: vec!["Ctrl+-".to_string()],
+            contexts: vec![AppContext::Global],
         });
 
-        // System commands
+        // System commands (global)
         self.add_command(Command {
             id: "system.quit".to_string(),
             name: "Quit".to_string(),
             description: "Exit the application".to_string(),
             category: CommandCategory::System,
             keys: vec!["q".to_string()],
+            contexts: vec![AppContext::Global],
         });
 
         self.add_command(Command {
@@ -194,6 +245,7 @@ impl CommandPalette {
             description: "Reload data from beads database".to_string(),
             category: CommandCategory::System,
             keys: vec!["r".to_string()],
+            contexts: vec![AppContext::Global],
         });
     }
 
@@ -213,15 +265,23 @@ impl CommandPalette {
         &self.search_query
     }
 
-    /// Search commands with fuzzy matching
+    /// Search commands with fuzzy matching and context filtering
     pub fn search(&self) -> Vec<(&Command, i64)> {
+        let context_filtered: Vec<&Command> = self
+            .commands
+            .iter()
+            .filter(|cmd| {
+                cmd.contexts.contains(&AppContext::Global)
+                    || cmd.contexts.contains(&self.current_context)
+            })
+            .collect();
+
         if self.search_query.is_empty() {
-            self.commands.iter().map(|cmd| (cmd, 0i64)).collect()
+            context_filtered.iter().map(|&cmd| (cmd, 0i64)).collect()
         } else {
-            let mut matches: Vec<(&Command, i64)> = self
-                .commands
+            let mut matches: Vec<(&Command, i64)> = context_filtered
                 .iter()
-                .filter_map(|cmd| {
+                .filter_map(|&cmd| {
                     let name_score = self.matcher.fuzzy_match(&cmd.name, &self.search_query);
                     let desc_score = self.matcher.fuzzy_match(&cmd.description, &self.search_query);
                     let score = name_score.unwrap_or(0).max(desc_score.unwrap_or(0));
@@ -237,6 +297,17 @@ impl CommandPalette {
             matches.sort_by(|a, b| b.1.cmp(&a.1));
             matches
         }
+    }
+
+    /// Get count of commands available in current context
+    pub fn available_command_count(&self) -> usize {
+        self.commands
+            .iter()
+            .filter(|cmd| {
+                cmd.contexts.contains(&AppContext::Global)
+                    || cmd.contexts.contains(&self.current_context)
+            })
+            .count()
     }
 
     /// Get the currently selected command
@@ -320,5 +391,55 @@ mod tests {
 
         palette.select_previous();
         assert_eq!(palette.selected_index, 0);
+    }
+
+    #[test]
+    fn test_context_filtering() {
+        let mut palette = CommandPalette::new();
+
+        // Global context should show all global commands
+        palette.set_context(AppContext::Global);
+        let global_results = palette.search();
+        let global_count = global_results.len();
+        assert!(global_count > 0);
+
+        // Issues context should show issue-specific + global commands
+        palette.set_context(AppContext::Issues);
+        let issues_results = palette.search();
+        
+        // Should have issue-specific commands
+        assert!(issues_results
+            .iter()
+            .any(|(cmd, _)| cmd.id == "issue.new"));
+        assert!(issues_results
+            .iter()
+            .any(|(cmd, _)| cmd.id == "issue.close"));
+
+        // Should still have global navigation commands
+        assert!(issues_results
+            .iter()
+            .any(|(cmd, _)| cmd.id == "nav.issues"));
+    }
+
+    #[test]
+    fn test_context_switching() {
+        let mut palette = CommandPalette::new();
+
+        palette.set_context(AppContext::Issues);
+        assert_eq!(palette.context(), AppContext::Issues);
+        assert_eq!(palette.selected_index, 0);
+
+        palette.selected_index = 5;
+        palette.set_context(AppContext::Dependencies);
+        assert_eq!(palette.context(), AppContext::Dependencies);
+        assert_eq!(palette.selected_index, 0); // Reset on context change
+    }
+
+    #[test]
+    fn test_available_command_count() {
+        let palette = CommandPalette::new();
+        
+        // Should have commands available in all contexts
+        assert!(palette.available_command_count() > 0);
     }
 }
