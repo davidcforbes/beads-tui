@@ -8,6 +8,25 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
 };
 
+/// Validation rules for form fields
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ValidationRule {
+    /// Field must not be empty
+    Required,
+    /// Value must be one of the allowed enum values
+    Enum(Vec<String>),
+    /// Value must be a valid integer >= 0
+    PositiveInteger,
+    /// Value must match beads ID format (beads-xxx-xxxx)
+    BeadsIdFormat,
+    /// Value must not contain spaces
+    NoSpaces,
+    /// Value must be a valid date (RFC3339 or relative)
+    Date,
+    /// Value must be a date >= now (for due dates)
+    FutureDate,
+}
+
 /// Form field type
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FieldType {
@@ -40,6 +59,8 @@ pub struct FormField {
     pub placeholder: Option<String>,
     /// Available options for selector fields
     pub options: Vec<String>,
+    /// Validation rules for this field
+    pub validation_rules: Vec<ValidationRule>,
 }
 
 impl FormField {
@@ -54,6 +75,7 @@ impl FormField {
             error: None,
             placeholder: None,
             options: Vec::new(),
+            validation_rules: Vec::new(),
         }
     }
 
@@ -68,6 +90,7 @@ impl FormField {
             error: None,
             placeholder: None,
             options: Vec::new(),
+            validation_rules: Vec::new(),
         }
     }
 
@@ -82,6 +105,7 @@ impl FormField {
             error: None,
             placeholder: None,
             options,
+            validation_rules: Vec::new(),
         }
     }
 
@@ -96,6 +120,7 @@ impl FormField {
             error: None,
             placeholder: None,
             options: Vec::new(),
+            validation_rules: Vec::new(),
         }
     }
 
@@ -117,15 +142,144 @@ impl FormField {
         self
     }
 
+    /// Add a validation rule
+    pub fn with_validation(mut self, rule: ValidationRule) -> Self {
+        self.validation_rules.push(rule);
+        self
+    }
+
     /// Validate the field
     pub fn validate(&mut self) -> bool {
+        // Legacy required check
         if self.required && self.value.trim().is_empty() {
             self.error = Some(format!("{} is required", self.label));
-            false
-        } else {
-            self.error = None;
-            true
+            return false;
         }
+
+        // Check all validation rules
+        for rule in &self.validation_rules {
+            if let Some(error) = Self::validate_rule(&self.value, rule, &self.label) {
+                self.error = Some(error);
+                return false;
+            }
+        }
+
+        self.error = None;
+        true
+    }
+
+    /// Validate a single rule
+    fn validate_rule(value: &str, rule: &ValidationRule, label: &str) -> Option<String> {
+        match rule {
+            ValidationRule::Required => {
+                if value.trim().is_empty() {
+                    Some(format!("{} is required", label))
+                } else {
+                    None
+                }
+            }
+            ValidationRule::Enum(allowed_values) => {
+                if !value.is_empty() && !allowed_values.iter().any(|v| v == value) {
+                    Some(format!(
+                        "{} must be one of: {}",
+                        label,
+                        allowed_values.join(", ")
+                    ))
+                } else {
+                    None
+                }
+            }
+            ValidationRule::PositiveInteger => {
+                if !value.is_empty() {
+                    match value.parse::<i64>() {
+                        Ok(n) if n >= 0 => None,
+                        Ok(_) => Some(format!("{} must be >= 0", label)),
+                        Err(_) => Some(format!("{} must be a valid number", label)),
+                    }
+                } else {
+                    None
+                }
+            }
+            ValidationRule::BeadsIdFormat => {
+                if !value.is_empty() {
+                    let parts: Vec<&str> = value.split('-').collect();
+                    if parts.len() == 3
+                        && parts[0] == "beads"
+                        && parts[1].len() == 4
+                        && parts[2].len() == 4
+                        && parts[1].chars().all(|c| c.is_alphanumeric())
+                        && parts[2].chars().all(|c| c.is_alphanumeric())
+                    {
+                        None
+                    } else {
+                        Some(format!(
+                            "{} must match format: beads-xxxx-xxxx",
+                            label
+                        ))
+                    }
+                } else {
+                    None
+                }
+            }
+            ValidationRule::NoSpaces => {
+                if !value.is_empty() && value.contains(' ') {
+                    Some(format!("{} must not contain spaces", label))
+                } else {
+                    None
+                }
+            }
+            ValidationRule::Date => {
+                if !value.is_empty() {
+                    // Try to parse as RFC3339 or relative date
+                    if chrono::DateTime::parse_from_rfc3339(value).is_ok() {
+                        None
+                    } else if Self::is_relative_date(value) {
+                        None
+                    } else {
+                        Some(format!(
+                            "{} must be a valid date (RFC3339 or relative like '1d', '2w')",
+                            label
+                        ))
+                    }
+                } else {
+                    None
+                }
+            }
+            ValidationRule::FutureDate => {
+                if !value.is_empty() {
+                    // Parse the date and check if it's in the future
+                    if let Ok(parsed_date) = chrono::DateTime::parse_from_rfc3339(value) {
+                        if parsed_date.timestamp() >= chrono::Utc::now().timestamp() {
+                            None
+                        } else {
+                            Some(format!("{} must be in the future", label))
+                        }
+                    } else if Self::is_relative_date(value) {
+                        // Relative dates are always future by definition
+                        None
+                    } else {
+                        Some(format!(
+                            "{} must be a valid future date",
+                            label
+                        ))
+                    }
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    /// Check if a value is a relative date format (e.g., "1d", "2w", "3m")
+    fn is_relative_date(value: &str) -> bool {
+        let value = value.trim();
+        if value.len() < 2 {
+            return false;
+        }
+
+        let (num_part, unit_part) = value.split_at(value.len() - 1);
+        num_part.parse::<u32>().is_ok()
+            && matches!(unit_part, "d" | "w" | "m" | "y" | "h")
     }
 }
 
@@ -654,5 +808,171 @@ mod tests {
 
         state.clear_errors();
         assert!(!state.has_errors());
+    }
+
+    #[test]
+    fn test_validation_rule_required() {
+        let mut field = FormField::text("title", "Title")
+            .with_validation(ValidationRule::Required);
+
+        assert!(!field.validate());
+        assert!(field.error.is_some());
+
+        field.value = "Test".to_string();
+        assert!(field.validate());
+        assert!(field.error.is_none());
+    }
+
+    #[test]
+    fn test_validation_rule_enum() {
+        let mut field = FormField::text("status", "Status")
+            .with_validation(ValidationRule::Enum(vec![
+                "open".to_string(),
+                "closed".to_string(),
+            ]));
+
+        // Empty value should pass
+        assert!(field.validate());
+
+        // Valid value should pass
+        field.value = "open".to_string();
+        assert!(field.validate());
+        assert!(field.error.is_none());
+
+        // Invalid value should fail
+        field.value = "invalid".to_string();
+        assert!(!field.validate());
+        assert!(field.error.is_some());
+    }
+
+    #[test]
+    fn test_validation_rule_positive_integer() {
+        let mut field = FormField::text("estimate", "Estimate")
+            .with_validation(ValidationRule::PositiveInteger);
+
+        // Empty value should pass
+        assert!(field.validate());
+
+        // Valid positive integer
+        field.value = "100".to_string();
+        assert!(field.validate());
+
+        // Zero should pass
+        field.value = "0".to_string();
+        assert!(field.validate());
+
+        // Negative should fail
+        field.value = "-1".to_string();
+        assert!(!field.validate());
+
+        // Non-integer should fail
+        field.value = "abc".to_string();
+        assert!(!field.validate());
+    }
+
+    #[test]
+    fn test_validation_rule_beads_id_format() {
+        let mut field = FormField::text("dependency", "Dependency")
+            .with_validation(ValidationRule::BeadsIdFormat);
+
+        // Empty value should pass
+        assert!(field.validate());
+
+        // Valid beads ID
+        field.value = "beads-1234-5678".to_string();
+        assert!(field.validate());
+
+        field.value = "beads-abcd-efgh".to_string();
+        assert!(field.validate());
+
+        // Invalid formats
+        field.value = "beads-12-34".to_string();
+        assert!(!field.validate());
+
+        field.value = "issue-1234-5678".to_string();
+        assert!(!field.validate());
+
+        field.value = "beads-123-5678".to_string();
+        assert!(!field.validate());
+    }
+
+    #[test]
+    fn test_validation_rule_no_spaces() {
+        let mut field = FormField::text("label", "Label")
+            .with_validation(ValidationRule::NoSpaces);
+
+        // Empty value should pass
+        assert!(field.validate());
+
+        // Value without spaces
+        field.value = "bug-fix".to_string();
+        assert!(field.validate());
+
+        // Value with spaces should fail
+        field.value = "bug fix".to_string();
+        assert!(!field.validate());
+    }
+
+    #[test]
+    fn test_validation_rule_date() {
+        let mut field = FormField::text("due_date", "Due Date")
+            .with_validation(ValidationRule::Date);
+
+        // Empty value should pass
+        assert!(field.validate());
+
+        // Valid RFC3339 date
+        field.value = "2025-01-15T10:00:00Z".to_string();
+        assert!(field.validate());
+
+        // Valid relative date
+        field.value = "1d".to_string();
+        assert!(field.validate());
+
+        field.value = "2w".to_string();
+        assert!(field.validate());
+
+        // Invalid date
+        field.value = "not-a-date".to_string();
+        assert!(!field.validate());
+    }
+
+    #[test]
+    fn test_validation_rule_future_date() {
+        let mut field = FormField::text("due_date", "Due Date")
+            .with_validation(ValidationRule::FutureDate);
+
+        // Empty value should pass
+        assert!(field.validate());
+
+        // Future RFC3339 date should pass
+        field.value = "2030-01-01T00:00:00Z".to_string();
+        assert!(field.validate());
+
+        // Relative dates are always future
+        field.value = "1d".to_string();
+        assert!(field.validate());
+
+        // Past date should fail
+        field.value = "2020-01-01T00:00:00Z".to_string();
+        assert!(!field.validate());
+    }
+
+    #[test]
+    fn test_multiple_validation_rules() {
+        let mut field = FormField::text("estimate", "Estimate")
+            .with_validation(ValidationRule::Required)
+            .with_validation(ValidationRule::PositiveInteger);
+
+        // Empty should fail (required)
+        assert!(!field.validate());
+
+        // Negative should fail (positive integer)
+        field.value = "-1".to_string();
+        assert!(!field.validate());
+
+        // Valid should pass
+        field.value = "100".to_string();
+        assert!(field.validate());
     }
 }

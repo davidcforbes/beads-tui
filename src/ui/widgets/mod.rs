@@ -33,7 +33,7 @@ pub use field_editor::{EditorMode, FieldEditor, FieldEditorState};
 pub use filter_builder::{FilterBuilder, FilterBuilderState, FilterSection};
 pub use filter_panel::{FilterCriteria, FilterPanel};
 pub use filter_save_dialog::{FilterSaveDialog, FilterSaveDialogState, FilterSaveField};
-pub use form::{FieldType, Form, FormField, FormState};
+pub use form::{FieldType, Form, FormField, FormState, ValidationRule};
 pub use gantt_chart::{GanttChart, GanttChartConfig, GroupingMode};
 pub use pert_chart::{Direction, PertChart, PertChartConfig};
 pub use inline_metadata::{

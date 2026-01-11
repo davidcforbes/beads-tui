@@ -1,7 +1,7 @@
 //! Create issue form view
 
 use crate::beads::models::{IssueType, Priority};
-use crate::ui::widgets::{Form, FormField, FormState};
+use crate::ui::widgets::{Form, FormField, FormState, ValidationRule};
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -28,7 +28,8 @@ impl CreateIssueFormState {
         let fields = vec![
             FormField::text("title", "Title")
                 .required()
-                .placeholder("Brief description of the issue"),
+                .placeholder("Brief description of the issue")
+                .with_validation(ValidationRule::Required),
             FormField::selector(
                 "type",
                 "Type",
@@ -41,7 +42,14 @@ impl CreateIssueFormState {
                 ],
             )
             .value("Task")
-            .required(),
+            .required()
+            .with_validation(ValidationRule::Enum(vec![
+                "Epic".to_string(),
+                "Feature".to_string(),
+                "Task".to_string(),
+                "Bug".to_string(),
+                "Chore".to_string(),
+            ])),
             FormField::selector(
                 "priority",
                 "Priority",
@@ -54,7 +62,14 @@ impl CreateIssueFormState {
                 ],
             )
             .value("P2 (Medium)")
-            .required(),
+            .required()
+            .with_validation(ValidationRule::Enum(vec![
+                "P0 (Critical)".to_string(),
+                "P1 (High)".to_string(),
+                "P2 (Medium)".to_string(),
+                "P3 (Low)".to_string(),
+                "P4 (Backlog)".to_string(),
+            ])),
             FormField::selector(
                 "status",
                 "Status",
@@ -66,7 +81,13 @@ impl CreateIssueFormState {
                 ],
             )
             .value("Open")
-            .required(),
+            .required()
+            .with_validation(ValidationRule::Enum(vec![
+                "Open".to_string(),
+                "InProgress".to_string(),
+                "Blocked".to_string(),
+                "Closed".to_string(),
+            ])),
             FormField::text("assignee", "Assignee").placeholder("username (optional)"),
             FormField::text("labels", "Labels").placeholder("comma-separated labels (optional)"),
             FormField::text_area("description", "Description")
