@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "rust-lang.rust-analyzer",
+    "vadimcn.vscode-lldb",
+    "tamasfe.even-better-toml",
+    "serayuzgur.crates",
+    "swellaby.vscode-rust-test-adapter",
+    "usernamehw.errorlens",
+    "mutantdino.resourcemonitor",
+    "wayou.vscode-todo-highlight"
+  ]
+}
