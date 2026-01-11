@@ -4,12 +4,14 @@ pub mod create_issue;
 pub mod description_editor;
 pub mod issue_detail;
 pub mod issue_editor;
+pub mod issues_view;
 pub mod search_interface;
 
 pub use create_issue::{CreateIssueData, CreateIssueForm, CreateIssueFormState};
 pub use description_editor::{DescriptionEditorState, DescriptionEditorView, EditorMode};
 pub use issue_detail::IssueDetailView;
 pub use issue_editor::{IssueEditorState, IssueEditorView};
+pub use issues_view::{IssuesView, IssuesViewMode, IssuesViewState};
 pub use search_interface::{SearchInterfaceState, SearchInterfaceView, SearchScope};
 
 // Future views will be added here:
