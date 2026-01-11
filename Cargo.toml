@@ -81,11 +81,6 @@ opt-level = 0
 [profile.dev.package."*"]
 opt-level = 2
 
-# Benchmarks will be added later
-# [[bench]]
-# name = "rendering"
-# harness = false
-#
-# [[bench]]
-# name = "parsing"
-# harness = false
+[[bench]]
+name = "common_operations"
+harness = false
