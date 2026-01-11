@@ -238,8 +238,16 @@ fn handle_database_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
 }
 
 /// Handle keyboard events for the Help view
-fn handle_help_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
-    // TODO: Implement help view controls
+fn handle_help_view_event(key_code: KeyCode, app: &mut models::AppState) {
+    match key_code {
+        KeyCode::Right | KeyCode::Tab | KeyCode::Char('l') => {
+            app.next_help_section();
+        }
+        KeyCode::Left | KeyCode::Char('h') => {
+            app.previous_help_section();
+        }
+        _ => {}
+    }
 }
 
 fn run_app<B: ratatui::backend::Backend>(
@@ -419,7 +427,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         }
         _ => {
             // Help view (tab 4 and beyond)
-            let help_view = HelpView::new();
+            let help_view = HelpView::new().selected_section(app.help_section);
             f.render_widget(help_view, tabs_chunks[1]);
         }
     }

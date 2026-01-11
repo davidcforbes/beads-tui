@@ -1,7 +1,7 @@
 /// Application state management
 use crate::beads::BeadsClient;
 use crate::ui::views::{
-    compute_label_stats, DatabaseStats, DatabaseStatus, IssuesViewState, LabelStats,
+    compute_label_stats, DatabaseStats, DatabaseStatus, HelpSection, IssuesViewState, LabelStats,
 };
 
 use super::PerfStats;
@@ -22,6 +22,8 @@ pub struct AppState {
     pub perf_stats: PerfStats,
     /// Whether to show performance stats in UI
     pub show_perf_stats: bool,
+    /// Selected help section
+    pub help_section: HelpSection,
 }
 
 impl AppState {
@@ -57,6 +59,7 @@ impl AppState {
             dirty: true, // Initial render required
             perf_stats: PerfStats::new(),
             show_perf_stats: false,
+            help_section: HelpSection::Global,
         }
     }
 
@@ -95,6 +98,26 @@ impl AppState {
         if self.show_perf_stats && !self.perf_stats.is_enabled() {
             self.perf_stats.set_enabled(true);
         }
+        self.mark_dirty();
+    }
+
+    /// Navigate to next help section
+    pub fn next_help_section(&mut self) {
+        let sections = HelpSection::all();
+        let current_idx = sections.iter().position(|&s| s == self.help_section).unwrap_or(0);
+        self.help_section = sections[(current_idx + 1) % sections.len()];
+        self.mark_dirty();
+    }
+
+    /// Navigate to previous help section
+    pub fn previous_help_section(&mut self) {
+        let sections = HelpSection::all();
+        let current_idx = sections.iter().position(|&s| s == self.help_section).unwrap_or(0);
+        self.help_section = if current_idx == 0 {
+            sections[sections.len() - 1]
+        } else {
+            sections[current_idx - 1]
+        };
         self.mark_dirty();
     }
 }
