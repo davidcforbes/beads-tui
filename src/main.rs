@@ -108,6 +108,20 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
                             .search_state_mut()
                             .move_cursor_right();
                     }
+                    KeyCode::Up => {
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .history_previous();
+                        issues_state.search_state_mut().update_filtered_issues();
+                    }
+                    KeyCode::Down => {
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .history_next();
+                        issues_state.search_state_mut().update_filtered_issues();
+                    }
                     KeyCode::Home => {
                         issues_state
                             .search_state_mut()
