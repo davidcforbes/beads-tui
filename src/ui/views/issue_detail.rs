@@ -1,12 +1,13 @@
 //! Issue detail view
 
 use crate::beads::models::{Issue, IssueStatus, IssueType, Priority};
+use crate::ui::widgets::{MarkdownViewer, MarkdownViewerState};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Widget, Wrap},
+    widgets::{Block, Borders, List, ListItem, Paragraph, StatefulWidget, Widget},
 };
 
 /// Issue detail view widget
@@ -132,16 +133,17 @@ impl<'a> IssueDetailView<'a> {
             "No description provided.".to_string()
         };
 
-        let description = Paragraph::new(description_text)
+        // Use markdown viewer for rich text rendering
+        let mut markdown_state = MarkdownViewerState::new(description_text.clone());
+        let markdown_viewer = MarkdownViewer::new()
             .block(Block::default().borders(Borders::ALL).title("Description"))
-            .wrap(Wrap { trim: false })
             .style(if self.issue.description.is_none() {
                 Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC)
             } else {
                 Style::default()
             });
 
-        description.render(area, buf);
+        StatefulWidget::render(markdown_viewer, area, buf, &mut markdown_state);
     }
 
     fn render_metadata(&self, area: Rect, buf: &mut Buffer) {
@@ -245,7 +247,7 @@ impl<'a> IssueDetailView<'a> {
         let list = List::new(items)
             .block(Block::default().borders(Borders::ALL).title("Dependencies"));
 
-        list.render(area, buf);
+        Widget::render(list, area, buf);
     }
 
     fn render_notes(&self, area: Rect, buf: &mut Buffer) {
@@ -276,7 +278,7 @@ impl<'a> IssueDetailView<'a> {
         let list = List::new(items)
             .block(Block::default().borders(Borders::ALL).title("Notes"));
 
-        list.render(area, buf);
+        Widget::render(list, area, buf);
     }
 }
 
