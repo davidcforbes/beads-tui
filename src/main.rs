@@ -76,33 +76,99 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
 
     match view_mode {
         IssuesViewMode::List => {
-            // List mode: navigation, search, and quick actions
-            match key_code {
-                KeyCode::Char('j') | KeyCode::Down => {
-                    let len = issues_state.search_state().filtered_issues().len();
-                    issues_state.search_state_mut().list_state_mut().select_next(len);
+            let search_focused = issues_state.search_state().search_state().is_focused();
+
+            if search_focused {
+                // Search input is focused - handle text input
+                match key_code {
+                    KeyCode::Char(c) => {
+                        issues_state.search_state_mut().search_state_mut().insert_char(c);
+                        issues_state.search_state_mut().update_filtered_issues();
+                    }
+                    KeyCode::Backspace => {
+                        issues_state.search_state_mut().search_state_mut().delete_char();
+                        issues_state.search_state_mut().update_filtered_issues();
+                    }
+                    KeyCode::Delete => {
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .delete_char_forward();
+                        issues_state.search_state_mut().update_filtered_issues();
+                    }
+                    KeyCode::Left => {
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .move_cursor_left();
+                    }
+                    KeyCode::Right => {
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .move_cursor_right();
+                    }
+                    KeyCode::Home => {
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .move_cursor_to_start();
+                    }
+                    KeyCode::End => {
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .move_cursor_to_end();
+                    }
+                    KeyCode::Enter => {
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .add_to_history();
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .set_focused(false);
+                    }
+                    KeyCode::Esc => {
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .set_focused(false);
+                    }
+                    _ => {}
                 }
-                KeyCode::Char('k') | KeyCode::Up => {
-                    let len = issues_state.search_state().filtered_issues().len();
-                    issues_state
-                        .search_state_mut()
-                        .list_state_mut()
-                        .select_previous(len);
+            } else {
+                // List mode: navigation and quick actions
+                match key_code {
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        let len = issues_state.search_state().filtered_issues().len();
+                        issues_state.search_state_mut().list_state_mut().select_next(len);
+                    }
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        let len = issues_state.search_state().filtered_issues().len();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .select_previous(len);
+                    }
+                    KeyCode::Enter => {
+                        issues_state.enter_detail_view();
+                    }
+                    KeyCode::Char('e') => {
+                        issues_state.enter_edit_mode();
+                    }
+                    KeyCode::Char('/') => {
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .set_focused(true);
+                    }
+                    KeyCode::Esc => {
+                        issues_state.search_state_mut().clear_search();
+                    }
+                    _ => {}
                 }
-                KeyCode::Enter => {
-                    issues_state.enter_detail_view();
-                }
-                KeyCode::Char('e') => {
-                    issues_state.enter_edit_mode();
-                }
-                KeyCode::Char('/') => {
-                    issues_state.search_state_mut().search_state_mut().set_focused(true);
-                }
-                KeyCode::Esc => {
-                    issues_state.search_state_mut().clear_search();
-                    issues_state.search_state_mut().search_state_mut().set_focused(false);
-                }
-                _ => {}
             }
         }
         IssuesViewMode::Detail => {
