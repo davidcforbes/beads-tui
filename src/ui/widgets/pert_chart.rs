@@ -401,8 +401,13 @@ impl<'a> PertChart<'a> {
         );
         let (to_vx, to_vy) = self.transform_position(to_node.x, to_node.y + self.config.node_height / 2);
 
-        // Simple horizontal line with arrow
-        if from_vy == to_vy && from_vx < to_vx {
+        // Skip if edge goes backward horizontally (shouldn't happen in DAG)
+        if from_vx >= to_vx {
+            return;
+        }
+
+        // Simple horizontal line with arrow (same Y level)
+        if from_vy == to_vy {
             let y_pos = area.y + from_vy as u16;
             if y_pos >= area.y && y_pos < area.y + area.height {
                 for x in (from_vx + 1)..to_vx {
@@ -417,8 +422,76 @@ impl<'a> PertChart<'a> {
                     buf.set_string(arrow_x.saturating_sub(1), y_pos, "→", style);
                 }
             }
+        } else {
+            // Non-horizontal edge: draw H-V-H pattern with corners
+            // Turn point is halfway between source and target X
+            let turn_x = from_vx + (to_vx - from_vx) / 2;
+            
+            // Horizontal segment 1: from source to turn point
+            let y1 = area.y + from_vy as u16;
+            if y1 >= area.y && y1 < area.y + area.height {
+                for x in (from_vx + 1)..turn_x {
+                    let x_pos = area.x + x as u16;
+                    if x_pos >= area.x && x_pos < area.x + area.width {
+                        buf.set_string(x_pos, y1, "─", style);
+                    }
+                }
+            }
+
+            // Vertical segment: from turn point at source Y to turn point at target Y
+            let x_turn = area.x + turn_x as u16;
+            if x_turn >= area.x && x_turn < area.x + area.width {
+                let (y_start, y_end) = if from_vy < to_vy {
+                    (from_vy, to_vy)
+                } else {
+                    (to_vy, from_vy)
+                };
+                
+                for y in (y_start + 1)..y_end {
+                    let y_pos = area.y + y as u16;
+                    if y_pos >= area.y && y_pos < area.y + area.height {
+                        buf.set_string(x_turn, y_pos, "│", style);
+                    }
+                }
+
+                // Corner characters
+                if from_vy < to_vy {
+                    // Going down: use ┐ at top, └ at bottom
+                    if y1 >= area.y && y1 < area.y + area.height {
+                        buf.set_string(x_turn, y1, "┐", style);
+                    }
+                    let y_bottom = area.y + to_vy as u16;
+                    if y_bottom >= area.y && y_bottom < area.y + area.height {
+                        buf.set_string(x_turn, y_bottom, "└", style);
+                    }
+                } else {
+                    // Going up: use ┘ at bottom, ┌ at top
+                    if y1 >= area.y && y1 < area.y + area.height {
+                        buf.set_string(x_turn, y1, "┘", style);
+                    }
+                    let y_top = area.y + to_vy as u16;
+                    if y_top >= area.y && y_top < area.y + area.height {
+                        buf.set_string(x_turn, y_top, "┌", style);
+                    }
+                }
+            }
+
+            // Horizontal segment 2: from turn point to target (with arrow)
+            let y2 = area.y + to_vy as u16;
+            if y2 >= area.y && y2 < area.y + area.height {
+                for x in (turn_x + 1)..to_vx {
+                    let x_pos = area.x + x as u16;
+                    if x_pos >= area.x && x_pos < area.x + area.width {
+                        buf.set_string(x_pos, y2, "─", style);
+                    }
+                }
+                // Arrow head
+                let arrow_x = area.x + to_vx as u16;
+                if arrow_x > area.x && arrow_x <= area.x + area.width {
+                    buf.set_string(arrow_x.saturating_sub(1), y2, "→", style);
+                }
+            }
         }
-        // TODO: Handle non-horizontal edges with corner characters
     }
 }
 
@@ -770,5 +843,115 @@ mod tests {
 
         config.toggle_legend();
         assert!(config.show_legend);
+    }
+
+    #[test]
+    fn test_non_horizontal_edge_rendering() {
+        // Create issues that will be placed in different lanes (different Y positions)
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+
+        // Make B and C depend on A (parallel paths)
+        issue2.dependencies = vec!["A".to_string()];
+        issue3.dependencies = vec!["A".to_string()];
+
+        let mut graph = PertGraph::new(&[issue1, issue2, issue3], 1.0);
+
+        // Manually set different Y positions to force non-horizontal edges
+        // (In real layout, this happens when nodes are in different lanes)
+        if let Some(node_a) = graph.nodes.get_mut("A") {
+            node_a.y = 0;
+        }
+        if let Some(node_b) = graph.nodes.get_mut("B") {
+            node_b.y = 3; // Different lane (lane * 3)
+        }
+        if let Some(node_c) = graph.nodes.get_mut("C") {
+            node_c.y = 6; // Another lane
+        }
+
+        let chart = PertChart::new(&graph);
+
+        // Render to a buffer - this should not panic
+        // Non-horizontal edges should be rendered with corners and vertical segments
+        let mut buf = Buffer::empty(Rect::new(0, 0, 80, 24));
+        ratatui::widgets::Widget::render(chart, Rect::new(0, 0, 80, 24), &mut buf);
+
+        // Verify nodes are at different Y positions (testing our setup)
+        assert_eq!(graph.nodes.get("A").unwrap().y, 0);
+        assert_eq!(graph.nodes.get("B").unwrap().y, 3);
+        assert_eq!(graph.nodes.get("C").unwrap().y, 6);
+
+        // The test passes if we reach here without panic
+        // (Before fix, non-horizontal edges were silently skipped)
+    }
+
+    #[test]
+    fn test_non_horizontal_edge_with_critical_path() {
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+
+        issue2.dependencies = vec!["A".to_string()];
+
+        let mut graph = PertGraph::new(&[issue1, issue2], 1.0);
+
+        // Set different Y positions
+        if let Some(node_a) = graph.nodes.get_mut("A") {
+            node_a.y = 0;
+            node_a.is_critical = true;
+        }
+        if let Some(node_b) = graph.nodes.get_mut("B") {
+            node_b.y = 3;
+            node_b.is_critical = true;
+        }
+
+        let config = PertChartConfig {
+            show_critical_path: true,
+            ..Default::default()
+        };
+        let chart = PertChart::new(&graph).config(config);
+
+        // Render to a buffer - should not panic
+        // Critical path styling should apply to non-horizontal edges
+        let mut buf = Buffer::empty(Rect::new(0, 0, 80, 24));
+        ratatui::widgets::Widget::render(chart, Rect::new(0, 0, 80, 24), &mut buf);
+
+        // Verify both nodes are marked as critical
+        assert!(graph.nodes.get("A").unwrap().is_critical);
+        assert!(graph.nodes.get("B").unwrap().is_critical);
+
+        // The test passes if we reach here without panic
+        // (Verifies critical path styling works with non-horizontal edges)
+    }
+
+    #[test]
+    fn test_backward_edge_skipped() {
+        // Test that edges going backward (from_vx >= to_vx) are skipped
+        // This shouldn't happen in a proper DAG layout, but we handle it gracefully
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+
+        issue2.dependencies = vec!["A".to_string()];
+
+        let mut graph = PertGraph::new(&[issue1, issue2], 1.0);
+
+        // Manually create an invalid situation where target is left of source
+        if let Some(node_a) = graph.nodes.get_mut("A") {
+            node_a.x = 20;
+            node_a.y = 0;
+        }
+        if let Some(node_b) = graph.nodes.get_mut("B") {
+            node_b.x = 10; // B is to the left of A (invalid for DAG)
+            node_b.y = 3;
+        }
+
+        let chart = PertChart::new(&graph);
+
+        // This should not panic, even though the edge is invalid
+        let mut buf = Buffer::empty(Rect::new(0, 0, 80, 24));
+        ratatui::widgets::Widget::render(chart, Rect::new(0, 0, 80, 24), &mut buf);
+
+        // The test passes if we reach here without panic
+        // (The edge is skipped in render_edge when from_vx >= to_vx)
     }
 }
