@@ -354,7 +354,7 @@ impl PertGraph {
         // Assign Y positions within each bucket to avoid overlap
         let mut lane_assignments: HashMap<u16, HashSet<u16>> = HashMap::new();
 
-        for (id, node) in &mut self.nodes {
+        for (_id, node) in &mut self.nodes {
             let bucket = (node.earliest_start / bucket_size) as u16;
             node.x = bucket * 4; // Horizontal spacing
 

@@ -12,6 +12,7 @@ pub mod filter_save_dialog;
 pub mod form;
 pub mod gantt_chart;
 pub mod inline_metadata;
+pub mod pert_chart;
 pub mod issue_list;
 pub mod kanban_card;
 pub mod label_picker;
@@ -34,6 +35,7 @@ pub use filter_panel::{FilterCriteria, FilterPanel};
 pub use filter_save_dialog::{FilterSaveDialog, FilterSaveDialogState, FilterSaveField};
 pub use form::{FieldType, Form, FormField, FormState};
 pub use gantt_chart::{GanttChart, GanttChartConfig, GroupingMode};
+pub use pert_chart::{Direction, PertChart, PertChartConfig};
 pub use inline_metadata::{
     build_metadata_spans, format_age, format_assignee, format_labels, MetadataDisplayConfig,
 };
