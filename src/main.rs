@@ -163,6 +163,60 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     }
                     _ => {}
                 }
+            } else if issues_state.search_state().list_state().is_editing() {
+                // In-place editing mode: handle title editing
+                match key_code {
+                    KeyCode::Enter => {
+                        // Save the edited title
+                        let list_state = issues_state.search_state_mut().list_state_mut();
+                        if let Some(new_title) = list_state.finish_editing() {
+                            // Get the selected issue
+                            if let Some(issue) = issues_state.search_state().selected_issue() {
+                                let issue_id = issue.id.clone();
+                                tracing::info!("Saving title edit for {}: {}", issue_id, new_title);
+
+                                // Create IssueUpdate with only title
+                                let update = crate::beads::client::IssueUpdate::new()
+                                    .title(new_title);
+
+                                // Execute the update
+                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                let client = &app.beads_client;
+
+                                match rt.block_on(client.update_issue(&issue_id, update)) {
+                                    Ok(()) => {
+                                        tracing::info!("Successfully updated title for: {}", issue_id);
+                                        app.reload_issues();
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Failed to update title: {:?}", e);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Esc => {
+                        // Cancel editing
+                        issues_state.search_state_mut().list_state_mut().cancel_editing();
+                    }
+                    KeyCode::Char(ch) => {
+                        // Insert character
+                        issues_state.search_state_mut().list_state_mut().insert_char_at_cursor(ch);
+                    }
+                    KeyCode::Backspace => {
+                        // Delete character before cursor
+                        issues_state.search_state_mut().list_state_mut().delete_char_before_cursor();
+                    }
+                    KeyCode::Left => {
+                        // Move cursor left
+                        issues_state.search_state_mut().list_state_mut().move_cursor_left();
+                    }
+                    KeyCode::Right => {
+                        // Move cursor right
+                        issues_state.search_state_mut().list_state_mut().move_cursor_right();
+                    }
+                    _ => {}
+                }
             } else {
                 // List mode: navigation and quick actions
                 match key_code {
@@ -240,21 +294,31 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
                         if let Some(issue) = issues_state.search_state().selected_issue() {
                             let issue_id = issue.id.clone();
                             tracing::warn!("Deleting issue: {} (no confirmation yet)", issue_id);
-                            
+
                             // Create a tokio runtime to execute the async call
                             let rt = tokio::runtime::Runtime::new().unwrap();
                             let client = &app.beads_client;
-                            
+
                             match rt.block_on(client.delete_issue(&issue_id)) {
                                 Ok(()) => {
                                     tracing::info!("Successfully deleted issue: {}", issue_id);
-                                    
+
                                     // Reload issues list
                                     app.reload_issues();
                                 }
                                 Err(e) => {
                                     tracing::error!("Failed to delete issue: {:?}", e);
                                 }
+                            }
+                        }
+                    }
+                    KeyCode::Char('r') => {
+                        // Start in-place editing of title
+                        if let Some(issue) = issues_state.search_state().selected_issue() {
+                            let title = issue.title.clone();
+                            if let Some(selected_idx) = issues_state.search_state().list_state().selected() {
+                                tracing::info!("Starting in-place edit for {}: {}", issue.id, title);
+                                issues_state.search_state_mut().list_state_mut().start_editing(selected_idx, title);
                             }
                         }
                     }

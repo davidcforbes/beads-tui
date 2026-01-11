@@ -43,6 +43,8 @@ pub struct IssueListState {
     table_state: TableState,
     sort_column: SortColumn,
     sort_direction: SortDirection,
+    /// Editing state: (issue_index, edit_buffer, cursor_position)
+    editing: Option<(usize, String, usize)>,
 }
 
 impl Default for IssueListState {
@@ -59,6 +61,7 @@ impl IssueListState {
             table_state: state,
             sort_column: SortColumn::Updated,
             sort_direction: SortDirection::Descending,
+            editing: None,
         }
     }
 
@@ -119,6 +122,78 @@ impl IssueListState {
 
     pub fn sort_direction(&self) -> SortDirection {
         self.sort_direction
+    }
+
+    /// Start editing the title of the issue at the given index
+    pub fn start_editing(&mut self, index: usize, initial_title: String) {
+        let cursor_pos = initial_title.len();
+        self.editing = Some((index, initial_title, cursor_pos));
+    }
+
+    /// Check if currently editing
+    pub fn is_editing(&self) -> bool {
+        self.editing.is_some()
+    }
+
+    /// Get the current editing state (index, buffer, cursor)
+    pub fn editing_state(&self) -> Option<(usize, &String, usize)> {
+        self.editing
+            .as_ref()
+            .map(|(idx, buf, cursor)| (*idx, buf, *cursor))
+    }
+
+    /// Update the edit buffer
+    pub fn update_edit_buffer(&mut self, new_text: String) {
+        if let Some((idx, _, _)) = self.editing {
+            let cursor_pos = new_text.len();
+            self.editing = Some((idx, new_text, cursor_pos));
+        }
+    }
+
+    /// Insert a character at the cursor position
+    pub fn insert_char_at_cursor(&mut self, ch: char) {
+        if let Some((_idx, ref mut buffer, ref mut cursor)) = self.editing {
+            buffer.insert(*cursor, ch);
+            *cursor += 1;
+        }
+    }
+
+    /// Delete character before cursor (backspace)
+    pub fn delete_char_before_cursor(&mut self) {
+        if let Some((_idx, ref mut buffer, ref mut cursor)) = self.editing {
+            if *cursor > 0 {
+                buffer.remove(*cursor - 1);
+                *cursor -= 1;
+            }
+        }
+    }
+
+    /// Move cursor left
+    pub fn move_cursor_left(&mut self) {
+        if let Some((_, _, ref mut cursor)) = self.editing {
+            if *cursor > 0 {
+                *cursor -= 1;
+            }
+        }
+    }
+
+    /// Move cursor right
+    pub fn move_cursor_right(&mut self) {
+        if let Some((_, ref buffer, ref mut cursor)) = self.editing {
+            if *cursor < buffer.len() {
+                *cursor += 1;
+            }
+        }
+    }
+
+    /// Cancel editing and discard changes
+    pub fn cancel_editing(&mut self) {
+        self.editing = None;
+    }
+
+    /// Finish editing and return the edited title
+    pub fn finish_editing(&mut self) -> Option<String> {
+        self.editing.take().map(|(_, buffer, _)| buffer)
     }
 }
 
@@ -388,10 +463,14 @@ impl<'a> StatefulWidget for IssueList<'a> {
             .style(Style::default().fg(Color::Yellow))
             .height(1);
 
+        // Get editing state for rendering
+        let editing_state = state.editing_state();
+
         // Build rows
         let rows: Vec<Row> = issues
             .iter()
-            .map(|issue| {
+            .enumerate()
+            .map(|(row_idx, issue)| {
                 let type_cell = Cell::from(Self::type_symbol(&issue.issue_type));
 
                 // Apply highlighting if search query is present
@@ -401,10 +480,24 @@ impl<'a> StatefulWidget for IssueList<'a> {
                     Cell::from(issue.id.clone())
                 };
 
+                // Check if this row is being edited
+                let title_text = if let Some((edit_idx, edit_buffer, cursor_pos)) = editing_state {
+                    if row_idx == edit_idx {
+                        // Show edit buffer with cursor
+                        let before_cursor = &edit_buffer[..cursor_pos];
+                        let after_cursor = &edit_buffer[cursor_pos..];
+                        format!("{}|{}", before_cursor, after_cursor)
+                    } else {
+                        issue.title.clone()
+                    }
+                } else {
+                    issue.title.clone()
+                };
+
                 // Handle title cell with wrapping support
                 let title_cell = if self.row_height > 1 {
                     // Multi-row mode: wrap text
-                    let wrapped_lines = Self::wrap_text(&issue.title, 30); // Use min constraint as width
+                    let wrapped_lines = Self::wrap_text(&title_text, 30); // Use min constraint as width
                     let lines: Vec<Line> = wrapped_lines
                         .iter()
                         .take(self.row_height as usize)
@@ -426,7 +519,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
                     Cell::from(padded_lines)
                 } else {
                     // Single-row mode: truncate
-                    let truncated = Self::truncate_text(&issue.title, 30);
+                    let truncated = Self::truncate_text(&title_text, 30);
                     if let Some(ref query) = self.search_query {
                         Cell::from(Line::from(Self::highlight_text(&truncated, query)))
                     } else {
