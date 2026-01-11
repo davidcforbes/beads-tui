@@ -4,6 +4,7 @@
 /// the beads data models in the beads module.
 pub mod app_state;
 pub mod filter;
+pub mod gantt_schedule;
 pub mod kanban_config;
 pub mod navigation;
 pub mod perf;
@@ -17,3 +18,6 @@ pub use perf::PerfStats;
 // Re-export table and kanban configs with their full types to avoid ambiguity
 pub use table_config::TableConfig;
 pub use kanban_config::KanbanConfig;
+
+// Re-export gantt schedule types
+pub use gantt_schedule::{IssueSchedule, ScheduleData, TimeEstimate, TimelineConfig, ZoomLevel};
