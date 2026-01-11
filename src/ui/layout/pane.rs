@@ -154,6 +154,42 @@ impl PaneManager {
         }
     }
 
+    /// Split the focused pane horizontally
+    pub fn split_focused_horizontal(&mut self, ratio: u16) -> bool {
+        Self::split_pane_horizontal(&mut self.root, self.focused_id, ratio, &mut self.next_id)
+    }
+
+    /// Split the focused pane vertically
+    pub fn split_focused_vertical(&mut self, ratio: u16) -> bool {
+        Self::split_pane_vertical(&mut self.root, self.focused_id, ratio, &mut self.next_id)
+    }
+
+    /// Helper to find and split a specific pane horizontally
+    fn split_pane_horizontal(pane: &mut Pane, target_id: usize, ratio: u16, next_id: &mut usize) -> bool {
+        if pane.id == target_id && !pane.is_split() {
+            pane.split_horizontal(ratio, next_id);
+            true
+        } else if let Some(split) = &mut pane.split {
+            Self::split_pane_horizontal(&mut split.first, target_id, ratio, next_id)
+                || Self::split_pane_horizontal(&mut split.second, target_id, ratio, next_id)
+        } else {
+            false
+        }
+    }
+
+    /// Helper to find and split a specific pane vertically
+    fn split_pane_vertical(pane: &mut Pane, target_id: usize, ratio: u16, next_id: &mut usize) -> bool {
+        if pane.id == target_id && !pane.is_split() {
+            pane.split_vertical(ratio, next_id);
+            true
+        } else if let Some(split) = &mut pane.split {
+            Self::split_pane_vertical(&mut split.first, target_id, ratio, next_id)
+                || Self::split_pane_vertical(&mut split.second, target_id, ratio, next_id)
+        } else {
+            false
+        }
+    }
+
     /// Update layout when terminal is resized
     pub fn resize(&mut self, new_area: Rect) {
         self.root.area = new_area;
