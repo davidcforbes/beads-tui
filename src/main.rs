@@ -302,32 +302,35 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     KeyCode::Enter => {
                         // Validate and submit
                         if create_form_state.validate() {
-                            if let Some(_data) = app.issues_view_state.save_create() {
-                                // TODO: Implement actual bd create call
-                                // For now, we have the data but need to integrate async beads_client
-                                // let client = &app.beads_client;
-                                // match tokio::runtime::Runtime::new().unwrap().block_on(
-                                //     client.create_issue_full(
-                                //         &data.title,
-                                //         data.issue_type,
-                                //         data.priority,
-                                //         Some(&data.status),
-                                //         data.assignee.as_deref(),
-                                //         &data.labels,
-                                //         data.description.as_deref(),
-                                //     )
-                                // ) {
-                                //     Ok(issue_id) => {
-                                //         // Successfully created, reload issues and select new one
-                                //         // TODO: Reload issues list
-                                //     }
-                                //     Err(e) => {
-                                //         // TODO: Show error message to user
-                                //     }
-                                // }
+                            if let Some(data) = app.issues_view_state.save_create() {
+                                // Create a tokio runtime to execute the async call
+                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                let client = &app.beads_client;
                                 
-                                // For now, just return to list
-                                app.issues_view_state.cancel_create();
+                                match rt.block_on(
+                                    client.create_issue_full(
+                                        &data.title,
+                                        data.issue_type,
+                                        data.priority,
+                                        Some(&data.status),
+                                        data.assignee.as_deref(),
+                                        &data.labels,
+                                        data.description.as_deref(),
+                                    )
+                                ) {
+                                    Ok(issue_id) => {
+                                        // Successfully created
+                                        // TODO: Reload issues list and select the new issue
+                                        // For now, just return to list
+                                        tracing::info!("Successfully created issue: {}", issue_id);
+                                        app.issues_view_state.cancel_create();
+                                    }
+                                    Err(e) => {
+                                        // TODO: Show error message to user in UI
+                                        tracing::error!("Failed to create issue: {:?}", e);
+                                        // For now, stay in create mode so user can fix and retry
+                                    }
+                                }
                             }
                         }
                     }
