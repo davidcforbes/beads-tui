@@ -1,6 +1,6 @@
 //! Issue editor view for modifying existing issues
 
-use crate::beads::models::{Issue, IssueStatus, IssueType, Priority};
+use crate::beads::{client::IssueUpdate, models::{Issue, IssueStatus, IssueType, Priority}};
 use crate::ui::widgets::{Form, FormField, FormState};
 use ratatui::{
     buffer::Buffer,
@@ -9,12 +9,14 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
 };
+use std::collections::HashMap;
 
 /// Issue editor state
 #[derive(Debug)]
 pub struct IssueEditorState {
     form_state: FormState,
     issue_id: String,
+    original_values: HashMap<String, String>,
     modified: bool,
     saved: bool,
     cancelled: bool,
@@ -77,9 +79,19 @@ impl IssueEditorState {
                 .placeholder("Detailed description of the issue (optional)"),
         ];
 
+        let mut original_values = HashMap::new();
+        original_values.insert("title".to_string(), issue.title.clone());
+        original_values.insert("type".to_string(), format!("{:?}", issue.issue_type));
+        original_values.insert("priority".to_string(), format!("{}", issue.priority));
+        original_values.insert("status".to_string(), format!("{:?}", issue.status));
+        original_values.insert("assignee".to_string(), issue.assignee.clone().unwrap_or_default());
+        original_values.insert("labels".to_string(), issue.labels.join(", "));
+        original_values.insert("description".to_string(), issue.description.clone().unwrap_or_default());
+
         Self {
             form_state: FormState::new(fields),
             issue_id: issue.id.clone(),
+            original_values,
             modified: false,
             saved: false,
             cancelled: false,
@@ -223,6 +235,133 @@ impl IssueEditorState {
             blocks: original.blocks.clone(),
             notes: original.notes.clone(),
         })
+    }
+
+    /// Get a map of changed fields with their old and new values
+    pub fn get_changed_fields(&self) -> HashMap<String, (String, String)> {
+        let mut changes = HashMap::new();
+        
+        for (field_name, original_value) in &self.original_values {
+            if let Some(current_value) = self.form_state.get_value(field_name) {
+                let current_str = current_value.to_string();
+                if &current_str != original_value {
+                    changes.insert(
+                        field_name.clone(),
+                        (original_value.clone(), current_str),
+                    );
+                }
+            }
+        }
+        
+        changes
+    }
+
+    /// Check if any fields have been changed
+    pub fn has_changes(&self) -> bool {
+        !self.get_changed_fields().is_empty()
+    }
+
+    /// Get a formatted change summary for display
+    pub fn get_change_summary(&self) -> Vec<String> {
+        let changes = self.get_changed_fields();
+        let mut summary = Vec::new();
+        
+        // Sort field names for consistent display
+        let mut field_names: Vec<_> = changes.keys().collect();
+        field_names.sort();
+        
+        for field_name in field_names {
+            if let Some((old_val, new_val)) = changes.get(field_name) {
+                let old_display = if old_val.is_empty() { "<empty>" } else { old_val };
+                let new_display = if new_val.is_empty() { "<empty>" } else { new_val };
+                summary.push(format!("{}: {} → {}", field_name, old_display, new_display));
+            }
+        }
+        
+        summary
+    }
+
+    /// Build an IssueUpdate containing only the changed fields
+    pub fn get_issue_update(&self) -> Option<IssueUpdate> {
+        if !self.has_changes() {
+            return None;
+        }
+
+        let changes = self.get_changed_fields();
+        let mut update = IssueUpdate::new();
+
+        // Only add fields that have changed
+        if changes.contains_key("title") {
+            if let Some(title) = self.form_state.get_value("title") {
+                update = update.title(title.to_string());
+            }
+        }
+
+        if changes.contains_key("type") {
+            if let Some(type_str) = self.form_state.get_value("type") {
+                let issue_type = match type_str {
+                    "Epic" => IssueType::Epic,
+                    "Feature" => IssueType::Feature,
+                    "Task" => IssueType::Task,
+                    "Bug" => IssueType::Bug,
+                    "Chore" => IssueType::Chore,
+                    _ => return None,
+                };
+                update = update.issue_type(issue_type);
+            }
+        }
+
+        if changes.contains_key("status") {
+            if let Some(status_str) = self.form_state.get_value("status") {
+                let status = match status_str {
+                    "Open" => IssueStatus::Open,
+                    "InProgress" => IssueStatus::InProgress,
+                    "Blocked" => IssueStatus::Blocked,
+                    "Closed" => IssueStatus::Closed,
+                    _ => return None,
+                };
+                update = update.status(status);
+            }
+        }
+
+        if changes.contains_key("priority") {
+            if let Some(priority_str) = self.form_state.get_value("priority") {
+                let priority = match priority_str {
+                    "P0" => Priority::P0,
+                    "P1" => Priority::P1,
+                    "P2" => Priority::P2,
+                    "P3" => Priority::P3,
+                    "P4" => Priority::P4,
+                    _ => return None,
+                };
+                update = update.priority(priority);
+            }
+        }
+
+        if changes.contains_key("assignee") {
+            if let Some(assignee) = self.form_state.get_value("assignee") {
+                update = update.assignee(assignee.to_string());
+            }
+        }
+
+        if changes.contains_key("labels") {
+            if let Some(labels_str) = self.form_state.get_value("labels") {
+                let labels: Vec<String> = labels_str
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                update = update.labels(labels);
+            }
+        }
+
+        if changes.contains_key("description") {
+            if let Some(description) = self.form_state.get_value("description") {
+                update = update.description(description.to_string());
+            }
+        }
+
+        Some(update)
     }
 
     /// Reset form to original issue data

@@ -153,6 +153,16 @@ impl BeadsClient {
     pub async fn update_issue(&self, id: &str, updates: IssueUpdate) -> Result<()> {
         let mut args = vec!["update".to_string(), id.to_string()];
 
+        if let Some(title) = updates.title {
+            args.push("--title".to_string());
+            args.push(title);
+        }
+
+        if let Some(issue_type) = updates.issue_type {
+            args.push("--type".to_string());
+            args.push(issue_type.to_string());
+        }
+
         if let Some(status) = updates.status {
             args.push("--status".to_string());
             args.push(status.to_string());
@@ -166,6 +176,18 @@ impl BeadsClient {
         if let Some(assignee) = updates.assignee {
             args.push("--assignee".to_string());
             args.push(assignee);
+        }
+
+        if let Some(labels) = updates.labels {
+            if !labels.is_empty() {
+                args.push("--label".to_string());
+                args.push(labels.join(","));
+            }
+        }
+
+        if let Some(description) = updates.description {
+            args.push("--description".to_string());
+            args.push(description);
         }
 
         self.execute_command(&args).await?;
@@ -252,14 +274,28 @@ impl BeadsClient {
 /// Builder for issue updates
 #[derive(Debug, Default, Clone)]
 pub struct IssueUpdate {
+    pub title: Option<String>,
+    pub issue_type: Option<IssueType>,
     pub status: Option<IssueStatus>,
     pub priority: Option<Priority>,
     pub assignee: Option<String>,
+    pub labels: Option<Vec<String>>,
+    pub description: Option<String>,
 }
 
 impl IssueUpdate {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn title(mut self, title: String) -> Self {
+        self.title = Some(title);
+        self
+    }
+
+    pub fn issue_type(mut self, issue_type: IssueType) -> Self {
+        self.issue_type = Some(issue_type);
+        self
     }
 
     pub fn status(mut self, status: IssueStatus) -> Self {
@@ -274,6 +310,16 @@ impl IssueUpdate {
 
     pub fn assignee(mut self, assignee: String) -> Self {
         self.assignee = Some(assignee);
+        self
+    }
+
+    pub fn labels(mut self, labels: Vec<String>) -> Self {
+        self.labels = Some(labels);
+        self
+    }
+
+    pub fn description(mut self, description: String) -> Self {
+        self.description = Some(description);
         self
     }
 }

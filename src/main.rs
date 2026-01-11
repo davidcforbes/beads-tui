@@ -252,9 +252,41 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     KeyCode::Enter => {
                         // Validate and save
                         if editor_state.validate() {
-                            if let Some(_updated_issue) = issues_state.save_edit() {
-                                // Successfully saved, return to list
+                            // Check if there are any changes
+                            if !editor_state.has_changes() {
+                                tracing::info!("No changes detected, returning to list");
                                 issues_state.return_to_list();
+                            } else {
+                                // Get change summary for logging
+                                let change_summary = editor_state.get_change_summary();
+                                tracing::info!("Changes detected: {:?}", change_summary);
+                                
+                                // Get IssueUpdate with only changed fields
+                                if let Some(update) = editor_state.get_issue_update() {
+                                    let issue_id = editor_state.issue_id().to_string();
+                                    
+                                    // Mark as saved and return to list before reloading
+                                    editor_state.save();
+                                    issues_state.return_to_list();
+                                    
+                                    // Create a tokio runtime to execute the async call
+                                    let rt = tokio::runtime::Runtime::new().unwrap();
+                                    let client = &app.beads_client;
+                                    
+                                    match rt.block_on(client.update_issue(&issue_id, update)) {
+                                        Ok(()) => {
+                                            tracing::info!("Successfully updated issue: {}", issue_id);
+                                            
+                                            // Reload issues list
+                                            app.reload_issues();
+                                        }
+                                        Err(e) => {
+                                            // TODO: Show error message to user in UI
+                                            tracing::error!("Failed to update issue: {:?}", e);
+                                            // TODO: Re-enter edit mode on error
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
