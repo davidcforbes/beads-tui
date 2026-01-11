@@ -1,3 +1,8 @@
+mod beads;
+mod config;
+mod models;
+mod ui;
+
 use anyhow::Result;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
@@ -31,7 +36,7 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     // Create app state
-    let mut app = App::new();
+    let mut app = models::AppState::new();
 
     // Run the app
     let res = run_app(&mut terminal, &mut app);
@@ -52,37 +57,11 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-struct App {
-    should_quit: bool,
-    selected_tab: usize,
-    tabs: Vec<&'static str>,
-}
-
-impl App {
-    fn new() -> Self {
-        Self {
-            should_quit: false,
-            selected_tab: 0,
-            tabs: vec!["Issues", "Dependencies", "Labels", "Database", "Help"],
-        }
-    }
-
-    fn next_tab(&mut self) {
-        self.selected_tab = (self.selected_tab + 1) % self.tabs.len();
-    }
-
-    fn previous_tab(&mut self) {
-        if self.selected_tab > 0 {
-            self.selected_tab -= 1;
-        } else {
-            self.selected_tab = self.tabs.len() - 1;
-        }
-    }
-}
+// App struct moved to models::AppState
 
 fn run_app<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
-    app: &mut App,
+    app: &mut models::AppState,
 ) -> Result<()> {
     loop {
         terminal.draw(|f| ui(f, app))?;
@@ -111,7 +90,7 @@ fn run_app<B: ratatui::backend::Backend>(
     Ok(())
 }
 
-fn ui(f: &mut Frame, app: &App) {
+fn ui(f: &mut Frame, app: &models::AppState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
