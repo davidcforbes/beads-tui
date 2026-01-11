@@ -18,7 +18,8 @@ chemistry workflows, and database operations.
 
 ## Epic 1: Project Setup & Foundation
 
-**Description:** Establish the Rust project structure, dependencies, and foundational architecture.
+**Description:** Establish the Rust project structure, dependencies,
+and foundational architecture.
 
 ### Epic 1 Features
 
@@ -32,7 +33,8 @@ chemistry workflows, and database operations.
 
 - Priority: 0 (Critical)
 - Type: feature
-- Description: Create Rust library that wraps beads CLI commands with proper error handling
+- Description: Create Rust library that wraps beads CLI commands with proper
+  error handling
 
 #### 1.3 Configuration Management
 
@@ -154,7 +156,8 @@ including navigation, layout system, and event handling.
 
 ## Epic 3: Issue Management Interface
 
-**Description:** Core issue management features - create, update, close, reopen, and view issues.
+**Description:** Core issue management features - create, update, close,
+reopen, and view issues.
 
 ### Epic 3 Features
 
@@ -259,7 +262,8 @@ including navigation, layout system, and event handling.
 
 ## Epic 4: List & Filter Interface
 
-**Description:** Advanced filtering, searching, and sorting capabilities for finding issues.
+**Description:** Advanced filtering, searching, and sorting capabilities for
+finding issues.
 
 ### Epic 4 Features
 
@@ -335,7 +339,8 @@ including navigation, layout system, and event handling.
 
 ## Epic 5: Dependency Management UI
 
-**Description:** Visualize and manage issue dependencies, including dependency trees and cycle detection.
+**Description:** Visualize and manage issue dependencies, including
+dependency trees and cycle detection.
 
 ### Epic 5 Features
 
@@ -407,7 +412,8 @@ including navigation, layout system, and event handling.
 
 ## Epic 6: Label Management UI
 
-**Description:** Comprehensive label operations including adding, removing, filtering, and managing labels.
+**Description:** Comprehensive label operations including adding, removing,
+filtering, and managing labels.
 
 ### Epic 6 Features
 
@@ -480,7 +486,8 @@ including navigation, layout system, and event handling.
 
 ## Epic 7: Advanced Operations UI
 
-**Description:** Support for advanced operations like cleanup, duplicate detection, compaction, and migration.
+**Description:** Support for advanced operations like cleanup, duplicate
+detection, compaction, and migration.
 
 ### Epic 7 Features
 
@@ -554,7 +561,8 @@ including navigation, layout system, and event handling.
 
 ## Epic 8: Molecular Chemistry UI
 
-**Description:** Interactive interface for molecular chemistry workflows (formulas, pour, wisp, bond, squash, burn).
+**Description:** Interactive interface for molecular chemistry workflows
+(formulas, pour, wisp, bond, squash, burn).
 
 ### Epic 8 Features
 
@@ -715,7 +723,8 @@ including navigation, layout system, and event handling.
 
 ## Epic 10: Quality of Life Features
 
-**Description:** Polish, user experience enhancements, and developer convenience features.
+**Description:** Polish, user experience enhancements, and developer
+convenience features.
 
 ### Epic 10 Features
 
@@ -890,7 +899,8 @@ including navigation, layout system, and event handling.
 
 ## Epic 12: Testing & Quality Assurance
 
-**Description:** Comprehensive testing strategy including unit, integration, and UI tests.
+**Description:** Comprehensive testing strategy including unit, integration,
+and UI tests.
 
 ### Epic 12 Features
 
@@ -1114,4 +1124,5 @@ for more advanced features.
 7. Epic 6-9 (Advanced features) - Add specialized functionality
 8. Epic 11-14 (Optimization & Release) - Prepare for production
 
-Each epic can be tracked as a beads epic with child issues for features, tasks, and chores.
+Each epic can be tracked as a beads epic with child issues for features,
+tasks, and chores.
