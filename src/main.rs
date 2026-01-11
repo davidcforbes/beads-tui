@@ -214,9 +214,52 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
         }
         IssuesViewMode::Edit => {
             // Edit mode: form controls
-            // TODO: Add more editor controls (Tab for field navigation, etc.)
-            if key_code == KeyCode::Esc {
-                issues_state.cancel_edit();
+            if let Some(editor_state) = issues_state.editor_state_mut() {
+                let form = editor_state.form_state_mut();
+
+                match key_code {
+                    // Field navigation
+                    KeyCode::Tab | KeyCode::Down => {
+                        form.focus_next();
+                    }
+                    KeyCode::BackTab | KeyCode::Up => {
+                        form.focus_previous();
+                    }
+                    // Text input
+                    KeyCode::Char(c) => {
+                        form.insert_char(c);
+                    }
+                    KeyCode::Backspace => {
+                        form.delete_char();
+                    }
+                    // Cursor movement
+                    KeyCode::Left => {
+                        form.move_cursor_left();
+                    }
+                    KeyCode::Right => {
+                        form.move_cursor_right();
+                    }
+                    KeyCode::Home => {
+                        form.move_cursor_to_start();
+                    }
+                    KeyCode::End => {
+                        form.move_cursor_to_end();
+                    }
+                    // Save/Cancel
+                    KeyCode::Enter => {
+                        // Validate and save
+                        if editor_state.validate() {
+                            if let Some(_updated_issue) = issues_state.save_edit() {
+                                // Successfully saved, return to list
+                                issues_state.return_to_list();
+                            }
+                        }
+                    }
+                    KeyCode::Esc => {
+                        issues_state.cancel_edit();
+                    }
+                    _ => {}
+                }
             }
         }
     }
