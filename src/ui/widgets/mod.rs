@@ -10,6 +10,7 @@ pub mod filter_builder;
 pub mod filter_panel;
 pub mod filter_save_dialog;
 pub mod form;
+pub mod gantt_chart;
 pub mod inline_metadata;
 pub mod issue_list;
 pub mod kanban_card;
@@ -32,6 +33,7 @@ pub use filter_builder::{FilterBuilder, FilterBuilderState, FilterSection};
 pub use filter_panel::{FilterCriteria, FilterPanel};
 pub use filter_save_dialog::{FilterSaveDialog, FilterSaveDialogState, FilterSaveField};
 pub use form::{FieldType, Form, FormField, FormState};
+pub use gantt_chart::{GanttChart, GanttChartConfig, GroupingMode};
 pub use inline_metadata::{
     build_metadata_spans, format_age, format_assignee, format_labels, MetadataDisplayConfig,
 };
