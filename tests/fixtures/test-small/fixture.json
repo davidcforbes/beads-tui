@@ -1,0 +1,37 @@
+{
+  "focus_areas": [
+    "Basic CRUD operations",
+    "Simple filtering",
+    "Quick validation"
+  ],
+  "name": "test-small",
+  "created": "2026-01-11",
+  "statistics": {
+    "by_type": {
+      "task": 0,
+      "bug": 0,
+      "feature": 0,
+      "epic": 0,
+      "chore": 0
+    },
+    "blocked": 0,
+    "by_priority": {
+      "P4": 0,
+      "P3": 0,
+      "P1": 0,
+      "P0": 0,
+      "P2": 0
+    },
+    "closed": 0,
+    "open": 0
+  },
+  "issue_count": 0,
+  "version": "1.0.0",
+  "description": "Small dataset for smoke tests and basic functionality validation",
+  "dependencies": {
+    "max_depth": 0,
+    "cycles": 0,
+    "total": 0
+  },
+  "known_issues": []
+}
