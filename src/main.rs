@@ -186,6 +186,9 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     KeyCode::Char('e') => {
                         issues_state.enter_edit_mode();
                     }
+                    KeyCode::Char('c') => {
+                        issues_state.enter_create_mode();
+                    }
                     KeyCode::Char('/') => {
                         issues_state
                             .search_state_mut()
@@ -257,6 +260,79 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     }
                     KeyCode::Esc => {
                         issues_state.cancel_edit();
+                    }
+                    _ => {}
+                }
+            }
+        }
+        IssuesViewMode::Create => {
+            // Create mode: form controls
+            if let Some(create_form_state) = issues_state.create_form_state_mut() {
+                let form = create_form_state.form_state_mut();
+
+                match key_code {
+                    // Field navigation
+                    KeyCode::Tab | KeyCode::Down => {
+                        form.focus_next();
+                    }
+                    KeyCode::BackTab | KeyCode::Up => {
+                        form.focus_previous();
+                    }
+                    // Text input
+                    KeyCode::Char(c) => {
+                        form.insert_char(c);
+                    }
+                    KeyCode::Backspace => {
+                        form.delete_char();
+                    }
+                    // Cursor movement
+                    KeyCode::Left => {
+                        form.move_cursor_left();
+                    }
+                    KeyCode::Right => {
+                        form.move_cursor_right();
+                    }
+                    KeyCode::Home => {
+                        form.move_cursor_to_start();
+                    }
+                    KeyCode::End => {
+                        form.move_cursor_to_end();
+                    }
+                    // Submit/Cancel
+                    KeyCode::Enter => {
+                        // Validate and submit
+                        if create_form_state.validate() {
+                            if let Some(_data) = app.issues_view_state.save_create() {
+                                // TODO: Implement actual bd create call
+                                // For now, we have the data but need to integrate async beads_client
+                                // let client = &app.beads_client;
+                                // match tokio::runtime::Runtime::new().unwrap().block_on(
+                                //     client.create_issue_full(
+                                //         &data.title,
+                                //         data.issue_type,
+                                //         data.priority,
+                                //         Some(&data.status),
+                                //         data.assignee.as_deref(),
+                                //         &data.labels,
+                                //         data.description.as_deref(),
+                                //     )
+                                // ) {
+                                //     Ok(issue_id) => {
+                                //         // Successfully created, reload issues and select new one
+                                //         // TODO: Reload issues list
+                                //     }
+                                //     Err(e) => {
+                                //         // TODO: Show error message to user
+                                //     }
+                                // }
+                                
+                                // For now, just return to list
+                                app.issues_view_state.cancel_create();
+                            }
+                        }
+                    }
+                    KeyCode::Esc => {
+                        issues_state.cancel_create();
                     }
                     _ => {}
                 }

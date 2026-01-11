@@ -11,6 +11,7 @@ use ratatui::{
 };
 
 /// Create issue form state
+#[derive(Debug)]
 pub struct CreateIssueFormState {
     form_state: FormState,
 }

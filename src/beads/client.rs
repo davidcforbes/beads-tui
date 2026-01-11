@@ -104,6 +104,51 @@ impl BeadsClient {
         parser::parse_create_response(&output)
     }
 
+    /// Create a new issue with full options
+    pub async fn create_issue_full(
+        &self,
+        title: &str,
+        issue_type: IssueType,
+        priority: Priority,
+        status: Option<&str>,
+        assignee: Option<&str>,
+        labels: &[String],
+        description: Option<&str>,
+    ) -> Result<String> {
+        let mut args = vec![
+            "create".to_string(),
+            "--title".to_string(),
+            title.to_string(),
+            "--type".to_string(),
+            issue_type.to_string(),
+            "--priority".to_string(),
+            priority.to_string(),
+        ];
+
+        if let Some(s) = status {
+            args.push("--status".to_string());
+            args.push(s.to_string());
+        }
+
+        if let Some(a) = assignee {
+            args.push("--assignee".to_string());
+            args.push(a.to_string());
+        }
+
+        if !labels.is_empty() {
+            args.push("--label".to_string());
+            args.push(labels.join(","));
+        }
+
+        if let Some(d) = description {
+            args.push("--description".to_string());
+            args.push(d.to_string());
+        }
+
+        let output = self.execute_command(&args).await?;
+        parser::parse_create_response(&output)
+    }
+
     /// Update an issue
     pub async fn update_issue(&self, id: &str, updates: IssueUpdate) -> Result<()> {
         let mut args = vec!["update".to_string(), id.to_string()];

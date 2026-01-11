@@ -2,7 +2,8 @@
 
 use crate::beads::models::Issue;
 use crate::ui::views::{
-    IssueDetailView, IssueEditorState, IssueEditorView, SearchInterfaceState, SearchInterfaceView,
+    CreateIssueFormState, IssueDetailView, IssueEditorState, IssueEditorView, SearchInterfaceState,
+    SearchInterfaceView,
 };
 use ratatui::{
     buffer::Buffer,
@@ -20,6 +21,8 @@ pub enum IssuesViewMode {
     Detail,
     /// Edit mode for editing an issue
     Edit,
+    /// Create mode for creating a new issue
+    Create,
 }
 
 /// Issues view state
@@ -29,6 +32,7 @@ pub struct IssuesViewState {
     view_mode: IssuesViewMode,
     selected_issue: Option<Issue>,
     editor_state: Option<IssueEditorState>,
+    create_form_state: Option<CreateIssueFormState>,
     show_help: bool,
 }
 
@@ -40,6 +44,7 @@ impl IssuesViewState {
             view_mode: IssuesViewMode::List,
             selected_issue: None,
             editor_state: None,
+            create_form_state: None,
             show_help: true,
         }
     }
@@ -82,6 +87,16 @@ impl IssuesViewState {
     /// Get mutable editor state
     pub fn editor_state_mut(&mut self) -> Option<&mut IssueEditorState> {
         self.editor_state.as_mut()
+    }
+
+    /// Get the create form state
+    pub fn create_form_state(&self) -> Option<&CreateIssueFormState> {
+        self.create_form_state.as_ref()
+    }
+
+    /// Get mutable create form state
+    pub fn create_form_state_mut(&mut self) -> Option<&mut CreateIssueFormState> {
+        self.create_form_state.as_mut()
     }
 
     /// Toggle help visibility
@@ -139,6 +154,28 @@ impl IssuesViewState {
         self.return_to_list();
     }
 
+    /// Enter create mode to create a new issue
+    pub fn enter_create_mode(&mut self) {
+        self.create_form_state = Some(CreateIssueFormState::new());
+        self.view_mode = IssuesViewMode::Create;
+    }
+
+    /// Cancel the current create and return to list
+    pub fn cancel_create(&mut self) {
+        self.create_form_state = None;
+        self.view_mode = IssuesViewMode::List;
+    }
+
+    /// Save the current create form and return form data
+    pub fn save_create(&mut self) -> Option<crate::ui::views::CreateIssueData> {
+        if let Some(create_form_state) = &self.create_form_state {
+            if let Some(data) = create_form_state.get_data() {
+                return Some(data);
+            }
+        }
+        None
+    }
+
     /// Update the issue list
     pub fn set_issues(&mut self, issues: Vec<Issue>) {
         self.search_state.set_issues(issues);
@@ -184,6 +221,14 @@ impl<'a> IssuesView<'a> {
             StatefulWidget::render(editor_view, area, buf, editor_state);
         }
     }
+
+    fn render_create_mode(&self, area: Rect, buf: &mut Buffer, state: &mut IssuesViewState) {
+        if let Some(create_form_state) = &mut state.create_form_state {
+            use crate::ui::views::CreateIssueForm;
+            let create_form = CreateIssueForm::new();
+            StatefulWidget::render(create_form, area, buf, create_form_state);
+        }
+    }
 }
 
 impl<'a> Default for IssuesView<'a> {
@@ -200,6 +245,7 @@ impl<'a> StatefulWidget for IssuesView<'a> {
             IssuesViewMode::List => self.render_list_mode(area, buf, state),
             IssuesViewMode::Detail => self.render_detail_mode(area, buf, state),
             IssuesViewMode::Edit => self.render_edit_mode(area, buf, state),
+            IssuesViewMode::Create => self.render_create_mode(area, buf, state),
         }
     }
 }
