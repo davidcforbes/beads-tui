@@ -1,5 +1,6 @@
 //! Reusable UI widgets
 
+pub mod checkbox_list;
 pub mod date_picker;
 pub mod dialog;
 pub mod field_editor;
@@ -16,6 +17,7 @@ pub mod status_bar;
 pub mod tab_bar;
 pub mod text_editor;
 
+pub use checkbox_list::{CheckboxList, CheckboxListState};
 pub use date_picker::{DateRange, DateRangePicker, DateRangePickerState, DateRangePreset};
 pub use dialog::{Dialog, DialogButton, DialogState, DialogType};
 pub use field_editor::{EditorMode, FieldEditor, FieldEditorState};
