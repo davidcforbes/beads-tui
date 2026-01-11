@@ -1,0 +1,22 @@
+# Rustfmt configuration for beads-tui
+# Only stable features to ensure compatibility with stable Rust
+edition = "2021"
+
+# Formatting options
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+newline_style = "Auto"
+use_small_heuristics = "Default"
+
+# Imports
+reorder_imports = true
+
+# Match
+match_block_trailing_comma = false
+
+# Misc
+remove_nested_parens = true
+use_try_shorthand = true
+use_field_init_shorthand = true
+force_explicit_abi = true

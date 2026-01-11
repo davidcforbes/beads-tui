@@ -1,0 +1,29 @@
+# Clippy configuration for beads-tui
+
+# Lint levels and settings
+avoid-breaking-exported-api = true
+msrv = "1.70"
+
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 30
+
+# Type complexity threshold
+type-complexity-threshold = 250
+
+# Too many arguments threshold
+too-many-arguments-threshold = 7
+
+# Too many lines threshold
+too-many-lines-threshold = 150
+
+# Large error types
+enum-variant-size-threshold = 200
+
+# Vector initialization
+vec-box-size-threshold = 4096
+
+# Verbose bit mask threshold
+verbose-bit-mask-threshold = 1
+
+# Literal representation threshold
+literal-representation-threshold = 10

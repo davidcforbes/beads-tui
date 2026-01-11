@@ -1,8 +1,13 @@
 //! Reusable UI widgets
-//!
-//! Future widgets will be added here:
-//! - Issue list widget
-//! - Filter builder widget
-//! - Dependency tree widget
-//! - Status bar widget
-//! - Command palette widget
+
+pub mod status_bar;
+pub mod tab_bar;
+
+pub use status_bar::StatusBar;
+pub use tab_bar::TabBar;
+
+// Future widgets:
+// - Issue list widget
+// - Filter builder widget
+// - Dependency tree widget
+// - Command palette widget

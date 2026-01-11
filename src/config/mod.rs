@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct Config {
     #[serde(default)]
     pub theme: ThemeConfig,
@@ -32,15 +33,11 @@ impl Default for ThemeConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct KeybindingsConfig {
     // Future: Custom keybindings
 }
 
-impl Default for KeybindingsConfig {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BehaviorConfig {
@@ -67,15 +64,6 @@ impl Default for BehaviorConfig {
     }
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            theme: ThemeConfig::default(),
-            keybindings: KeybindingsConfig::default(),
-            behavior: BehaviorConfig::default(),
-        }
-    }
-}
 
 impl Config {
     /// Load configuration from file

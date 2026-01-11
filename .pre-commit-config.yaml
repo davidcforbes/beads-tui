@@ -1,0 +1,42 @@
+# Pre-commit hooks for beads-tui
+# Install pre-commit: pip install pre-commit
+# Setup hooks: pre-commit install
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-case-conflict
+      - id: check-merge-conflict
+
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+        name: cargo fmt
+        description: Format Rust code with rustfmt
+      - id: cargo-check
+        name: cargo check
+        description: Check Rust code compiles
+      - id: clippy
+        name: cargo clippy
+        description: Lint Rust code with clippy
+        args: ['--all-targets', '--all-features', '--', '-D', 'warnings']
+
+  - repo: local
+    hooks:
+      - id: cargo-test
+        name: cargo test
+        entry: cargo test
+        language: system
+        types: [rust]
+        pass_filenames: false
+        description: Run Rust tests

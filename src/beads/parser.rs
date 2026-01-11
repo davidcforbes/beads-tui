@@ -36,7 +36,9 @@ pub fn parse_create_response(output: &str) -> Result<String> {
         }
     }
 
-    Err(BeadsError::CommandError("Failed to parse issue ID from create response".to_string()))
+    Err(BeadsError::CommandError(
+        "Failed to parse issue ID from create response".to_string(),
+    ))
 }
 
 /// Parse statistics from JSON output

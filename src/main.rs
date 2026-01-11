@@ -1,7 +1,7 @@
-mod beads;
-mod config;
-mod models;
-mod ui;
+pub mod beads;
+pub mod config;
+pub mod models;
+pub mod ui;
 
 use anyhow::Result;
 use crossterm::{
@@ -20,6 +20,14 @@ use ratatui::{
 use std::io;
 
 fn main() -> Result<()> {
+    // Setup panic hook to restore terminal on panic
+    let default_panic = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let _ = disable_raw_mode();
+        let _ = execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
+        default_panic(info);
+    }));
+
     // Setup logging
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -51,7 +59,7 @@ fn main() -> Result<()> {
     terminal.show_cursor()?;
 
     if let Err(err) = res {
-        eprintln!("Error: {:?}", err);
+        eprintln!("Error: {err:?}");
     }
 
     Ok(())
@@ -94,15 +102,19 @@ fn ui(f: &mut Frame, app: &models::AppState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Title
-            Constraint::Min(0),     // Content
-            Constraint::Length(3),  // Status bar
+            Constraint::Length(3), // Title
+            Constraint::Min(0),    // Content
+            Constraint::Length(3), // Status bar
         ])
         .split(f.size());
 
     // Title
     let title = Paragraph::new("Beads-TUI v0.1.0")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(title, chunks[0]);
 
@@ -146,9 +158,11 @@ fn ui(f: &mut Frame, app: &models::AppState) {
     f.render_widget(content, tabs_chunks[1]);
 
     // Status bar
-    let status_bar = Paragraph::new("Press 'q' to quit | Tab/Shift+Tab to switch tabs | 1-5 for direct tab access")
-        .style(Style::default().fg(Color::Gray))
-        .block(Block::default().borders(Borders::ALL));
+    let status_bar = Paragraph::new(
+        "Press 'q' to quit | Tab/Shift+Tab to switch tabs | 1-5 for direct tab access",
+    )
+    .style(Style::default().fg(Color::Gray))
+    .block(Block::default().borders(Borders::ALL));
     f.render_widget(status_bar, chunks[2]);
 }
 
@@ -156,7 +170,9 @@ fn render_issues_view() -> Paragraph<'static> {
     Paragraph::new(vec![
         Line::from(Span::styled(
             "Issues View",
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from("This will show the list of issues from your beads database."),
@@ -175,7 +191,9 @@ fn render_dependencies_view() -> Paragraph<'static> {
     Paragraph::new(vec![
         Line::from(Span::styled(
             "Dependencies View",
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from("This will show dependency trees and relationships."),
@@ -193,7 +211,9 @@ fn render_labels_view() -> Paragraph<'static> {
     Paragraph::new(vec![
         Line::from(Span::styled(
             "Labels View",
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from("This will show label management interface."),
@@ -211,7 +231,9 @@ fn render_database_view() -> Paragraph<'static> {
     Paragraph::new(vec![
         Line::from(Span::styled(
             "Database View",
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from("This will show database status and operations."),
@@ -229,7 +251,9 @@ fn render_help_view() -> Paragraph<'static> {
     Paragraph::new(vec![
         Line::from(Span::styled(
             "Help & Keyboard Shortcuts",
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(Span::styled("Global:", Style::default().fg(Color::Cyan))),
@@ -238,7 +262,10 @@ fn render_help_view() -> Paragraph<'static> {
         Line::from("  Shift+Tab - Previous tab"),
         Line::from("  1-5       - Jump to tab directly"),
         Line::from(""),
-        Line::from(Span::styled("Coming Soon:", Style::default().fg(Color::Cyan))),
+        Line::from(Span::styled(
+            "Coming Soon:",
+            Style::default().fg(Color::Cyan),
+        )),
         Line::from("  ?         - Show help"),
         Line::from("  /         - Search"),
         Line::from("  :         - Command palette"),

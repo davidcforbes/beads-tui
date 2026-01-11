@@ -10,6 +10,10 @@ keywords = ["tui", "terminal", "issue-tracking", "beads", "ratatui"]
 categories = ["command-line-utilities", "development-tools"]
 rust-version = "1.70"
 
+[lib]
+name = "beads_tui"
+path = "src/lib.rs"
+
 [[bin]]
 name = "beads-tui"
 path = "src/main.rs"

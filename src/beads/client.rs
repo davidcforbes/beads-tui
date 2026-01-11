@@ -55,7 +55,11 @@ impl BeadsClient {
     }
 
     /// List issues with optional filters
-    pub async fn list_issues(&self, status: Option<IssueStatus>, limit: Option<usize>) -> Result<Vec<Issue>> {
+    pub async fn list_issues(
+        &self,
+        status: Option<IssueStatus>,
+        limit: Option<usize>,
+    ) -> Result<Vec<Issue>> {
         let mut args = vec!["list".to_string(), "--json".to_string()];
 
         if let Some(s) = status {
@@ -177,9 +181,7 @@ impl BeadsClient {
     /// Execute a bd command with timeout
     async fn execute_command(&self, args: &[String]) -> Result<String> {
         let mut cmd = TokioCommand::new(&self.bd_path);
-        cmd.args(args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+        cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
 
         let child = cmd.spawn().map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {

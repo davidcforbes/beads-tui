@@ -34,3 +34,6 @@ beads.jsonl
 Thumbs.db
 .Spotlight-V100
 .Trashes
+
+# bv (beads viewer) local config and caches
+.bv/
