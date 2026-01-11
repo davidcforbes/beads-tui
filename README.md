@@ -1,5 +1,8 @@
 # Beads-TUI
 
+[![CI](https://github.com/davidcforbes/beads-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/davidcforbes/beads-tui/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/davidcforbes/beads-tui/branch/main/graph/badge.svg)](https://codecov.io/gh/davidcforbes/beads-tui)
+
 Interactive Text User Interface for
 [Beads](https://github.com/steveyegge/beads) - A powerful terminal UI
 for managing issues, dependencies, and workflows.
