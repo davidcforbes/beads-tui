@@ -2,6 +2,7 @@
 
 pub mod dialog;
 pub mod field_editor;
+pub mod filter_panel;
 pub mod form;
 pub mod issue_list;
 pub mod progress;
@@ -12,6 +13,7 @@ pub mod tab_bar;
 
 pub use dialog::{Dialog, DialogButton, DialogState, DialogType};
 pub use field_editor::{EditorMode, FieldEditor, FieldEditorState};
+pub use filter_panel::{FilterCriteria, FilterPanel};
 pub use form::{FieldType, Form, FormField, FormState};
 pub use issue_list::{IssueList, IssueListState, SortColumn, SortDirection};
 pub use progress::{LoadingIndicator, ProgressBar, Spinner};
