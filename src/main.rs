@@ -320,10 +320,15 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
                                 ) {
                                     Ok(issue_id) => {
                                         // Successfully created
-                                        // TODO: Reload issues list and select the new issue
-                                        // For now, just return to list
                                         tracing::info!("Successfully created issue: {}", issue_id);
+                                        
+                                        // Reload issues list
+                                        app.reload_issues();
+                                        
+                                        // Return to list
                                         app.issues_view_state.cancel_create();
+                                        
+                                        // TODO: Select the newly created issue in the list
                                     }
                                     Err(e) => {
                                         // TODO: Show error message to user in UI

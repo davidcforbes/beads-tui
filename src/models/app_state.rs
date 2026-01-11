@@ -30,9 +30,8 @@ impl AppState {
     pub fn new() -> Self {
         let beads_client = BeadsClient::new();
 
-        // TODO: Load issues asynchronously
-        // For now, start with empty issues
-        let issues = vec![];
+        // Load issues on startup
+        let issues = Self::load_issues_sync(&beads_client);
 
         // Compute label statistics
         let label_stats = compute_label_stats(&issues);
@@ -61,6 +60,33 @@ impl AppState {
             show_perf_stats: false,
             help_section: HelpSection::Global,
         }
+    }
+
+    /// Load issues synchronously using tokio runtime
+    fn load_issues_sync(client: &BeadsClient) -> Vec<crate::beads::models::Issue> {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(client.list_issues(None, None))
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to load issues: {:?}", e);
+                vec![]
+            })
+    }
+
+    /// Reload issues from beads database
+    pub fn reload_issues(&mut self) {
+        let issues = Self::load_issues_sync(&self.beads_client);
+        
+        // Update label statistics
+        self.label_stats = compute_label_stats(&issues);
+        
+        // Update database stats
+        self.database_stats.total_issues = issues.len();
+        
+        // Update issues view
+        self.issues_view_state.set_issues(issues);
+        
+        // Mark dirty to trigger redraw
+        self.mark_dirty();
     }
 
     pub fn next_tab(&mut self) {
