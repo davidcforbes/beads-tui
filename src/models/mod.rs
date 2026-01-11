@@ -8,6 +8,7 @@ pub mod gantt_schedule;
 pub mod kanban_config;
 pub mod navigation;
 pub mod perf;
+pub mod pert_layout;
 pub mod table_config;
 
 pub use app_state::*;
@@ -21,3 +22,6 @@ pub use kanban_config::KanbanConfig;
 
 // Re-export gantt schedule types
 pub use gantt_schedule::{IssueSchedule, ScheduleData, TimeEstimate, TimelineConfig, ZoomLevel};
+
+// Re-export PERT layout types
+pub use pert_layout::{CycleDetection, PertEdge, PertGraph, PertNode};
