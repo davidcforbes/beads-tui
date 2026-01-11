@@ -269,6 +269,9 @@ pub fn new(filters: Vec<FilterCriteria>) -> Self {
 
 ## Testing
 
+For the full testing strategy and plan, see TEST_STRATEGY.md and TEST_PLAN.md.
+For harness and fixtures, see TEST_HARNESS.md and TEST_DATA.md.
+
 ### Unit Tests
 
 ```rust

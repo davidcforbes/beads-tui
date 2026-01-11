@@ -323,6 +323,9 @@ opt-level = 2  # Already configured
 
 ## Testing Strategy
 
+See TEST_STRATEGY.md, TEST_PLAN.md, TEST_HARNESS.md, and TEST_DATA.md for the
+full strategy, plan, harness design, and fixture definitions.
+
 ### Test Organization
 
 ```text
