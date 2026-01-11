@@ -5,7 +5,7 @@ use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
-    text::Span,
+    text::{Line, Span},
     widgets::{Block, Borders, Cell, Row, StatefulWidget, Table, TableState},
 };
 
@@ -128,6 +128,7 @@ pub struct IssueList<'a> {
     sort_column: SortColumn,
     sort_direction: SortDirection,
     show_details: bool,
+    search_query: Option<String>,
 }
 
 impl<'a> IssueList<'a> {
@@ -143,6 +144,7 @@ impl<'a> IssueList<'a> {
             sort_column,
             sort_direction,
             show_details: true,
+            search_query: None,
         }
     }
 
@@ -156,6 +158,49 @@ impl<'a> IssueList<'a> {
     pub fn show_details(mut self, show: bool) -> Self {
         self.show_details = show;
         self
+    }
+
+    pub fn search_query(mut self, query: Option<String>) -> Self {
+        self.search_query = query;
+        self
+    }
+
+    /// Highlight matching text in a string
+    fn highlight_text(text: &str, query: &str) -> Vec<Span<'static>> {
+        if query.is_empty() {
+            return vec![Span::raw(text.to_string())];
+        }
+
+        let text_lower = text.to_lowercase();
+        let query_lower = query.to_lowercase();
+        let mut spans = Vec::new();
+        let mut last_end = 0;
+
+        // Find all occurrences of the query in the text
+        for (idx, _) in text_lower.match_indices(&query_lower) {
+            // Add text before the match
+            if idx > last_end {
+                spans.push(Span::raw(text[last_end..idx].to_string()));
+            }
+
+            // Add the matched text with highlighting
+            spans.push(Span::styled(
+                text[idx..idx + query.len()].to_string(),
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ));
+
+            last_end = idx + query.len();
+        }
+
+        // Add remaining text after the last match
+        if last_end < text.len() {
+            spans.push(Span::raw(text[last_end..].to_string()));
+        }
+
+        spans
     }
 
     fn sort_issues(issues: &mut Vec<&'a Issue>, column: SortColumn, direction: SortDirection) {
@@ -275,8 +320,20 @@ impl<'a> StatefulWidget for IssueList<'a> {
             .iter()
             .map(|issue| {
                 let type_cell = Cell::from(Self::type_symbol(&issue.issue_type));
-                let id_cell = Cell::from(issue.id.clone());
-                let title_cell = Cell::from(issue.title.clone());
+                
+                // Apply highlighting if search query is present
+                let id_cell = if let Some(ref query) = self.search_query {
+                    Cell::from(Line::from(Self::highlight_text(&issue.id, query)))
+                } else {
+                    Cell::from(issue.id.clone())
+                };
+
+                let title_cell = if let Some(ref query) = self.search_query {
+                    Cell::from(Line::from(Self::highlight_text(&issue.title, query)))
+                } else {
+                    Cell::from(issue.title.clone())
+                };
+
                 let status_cell = Cell::from(Span::styled(
                     format!("{:?}", issue.status),
                     Style::default().fg(Self::status_color(&issue.status)),
@@ -402,5 +459,53 @@ mod tests {
         assert_eq!(sorted_issues[0].id, "beads-002"); // P1
         assert_eq!(sorted_issues[1].id, "beads-001"); // P2
         assert_eq!(sorted_issues[2].id, "beads-003"); // P3
+    }
+
+    #[test]
+    fn test_highlight_text() {
+        // Test empty query
+        let spans = IssueList::highlight_text("hello world", "");
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].content, "hello world");
+
+        // Test single match
+        let spans = IssueList::highlight_text("hello world", "world");
+        assert_eq!(spans.len(), 2);
+        assert_eq!(spans[0].content, "hello ");
+        assert_eq!(spans[1].content, "world");
+        assert_eq!(spans[1].style.fg, Some(Color::Black));
+        assert_eq!(spans[1].style.bg, Some(Color::Yellow));
+
+        // Test case-insensitive match
+        let spans = IssueList::highlight_text("Hello World", "world");
+        assert_eq!(spans.len(), 2);
+        assert_eq!(spans[0].content, "Hello ");
+        assert_eq!(spans[1].content, "World");
+
+        // Test multiple matches
+        let spans = IssueList::highlight_text("test test test", "test");
+        assert_eq!(spans.len(), 5); // test, " ", test, " ", test
+        assert_eq!(spans[0].content, "test");
+        assert_eq!(spans[1].content, " ");
+        assert_eq!(spans[2].content, "test");
+        assert_eq!(spans[3].content, " ");
+        assert_eq!(spans[4].content, "test");
+
+        // Test match at the beginning
+        let spans = IssueList::highlight_text("world hello", "world");
+        assert_eq!(spans.len(), 2);
+        assert_eq!(spans[0].content, "world");
+        assert_eq!(spans[1].content, " hello");
+
+        // Test match at the end
+        let spans = IssueList::highlight_text("hello world", "world");
+        assert_eq!(spans.len(), 2);
+        assert_eq!(spans[0].content, "hello ");
+        assert_eq!(spans[1].content, "world");
+
+        // Test no match
+        let spans = IssueList::highlight_text("hello world", "xyz");
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].content, "hello world");
     }
 }

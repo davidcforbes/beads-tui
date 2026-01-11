@@ -319,7 +319,12 @@ impl<'a> StatefulWidget for SearchInterfaceView<'a> {
 
         // Render results list
         let issue_refs: Vec<&Issue> = state.filtered_issues.iter().collect();
-        let issue_list = IssueList::new(issue_refs);
+        let search_query = if !state.search_state.query().is_empty() {
+            Some(state.search_state.query().to_string())
+        } else {
+            None
+        };
+        let issue_list = IssueList::new(issue_refs).search_query(search_query);
 
         StatefulWidget::render(issue_list, chunks[chunk_idx], buf, &mut state.list_state);
         chunk_idx += 1;
