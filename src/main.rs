@@ -189,6 +189,75 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     KeyCode::Char('c') => {
                         issues_state.enter_create_mode();
                     }
+                    KeyCode::Char('x') => {
+                        // Close selected issue
+                        if let Some(issue) = issues_state.search_state().selected_issue() {
+                            let issue_id = issue.id.clone();
+                            tracing::info!("Closing issue: {}", issue_id);
+                            
+                            // Create a tokio runtime to execute the async call
+                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            let client = &app.beads_client;
+                            
+                            match rt.block_on(client.close_issue(&issue_id, None)) {
+                                Ok(()) => {
+                                    tracing::info!("Successfully closed issue: {}", issue_id);
+                                    
+                                    // Reload issues list
+                                    app.reload_issues();
+                                }
+                                Err(e) => {
+                                    tracing::error!("Failed to close issue: {:?}", e);
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Char('o') => {
+                        // Reopen selected issue
+                        if let Some(issue) = issues_state.search_state().selected_issue() {
+                            let issue_id = issue.id.clone();
+                            tracing::info!("Reopening issue: {}", issue_id);
+                            
+                            // Create a tokio runtime to execute the async call
+                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            let client = &app.beads_client;
+                            
+                            match rt.block_on(client.reopen_issue(&issue_id)) {
+                                Ok(()) => {
+                                    tracing::info!("Successfully reopened issue: {}", issue_id);
+                                    
+                                    // Reload issues list
+                                    app.reload_issues();
+                                }
+                                Err(e) => {
+                                    tracing::error!("Failed to reopen issue: {:?}", e);
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Char('d') => {
+                        // Delete selected issue (TODO: add confirmation dialog)
+                        if let Some(issue) = issues_state.search_state().selected_issue() {
+                            let issue_id = issue.id.clone();
+                            tracing::warn!("Deleting issue: {} (no confirmation yet)", issue_id);
+                            
+                            // Create a tokio runtime to execute the async call
+                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            let client = &app.beads_client;
+                            
+                            match rt.block_on(client.delete_issue(&issue_id)) {
+                                Ok(()) => {
+                                    tracing::info!("Successfully deleted issue: {}", issue_id);
+                                    
+                                    // Reload issues list
+                                    app.reload_issues();
+                                }
+                                Err(e) => {
+                                    tracing::error!("Failed to delete issue: {:?}", e);
+                                }
+                            }
+                        }
+                    }
                     KeyCode::Char('/') => {
                         issues_state
                             .search_state_mut()

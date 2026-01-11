@@ -207,6 +207,20 @@ impl BeadsClient {
         Ok(())
     }
 
+    /// Reopen a closed issue
+    pub async fn reopen_issue(&self, id: &str) -> Result<()> {
+        let args = vec!["reopen".to_string(), id.to_string()];
+        self.execute_command(&args).await?;
+        Ok(())
+    }
+
+    /// Delete an issue
+    pub async fn delete_issue(&self, id: &str) -> Result<()> {
+        let args = vec!["delete".to_string(), id.to_string()];
+        self.execute_command(&args).await?;
+        Ok(())
+    }
+
     /// Get issue statistics
     pub async fn get_stats(&self) -> Result<IssueStats> {
         let args = vec!["stats".to_string(), "--json".to_string()];
