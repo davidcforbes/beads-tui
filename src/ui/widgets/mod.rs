@@ -1,5 +1,6 @@
 //! Reusable UI widgets
 
+pub mod date_picker;
 pub mod dialog;
 pub mod field_editor;
 pub mod filter_builder;
@@ -15,6 +16,7 @@ pub mod status_bar;
 pub mod tab_bar;
 pub mod text_editor;
 
+pub use date_picker::{DateRange, DateRangePicker, DateRangePickerState, DateRangePreset};
 pub use dialog::{Dialog, DialogButton, DialogState, DialogType};
 pub use field_editor::{EditorMode, FieldEditor, FieldEditorState};
 pub use filter_builder::{FilterBuilder, FilterBuilderState, FilterSection};
