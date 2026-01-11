@@ -39,7 +39,7 @@ pub use pert_chart::{Direction, PertChart, PertChartConfig};
 pub use inline_metadata::{
     build_metadata_spans, format_age, format_assignee, format_labels, MetadataDisplayConfig,
 };
-pub use issue_list::{IssueList, IssueListState, SortColumn, SortDirection};
+pub use issue_list::{ColumnFilters, IssueList, IssueListState, SortColumn, SortDirection};
 pub use kanban_card::{render_kanban_card, CardMode, KanbanCardConfig};
 pub use label_picker::{LabelPicker, LabelPickerState};
 pub use markdown_viewer::{MarkdownViewer, MarkdownViewerState};

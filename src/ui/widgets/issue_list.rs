@@ -37,6 +37,34 @@ impl SortDirection {
     }
 }
 
+/// Column filter
+#[derive(Debug, Clone, Default)]
+pub struct ColumnFilters {
+    pub id: String,
+    pub title: String,
+    pub status: String,
+    pub priority: String,
+    pub type_filter: String,
+}
+
+impl ColumnFilters {
+    pub fn clear(&mut self) {
+        self.id.clear();
+        self.title.clear();
+        self.status.clear();
+        self.priority.clear();
+        self.type_filter.clear();
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.id.is_empty()
+            && self.title.is_empty()
+            && self.status.is_empty()
+            && self.priority.is_empty()
+            && self.type_filter.is_empty()
+    }
+}
+
 /// Issue list state
 #[derive(Debug)]
 pub struct IssueListState {
@@ -45,6 +73,10 @@ pub struct IssueListState {
     sort_direction: SortDirection,
     /// Editing state: (issue_index, edit_buffer, cursor_position)
     editing: Option<(usize, String, usize)>,
+    /// Quick filters enabled
+    filters_enabled: bool,
+    /// Column filters
+    column_filters: ColumnFilters,
 }
 
 impl Default for IssueListState {
@@ -62,7 +94,34 @@ impl IssueListState {
             sort_column: SortColumn::Updated,
             sort_direction: SortDirection::Descending,
             editing: None,
+            filters_enabled: false,
+            column_filters: ColumnFilters::default(),
         }
+    }
+
+    /// Toggle quick filters on/off
+    pub fn toggle_filters(&mut self) {
+        self.filters_enabled = !self.filters_enabled;
+    }
+
+    /// Check if filters are enabled
+    pub fn filters_enabled(&self) -> bool {
+        self.filters_enabled
+    }
+
+    /// Get column filters
+    pub fn column_filters(&self) -> &ColumnFilters {
+        &self.column_filters
+    }
+
+    /// Get mutable column filters
+    pub fn column_filters_mut(&mut self) -> &mut ColumnFilters {
+        &mut self.column_filters
+    }
+
+    /// Clear all filters
+    pub fn clear_filters(&mut self) {
+        self.column_filters.clear();
     }
 
     pub fn select_next(&mut self, len: usize) {
