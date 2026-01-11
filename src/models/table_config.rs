@@ -1,0 +1,493 @@
+//! Table configuration for issue list with column management and persistence
+
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// Column identifier for the issue table
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ColumnId {
+    Id,
+    Title,
+    Status,
+    Priority,
+    Type,
+    Assignee,
+    Labels,
+    Updated,
+    Created,
+}
+
+impl ColumnId {
+    /// Returns true if this column is mandatory and cannot be fully hidden
+    pub fn is_mandatory(&self) -> bool {
+        matches!(self, ColumnId::Id | ColumnId::Title)
+    }
+
+    /// Returns the default label for this column
+    pub fn default_label(&self) -> &'static str {
+        match self {
+            ColumnId::Id => "ID",
+            ColumnId::Title => "Title",
+            ColumnId::Status => "Status",
+            ColumnId::Priority => "Priority",
+            ColumnId::Type => "Type",
+            ColumnId::Assignee => "Assignee",
+            ColumnId::Labels => "Labels",
+            ColumnId::Updated => "Updated",
+            ColumnId::Created => "Created",
+        }
+    }
+}
+
+/// Text alignment for column content
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Alignment {
+    Left,
+    Center,
+    Right,
+}
+
+/// Word wrap behavior for column content
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WrapBehavior {
+    /// No wrapping, truncate with ellipsis
+    Truncate,
+    /// Wrap at word boundaries
+    Wrap,
+    /// Wrap anywhere
+    WrapAnywhere,
+}
+
+/// Width constraints for a column
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WidthConstraints {
+    /// Minimum width in characters
+    pub min: u16,
+    /// Maximum width in characters (None = unlimited)
+    pub max: Option<u16>,
+    /// Preferred width in characters
+    pub preferred: u16,
+}
+
+impl WidthConstraints {
+    pub fn new(min: u16, max: Option<u16>, preferred: u16) -> Self {
+        Self {
+            min,
+            max,
+            preferred: preferred.max(min),
+        }
+    }
+
+    /// Clamp a width value to the constraints
+    pub fn clamp(&self, width: u16) -> u16 {
+        let clamped = width.max(self.min);
+        if let Some(max) = self.max {
+            clamped.min(max)
+        } else {
+            clamped
+        }
+    }
+}
+
+/// Column definition for the issue table
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ColumnDefinition {
+    /// Column identifier
+    pub id: ColumnId,
+    /// Display label
+    pub label: String,
+    /// Width constraints
+    pub width_constraints: WidthConstraints,
+    /// Current width (within constraints)
+    pub width: u16,
+    /// Text alignment
+    pub alignment: Alignment,
+    /// Wrap behavior
+    pub wrap: WrapBehavior,
+    /// Whether the column is visible
+    pub visible: bool,
+}
+
+impl ColumnDefinition {
+    /// Create a new column definition with defaults
+    pub fn new(id: ColumnId) -> Self {
+        let (width_constraints, alignment, wrap) = match id {
+            ColumnId::Id => (
+                WidthConstraints::new(10, Some(20), 15),
+                Alignment::Left,
+                WrapBehavior::Truncate,
+            ),
+            ColumnId::Title => (
+                WidthConstraints::new(20, None, 40),
+                Alignment::Left,
+                WrapBehavior::Wrap,
+            ),
+            ColumnId::Status => (
+                WidthConstraints::new(8, Some(15), 12),
+                Alignment::Left,
+                WrapBehavior::Truncate,
+            ),
+            ColumnId::Priority => (
+                WidthConstraints::new(6, Some(10), 8),
+                Alignment::Center,
+                WrapBehavior::Truncate,
+            ),
+            ColumnId::Type => (
+                WidthConstraints::new(6, Some(10), 8),
+                Alignment::Left,
+                WrapBehavior::Truncate,
+            ),
+            ColumnId::Assignee => (
+                WidthConstraints::new(8, Some(30), 15),
+                Alignment::Left,
+                WrapBehavior::Truncate,
+            ),
+            ColumnId::Labels => (
+                WidthConstraints::new(10, None, 20),
+                Alignment::Left,
+                WrapBehavior::Truncate,
+            ),
+            ColumnId::Updated => (
+                WidthConstraints::new(10, Some(20), 16),
+                Alignment::Right,
+                WrapBehavior::Truncate,
+            ),
+            ColumnId::Created => (
+                WidthConstraints::new(10, Some(20), 16),
+                Alignment::Right,
+                WrapBehavior::Truncate,
+            ),
+        };
+
+        Self {
+            id,
+            label: id.default_label().to_string(),
+            width_constraints,
+            width: width_constraints.preferred,
+            alignment,
+            wrap,
+            visible: true,
+        }
+    }
+
+    /// Set the column width (clamped to constraints)
+    pub fn set_width(&mut self, width: u16) {
+        self.width = self.width_constraints.clamp(width);
+    }
+
+    /// Set visibility (mandatory columns cannot be fully hidden)
+    pub fn set_visible(&mut self, visible: bool) {
+        if !self.id.is_mandatory() {
+            self.visible = visible;
+        }
+    }
+}
+
+/// Sort configuration
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SortConfig {
+    /// Column to sort by
+    pub column: ColumnId,
+    /// Sort direction
+    pub ascending: bool,
+}
+
+impl Default for SortConfig {
+    fn default() -> Self {
+        Self {
+            column: ColumnId::Updated,
+            ascending: false,
+        }
+    }
+}
+
+/// Filter configuration
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct FilterConfig {
+    /// Active filters by column
+    pub filters: HashMap<ColumnId, String>,
+}
+
+/// Complete table configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TableConfig {
+    /// Column definitions in display order
+    pub columns: Vec<ColumnDefinition>,
+    /// Row height in lines
+    pub row_height: u16,
+    /// Sort configuration
+    pub sort: SortConfig,
+    /// Filter configuration
+    pub filters: FilterConfig,
+    /// Config version for migration
+    #[serde(default = "default_version")]
+    pub version: u32,
+}
+
+fn default_version() -> u32 {
+    1
+}
+
+impl Default for TableConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TableConfig {
+    /// Create a new table configuration with default columns
+    pub fn new() -> Self {
+        Self {
+            columns: Self::default_columns(),
+            row_height: 1,
+            sort: SortConfig::default(),
+            filters: FilterConfig::default(),
+            version: 1,
+        }
+    }
+
+    /// Get the default column order and definitions
+    fn default_columns() -> Vec<ColumnDefinition> {
+        vec![
+            ColumnDefinition::new(ColumnId::Id),
+            ColumnDefinition::new(ColumnId::Title),
+            ColumnDefinition::new(ColumnId::Status),
+            ColumnDefinition::new(ColumnId::Priority),
+            ColumnDefinition::new(ColumnId::Type),
+            ColumnDefinition::new(ColumnId::Assignee),
+            ColumnDefinition::new(ColumnId::Labels),
+            ColumnDefinition::new(ColumnId::Updated),
+        ]
+    }
+
+    /// Validate and migrate configuration
+    pub fn validate_and_migrate(mut self) -> Self {
+        // Ensure mandatory columns are present and visible
+        let has_id = self.columns.iter().any(|c| c.id == ColumnId::Id);
+        let has_title = self.columns.iter().any(|c| c.id == ColumnId::Title);
+
+        if !has_id {
+            self.columns.insert(0, ColumnDefinition::new(ColumnId::Id));
+        }
+        if !has_title {
+            // Insert Title after Id (position 1) since we just added Id if it was missing
+            let insert_pos = if has_id {
+                // Id was already present, find its position
+                self.columns.iter().position(|c| c.id == ColumnId::Id).map(|pos| pos + 1).unwrap_or(1)
+            } else {
+                // Id was just added at position 0
+                1
+            };
+            self.columns
+                .insert(insert_pos, ColumnDefinition::new(ColumnId::Title));
+        }
+
+        // Ensure mandatory columns are visible
+        for col in &mut self.columns {
+            if col.id.is_mandatory() {
+                col.visible = true;
+            }
+        }
+
+        // Validate widths are within constraints
+        for col in &mut self.columns {
+            col.width = col.width_constraints.clamp(col.width);
+        }
+
+        // Ensure row height is at least 1
+        self.row_height = self.row_height.max(1);
+
+        // Add any missing default columns at the end
+        let existing_ids: Vec<ColumnId> = self.columns.iter().map(|c| c.id).collect();
+        for default_col in Self::default_columns() {
+            if !existing_ids.contains(&default_col.id) {
+                self.columns.push(default_col);
+            }
+        }
+
+        self
+    }
+
+    /// Get visible columns in display order
+    pub fn visible_columns(&self) -> Vec<&ColumnDefinition> {
+        self.columns.iter().filter(|c| c.visible).collect()
+    }
+
+    /// Get a column by ID
+    pub fn get_column(&self, id: ColumnId) -> Option<&ColumnDefinition> {
+        self.columns.iter().find(|c| c.id == id)
+    }
+
+    /// Get a mutable column by ID
+    pub fn get_column_mut(&mut self, id: ColumnId) -> Option<&mut ColumnDefinition> {
+        self.columns.iter_mut().find(|c| c.id == id)
+    }
+
+    /// Reorder columns
+    pub fn reorder_column(&mut self, from_index: usize, to_index: usize) {
+        if from_index < self.columns.len() && to_index < self.columns.len() {
+            let col = self.columns.remove(from_index);
+            self.columns.insert(to_index, col);
+        }
+    }
+
+    /// Set column width
+    pub fn set_column_width(&mut self, id: ColumnId, width: u16) {
+        if let Some(col) = self.get_column_mut(id) {
+            col.set_width(width);
+        }
+    }
+
+    /// Toggle column visibility
+    pub fn toggle_column_visibility(&mut self, id: ColumnId) {
+        if let Some(col) = self.get_column_mut(id) {
+            col.set_visible(!col.visible);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_column_id_mandatory() {
+        assert!(ColumnId::Id.is_mandatory());
+        assert!(ColumnId::Title.is_mandatory());
+        assert!(!ColumnId::Status.is_mandatory());
+        assert!(!ColumnId::Priority.is_mandatory());
+    }
+
+    #[test]
+    fn test_width_constraints_clamp() {
+        let constraints = WidthConstraints::new(10, Some(50), 30);
+        assert_eq!(constraints.clamp(5), 10); // Below min
+        assert_eq!(constraints.clamp(30), 30); // Within range
+        assert_eq!(constraints.clamp(60), 50); // Above max
+    }
+
+    #[test]
+    fn test_column_definition_set_width() {
+        let mut col = ColumnDefinition::new(ColumnId::Id);
+        col.set_width(5); // Below min
+        assert_eq!(col.width, col.width_constraints.min);
+
+        col.set_width(100); // Above max
+        assert_eq!(col.width, col.width_constraints.max.unwrap());
+    }
+
+    #[test]
+    fn test_column_definition_set_visible() {
+        // Non-mandatory column can be hidden
+        let mut col = ColumnDefinition::new(ColumnId::Status);
+        col.set_visible(false);
+        assert!(!col.visible);
+
+        // Mandatory column cannot be hidden
+        let mut col = ColumnDefinition::new(ColumnId::Id);
+        col.set_visible(false);
+        assert!(col.visible);
+    }
+
+    #[test]
+    fn test_table_config_default() {
+        let config = TableConfig::default();
+        assert_eq!(config.columns.len(), 8);
+        assert_eq!(config.row_height, 1);
+        assert_eq!(config.sort.column, ColumnId::Updated);
+        assert!(!config.sort.ascending);
+    }
+
+    #[test]
+    fn test_table_config_validate_mandatory_columns() {
+        let mut config = TableConfig {
+            columns: vec![ColumnDefinition::new(ColumnId::Status)],
+            row_height: 1,
+            sort: SortConfig::default(),
+            filters: FilterConfig::default(),
+            version: 1,
+        };
+
+        config = config.validate_and_migrate();
+
+        // Should have added ID and Title at the beginning
+        assert!(config.columns.iter().any(|c| c.id == ColumnId::Id));
+        assert!(config.columns.iter().any(|c| c.id == ColumnId::Title));
+        assert!(config.columns[0].id == ColumnId::Id);
+        assert!(config.columns[1].id == ColumnId::Title);
+    }
+
+    #[test]
+    fn test_table_config_validate_row_height() {
+        let mut config = TableConfig {
+            columns: TableConfig::default_columns(),
+            row_height: 0,
+            sort: SortConfig::default(),
+            filters: FilterConfig::default(),
+            version: 1,
+        };
+
+        config = config.validate_and_migrate();
+        assert_eq!(config.row_height, 1);
+    }
+
+    #[test]
+    fn test_table_config_visible_columns() {
+        let mut config = TableConfig::default();
+        config.columns[2].visible = false; // Hide Status
+
+        let visible = config.visible_columns();
+        assert_eq!(visible.len(), 7);
+        assert!(!visible.iter().any(|c| c.id == ColumnId::Status));
+    }
+
+    #[test]
+    fn test_table_config_reorder_column() {
+        let mut config = TableConfig::default();
+        let first_id = config.columns[0].id;
+        let third_id = config.columns[2].id;
+
+        config.reorder_column(2, 0);
+
+        assert_eq!(config.columns[0].id, third_id);
+        assert_eq!(config.columns[1].id, first_id);
+    }
+
+    #[test]
+    fn test_table_config_set_column_width() {
+        let mut config = TableConfig::default();
+        config.set_column_width(ColumnId::Title, 50);
+
+        let title_col = config.get_column(ColumnId::Title).unwrap();
+        assert_eq!(title_col.width, 50);
+    }
+
+    #[test]
+    fn test_table_config_toggle_visibility() {
+        let mut config = TableConfig::default();
+
+        // Toggle non-mandatory column
+        config.toggle_column_visibility(ColumnId::Status);
+        assert!(!config.get_column(ColumnId::Status).unwrap().visible);
+
+        config.toggle_column_visibility(ColumnId::Status);
+        assert!(config.get_column(ColumnId::Status).unwrap().visible);
+
+        // Toggle mandatory column (should remain visible)
+        config.toggle_column_visibility(ColumnId::Id);
+        assert!(config.get_column(ColumnId::Id).unwrap().visible);
+    }
+
+    #[test]
+    fn test_serialization() {
+        let config = TableConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: TableConfig = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(config.columns.len(), deserialized.columns.len());
+        assert_eq!(config.row_height, deserialized.row_height);
+    }
+}

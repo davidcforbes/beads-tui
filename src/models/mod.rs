@@ -6,8 +6,10 @@ pub mod app_state;
 pub mod filter;
 pub mod navigation;
 pub mod perf;
+pub mod table_config;
 
 pub use app_state::*;
 pub use filter::*;
 pub use navigation::*;
 pub use perf::PerfStats;
+pub use table_config::*;

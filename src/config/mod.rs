@@ -1,4 +1,5 @@
 /// Configuration management for beads-tui
+use crate::models::TableConfig;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -11,6 +12,8 @@ pub struct Config {
     pub keybindings: KeybindingsConfig,
     #[serde(default)]
     pub behavior: BehaviorConfig,
+    #[serde(default)]
+    pub table: TableConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,12 +69,17 @@ impl Config {
     pub fn load() -> Result<Self> {
         let config_path = Self::config_path()?;
 
-        if config_path.exists() {
+        let mut config = if config_path.exists() {
             let content = std::fs::read_to_string(&config_path)?;
-            Ok(serde_yaml::from_str(&content)?)
+            serde_yaml::from_str(&content)?
         } else {
-            Ok(Self::default())
-        }
+            Self::default()
+        };
+
+        // Validate and migrate table config
+        config.table = config.table.validate_and_migrate();
+
+        Ok(config)
     }
 
     /// Save configuration to file
