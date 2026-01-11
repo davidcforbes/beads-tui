@@ -12,6 +12,7 @@ pub mod filter_save_dialog;
 pub mod form;
 pub mod issue_list;
 pub mod label_picker;
+pub mod markdown_viewer;
 pub mod progress;
 pub mod search_input;
 pub mod selector;
@@ -31,6 +32,7 @@ pub use filter_save_dialog::{FilterSaveDialog, FilterSaveDialogState, FilterSave
 pub use form::{FieldType, Form, FormField, FormState};
 pub use issue_list::{IssueList, IssueListState, SortColumn, SortDirection};
 pub use label_picker::{LabelPicker, LabelPickerState};
+pub use markdown_viewer::{MarkdownViewer, MarkdownViewerState};
 pub use progress::{LoadingIndicator, ProgressBar, Spinner};
 pub use search_input::{SearchInput, SearchInputState};
 pub use selector::{PrioritySelector, SelectorState, StatusSelector, TypeSelector};
