@@ -12,6 +12,7 @@ pub mod filter_save_dialog;
 pub mod form;
 pub mod inline_metadata;
 pub mod issue_list;
+pub mod kanban_card;
 pub mod label_picker;
 pub mod markdown_viewer;
 pub mod progress;
@@ -35,6 +36,7 @@ pub use inline_metadata::{
     build_metadata_spans, format_age, format_assignee, format_labels, MetadataDisplayConfig,
 };
 pub use issue_list::{IssueList, IssueListState, SortColumn, SortDirection};
+pub use kanban_card::{render_kanban_card, CardMode, KanbanCardConfig};
 pub use label_picker::{LabelPicker, LabelPickerState};
 pub use markdown_viewer::{MarkdownViewer, MarkdownViewerState};
 pub use progress::{LoadingIndicator, ProgressBar, Spinner};
