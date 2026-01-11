@@ -225,7 +225,7 @@ impl<'a> FilterPanel<'a> {
         }
     }
 
-    fn build_filter_items(&self) -> Vec<ListItem> {
+    fn build_filter_items(&self) -> Vec<ListItem<'_>> {
         let mut items = Vec::new();
 
         // Status filters

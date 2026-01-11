@@ -1,0 +1,108 @@
+name: Performance Issue
+description: Report slow performance, memory leaks, or resource usage problems
+title: "[Performance]: "
+labels: ["performance", "needs-triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a performance issue! Please provide as much detail as possible.
+
+  - type: dropdown
+    id: perf-type
+    attributes:
+      label: Performance Issue Type
+      description: What type of performance issue are you experiencing?
+      options:
+        - Slow/laggy UI
+        - High CPU usage
+        - High memory usage
+        - Memory leak
+        - Slow startup time
+        - Slow operation/command
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Issue Description
+      description: Describe the performance problem
+      placeholder: What performance issue are you experiencing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this performance issue?
+      placeholder: |
+        1. Load a project with N issues
+        2. Navigate to Issues tab
+        3. Observe slow scrolling...
+    validations:
+      required: true
+
+  - type: textarea
+    id: measurements
+    attributes:
+      label: Performance Measurements
+      description: If you have any measurements, please share them
+      placeholder: |
+        - Number of issues in database: X
+        - CPU usage: Y%
+        - Memory usage: Z MB
+        - FPS/render time: (you can use Ctrl+P to show perf stats)
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: beads-tui Version
+      description: What version of beads-tui are you running?
+      placeholder: "e.g., v0.1.0 or commit hash"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What OS are you running?
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware Specs
+      description: What hardware are you using?
+      placeholder: "e.g., CPU model, RAM amount, SSD/HDD"
+    validations:
+      required: false
+
+  - type: textarea
+    id: profiling
+    attributes:
+      label: Profiling Data
+      description: If you have any profiling data or logs, please share them
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the performance issue here
+    validations:
+      required: false

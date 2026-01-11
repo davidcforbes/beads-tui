@@ -4,6 +4,8 @@ use crate::ui::views::{
     compute_label_stats, DatabaseStats, DatabaseStatus, IssuesViewState, LabelStats,
 };
 
+use super::PerfStats;
+
 #[derive(Debug)]
 pub struct AppState {
     pub should_quit: bool,
@@ -14,6 +16,12 @@ pub struct AppState {
     pub label_stats: Vec<LabelStats>,
     pub database_stats: DatabaseStats,
     pub database_status: DatabaseStatus,
+    /// Dirty flag to track whether UI needs redrawing
+    dirty: bool,
+    /// Performance profiling statistics
+    pub perf_stats: PerfStats,
+    /// Whether to show performance stats in UI
+    pub show_perf_stats: bool,
 }
 
 impl AppState {
@@ -46,11 +54,15 @@ impl AppState {
             label_stats,
             database_stats,
             database_status: DatabaseStatus::Ready,
+            dirty: true, // Initial render required
+            perf_stats: PerfStats::new(),
+            show_perf_stats: false,
         }
     }
 
     pub fn next_tab(&mut self) {
         self.selected_tab = (self.selected_tab + 1) % self.tabs.len();
+        self.mark_dirty();
     }
 
     pub fn previous_tab(&mut self) {
@@ -59,6 +71,31 @@ impl AppState {
         } else {
             self.selected_tab = self.tabs.len() - 1;
         }
+        self.mark_dirty();
+    }
+
+    /// Mark the UI as dirty, requiring a redraw
+    pub fn mark_dirty(&mut self) {
+        self.dirty = true;
+    }
+
+    /// Check if UI needs redrawing
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+
+    /// Clear the dirty flag after rendering
+    pub fn clear_dirty(&mut self) {
+        self.dirty = false;
+    }
+
+    /// Toggle performance stats display
+    pub fn toggle_perf_stats(&mut self) {
+        self.show_perf_stats = !self.show_perf_stats;
+        if self.show_perf_stats && !self.perf_stats.is_enabled() {
+            self.perf_stats.set_enabled(true);
+        }
+        self.mark_dirty();
     }
 }
 

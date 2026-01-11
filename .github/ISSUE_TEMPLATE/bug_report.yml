@@ -1,0 +1,128 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in beads-tui
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! Please provide as much detail as possible.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug
+      placeholder: What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the issue
+      placeholder: |
+        1. Launch beads-tui
+        2. Navigate to Issues tab
+        3. Press 'j' to move down
+        4. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should happen instead?
+      placeholder: Describe the expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happens?
+      placeholder: Describe the actual behavior, including any error messages
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - Critical (application crashes or data loss)
+        - High (major feature broken)
+        - Medium (feature partially broken)
+        - Low (minor issue or cosmetic)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: beads-tui Version
+      description: What version of beads-tui are you running?
+      placeholder: "e.g., v0.1.0 or commit hash"
+    validations:
+      required: true
+
+  - type: input
+    id: beads-version
+    attributes:
+      label: beads CLI Version
+      description: What version of the beads CLI are you using?
+      placeholder: "Run 'bd --version' to find this"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What OS are you running?
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other (please specify in additional context)
+    validations:
+      required: true
+
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal Emulator
+      description: What terminal are you using?
+      placeholder: "e.g., Windows Terminal, iTerm2, Alacritty, GNOME Terminal"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: If applicable, add any error logs or stack traces
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain the problem
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here
+    validations:
+      required: false

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/davidcforbes/beads-tui/discussions
+    about: Ask questions or discuss ideas with the community
+  - name: beads CLI Issues
+    url: https://github.com/beadslang/beads/issues
+    about: Report issues with the beads CLI tool itself (not beads-tui)

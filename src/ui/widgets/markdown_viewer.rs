@@ -167,7 +167,7 @@ fn parse_markdown(content: &str) -> Vec<MarkdownElement> {
 }
 
 /// Parse inline markdown formatting (bold, italic, code, links)
-fn parse_inline_formatting(text: &str) -> Vec<Span> {
+fn parse_inline_formatting(text: &str) -> Vec<Span<'_>> {
     let mut spans = Vec::new();
     let mut current = String::new();
     let mut chars = text.chars().peekable();

@@ -5,7 +5,10 @@ pub mod ui;
 
 use anyhow::Result;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind,
+        KeyModifiers,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -13,10 +16,12 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
+    text::Line,
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
 };
 use std::io;
+use std::time::Instant;
 use ui::views::{DatabaseView, DependenciesView, HelpView, IssuesView, LabelsView};
 
 fn main() -> Result<()> {
@@ -245,10 +250,24 @@ fn run_app<B: ratatui::backend::Backend>(
     app: &mut models::AppState,
 ) -> Result<()> {
     loop {
-        terminal.draw(|f| ui(f, app))?;
+        // Only render if state has changed (dirty checking)
+        if app.is_dirty() {
+            let start = Instant::now();
+            terminal.draw(|f| ui(f, app))?;
+            let render_time = start.elapsed();
+            app.perf_stats.record_render(render_time);
+            app.clear_dirty();
+        }
 
-        if let Event::Key(key) = event::read()? {
-            if key.kind == KeyEventKind::Press {
+        match event::read()? {
+            Event::Key(key) if key.kind == KeyEventKind::Press => {
+                // Check for performance stats toggle (Ctrl+P or F12)
+                if (key.code == KeyCode::Char('p') && key.modifiers.contains(KeyModifiers::CONTROL))
+                    || key.code == KeyCode::F(12)
+                {
+                    app.toggle_perf_stats();
+                    continue;
+                }
                 // Global key bindings
                 match key.code {
                     KeyCode::Char('q') => {
@@ -257,22 +276,27 @@ fn run_app<B: ratatui::backend::Backend>(
                     }
                     KeyCode::Char('1') => {
                         app.selected_tab = 0;
+                        app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('2') => {
                         app.selected_tab = 1;
+                        app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('3') => {
                         app.selected_tab = 2;
+                        app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('4') => {
                         app.selected_tab = 3;
+                        app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('5') => {
                         app.selected_tab = 4;
+                        app.mark_dirty();
                         continue;
                     }
                     _ => {}
@@ -294,7 +318,15 @@ fn run_app<B: ratatui::backend::Backend>(
                     KeyCode::BackTab => app.previous_tab(),
                     _ => {}
                 }
+
+                // Mark dirty after any key event handling
+                app.mark_dirty();
             }
+            Event::Resize(_, _) => {
+                // Terminal was resized, need to redraw
+                app.mark_dirty();
+            }
+            _ => {}
         }
 
         if app.should_quit {
@@ -395,11 +427,27 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         }
     }
 
-    // Status bar
-    let status_bar = Paragraph::new(
-        "Press 'q' to quit | Tab/Shift+Tab to switch tabs | 1-5 for direct tab access",
-    )
-    .style(Style::default().fg(Color::Gray))
-    .block(Block::default().borders(Borders::ALL));
-    f.render_widget(status_bar, chunks[2]);
+    // Status bar with optional performance stats
+    let status_text = if app.show_perf_stats {
+        let perf_info = app.perf_stats.format_stats();
+        let mut lines: Vec<Line> = perf_info
+            .lines()
+            .map(|l| Line::from(l.to_string()))
+            .collect();
+        // Add help text at the end
+        lines.push(Line::from(""));
+        lines.push(Line::from(
+            "Press Ctrl+P or F12 to toggle perf stats | 'q' to quit | Tab to switch",
+        ));
+        Paragraph::new(lines)
+            .style(Style::default().fg(Color::Cyan))
+            .block(Block::default().borders(Borders::ALL).title("Performance"))
+    } else {
+        Paragraph::new(
+            "Press 'q' to quit | Tab/Shift+Tab to switch tabs | 1-5 for direct tab access | Ctrl+P/F12 for perf stats",
+        )
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default().borders(Borders::ALL))
+    };
+    f.render_widget(status_text, chunks[2]);
 }

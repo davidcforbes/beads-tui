@@ -5,7 +5,9 @@
 pub mod app_state;
 pub mod filter;
 pub mod navigation;
+pub mod perf;
 
 pub use app_state::*;
 pub use filter::*;
 pub use navigation::*;
+pub use perf::PerfStats;
