@@ -9,6 +9,7 @@ use ratatui::{
 };
 
 /// Search input state
+#[derive(Debug)]
 pub struct SearchInputState {
     query: String,
     cursor_position: usize,

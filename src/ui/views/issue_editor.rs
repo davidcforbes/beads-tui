@@ -11,6 +11,7 @@ use ratatui::{
 };
 
 /// Issue editor state
+#[derive(Debug)]
 pub struct IssueEditorState {
     form_state: FormState,
     issue_id: String,

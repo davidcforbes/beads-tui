@@ -13,10 +13,10 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
 };
+use ui::views::{DatabaseView, DependenciesView, HelpView, IssuesView, LabelsView};
 use std::io;
 
 fn main() -> Result<()> {
@@ -98,7 +98,7 @@ fn run_app<B: ratatui::backend::Backend>(
     Ok(())
 }
 
-fn ui(f: &mut Frame, app: &models::AppState) {
+fn ui(f: &mut Frame, app: &mut models::AppState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -147,15 +147,41 @@ fn ui(f: &mut Frame, app: &models::AppState) {
     f.render_widget(tabs_widget, tabs_chunks[0]);
 
     // Content area based on selected tab
-    let content = match app.selected_tab {
-        0 => render_issues_view(),
-        1 => render_dependencies_view(),
-        2 => render_labels_view(),
-        3 => render_database_view(),
-        4 => render_help_view(),
-        _ => render_help_view(),
-    };
-    f.render_widget(content, tabs_chunks[1]);
+    match app.selected_tab {
+        0 => {
+            // Issues view (stateful)
+            let issues_view = IssuesView::new();
+            f.render_stateful_widget(issues_view, tabs_chunks[1], &mut app.issues_view_state);
+        }
+        1 => {
+            // Dependencies view
+            let all_issues: Vec<_> = app.issues_view_state.search_state().filtered_issues().iter().collect();
+            let selected_issue = app.issues_view_state.selected_issue();
+            let mut dependencies_view = DependenciesView::new(all_issues);
+            if let Some(issue) = selected_issue {
+                dependencies_view = dependencies_view.issue(issue);
+            }
+            f.render_widget(dependencies_view, tabs_chunks[1]);
+        }
+        2 => {
+            // Labels view
+            let labels_view = LabelsView::new().labels(app.label_stats.clone());
+            f.render_widget(labels_view, tabs_chunks[1]);
+        }
+        3 => {
+            // Database view
+            let database_view = DatabaseView::new()
+                .status(app.database_status)
+                .stats(app.database_stats.clone())
+                .daemon_running(false); // TODO: Check actual daemon status
+            f.render_widget(database_view, tabs_chunks[1]);
+        }
+        4 | _ => {
+            // Help view
+            let help_view = HelpView::new();
+            f.render_widget(help_view, tabs_chunks[1]);
+        }
+    }
 
     // Status bar
     let status_bar = Paragraph::new(
@@ -166,116 +192,4 @@ fn ui(f: &mut Frame, app: &models::AppState) {
     f.render_widget(status_bar, chunks[2]);
 }
 
-fn render_issues_view() -> Paragraph<'static> {
-    Paragraph::new(vec![
-        Line::from(Span::styled(
-            "Issues View",
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-        Line::from("This will show the list of issues from your beads database."),
-        Line::from(""),
-        Line::from("Features to implement:"),
-        Line::from("  • Issue list with filtering"),
-        Line::from("  • Create new issue"),
-        Line::from("  • Edit existing issues"),
-        Line::from("  • Close/reopen issues"),
-        Line::from("  • Bulk operations"),
-    ])
-    .block(Block::default().borders(Borders::ALL).title("Issues"))
-}
 
-fn render_dependencies_view() -> Paragraph<'static> {
-    Paragraph::new(vec![
-        Line::from(Span::styled(
-            "Dependencies View",
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-        Line::from("This will show dependency trees and relationships."),
-        Line::from(""),
-        Line::from("Features to implement:"),
-        Line::from("  • Dependency tree visualization"),
-        Line::from("  • Add/remove dependencies"),
-        Line::from("  • Cycle detection"),
-        Line::from("  • Dependency graph"),
-    ])
-    .block(Block::default().borders(Borders::ALL).title("Dependencies"))
-}
-
-fn render_labels_view() -> Paragraph<'static> {
-    Paragraph::new(vec![
-        Line::from(Span::styled(
-            "Labels View",
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-        Line::from("This will show label management interface."),
-        Line::from(""),
-        Line::from("Features to implement:"),
-        Line::from("  • Label browser"),
-        Line::from("  • Add/remove labels"),
-        Line::from("  • Label autocomplete"),
-        Line::from("  • State management"),
-    ])
-    .block(Block::default().borders(Borders::ALL).title("Labels"))
-}
-
-fn render_database_view() -> Paragraph<'static> {
-    Paragraph::new(vec![
-        Line::from(Span::styled(
-            "Database View",
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-        Line::from("This will show database status and operations."),
-        Line::from(""),
-        Line::from("Features to implement:"),
-        Line::from("  • Database dashboard"),
-        Line::from("  • Import/export"),
-        Line::from("  • Daemon management"),
-        Line::from("  • Sync operations"),
-    ])
-    .block(Block::default().borders(Borders::ALL).title("Database"))
-}
-
-fn render_help_view() -> Paragraph<'static> {
-    Paragraph::new(vec![
-        Line::from(Span::styled(
-            "Help & Keyboard Shortcuts",
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-        Line::from(Span::styled("Global:", Style::default().fg(Color::Cyan))),
-        Line::from("  q         - Quit application"),
-        Line::from("  Tab       - Next tab"),
-        Line::from("  Shift+Tab - Previous tab"),
-        Line::from("  1-5       - Jump to tab directly"),
-        Line::from(""),
-        Line::from(Span::styled(
-            "Coming Soon:",
-            Style::default().fg(Color::Cyan),
-        )),
-        Line::from("  ?         - Show help"),
-        Line::from("  /         - Search"),
-        Line::from("  :         - Command palette"),
-        Line::from("  n         - New issue"),
-        Line::from("  f         - Filter builder"),
-        Line::from(""),
-        Line::from(Span::styled("About:", Style::default().fg(Color::Cyan))),
-        Line::from("  Beads-TUI v0.1.0"),
-        Line::from("  Interactive terminal UI for Beads"),
-        Line::from("  https://github.com/YOUR_USERNAME/beads-tui"),
-    ])
-    .block(Block::default().borders(Borders::ALL).title("Help"))
-}

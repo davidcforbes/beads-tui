@@ -130,6 +130,7 @@ impl FormField {
 }
 
 /// Form state
+#[derive(Debug)]
 pub struct FormState {
     fields: Vec<FormField>,
     focused_index: usize,

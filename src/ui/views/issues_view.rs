@@ -24,6 +24,7 @@ pub enum IssuesViewMode {
 }
 
 /// Issues view state
+#[derive(Debug)]
 pub struct IssuesViewState {
     search_state: SearchInterfaceState,
     view_mode: IssuesViewMode,

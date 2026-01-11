@@ -38,6 +38,7 @@ impl SortDirection {
 }
 
 /// Issue list state
+#[derive(Debug)]
 pub struct IssueListState {
     table_state: TableState,
     sort_column: SortColumn,

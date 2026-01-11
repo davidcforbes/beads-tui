@@ -11,6 +11,7 @@ use ratatui::{
 };
 
 /// Search interface state
+#[derive(Debug)]
 pub struct SearchInterfaceState {
     search_state: SearchInputState,
     list_state: IssueListState,
