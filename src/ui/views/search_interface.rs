@@ -155,9 +155,10 @@ impl SearchInterfaceState {
                     false
                 }
             }
-            SearchScope::Notes => {
-                issue.notes.iter().any(|note| note.content.to_lowercase().contains(query))
-            }
+            SearchScope::Notes => issue
+                .notes
+                .iter()
+                .any(|note| note.content.to_lowercase().contains(query)),
             SearchScope::All => {
                 issue.title.to_lowercase().contains(query)
                     || issue
@@ -171,8 +172,14 @@ impl SearchInterfaceState {
                         .as_ref()
                         .map(|a| a.to_lowercase().contains(query))
                         .unwrap_or(false)
-                    || issue.labels.iter().any(|l| l.to_lowercase().contains(query))
-                    || issue.notes.iter().any(|note| note.content.to_lowercase().contains(query))
+                    || issue
+                        .labels
+                        .iter()
+                        .any(|l| l.to_lowercase().contains(query))
+                    || issue
+                        .notes
+                        .iter()
+                        .any(|note| note.content.to_lowercase().contains(query))
             }
         }
     }
@@ -250,9 +257,9 @@ impl<'a> SearchInterfaceView<'a> {
         let filtered = state.result_count();
 
         let info_text = if state.search_state().query().is_empty() {
-            format!("Showing all {} issues", total)
+            format!("Showing all {total} issues")
         } else {
-            format!("Found {} of {} issues", filtered, total)
+            format!("Found {filtered} of {total} issues")
         };
 
         let line = Line::from(vec![
@@ -463,7 +470,10 @@ mod tests {
         state.update_filtered_issues();
 
         assert_eq!(state.result_count(), 1);
-        assert_eq!(state.filtered_issues()[0].assignee, Some("alice".to_string()));
+        assert_eq!(
+            state.filtered_issues()[0].assignee,
+            Some("alice".to_string())
+        );
     }
 
     #[test]

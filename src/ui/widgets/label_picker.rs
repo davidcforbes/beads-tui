@@ -274,7 +274,7 @@ impl<'a> StatefulWidget for LabelPicker<'a> {
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         // Create main layout
         let mut constraints = vec![
-            Constraint::Min(8),     // Label list
+            Constraint::Min(8), // Label list
         ];
 
         if !state.selected_labels.is_empty() {
@@ -301,21 +301,17 @@ impl<'a> StatefulWidget for LabelPicker<'a> {
             let selected_text = state
                 .selected_labels
                 .iter()
-                .map(|l| format!("🏷 {}", l))
+                .map(|l| format!("🏷 {l}"))
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            let selected_block = Block::default()
-                .borders(Borders::ALL)
-                .title("Selected");
+            let selected_block = Block::default().borders(Borders::ALL).title("Selected");
 
             let selected_inner = selected_block.inner(chunks[chunk_index]);
             selected_block.render(chunks[chunk_index], buf);
 
-            let selected_para = Paragraph::new(Line::from(Span::styled(
-                selected_text,
-                self.active_style,
-            )));
+            let selected_para =
+                Paragraph::new(Line::from(Span::styled(selected_text, self.active_style)));
             selected_para.render(selected_inner, buf);
 
             chunk_index += 1;
@@ -359,8 +355,7 @@ impl<'a> StatefulWidget for LabelPicker<'a> {
                     .fg(Color::DarkGray)
                     .add_modifier(Modifier::ITALIC),
             )))];
-            List::new(empty_items)
-                .block(Block::default().borders(Borders::ALL).title(list_title))
+            List::new(empty_items).block(Block::default().borders(Borders::ALL).title(list_title))
         } else {
             List::new(items)
                 .block(Block::default().borders(Borders::ALL).title(list_title))
@@ -373,9 +368,7 @@ impl<'a> StatefulWidget for LabelPicker<'a> {
 
         // Render filter input
         if state.is_filtering && chunk_index < chunks.len() {
-            let filter_block = Block::default()
-                .borders(Borders::ALL)
-                .title("Filter");
+            let filter_block = Block::default().borders(Borders::ALL).title("Filter");
 
             let filter_inner = filter_block.inner(chunks[chunk_index]);
             filter_block.render(chunks[chunk_index], buf);
@@ -395,8 +388,7 @@ impl<'a> StatefulWidget for LabelPicker<'a> {
             filter_para.render(filter_inner, buf);
 
             // Render cursor
-            if !state.filter_query.is_empty() && filter_inner.width > 0 && filter_inner.height > 0
-            {
+            if !state.filter_query.is_empty() && filter_inner.width > 0 && filter_inner.height > 0 {
                 let cursor_x = filter_inner.x + state.filter_cursor as u16;
                 let cursor_y = filter_inner.y;
 
@@ -544,7 +536,11 @@ mod tests {
 
     #[test]
     fn test_label_picker_case_insensitive_filter() {
-        let labels = vec!["BUG".to_string(), "Feature".to_string(), "URGENT".to_string()];
+        let labels = vec![
+            "BUG".to_string(),
+            "Feature".to_string(),
+            "URGENT".to_string(),
+        ];
         let mut state = LabelPickerState::new(labels);
 
         state.start_filtering();

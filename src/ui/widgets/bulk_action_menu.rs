@@ -374,9 +374,7 @@ impl<'a> StatefulWidget for BulkActionMenu<'a> {
                 // Add action name
                 let name = action.display_name();
                 let name_style = if action.is_destructive() {
-                    Style::default()
-                        .fg(Color::Red)
-                        .add_modifier(Modifier::BOLD)
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
                 } else {
                     Style::default()
                 };
@@ -386,9 +384,7 @@ impl<'a> StatefulWidget for BulkActionMenu<'a> {
                 if action.is_destructive() {
                     spans.push(Span::styled(
                         " [!]",
-                        Style::default()
-                            .fg(Color::Red)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                     ));
                 }
 
@@ -533,11 +529,7 @@ mod tests {
 
     #[test]
     fn test_custom_actions() {
-        let custom_actions = vec![
-            BulkAction::Close,
-            BulkAction::Reopen,
-            BulkAction::Cancel,
-        ];
+        let custom_actions = vec![BulkAction::Close, BulkAction::Reopen, BulkAction::Cancel];
 
         let state = BulkActionMenuState::with_actions(custom_actions.clone(), 3);
         assert_eq!(state.actions(), &custom_actions);
@@ -554,7 +546,7 @@ mod tests {
     #[test]
     fn test_all_actions_count() {
         let all_actions = BulkAction::all();
-        assert!(all_actions.len() > 0);
+        assert!(!all_actions.is_empty());
         assert!(all_actions.contains(&BulkAction::Close));
         assert!(all_actions.contains(&BulkAction::Cancel));
     }

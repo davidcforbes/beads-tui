@@ -16,8 +16,8 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
 };
-use ui::views::{DatabaseView, DependenciesView, HelpView, IssuesView, LabelsView};
 use std::io;
+use ui::views::{DatabaseView, DependenciesView, HelpView, IssuesView, LabelsView};
 
 fn main() -> Result<()> {
     // Setup panic hook to restore terminal on panic
@@ -82,11 +82,17 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 // Search input is focused - handle text input
                 match key_code {
                     KeyCode::Char(c) => {
-                        issues_state.search_state_mut().search_state_mut().insert_char(c);
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .insert_char(c);
                         issues_state.search_state_mut().update_filtered_issues();
                     }
                     KeyCode::Backspace => {
-                        issues_state.search_state_mut().search_state_mut().delete_char();
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
+                            .delete_char();
                         issues_state.search_state_mut().update_filtered_issues();
                     }
                     KeyCode::Delete => {
@@ -157,7 +163,10 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 match key_code {
                     KeyCode::Char('j') | KeyCode::Down => {
                         let len = issues_state.search_state().filtered_issues().len();
-                        issues_state.search_state_mut().list_state_mut().select_next(len);
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .select_next(len);
                     }
                     KeyCode::Char('k') | KeyCode::Up => {
                         let len = issues_state.search_state().filtered_issues().len();
@@ -353,7 +362,12 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         }
         1 => {
             // Dependencies view
-            let all_issues: Vec<_> = app.issues_view_state.search_state().filtered_issues().iter().collect();
+            let all_issues: Vec<_> = app
+                .issues_view_state
+                .search_state()
+                .filtered_issues()
+                .iter()
+                .collect();
             let selected_issue = app.issues_view_state.selected_issue();
             let mut dependencies_view = DependenciesView::new(all_issues);
             if let Some(issue) = selected_issue {
@@ -389,5 +403,3 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     .block(Block::default().borders(Borders::ALL));
     f.render_widget(status_bar, chunks[2]);
 }
-
-

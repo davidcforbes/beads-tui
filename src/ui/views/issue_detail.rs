@@ -81,10 +81,7 @@ impl<'a> IssueDetailView<'a> {
     fn render_header(&self, area: Rect, buf: &mut Buffer) {
         let header_lines = vec![
             Line::from(vec![
-                Span::styled(
-                    Self::type_symbol(&self.issue.issue_type),
-                    Style::default(),
-                ),
+                Span::styled(Self::type_symbol(&self.issue.issue_type), Style::default()),
                 Span::raw(" "),
                 Span::styled(
                     &self.issue.id,
@@ -95,8 +92,7 @@ impl<'a> IssueDetailView<'a> {
                 Span::raw(" - "),
                 Span::styled(
                     &self.issue.title,
-                    Style::default()
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().add_modifier(Modifier::BOLD),
                 ),
             ]),
             Line::from(vec![
@@ -108,15 +104,16 @@ impl<'a> IssueDetailView<'a> {
                 Span::raw("  "),
                 Span::styled("Priority: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
-                    format!("{} ({})", self.issue.priority, Self::priority_description(&self.issue.priority)),
+                    format!(
+                        "{} ({})",
+                        self.issue.priority,
+                        Self::priority_description(&self.issue.priority)
+                    ),
                     Style::default().fg(Self::priority_color(&self.issue.priority)),
                 ),
                 Span::raw("  "),
                 Span::styled("Type: ", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    format!("{:?}", self.issue.issue_type),
-                    Style::default(),
-                ),
+                Span::styled(format!("{:?}", self.issue.issue_type), Style::default()),
             ]),
         ];
 
@@ -138,7 +135,9 @@ impl<'a> IssueDetailView<'a> {
         let markdown_viewer = MarkdownViewer::new()
             .block(Block::default().borders(Borders::ALL).title("Description"))
             .style(if self.issue.description.is_none() {
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC)
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC)
             } else {
                 Style::default()
             });
@@ -166,7 +165,11 @@ impl<'a> IssueDetailView<'a> {
             Line::from(vec![
                 Span::styled("Priority: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
-                    format!("{} ({})", self.issue.priority, Self::priority_description(&self.issue.priority)),
+                    format!(
+                        "{} ({})",
+                        self.issue.priority,
+                        Self::priority_description(&self.issue.priority)
+                    ),
                     Style::default().fg(Self::priority_color(&self.issue.priority)),
                 ),
             ]),
@@ -217,10 +220,12 @@ impl<'a> IssueDetailView<'a> {
         if !self.issue.dependencies.is_empty() {
             items.push(ListItem::new(Line::from(Span::styled(
                 "Depends on:",
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             ))));
             for dep in &self.issue.dependencies {
-                items.push(ListItem::new(format!("  → {}", dep)));
+                items.push(ListItem::new(format!("  → {dep}")));
             }
         }
 
@@ -233,19 +238,21 @@ impl<'a> IssueDetailView<'a> {
                 Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             ))));
             for blocked in &self.issue.blocks {
-                items.push(ListItem::new(format!("  ← {}", blocked)));
+                items.push(ListItem::new(format!("  ← {blocked}")));
             }
         }
 
         if items.is_empty() {
             items.push(ListItem::new(Line::from(Span::styled(
                 "No dependencies",
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
             ))));
         }
 
-        let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Dependencies"));
+        let list =
+            List::new(items).block(Block::default().borders(Borders::ALL).title("Dependencies"));
 
         Widget::render(list, area, buf);
     }
@@ -254,7 +261,9 @@ impl<'a> IssueDetailView<'a> {
         let items: Vec<ListItem> = if self.issue.notes.is_empty() {
             vec![ListItem::new(Line::from(Span::styled(
                 "No notes",
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
             )))]
         } else {
             self.issue
@@ -275,8 +284,7 @@ impl<'a> IssueDetailView<'a> {
                 .collect()
         };
 
-        let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Notes"));
+        let list = List::new(items).block(Block::default().borders(Borders::ALL).title("Notes"));
 
         Widget::render(list, area, buf);
     }
@@ -288,8 +296,8 @@ impl<'a> Widget for IssueDetailView<'a> {
         let main_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(5),  // Header
-                Constraint::Min(10),    // Body
+                Constraint::Length(5), // Header
+                Constraint::Min(10),   // Body
             ])
             .split(area);
 
@@ -300,8 +308,8 @@ impl<'a> Widget for IssueDetailView<'a> {
         let body_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(60),  // Description
-                Constraint::Percentage(40),  // Sidebar
+                Constraint::Percentage(60), // Description
+                Constraint::Percentage(40), // Sidebar
             ])
             .split(main_chunks[1]);
 
@@ -386,18 +394,36 @@ mod tests {
     #[test]
     fn test_priority_color() {
         assert_eq!(IssueDetailView::priority_color(&Priority::P0), Color::Red);
-        assert_eq!(IssueDetailView::priority_color(&Priority::P1), Color::LightRed);
-        assert_eq!(IssueDetailView::priority_color(&Priority::P2), Color::Yellow);
+        assert_eq!(
+            IssueDetailView::priority_color(&Priority::P1),
+            Color::LightRed
+        );
+        assert_eq!(
+            IssueDetailView::priority_color(&Priority::P2),
+            Color::Yellow
+        );
         assert_eq!(IssueDetailView::priority_color(&Priority::P3), Color::Blue);
         assert_eq!(IssueDetailView::priority_color(&Priority::P4), Color::Gray);
     }
 
     #[test]
     fn test_status_color() {
-        assert_eq!(IssueDetailView::status_color(&IssueStatus::Open), Color::Green);
-        assert_eq!(IssueDetailView::status_color(&IssueStatus::InProgress), Color::Cyan);
-        assert_eq!(IssueDetailView::status_color(&IssueStatus::Blocked), Color::Red);
-        assert_eq!(IssueDetailView::status_color(&IssueStatus::Closed), Color::Gray);
+        assert_eq!(
+            IssueDetailView::status_color(&IssueStatus::Open),
+            Color::Green
+        );
+        assert_eq!(
+            IssueDetailView::status_color(&IssueStatus::InProgress),
+            Color::Cyan
+        );
+        assert_eq!(
+            IssueDetailView::status_color(&IssueStatus::Blocked),
+            Color::Red
+        );
+        assert_eq!(
+            IssueDetailView::status_color(&IssueStatus::Closed),
+            Color::Gray
+        );
     }
 
     #[test]

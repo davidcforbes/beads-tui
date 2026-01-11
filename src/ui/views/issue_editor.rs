@@ -39,7 +39,7 @@ impl IssueEditorState {
                     "Chore".to_string(),
                 ],
             )
-            .value(&format!("{:?}", issue.issue_type))
+            .value(format!("{:?}", issue.issue_type))
             .required(),
             FormField::selector(
                 "priority",
@@ -52,7 +52,7 @@ impl IssueEditorState {
                     "P4".to_string(),
                 ],
             )
-            .value(&format!("{}", issue.priority))
+            .value(format!("{}", issue.priority))
             .required(),
             FormField::selector(
                 "status",
@@ -64,13 +64,13 @@ impl IssueEditorState {
                     "Closed".to_string(),
                 ],
             )
-            .value(&format!("{:?}", issue.status))
+            .value(format!("{:?}", issue.status))
             .required(),
             FormField::text("assignee", "Assignee")
                 .value(issue.assignee.as_deref().unwrap_or(""))
                 .placeholder("username (optional)"),
             FormField::text("labels", "Labels")
-                .value(&issue.labels.join(", "))
+                .value(issue.labels.join(", "))
                 .placeholder("comma-separated labels (optional)"),
             FormField::text_area("description", "Description")
                 .value(issue.description.as_deref().unwrap_or(""))
@@ -152,7 +152,7 @@ impl IssueEditorState {
         let labels_str = self.form_state.get_value("labels");
         let description = self.form_state.get_value("description");
 
-        let issue_type = match type_str.as_ref() {
+        let issue_type = match type_str {
             "Epic" => IssueType::Epic,
             "Feature" => IssueType::Feature,
             "Task" => IssueType::Task,
@@ -161,7 +161,7 @@ impl IssueEditorState {
             _ => return None,
         };
 
-        let priority = match priority_str.as_ref() {
+        let priority = match priority_str {
             "P0" => Priority::P0,
             "P1" => Priority::P1,
             "P2" => Priority::P2,
@@ -170,7 +170,7 @@ impl IssueEditorState {
             _ => return None,
         };
 
-        let status = match status_str.as_ref() {
+        let status = match status_str {
             "Open" => IssueStatus::Open,
             "InProgress" => IssueStatus::InProgress,
             "Blocked" => IssueStatus::Blocked,
@@ -186,12 +186,14 @@ impl IssueEditorState {
             }
         });
 
-        let labels = labels_str.map(|l| {
-            l.split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect()
-        }).unwrap_or_default();
+        let labels = labels_str
+            .map(|l| {
+                l.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
 
         let description_opt = description.and_then(|d| {
             if d.trim().is_empty() {
@@ -289,7 +291,8 @@ impl<'a> IssueEditorView<'a> {
             return;
         }
 
-        let help_text = "Ctrl+S: Save | Ctrl+Q: Cancel | Tab/Shift+Tab: Navigate Fields | Enter: Next Field";
+        let help_text =
+            "Ctrl+S: Save | Ctrl+Q: Cancel | Tab/Shift+Tab: Navigate Fields | Enter: Next Field";
 
         let line = Line::from(Span::styled(help_text, self.help_style));
         let paragraph = Paragraph::new(line);
@@ -392,7 +395,10 @@ mod tests {
         assert_eq!(state.form_state().get_value("status"), Some("Open"));
         assert_eq!(state.form_state().get_value("assignee"), Some("john"));
         assert_eq!(state.form_state().get_value("labels"), Some("test, demo"));
-        assert_eq!(state.form_state().get_value("description"), Some("This is a test issue"));
+        assert_eq!(
+            state.form_state().get_value("description"),
+            Some("This is a test issue")
+        );
     }
 
     #[test]

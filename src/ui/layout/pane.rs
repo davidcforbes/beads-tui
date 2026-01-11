@@ -167,7 +167,12 @@ impl PaneManager {
     }
 
     /// Helper to find and split a specific pane horizontally
-    fn split_pane_horizontal(pane: &mut Pane, target_id: usize, ratio: u16, next_id: &mut usize) -> bool {
+    fn split_pane_horizontal(
+        pane: &mut Pane,
+        target_id: usize,
+        ratio: u16,
+        next_id: &mut usize,
+    ) -> bool {
         if pane.id == target_id && !pane.is_split() {
             pane.split_horizontal(ratio, next_id);
             true
@@ -180,7 +185,12 @@ impl PaneManager {
     }
 
     /// Helper to find and split a specific pane vertically
-    fn split_pane_vertical(pane: &mut Pane, target_id: usize, ratio: u16, next_id: &mut usize) -> bool {
+    fn split_pane_vertical(
+        pane: &mut Pane,
+        target_id: usize,
+        ratio: u16,
+        next_id: &mut usize,
+    ) -> bool {
         if pane.id == target_id && !pane.is_split() {
             pane.split_vertical(ratio, next_id);
             true

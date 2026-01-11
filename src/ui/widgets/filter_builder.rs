@@ -297,7 +297,7 @@ impl<'a> FilterBuilder<'a> {
                         ListItem::new(Line::from(vec![
                             Span::raw(checkbox),
                             Span::raw(" "),
-                            Span::styled(format!("{:?}", status), style),
+                            Span::styled(format!("{status:?}"), style),
                         ]))
                     })
                     .collect()
@@ -332,7 +332,7 @@ impl<'a> FilterBuilder<'a> {
                         ListItem::new(Line::from(vec![
                             Span::raw(checkbox),
                             Span::raw(" "),
-                            Span::styled(format!("{} ({})", priority, desc), style),
+                            Span::styled(format!("{priority} ({desc})"), style),
                         ]))
                     })
                     .collect()
@@ -361,7 +361,7 @@ impl<'a> FilterBuilder<'a> {
                             Span::raw(" "),
                             Span::styled(Self::type_symbol(issue_type), Style::default()),
                             Span::raw(" "),
-                            Span::styled(format!("{:?}", issue_type), style),
+                            Span::styled(format!("{issue_type:?}"), style),
                         ]))
                     })
                     .collect()
@@ -407,28 +407,26 @@ impl<'a> StatefulWidget for FilterBuilder<'a> {
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Length(3),     // Section tabs
-                    Constraint::Min(8),        // Filter list
-                    Constraint::Length(3),     // Help text
+                    Constraint::Length(3), // Section tabs
+                    Constraint::Min(8),    // Filter list
+                    Constraint::Length(3), // Help text
                 ])
                 .split(area)
         } else {
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Length(3),     // Section tabs
-                    Constraint::Min(8),        // Filter list
+                    Constraint::Length(3), // Section tabs
+                    Constraint::Min(8),    // Filter list
                 ])
                 .split(area)
         };
 
         // Render section tabs
-        let tab_titles = vec![
-            ("Status", FilterSection::Status),
+        let tab_titles = [("Status", FilterSection::Status),
             ("Priority", FilterSection::Priority),
             ("Type", FilterSection::Type),
-            ("Labels", FilterSection::Labels),
-        ];
+            ("Labels", FilterSection::Labels)];
 
         let tab_spans: Vec<Span> = tab_titles
             .iter()
@@ -449,9 +447,7 @@ impl<'a> StatefulWidget for FilterBuilder<'a> {
             })
             .collect();
 
-        let tabs_block = Block::default()
-            .borders(Borders::ALL)
-            .title(self.title);
+        let tabs_block = Block::default().borders(Borders::ALL).title(self.title);
         let tabs_inner = tabs_block.inner(chunks[0]);
         tabs_block.render(chunks[0], buf);
 

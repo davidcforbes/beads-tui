@@ -79,17 +79,21 @@ impl<'a> DependenciesView<'a> {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3),  // Issue info
-                Constraint::Min(5),     // Dependencies
-                Constraint::Min(5),     // Blocks
-                Constraint::Length(1),  // Help
+                Constraint::Length(3), // Issue info
+                Constraint::Min(5),    // Dependencies
+                Constraint::Min(5),    // Blocks
+                Constraint::Length(1), // Help
             ])
             .split(area);
 
         // Render issue info
         let info_text = format!("{} - {}", issue.id, issue.title);
         let info = Paragraph::new(info_text)
-            .style(Style::default().fg(Color::White).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            )
             .block(
                 Block::default()
                     .borders(Borders::ALL)
@@ -102,7 +106,9 @@ impl<'a> DependenciesView<'a> {
         let dep_items: Vec<ListItem> = if issue.dependencies.is_empty() {
             vec![ListItem::new(Line::from(Span::styled(
                 "No dependencies",
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
             )))]
         } else {
             issue
@@ -116,10 +122,7 @@ impl<'a> DependenciesView<'a> {
                             ListItem::new(Line::from(vec![
                                 Span::styled(&dep_issue.id, Style::default().fg(Color::Cyan)),
                                 Span::raw(" - "),
-                                Span::styled(
-                                    &dep_issue.title,
-                                    Style::default().fg(Color::White),
-                                ),
+                                Span::styled(&dep_issue.title, Style::default().fg(Color::White)),
                                 Span::raw(" "),
                                 Span::styled(
                                     format!("[{}]", dep_issue.status),
@@ -143,7 +146,9 @@ impl<'a> DependenciesView<'a> {
         let block_items: Vec<ListItem> = if issue.blocks.is_empty() {
             vec![ListItem::new(Line::from(Span::styled(
                 "Does not block any issues",
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
             )))]
         } else {
             issue

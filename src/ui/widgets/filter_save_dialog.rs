@@ -290,8 +290,8 @@ impl<'a> FilterSaveDialog<'a> {
 
         // Create field layout
         let mut constraints = vec![
-            Constraint::Length(3),  // Name field
-            Constraint::Length(3),  // Description field
+            Constraint::Length(3), // Name field
+            Constraint::Length(3), // Description field
         ];
 
         if self.show_hotkey {
@@ -331,10 +331,7 @@ impl<'a> FilterSaveDialog<'a> {
         // Render hotkey field
         let mut chunk_index = 2;
         if self.show_hotkey {
-            let hotkey_text = state
-                .hotkey
-                .as_deref()
-                .unwrap_or("None");
+            let hotkey_text = state.hotkey.as_deref().unwrap_or("None");
             self.render_field(
                 chunks[2],
                 buf,

@@ -155,13 +155,13 @@ impl DateRange {
         match (self.start, self.end) {
             (Some(start), Some(end)) => {
                 if start == end {
-                    format!("{}", start)
+                    format!("{start}")
                 } else {
-                    format!("{} to {}", start, end)
+                    format!("{start} to {end}")
                 }
             }
-            (Some(start), None) => format!("From {}", start),
-            (None, Some(end)) => format!("Until {}", end),
+            (Some(start), None) => format!("From {start}"),
+            (None, Some(end)) => format!("Until {end}"),
             (None, None) => "Any date".to_string(),
         }
     }
@@ -364,8 +364,8 @@ impl<'a> StatefulWidget for DateRangePicker<'a> {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(8),      // Preset list
-                Constraint::Length(3),   // Current range display
+                Constraint::Min(8),    // Preset list
+                Constraint::Length(3), // Current range display
             ])
             .split(area);
 
@@ -380,9 +380,9 @@ impl<'a> StatefulWidget for DateRangePicker<'a> {
                 if *preset != DateRangePreset::Custom {
                     if let Some((start, end)) = preset.date_range() {
                         if start == end {
-                            content.push_str(&format!(" ({})", start));
+                            content.push_str(&format!(" ({start})"));
                         } else {
-                            content.push_str(&format!(" ({} to {})", start, end));
+                            content.push_str(&format!(" ({start} to {end})"));
                         }
                     }
                 }
@@ -415,7 +415,9 @@ impl<'a> StatefulWidget for DateRangePicker<'a> {
         let range_para = Line::from(Span::styled(
             range_text,
             if state.range.is_empty() {
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC)
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC)
             } else {
                 Style::default().fg(Color::Green)
             },
@@ -497,7 +499,10 @@ mod tests {
 
         // Wrap around to end
         state.select_previous();
-        assert_eq!(state.list_state.selected(), Some(DateRangePreset::all().len() - 1));
+        assert_eq!(
+            state.list_state.selected(),
+            Some(DateRangePreset::all().len() - 1)
+        );
     }
 
     #[test]

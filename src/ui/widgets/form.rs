@@ -324,9 +324,7 @@ impl<'a> Form<'a> {
             focused_style: Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
-            error_style: Style::default()
-                .fg(Color::Red)
-                .add_modifier(Modifier::BOLD),
+            error_style: Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             block: Some(Block::default().borders(Borders::ALL)),
         }
     }
@@ -385,8 +383,11 @@ impl<'a> StatefulWidget for Form<'a> {
         block.render(area, buf);
 
         if state.fields.is_empty() {
-            let empty_msg = Paragraph::new("No fields defined")
-                .style(Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC));
+            let empty_msg = Paragraph::new("No fields defined").style(
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            );
             empty_msg.render(inner, buf);
             return;
         }
@@ -431,7 +432,7 @@ impl<'a> StatefulWidget for Form<'a> {
             };
 
             let title = if is_focused {
-                format!("{} [editing]", title)
+                format!("{title} [editing]")
             } else {
                 title
             };
@@ -454,7 +455,9 @@ impl<'a> StatefulWidget for Form<'a> {
                 if let Some(ref placeholder) = field.placeholder {
                     vec![Line::from(Span::styled(
                         placeholder.clone(),
-                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::ITALIC),
                     ))]
                 } else {
                     vec![Line::from("")]
@@ -472,7 +475,8 @@ impl<'a> StatefulWidget for Form<'a> {
 
             // Render cursor if focused
             if is_focused && field_inner.width > 0 && field_inner.height > 0 {
-                let cursor_x = field_inner.x + state.cursor_position.min(field_inner.width as usize - 1) as u16;
+                let cursor_x = field_inner.x
+                    + state.cursor_position.min(field_inner.width as usize - 1) as u16;
                 let cursor_y = field_inner.y;
 
                 if cursor_x < field_inner.x + field_inner.width {
@@ -484,10 +488,8 @@ impl<'a> StatefulWidget for Form<'a> {
             // Render error message if present
             if let Some(ref error) = field.error {
                 if field_inner.height > 1 {
-                    let error_line = Line::from(Span::styled(
-                        format!("⚠ {}", error),
-                        self.error_style,
-                    ));
+                    let error_line =
+                        Line::from(Span::styled(format!("⚠ {error}"), self.error_style));
                     let error_y = field_inner.y + 1;
                     if error_y < field_inner.y + field_inner.height {
                         error_line.render(

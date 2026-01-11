@@ -77,9 +77,7 @@ impl Default for DialogState {
 impl DialogState {
     /// Create a new dialog state
     pub fn new() -> Self {
-        Self {
-            selected_button: 0,
-        }
+        Self { selected_button: 0 }
     }
 
     /// Get the selected button index
@@ -128,9 +126,7 @@ impl<'a> Dialog<'a> {
             title,
             message,
             dialog_type: DialogType::Confirm,
-            buttons: vec![
-                DialogButton::new("OK", "ok"),
-            ],
+            buttons: vec![DialogButton::new("OK", "ok")],
             width: 50,
             height: 10,
         }
@@ -172,9 +168,7 @@ impl<'a> Dialog<'a> {
             title,
             message,
             dialog_type: DialogType::Error,
-            buttons: vec![
-                DialogButton::new("OK", "ok"),
-            ],
+            buttons: vec![DialogButton::new("OK", "ok")],
             width: 50,
             height: 10,
         }
@@ -186,9 +180,7 @@ impl<'a> Dialog<'a> {
             title,
             message,
             dialog_type: DialogType::Warning,
-            buttons: vec![
-                DialogButton::new("OK", "ok"),
-            ],
+            buttons: vec![DialogButton::new("OK", "ok")],
             width: 50,
             height: 10,
         }
@@ -200,9 +192,7 @@ impl<'a> Dialog<'a> {
             title,
             message,
             dialog_type: DialogType::Info,
-            buttons: vec![
-                DialogButton::new("OK", "ok"),
-            ],
+            buttons: vec![DialogButton::new("OK", "ok")],
             width: 50,
             height: 10,
         }
@@ -214,9 +204,7 @@ impl<'a> Dialog<'a> {
             title,
             message,
             dialog_type: DialogType::Success,
-            buttons: vec![
-                DialogButton::new("OK", "ok"),
-            ],
+            buttons: vec![DialogButton::new("OK", "ok")],
             width: 50,
             height: 10,
         }
@@ -267,8 +255,8 @@ impl<'a> Dialog<'a> {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(3),       // Message area
-                Constraint::Length(3),    // Buttons area
+                Constraint::Min(3),    // Message area
+                Constraint::Length(3), // Buttons area
             ])
             .split(inner);
 
@@ -290,7 +278,8 @@ impl<'a> Dialog<'a> {
         // Calculate button layout
         let button_width = 12;
         let spacing = 2;
-        let total_width = self.buttons.len() as u16 * button_width + (self.buttons.len() as u16 - 1) * spacing;
+        let total_width =
+            self.buttons.len() as u16 * button_width + (self.buttons.len() as u16 - 1) * spacing;
         let start_x = area.x + (area.width.saturating_sub(total_width)) / 2;
 
         for (i, button) in self.buttons.iter().enumerate() {
@@ -442,12 +431,11 @@ mod tests {
 
     #[test]
     fn test_custom_buttons() {
-        let dialog = Dialog::new("Test", "Message")
-            .buttons(vec![
-                DialogButton::new("One", "1"),
-                DialogButton::new("Two", "2"),
-                DialogButton::new("Three", "3"),
-            ]);
+        let dialog = Dialog::new("Test", "Message").buttons(vec![
+            DialogButton::new("One", "1"),
+            DialogButton::new("Two", "2"),
+            DialogButton::new("Three", "3"),
+        ]);
         assert_eq!(dialog.buttons.len(), 3);
     }
 }

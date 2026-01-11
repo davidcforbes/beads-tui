@@ -31,7 +31,9 @@ pub use filter_builder::{FilterBuilder, FilterBuilderState, FilterSection};
 pub use filter_panel::{FilterCriteria, FilterPanel};
 pub use filter_save_dialog::{FilterSaveDialog, FilterSaveDialogState, FilterSaveField};
 pub use form::{FieldType, Form, FormField, FormState};
-pub use inline_metadata::{build_metadata_spans, format_age, format_assignee, format_labels, MetadataDisplayConfig};
+pub use inline_metadata::{
+    build_metadata_spans, format_age, format_assignee, format_labels, MetadataDisplayConfig,
+};
 pub use issue_list::{IssueList, IssueListState, SortColumn, SortDirection};
 pub use label_picker::{LabelPicker, LabelPickerState};
 pub use markdown_viewer::{MarkdownViewer, MarkdownViewerState};

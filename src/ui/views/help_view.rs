@@ -287,10 +287,7 @@ impl<'a> HelpView<'a> {
             ]),
             Line::from(""),
             Line::from(vec![
-                Span::styled(
-                    "Description:",
-                    Style::default().fg(Color::Cyan),
-                ),
+                Span::styled("Description:", Style::default().fg(Color::Cyan)),
                 Span::raw(""),
             ]),
             Line::from("Interactive terminal UI for the Beads issue tracking system."),

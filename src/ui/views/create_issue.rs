@@ -66,10 +66,8 @@ impl CreateIssueFormState {
             )
             .value("Open")
             .required(),
-            FormField::text("assignee", "Assignee")
-                .placeholder("username (optional)"),
-            FormField::text("labels", "Labels")
-                .placeholder("comma-separated labels (optional)"),
+            FormField::text("assignee", "Assignee").placeholder("username (optional)"),
+            FormField::text("labels", "Labels").placeholder("comma-separated labels (optional)"),
             FormField::text_area("description", "Description")
                 .placeholder("Detailed description of the issue (optional)"),
         ];
@@ -101,17 +99,17 @@ impl CreateIssueFormState {
         }
 
         let title = self.form_state.get_value("title")?.to_string();
-        let issue_type = self.parse_issue_type(
-            self.form_state.get_value("type")?
-        )?;
-        let priority = self.parse_priority(
-            self.form_state.get_value("priority")?
-        )?;
+        let issue_type = self.parse_issue_type(self.form_state.get_value("type")?)?;
+        let priority = self.parse_priority(self.form_state.get_value("priority")?)?;
         let status_str = self.form_state.get_value("status")?;
-        let assignee = self.form_state.get_value("assignee")
+        let assignee = self
+            .form_state
+            .get_value("assignee")
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string());
-        let labels_str = self.form_state.get_value("labels")
+        let labels_str = self
+            .form_state
+            .get_value("labels")
             .filter(|s| !s.is_empty())
             .unwrap_or("");
         let labels: Vec<String> = labels_str
@@ -119,7 +117,9 @@ impl CreateIssueFormState {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        let description = self.form_state.get_value("description")
+        let description = self
+            .form_state
+            .get_value("description")
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string());
 
@@ -205,10 +205,8 @@ impl CreateIssueFormState {
             )
             .value("Open")
             .required(),
-            FormField::text("assignee", "Assignee")
-                .placeholder("username (optional)"),
-            FormField::text("labels", "Labels")
-                .placeholder("comma-separated labels (optional)"),
+            FormField::text("assignee", "Assignee").placeholder("username (optional)"),
+            FormField::text("labels", "Labels").placeholder("comma-separated labels (optional)"),
             FormField::text_area("description", "Description")
                 .placeholder("Detailed description of the issue (optional)"),
         ]);
@@ -270,8 +268,8 @@ impl<'a> StatefulWidget for CreateIssueForm<'a> {
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Min(20),      // Form area
-                    Constraint::Length(3),    // Help text
+                    Constraint::Min(20),   // Form area
+                    Constraint::Length(3), // Help text
                 ])
                 .split(area)
         } else {
@@ -287,37 +285,27 @@ impl<'a> StatefulWidget for CreateIssueForm<'a> {
             .focused_style(
                 Style::default()
                     .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD)
+                    .add_modifier(Modifier::BOLD),
             )
-            .error_style(
-                Style::default()
-                    .fg(Color::Red)
-                    .add_modifier(Modifier::BOLD)
-            );
+            .error_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
 
         StatefulWidget::render(form, chunks[0], buf, &mut state.form_state);
 
         // Render help text
         if self.show_help && chunks.len() > 1 {
-            let help_lines = vec![
-                Line::from(vec![
-                    Span::styled("Tab/↓", Style::default().fg(Color::Yellow)),
-                    Span::raw(" Next field  "),
-                    Span::styled("Shift+Tab/↑", Style::default().fg(Color::Yellow)),
-                    Span::raw(" Previous field  "),
-                    Span::styled("Ctrl+S", Style::default().fg(Color::Green)),
-                    Span::raw(" Submit  "),
-                    Span::styled("Esc", Style::default().fg(Color::Red)),
-                    Span::raw(" Cancel"),
-                ]),
-            ];
+            let help_lines = vec![Line::from(vec![
+                Span::styled("Tab/↓", Style::default().fg(Color::Yellow)),
+                Span::raw(" Next field  "),
+                Span::styled("Shift+Tab/↑", Style::default().fg(Color::Yellow)),
+                Span::raw(" Previous field  "),
+                Span::styled("Ctrl+S", Style::default().fg(Color::Green)),
+                Span::raw(" Submit  "),
+                Span::styled("Esc", Style::default().fg(Color::Red)),
+                Span::raw(" Cancel"),
+            ])];
 
             let help = Paragraph::new(help_lines)
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .title("Help")
-                )
+                .block(Block::default().borders(Borders::ALL).title("Help"))
                 .alignment(Alignment::Center);
 
             help.render(chunks[1], buf);
@@ -343,7 +331,9 @@ mod tests {
         assert!(!state.validate());
 
         // Add title and validate again
-        state.form_state_mut().set_value("title", "Test Issue".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Test Issue".to_string());
         assert!(state.validate());
     }
 
@@ -351,10 +341,18 @@ mod tests {
     fn test_create_issue_data_extraction() {
         let mut state = CreateIssueFormState::new();
 
-        state.form_state_mut().set_value("title", "Test Issue".to_string());
-        state.form_state_mut().set_value("assignee", "john".to_string());
-        state.form_state_mut().set_value("labels", "bug, urgent".to_string());
-        state.form_state_mut().set_value("description", "This is a test".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Test Issue".to_string());
+        state
+            .form_state_mut()
+            .set_value("assignee", "john".to_string());
+        state
+            .form_state_mut()
+            .set_value("labels", "bug, urgent".to_string());
+        state
+            .form_state_mut()
+            .set_value("description", "This is a test".to_string());
 
         assert!(state.validate());
 
@@ -397,8 +395,12 @@ mod tests {
     fn test_clear_form() {
         let mut state = CreateIssueFormState::new();
 
-        state.form_state_mut().set_value("title", "Test Issue".to_string());
-        state.form_state_mut().set_value("assignee", "john".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Test Issue".to_string());
+        state
+            .form_state_mut()
+            .set_value("assignee", "john".to_string());
 
         assert_eq!(state.form_state().get_value("title"), Some("Test Issue"));
 
@@ -412,7 +414,9 @@ mod tests {
     fn test_optional_fields() {
         let mut state = CreateIssueFormState::new();
 
-        state.form_state_mut().set_value("title", "Test Issue".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Test Issue".to_string());
 
         assert!(state.validate());
 

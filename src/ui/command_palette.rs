@@ -283,7 +283,9 @@ impl CommandPalette {
                 .iter()
                 .filter_map(|&cmd| {
                     let name_score = self.matcher.fuzzy_match(&cmd.name, &self.search_query);
-                    let desc_score = self.matcher.fuzzy_match(&cmd.description, &self.search_query);
+                    let desc_score = self
+                        .matcher
+                        .fuzzy_match(&cmd.description, &self.search_query);
                     let score = name_score.unwrap_or(0).max(desc_score.unwrap_or(0));
 
                     if score > 0 {
@@ -406,19 +408,15 @@ mod tests {
         // Issues context should show issue-specific + global commands
         palette.set_context(AppContext::Issues);
         let issues_results = palette.search();
-        
+
         // Should have issue-specific commands
-        assert!(issues_results
-            .iter()
-            .any(|(cmd, _)| cmd.id == "issue.new"));
+        assert!(issues_results.iter().any(|(cmd, _)| cmd.id == "issue.new"));
         assert!(issues_results
             .iter()
             .any(|(cmd, _)| cmd.id == "issue.close"));
 
         // Should still have global navigation commands
-        assert!(issues_results
-            .iter()
-            .any(|(cmd, _)| cmd.id == "nav.issues"));
+        assert!(issues_results.iter().any(|(cmd, _)| cmd.id == "nav.issues"));
     }
 
     #[test]
@@ -438,7 +436,7 @@ mod tests {
     #[test]
     fn test_available_command_count() {
         let palette = CommandPalette::new();
-        
+
         // Should have commands available in all contexts
         assert!(palette.available_command_count() > 0);
     }

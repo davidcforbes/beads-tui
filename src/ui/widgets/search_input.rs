@@ -295,7 +295,9 @@ impl<'a> StatefulWidget for SearchInput<'a> {
             if let Some(placeholder) = self.placeholder {
                 spans.push(Span::styled(
                     placeholder,
-                    Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
                 ));
             }
         } else {
@@ -452,7 +454,7 @@ mod tests {
         state.max_history = 3;
 
         for i in 0..5 {
-            state.set_query(format!("query{}", i));
+            state.set_query(format!("query{i}"));
             state.add_to_history();
         }
 

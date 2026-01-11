@@ -2,8 +2,7 @@
 
 use crate::beads::models::Issue;
 use crate::ui::views::{
-    IssueDetailView, IssueEditorState, IssueEditorView, SearchInterfaceState,
-    SearchInterfaceView,
+    IssueDetailView, IssueEditorState, IssueEditorView, SearchInterfaceState, SearchInterfaceView,
 };
 use ratatui::{
     buffer::Buffer,

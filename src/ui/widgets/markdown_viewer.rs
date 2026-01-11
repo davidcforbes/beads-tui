@@ -15,6 +15,7 @@ enum MarkdownElement {
     Paragraph(String),
     ListItem(String),
     CodeBlock(String),
+    #[allow(dead_code)]
     InlineCode(String),
     HorizontalRule,
 }
@@ -56,7 +57,8 @@ impl MarkdownViewerState {
     /// Scroll down
     pub fn scroll_down(&mut self, amount: usize) {
         if self.total_lines > 0 {
-            self.scroll_offset = (self.scroll_offset + amount).min(self.total_lines.saturating_sub(1));
+            self.scroll_offset =
+                (self.scroll_offset + amount).min(self.total_lines.saturating_sub(1));
         }
     }
 
@@ -145,7 +147,7 @@ fn parse_markdown(content: &str) -> Vec<MarkdownElement> {
             let prefix = &trimmed[..pos];
             if prefix.chars().all(|c| c.is_ascii_digit()) {
                 let text = trimmed[pos + 2..].trim().to_string();
-                elements.push(MarkdownElement::ListItem(format!("{}. {}", prefix, text)));
+                elements.push(MarkdownElement::ListItem(format!("{prefix}. {text}")));
                 continue;
             }
         }
@@ -243,7 +245,7 @@ fn parse_inline_formatting(text: &str) -> Vec<Span> {
                 let mut code_text = String::new();
                 let mut found_end = false;
 
-                while let Some(c2) = chars.next() {
+                for c2 in chars.by_ref() {
                     if c2 == '`' {
                         found_end = true;
                         break;
@@ -353,10 +355,7 @@ impl<'a> MarkdownViewer<'a> {
                 }
 
                 MarkdownElement::ListItem(text) => {
-                    let mut spans = vec![Span::styled(
-                        "  • ",
-                        Style::default().fg(Color::Yellow),
-                    )];
+                    let mut spans = vec![Span::styled("  • ", Style::default().fg(Color::Yellow))];
                     spans.extend(parse_inline_formatting(text));
                     lines.push(Line::from(spans));
                 }
@@ -510,9 +509,18 @@ mod tests {
         let elements = parse_markdown(content);
 
         assert_eq!(elements.len(), 3);
-        assert_eq!(elements[0], MarkdownElement::Heading(1, "Heading 1".to_string()));
-        assert_eq!(elements[1], MarkdownElement::Heading(2, "Heading 2".to_string()));
-        assert_eq!(elements[2], MarkdownElement::Heading(3, "Heading 3".to_string()));
+        assert_eq!(
+            elements[0],
+            MarkdownElement::Heading(1, "Heading 1".to_string())
+        );
+        assert_eq!(
+            elements[1],
+            MarkdownElement::Heading(2, "Heading 2".to_string())
+        );
+        assert_eq!(
+            elements[2],
+            MarkdownElement::Heading(3, "Heading 3".to_string())
+        );
     }
 
     #[test]

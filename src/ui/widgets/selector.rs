@@ -155,13 +155,16 @@ impl StatefulWidget for PrioritySelector {
                 self.current,
                 Self::priority_description(&self.current)
             );
-            let span = Span::styled(text, Style::default().fg(Self::priority_color(&self.current)));
+            let span = Span::styled(
+                text,
+                Style::default().fg(Self::priority_color(&self.current)),
+            );
             let line = Line::from(vec![span]);
 
             let title = self.label.unwrap_or_else(|| "Priority".to_string());
             let block = Block::default()
                 .borders(Borders::ALL)
-                .title(format!("{} [▼]", title));
+                .title(format!("{title} [▼]"));
 
             let paragraph = ratatui::widgets::Paragraph::new(line).block(block);
             ratatui::widgets::Widget::render(paragraph, area, buf);
@@ -180,7 +183,7 @@ impl StatefulWidget for PrioritySelector {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                        .title(format!("{} [▲]", title)),
+                        .title(format!("{title} [▲]")),
                 )
                 .highlight_style(
                     Style::default()
@@ -247,7 +250,7 @@ impl StatefulWidget for StatusSelector {
             let title = self.label.unwrap_or_else(|| "Status".to_string());
             let block = Block::default()
                 .borders(Borders::ALL)
-                .title(format!("{} [▼]", title));
+                .title(format!("{title} [▼]"));
 
             let paragraph = ratatui::widgets::Paragraph::new(line).block(block);
             ratatui::widgets::Widget::render(paragraph, area, buf);
@@ -256,7 +259,7 @@ impl StatefulWidget for StatusSelector {
             let items: Vec<ListItem> = options
                 .iter()
                 .map(|s| {
-                    let text = format!("{:?}", s);
+                    let text = format!("{s:?}");
                     ListItem::new(text).style(Style::default().fg(Self::status_color(s)))
                 })
                 .collect();
@@ -266,7 +269,7 @@ impl StatefulWidget for StatusSelector {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                        .title(format!("{} [▲]", title)),
+                        .title(format!("{title} [▲]")),
                 )
                 .highlight_style(
                     Style::default()
@@ -335,7 +338,7 @@ impl StatefulWidget for TypeSelector {
             let title = self.label.unwrap_or_else(|| "Type".to_string());
             let block = Block::default()
                 .borders(Borders::ALL)
-                .title(format!("{} [▼]", title));
+                .title(format!("{title} [▼]"));
 
             let paragraph = ratatui::widgets::Paragraph::new(line).block(block);
             ratatui::widgets::Widget::render(paragraph, area, buf);
@@ -354,7 +357,7 @@ impl StatefulWidget for TypeSelector {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                        .title(format!("{} [▲]", title)),
+                        .title(format!("{title} [▲]")),
                 )
                 .highlight_style(
                     Style::default()

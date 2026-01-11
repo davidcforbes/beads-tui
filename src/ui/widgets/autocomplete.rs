@@ -291,11 +291,8 @@ impl<'a> StatefulWidget for Autocomplete<'a> {
         let mut constraints = vec![Constraint::Length(3)]; // Input field
 
         if state.show_suggestions {
-            let suggestion_height = state
-                .filtered_suggestions()
-                .len()
-                .min(self.max_suggestions) as u16
-                + 2; // +2 for borders
+            let suggestion_height =
+                state.filtered_suggestions().len().min(self.max_suggestions) as u16 + 2; // +2 for borders
             constraints.push(Constraint::Length(suggestion_height));
         }
 

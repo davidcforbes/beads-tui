@@ -231,7 +231,7 @@ impl MockBeadsBackend {
             .get_mut(id)
             .ok_or(BeadsError::IssueNotFound(id.to_string()))?;
 
-        let old_status = issue.status.clone();
+        let old_status = issue.status;
 
         if let Some(s) = status {
             issue.status = s;

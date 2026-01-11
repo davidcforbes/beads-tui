@@ -344,7 +344,7 @@ impl<'a> StatefulWidget for TextEditor<'a> {
         // Calculate line number width if needed
         let line_num_width = if self.show_line_numbers {
             let max_line_num = (state.scroll_offset + inner.height as usize).min(state.lines.len());
-            format!("{}", max_line_num).len() + 1
+            format!("{max_line_num}").len() + 1
         } else {
             0
         };
@@ -364,17 +364,14 @@ impl<'a> StatefulWidget for TextEditor<'a> {
                     .add_modifier(Modifier::ITALIC),
             )));
         } else {
-            for (_idx, line_idx) in (start_line..end_line).enumerate() {
+            for line_idx in start_line..end_line {
                 let line_text = &state.lines[line_idx];
                 let mut spans = Vec::new();
 
                 // Add line number if enabled
                 if self.show_line_numbers {
                     let line_num = format!("{:>width$} ", line_idx + 1, width = line_num_width - 1);
-                    spans.push(Span::styled(
-                        line_num,
-                        Style::default().fg(Color::DarkGray),
-                    ));
+                    spans.push(Span::styled(line_num, Style::default().fg(Color::DarkGray)));
                 }
 
                 // Add line content

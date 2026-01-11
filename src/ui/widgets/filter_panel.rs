@@ -238,7 +238,7 @@ impl<'a> FilterPanel<'a> {
                 items.push(ListItem::new(Line::from(vec![
                     Span::raw("  • "),
                     Span::styled(
-                        format!("{:?}", status),
+                        format!("{status:?}"),
                         Style::default().fg(Self::status_color(status)),
                     ),
                 ])));
@@ -258,7 +258,7 @@ impl<'a> FilterPanel<'a> {
                 items.push(ListItem::new(Line::from(vec![
                     Span::raw("  • "),
                     Span::styled(
-                        format!("{}", priority),
+                        format!("{priority}"),
                         Style::default().fg(Self::priority_color(priority)),
                     ),
                 ])));
@@ -279,7 +279,7 @@ impl<'a> FilterPanel<'a> {
                     Span::raw("  "),
                     Span::styled(Self::type_symbol(issue_type), Style::default()),
                     Span::raw(" "),
-                    Span::raw(format!("{:?}", issue_type)),
+                    Span::raw(format!("{issue_type:?}")),
                 ])));
             }
         }
@@ -348,12 +348,12 @@ impl<'a> FilterPanel<'a> {
                 } else {
                     "No dependencies"
                 };
-                items.push(ListItem::new(format!("  • {}", text)));
+                items.push(ListItem::new(format!("  • {text}")));
             }
 
             if let Some(is_blocked) = self.criteria.is_blocked {
                 let text = if is_blocked { "Blocked" } else { "Not blocked" };
-                items.push(ListItem::new(format!("  • {}", text)));
+                items.push(ListItem::new(format!("  • {text}")));
             }
         }
 
@@ -367,8 +367,8 @@ impl<'a> Widget for FilterPanel<'a> {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(3),     // Filter list
-                Constraint::Length(1),  // Result count
+                Constraint::Min(3),    // Filter list
+                Constraint::Length(1), // Result count
             ])
             .split(area);
 
@@ -408,7 +408,7 @@ impl<'a> Widget for FilterPanel<'a> {
             let count_text = if count == 1 {
                 "1 result".to_string()
             } else {
-                format!("{} results", count)
+                format!("{count} results")
             };
             let count_span = Span::styled(
                 count_text,

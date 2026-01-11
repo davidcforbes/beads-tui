@@ -1,6 +1,8 @@
 /// Application state management
 use crate::beads::BeadsClient;
-use crate::ui::views::{compute_label_stats, DatabaseStats, DatabaseStatus, IssuesViewState, LabelStats};
+use crate::ui::views::{
+    compute_label_stats, DatabaseStats, DatabaseStatus, IssuesViewState, LabelStats,
+};
 
 #[derive(Debug)]
 pub struct AppState {
@@ -17,14 +19,14 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         let beads_client = BeadsClient::new();
-        
+
         // TODO: Load issues asynchronously
         // For now, start with empty issues
         let issues = vec![];
-        
+
         // Compute label statistics
         let label_stats = compute_label_stats(&issues);
-        
+
         // Create database stats
         let database_stats = DatabaseStats {
             total_issues: issues.len(),
@@ -34,7 +36,7 @@ impl AppState {
             database_size: 0,
             last_sync: None,
         };
-        
+
         Self {
             should_quit: false,
             selected_tab: 0,

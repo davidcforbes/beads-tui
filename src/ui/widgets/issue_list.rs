@@ -271,7 +271,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
         let header_cells = vec![
             Cell::from(Span::styled(
                 if state.sort_column == SortColumn::Type {
-                    format!("Type {}", sort_indicator)
+                    format!("Type {sort_indicator}")
                 } else {
                     "Type".to_string()
                 },
@@ -279,7 +279,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
             )),
             Cell::from(Span::styled(
                 if state.sort_column == SortColumn::Id {
-                    format!("ID {}", sort_indicator)
+                    format!("ID {sort_indicator}")
                 } else {
                     "ID".to_string()
                 },
@@ -287,7 +287,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
             )),
             Cell::from(Span::styled(
                 if state.sort_column == SortColumn::Title {
-                    format!("Title {}", sort_indicator)
+                    format!("Title {sort_indicator}")
                 } else {
                     "Title".to_string()
                 },
@@ -295,7 +295,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
             )),
             Cell::from(Span::styled(
                 if state.sort_column == SortColumn::Status {
-                    format!("Status {}", sort_indicator)
+                    format!("Status {sort_indicator}")
                 } else {
                     "Status".to_string()
                 },
@@ -303,7 +303,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
             )),
             Cell::from(Span::styled(
                 if state.sort_column == SortColumn::Priority {
-                    format!("Priority {}", sort_indicator)
+                    format!("Priority {sort_indicator}")
                 } else {
                     "Priority".to_string()
                 },
@@ -320,7 +320,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
             .iter()
             .map(|issue| {
                 let type_cell = Cell::from(Self::type_symbol(&issue.issue_type));
-                
+
                 // Apply highlighting if search query is present
                 let id_cell = if let Some(ref query) = self.search_query {
                     Cell::from(Line::from(Self::highlight_text(&issue.id, query)))
@@ -343,27 +343,29 @@ impl<'a> StatefulWidget for IssueList<'a> {
                     Style::default().fg(Self::priority_color(&issue.priority)),
                 ));
 
-                Row::new(vec![type_cell, id_cell, title_cell, status_cell, priority_cell])
-                    .height(1)
+                Row::new(vec![
+                    type_cell,
+                    id_cell,
+                    title_cell,
+                    status_cell,
+                    priority_cell,
+                ])
+                .height(1)
             })
             .collect();
 
         // Build table
         let widths = [
-            Constraint::Length(6),   // Type
-            Constraint::Length(15),  // ID
-            Constraint::Min(30),     // Title
-            Constraint::Length(12),  // Status
-            Constraint::Length(10),  // Priority
+            Constraint::Length(6),  // Type
+            Constraint::Length(15), // ID
+            Constraint::Min(30),    // Title
+            Constraint::Length(12), // Status
+            Constraint::Length(10), // Priority
         ];
 
         let table = Table::new(rows, widths)
             .header(header)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Issues"),
-            )
+            .block(Block::default().borders(Borders::ALL).title("Issues"))
             .highlight_style(
                 Style::default()
                     .bg(Color::DarkGray)
@@ -455,7 +457,11 @@ mod tests {
         let issues = vec![&issue1, &issue2, &issue3];
         let mut sorted_issues = issues.clone();
 
-        IssueList::sort_issues(&mut sorted_issues, SortColumn::Priority, SortDirection::Ascending);
+        IssueList::sort_issues(
+            &mut sorted_issues,
+            SortColumn::Priority,
+            SortDirection::Ascending,
+        );
         assert_eq!(sorted_issues[0].id, "beads-002"); // P1
         assert_eq!(sorted_issues[1].id, "beads-001"); // P2
         assert_eq!(sorted_issues[2].id, "beads-003"); // P3

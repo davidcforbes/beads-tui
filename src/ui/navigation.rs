@@ -21,9 +21,9 @@ impl std::fmt::Display for View {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             View::Issues => write!(f, "Issues"),
-            View::IssueDetail(id) => write!(f, "Issue: {}", id),
+            View::IssueDetail(id) => write!(f, "Issue: {id}"),
             View::Dependencies => write!(f, "Dependencies"),
-            View::DependencyGraph(id) => write!(f, "Dependency Graph: {}", id),
+            View::DependencyGraph(id) => write!(f, "Dependency Graph: {id}"),
             View::Labels => write!(f, "Labels"),
             View::Database => write!(f, "Database"),
             View::Help => write!(f, "Help"),
@@ -121,7 +121,7 @@ impl NavigationHistory {
             View::Dependencies => crumbs.push("Dependencies".to_string()),
             View::DependencyGraph(id) => {
                 crumbs.push("Dependencies".to_string());
-                crumbs.push(format!("Graph: {}", id));
+                crumbs.push(format!("Graph: {id}"));
             }
             View::Labels => crumbs.push("Labels".to_string()),
             View::Database => crumbs.push("Database".to_string()),
@@ -140,11 +140,7 @@ impl NavigationHistory {
             0
         };
 
-        self.history
-            .iter()
-            .enumerate()
-            .skip(start)
-            .collect()
+        self.history.iter().enumerate().skip(start).collect()
     }
 }
 

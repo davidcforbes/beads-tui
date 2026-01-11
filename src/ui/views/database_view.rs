@@ -44,7 +44,7 @@ impl DatabaseStatus {
 }
 
 /// Database statistics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DatabaseStats {
     /// Total number of issues
     pub total_issues: usize,
@@ -58,19 +58,6 @@ pub struct DatabaseStats {
     pub database_size: u64,
     /// Last sync timestamp
     pub last_sync: Option<String>,
-}
-
-impl Default for DatabaseStats {
-    fn default() -> Self {
-        Self {
-            total_issues: 0,
-            open_issues: 0,
-            closed_issues: 0,
-            blocked_issues: 0,
-            database_size: 0,
-            last_sync: None,
-        }
-    }
 }
 
 /// Database view widget
@@ -170,7 +157,7 @@ impl<'a> DatabaseView<'a> {
         let closed_issues = self.stats.closed_issues;
         let blocked_issues = self.stats.blocked_issues;
         let database_size = self.stats.database_size;
-        
+
         vec![
             Line::from(Span::styled(
                 "Statistics",
@@ -182,28 +169,28 @@ impl<'a> DatabaseView<'a> {
             Line::from(vec![
                 Span::styled("Total Issues:  ", Style::default().fg(Color::Gray)),
                 Span::styled(
-                    format!("{}", total_issues),
+                    format!("{total_issues}"),
                     Style::default().fg(Color::Cyan),
                 ),
             ]),
             Line::from(vec![
                 Span::styled("Open:          ", Style::default().fg(Color::Gray)),
                 Span::styled(
-                    format!("{}", open_issues),
+                    format!("{open_issues}"),
                     Style::default().fg(Color::Green),
                 ),
             ]),
             Line::from(vec![
                 Span::styled("Closed:        ", Style::default().fg(Color::Gray)),
                 Span::styled(
-                    format!("{}", closed_issues),
+                    format!("{closed_issues}"),
                     Style::default().fg(Color::Blue),
                 ),
             ]),
             Line::from(vec![
                 Span::styled("Blocked:       ", Style::default().fg(Color::Gray)),
                 Span::styled(
-                    format!("{}", blocked_issues),
+                    format!("{blocked_issues}"),
                     Style::default().fg(Color::Red),
                 ),
             ]),
@@ -320,7 +307,7 @@ fn format_size(bytes: u64) -> String {
     const GB: u64 = MB * 1024;
 
     if bytes < KB {
-        format!("{} B", bytes)
+        format!("{bytes} B")
     } else if bytes < MB {
         format!("{:.2} KB", bytes as f64 / KB as f64)
     } else if bytes < GB {

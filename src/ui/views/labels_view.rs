@@ -64,16 +64,13 @@ impl<'a> LabelsView<'a> {
             Line::from(vec![
                 Span::styled("Total Labels:  ", Style::default().fg(Color::Gray)),
                 Span::styled(
-                    format!("{}", total_labels),
+                    format!("{total_labels}"),
                     Style::default().fg(Color::Cyan),
                 ),
             ]),
             Line::from(vec![
                 Span::styled("Total Usage:   ", Style::default().fg(Color::Gray)),
-                Span::styled(
-                    format!("{}", total_usage),
-                    Style::default().fg(Color::Cyan),
-                ),
+                Span::styled(format!("{total_usage}"), Style::default().fg(Color::Cyan)),
             ]),
         ];
 
@@ -128,7 +125,8 @@ impl<'a> LabelsView<'a> {
     }
 
     fn render_help(&self, area: Rect, buf: &mut Buffer) {
-        let help_text = "a: Add Label | d: Delete Label | e: Edit Label | s: Show Statistics | /: Search";
+        let help_text =
+            "a: Add Label | d: Delete Label | e: Edit Label | s: Show Statistics | /: Search";
         let help = Paragraph::new(Line::from(Span::styled(
             help_text,
             Style::default().fg(Color::DarkGray),

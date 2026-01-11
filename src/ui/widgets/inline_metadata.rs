@@ -121,20 +121,20 @@ pub fn format_age(timestamp: DateTime<Utc>) -> String {
     if seconds < 60 {
         "just now".to_string()
     } else if minutes < 60 {
-        format!("{}m ago", minutes)
+        format!("{minutes}m ago")
     } else if hours < 24 {
-        format!("{}h ago", hours)
+        format!("{hours}h ago")
     } else if days < 7 {
-        format!("{}d ago", days)
+        format!("{days}d ago")
     } else if days < 30 {
         let weeks = days / 7;
-        format!("{}w ago", weeks)
+        format!("{weeks}w ago")
     } else if days < 365 {
         let months = days / 30;
-        format!("{}mo ago", months)
+        format!("{months}mo ago")
     } else {
         let years = days / 365;
-        format!("{}y ago", years)
+        format!("{years}y ago")
     }
 }
 
@@ -149,12 +149,12 @@ pub fn format_labels(labels: &[String], max_labels: usize) -> String {
 
     let mut result = visible_labels
         .iter()
-        .map(|l| format!("#{}", l))
+        .map(|l| format!("#{l}"))
         .collect::<Vec<_>>()
         .join(" ");
 
     if hidden_count > 0 {
-        result.push_str(&format!(" +{}", hidden_count));
+        result.push_str(&format!(" +{hidden_count}"));
     }
 
     result
@@ -162,9 +162,7 @@ pub fn format_labels(labels: &[String], max_labels: usize) -> String {
 
 /// Format assignee as a compact string
 pub fn format_assignee(assignee: Option<&str>) -> String {
-    assignee
-        .map(|a| format!("@{}", a))
-        .unwrap_or_default()
+    assignee.map(|a| format!("@{a}")).unwrap_or_default()
 }
 
 /// Build inline metadata spans

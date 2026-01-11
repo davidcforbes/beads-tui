@@ -144,9 +144,7 @@ impl DescriptionEditorState {
     /// Delete current line (move to start, delete chars to end)
     pub fn delete_line(&mut self) {
         self.editor_state.move_cursor_to_line_start();
-        let line_len = self.editor_state.lines()
-            [self.editor_state.cursor_position().0]
-            .len();
+        let line_len = self.editor_state.lines()[self.editor_state.cursor_position().0].len();
         for _ in 0..line_len {
             self.editor_state.delete_char_forward();
         }
@@ -258,9 +256,7 @@ impl<'a> DescriptionEditorView<'a> {
             Span::raw(" | "),
             Span::styled(
                 mode_text,
-                Style::default()
-                    .fg(mode_color)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(mode_color).add_modifier(Modifier::BOLD),
             ),
         ]);
 
@@ -356,12 +352,7 @@ impl<'a> StatefulWidget for DescriptionEditorView<'a> {
 
         let editor = TextEditor::new().block(editor_block);
 
-        StatefulWidget::render(
-            editor,
-            chunks[chunk_idx],
-            buf,
-            &mut state.editor_state,
-        );
+        StatefulWidget::render(editor, chunks[chunk_idx], buf, &mut state.editor_state);
         chunk_idx += 1;
 
         // Render help bar if visible
@@ -394,8 +385,7 @@ mod tests {
     #[test]
     fn test_description_editor_state_with_initial_text() {
         let initial_text = "This is a test description.";
-        let state =
-            DescriptionEditorState::new("Test Issue".to_string(), initial_text.to_string());
+        let state = DescriptionEditorState::new("Test Issue".to_string(), initial_text.to_string());
         assert_eq!(state.text(), initial_text);
     }
 

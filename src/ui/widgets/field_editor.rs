@@ -226,7 +226,7 @@ impl<'a> StatefulWidget for FieldEditor<'a> {
         // Build title with label
         let title = if let Some(label) = self.label {
             if state.is_focused {
-                format!("{} [editing]", label)
+                format!("{label} [editing]")
             } else {
                 label.to_string()
             }
@@ -256,7 +256,9 @@ impl<'a> StatefulWidget for FieldEditor<'a> {
             if let Some(placeholder) = self.placeholder {
                 vec![Line::from(Span::styled(
                     placeholder,
-                    Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
                 ))]
             } else {
                 vec![Line::from("")]
@@ -271,9 +273,7 @@ impl<'a> StatefulWidget for FieldEditor<'a> {
         };
 
         // Create paragraph
-        let paragraph = Paragraph::new(text)
-            .block(block)
-            .wrap(Wrap { trim: false });
+        let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: false });
 
         paragraph.render(area, buf);
 
