@@ -1,5 +1,5 @@
 /// Configuration management for beads-tui
-use crate::models::TableConfig;
+use crate::models::{KanbanConfig, TableConfig};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -14,6 +14,8 @@ pub struct Config {
     pub behavior: BehaviorConfig,
     #[serde(default)]
     pub table: TableConfig,
+    #[serde(default)]
+    pub kanban: KanbanConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,6 +80,9 @@ impl Config {
 
         // Validate and migrate table config
         config.table = config.table.validate_and_migrate();
+
+        // Validate and migrate kanban config
+        config.kanban = config.kanban.validate_and_migrate();
 
         Ok(config)
     }
