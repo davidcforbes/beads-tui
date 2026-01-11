@@ -129,6 +129,7 @@ pub struct IssueList<'a> {
     sort_direction: SortDirection,
     show_details: bool,
     search_query: Option<String>,
+    row_height: u16,
 }
 
 impl<'a> IssueList<'a> {
@@ -145,6 +146,7 @@ impl<'a> IssueList<'a> {
             sort_direction,
             show_details: true,
             search_query: None,
+            row_height: 1,
         }
     }
 
@@ -163,6 +165,77 @@ impl<'a> IssueList<'a> {
     pub fn search_query(mut self, query: Option<String>) -> Self {
         self.search_query = query;
         self
+    }
+
+    pub fn row_height(mut self, height: u16) -> Self {
+        self.row_height = height.max(1);
+        self
+    }
+
+    /// Wrap text to fit within a given width
+    /// Returns vector of lines, each line is at most max_width characters
+    fn wrap_text(text: &str, max_width: usize) -> Vec<String> {
+        if max_width == 0 {
+            return vec![String::new()];
+        }
+
+        let mut lines = Vec::new();
+        let mut current_line = String::new();
+        let mut current_width = 0;
+
+        for word in text.split_whitespace() {
+            let word_len = word.len();
+
+            // If adding this word would exceed width, start a new line
+            if current_width + word_len + (if current_width > 0 { 1 } else { 0 }) > max_width {
+                // If current line is not empty, push it
+                if !current_line.is_empty() {
+                    lines.push(current_line);
+                    current_line = String::new();
+                    current_width = 0;
+                }
+
+                // If word itself is too long, truncate it
+                if word_len > max_width {
+                    current_line = format!("{}...", &word[..max_width.saturating_sub(3)]);
+                    lines.push(current_line);
+                    current_line = String::new();
+                    current_width = 0;
+                    continue;
+                }
+            }
+
+            // Add word to current line
+            if !current_line.is_empty() {
+                current_line.push(' ');
+                current_width += 1;
+            }
+            current_line.push_str(word);
+            current_width += word_len;
+        }
+
+        // Push the last line if not empty
+        if !current_line.is_empty() {
+            lines.push(current_line);
+        }
+
+        // If no lines were created, return empty line
+        if lines.is_empty() {
+            lines.push(String::new());
+        }
+
+        lines
+    }
+
+    /// Truncate text with ellipsis if it exceeds max_width
+    fn truncate_text(text: &str, max_width: usize) -> String {
+        if text.len() <= max_width {
+            text.to_string()
+        } else if max_width <= 3 {
+            "...".to_string()
+        } else {
+            format!("{}...", &text[..max_width - 3])
+        }
     }
 
     /// Highlight matching text in a string
@@ -328,10 +401,37 @@ impl<'a> StatefulWidget for IssueList<'a> {
                     Cell::from(issue.id.clone())
                 };
 
-                let title_cell = if let Some(ref query) = self.search_query {
-                    Cell::from(Line::from(Self::highlight_text(&issue.title, query)))
+                // Handle title cell with wrapping support
+                let title_cell = if self.row_height > 1 {
+                    // Multi-row mode: wrap text
+                    let wrapped_lines = Self::wrap_text(&issue.title, 30); // Use min constraint as width
+                    let lines: Vec<Line> = wrapped_lines
+                        .iter()
+                        .take(self.row_height as usize)
+                        .map(|line_text| {
+                            if let Some(ref query) = self.search_query {
+                                Line::from(Self::highlight_text(line_text, query))
+                            } else {
+                                Line::from(line_text.clone())
+                            }
+                        })
+                        .collect();
+
+                    // If wrapped text has fewer lines than row_height, pad with empty lines
+                    let mut padded_lines = lines;
+                    while padded_lines.len() < self.row_height as usize {
+                        padded_lines.push(Line::from(""));
+                    }
+
+                    Cell::from(padded_lines)
                 } else {
-                    Cell::from(issue.title.clone())
+                    // Single-row mode: truncate
+                    let truncated = Self::truncate_text(&issue.title, 30);
+                    if let Some(ref query) = self.search_query {
+                        Cell::from(Line::from(Self::highlight_text(&truncated, query)))
+                    } else {
+                        Cell::from(truncated)
+                    }
                 };
 
                 let status_cell = Cell::from(Span::styled(
@@ -350,7 +450,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
                     status_cell,
                     priority_cell,
                 ])
-                .height(1)
+                .height(self.row_height)
             })
             .collect();
 
@@ -513,5 +613,82 @@ mod tests {
         let spans = IssueList::highlight_text("hello world", "xyz");
         assert_eq!(spans.len(), 1);
         assert_eq!(spans[0].content, "hello world");
+    }
+
+    #[test]
+    fn test_wrap_text_simple() {
+        let text = "This is a test";
+        let wrapped = IssueList::wrap_text(text, 10);
+        assert_eq!(wrapped, vec!["This is a", "test"]);
+    }
+
+    #[test]
+    fn test_wrap_text_long_word() {
+        let text = "ThisIsAVeryLongWordThatShouldBeTruncated";
+        let wrapped = IssueList::wrap_text(text, 10);
+        assert_eq!(wrapped[0], "ThisIsA...");
+    }
+
+    #[test]
+    fn test_wrap_text_fits_exactly() {
+        let text = "Exact";
+        let wrapped = IssueList::wrap_text(text, 5);
+        assert_eq!(wrapped, vec!["Exact"]);
+    }
+
+    #[test]
+    fn test_wrap_text_empty() {
+        let wrapped = IssueList::wrap_text("", 10);
+        assert_eq!(wrapped, vec![""]);
+    }
+
+    #[test]
+    fn test_wrap_text_single_word() {
+        let wrapped = IssueList::wrap_text("Word", 10);
+        assert_eq!(wrapped, vec!["Word"]);
+    }
+
+    #[test]
+    fn test_wrap_text_zero_width() {
+        let wrapped = IssueList::wrap_text("test", 0);
+        assert_eq!(wrapped, vec![""]);
+    }
+
+    #[test]
+    fn test_wrap_text_multiple_lines() {
+        let text = "This is a longer text that will wrap across multiple lines when rendered";
+        let wrapped = IssueList::wrap_text(text, 20);
+        assert!(wrapped.len() >= 3);
+        for line in &wrapped {
+            assert!(line.len() <= 20);
+        }
+    }
+
+    #[test]
+    fn test_truncate_text_short() {
+        assert_eq!(IssueList::truncate_text("short", 10), "short");
+    }
+
+    #[test]
+    fn test_truncate_text_long() {
+        assert_eq!(
+            IssueList::truncate_text("This is a very long text", 10),
+            "This is..."
+        );
+    }
+
+    #[test]
+    fn test_truncate_text_very_short_width() {
+        assert_eq!(IssueList::truncate_text("test", 2), "...");
+    }
+
+    #[test]
+    fn test_truncate_text_exact_width() {
+        assert_eq!(IssueList::truncate_text("exactly10c", 10), "exactly10c");
+    }
+
+    #[test]
+    fn test_truncate_text_one_over() {
+        assert_eq!(IssueList::truncate_text("exactly11ch", 10), "exactly...");
     }
 }
