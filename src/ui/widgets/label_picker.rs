@@ -1,0 +1,582 @@
+//! Label picker widget with autocomplete
+
+use ratatui::{
+    buffer::Buffer,
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, StatefulWidget, Widget},
+};
+
+/// Label picker state
+#[derive(Debug, Clone)]
+pub struct LabelPickerState {
+    available_labels: Vec<String>,
+    selected_labels: Vec<String>,
+    filter_query: String,
+    filter_cursor: usize,
+    list_state: ListState,
+    is_filtering: bool,
+}
+
+impl LabelPickerState {
+    /// Create a new label picker state
+    pub fn new(available_labels: Vec<String>) -> Self {
+        let mut list_state = ListState::default();
+        list_state.select(Some(0));
+
+        Self {
+            available_labels,
+            selected_labels: Vec::new(),
+            filter_query: String::new(),
+            filter_cursor: 0,
+            list_state,
+            is_filtering: false,
+        }
+    }
+
+    /// Get selected labels
+    pub fn selected_labels(&self) -> &[String] {
+        &self.selected_labels
+    }
+
+    /// Set selected labels
+    pub fn set_selected_labels(&mut self, labels: Vec<String>) {
+        self.selected_labels = labels;
+    }
+
+    /// Get available labels
+    pub fn available_labels(&self) -> &[String] {
+        &self.available_labels
+    }
+
+    /// Set available labels
+    pub fn set_available_labels(&mut self, labels: Vec<String>) {
+        self.available_labels = labels;
+        self.list_state.select(Some(0));
+    }
+
+    /// Get filter query
+    pub fn filter_query(&self) -> &str {
+        &self.filter_query
+    }
+
+    /// Check if filtering is active
+    pub fn is_filtering(&self) -> bool {
+        self.is_filtering
+    }
+
+    /// Start filtering mode
+    pub fn start_filtering(&mut self) {
+        self.is_filtering = true;
+        self.filter_query.clear();
+        self.filter_cursor = 0;
+    }
+
+    /// Stop filtering mode
+    pub fn stop_filtering(&mut self) {
+        self.is_filtering = false;
+        self.filter_query.clear();
+        self.filter_cursor = 0;
+    }
+
+    /// Insert character in filter query
+    pub fn insert_char(&mut self, c: char) {
+        if c == '\n' {
+            return;
+        }
+        self.filter_query.insert(self.filter_cursor, c);
+        self.filter_cursor += 1;
+        self.list_state.select(Some(0));
+    }
+
+    /// Delete character from filter query
+    pub fn delete_char(&mut self) {
+        if self.filter_cursor > 0 {
+            self.filter_query.remove(self.filter_cursor - 1);
+            self.filter_cursor -= 1;
+        }
+    }
+
+    /// Get filtered labels based on current query
+    pub fn filtered_labels(&self) -> Vec<&str> {
+        if self.filter_query.is_empty() {
+            self.available_labels.iter().map(|s| s.as_str()).collect()
+        } else {
+            let query_lower = self.filter_query.to_lowercase();
+            self.available_labels
+                .iter()
+                .filter(|label| label.to_lowercase().contains(&query_lower))
+                .map(|s| s.as_str())
+                .collect()
+        }
+    }
+
+    /// Select next label in filtered list
+    pub fn select_next(&mut self) {
+        let filtered = self.filtered_labels();
+        let count = filtered.len();
+
+        if count == 0 {
+            return;
+        }
+
+        let i = match self.list_state.selected() {
+            Some(i) => {
+                if i >= count - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.list_state.select(Some(i));
+    }
+
+    /// Select previous label in filtered list
+    pub fn select_previous(&mut self) {
+        let filtered = self.filtered_labels();
+        let count = filtered.len();
+
+        if count == 0 {
+            return;
+        }
+
+        let i = match self.list_state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    count - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.list_state.select(Some(i));
+    }
+
+    /// Toggle selection of currently highlighted label
+    pub fn toggle_selected(&mut self) {
+        let filtered = self.filtered_labels();
+        let Some(index) = self.list_state.selected() else {
+            return;
+        };
+
+        if index >= filtered.len() {
+            return;
+        }
+
+        let label = filtered[index].to_string();
+
+        if let Some(pos) = self.selected_labels.iter().position(|l| l == &label) {
+            self.selected_labels.remove(pos);
+        } else {
+            self.selected_labels.push(label);
+        }
+    }
+
+    /// Add a label to selected labels
+    pub fn add_label<S: Into<String>>(&mut self, label: S) {
+        let label = label.into();
+        if !self.selected_labels.contains(&label) {
+            self.selected_labels.push(label);
+        }
+    }
+
+    /// Remove a label from selected labels
+    pub fn remove_label(&mut self, label: &str) {
+        self.selected_labels.retain(|l| l != label);
+    }
+
+    /// Clear all selected labels
+    pub fn clear_selected(&mut self) {
+        self.selected_labels.clear();
+    }
+
+    /// Check if a label is selected
+    pub fn is_selected(&self, label: &str) -> bool {
+        self.selected_labels.contains(&label.to_string())
+    }
+}
+
+impl Default for LabelPickerState {
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
+}
+
+/// Label picker widget
+pub struct LabelPicker<'a> {
+    title: &'a str,
+    show_filter_hint: bool,
+    style: Style,
+    selected_style: Style,
+    active_style: Style,
+}
+
+impl<'a> LabelPicker<'a> {
+    /// Create a new label picker
+    pub fn new() -> Self {
+        Self {
+            title: "Labels",
+            show_filter_hint: true,
+            style: Style::default(),
+            selected_style: Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+            active_style: Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
+        }
+    }
+
+    /// Set the title
+    pub fn title(mut self, title: &'a str) -> Self {
+        self.title = title;
+        self
+    }
+
+    /// Show or hide filter hint
+    pub fn show_filter_hint(mut self, show: bool) -> Self {
+        self.show_filter_hint = show;
+        self
+    }
+
+    /// Set style
+    pub fn style(mut self, style: Style) -> Self {
+        self.style = style;
+        self
+    }
+
+    /// Set selected item style
+    pub fn selected_style(mut self, style: Style) -> Self {
+        self.selected_style = style;
+        self
+    }
+
+    /// Set active label style
+    pub fn active_style(mut self, style: Style) -> Self {
+        self.active_style = style;
+        self
+    }
+}
+
+impl<'a> Default for LabelPicker<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<'a> StatefulWidget for LabelPicker<'a> {
+    type State = LabelPickerState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        // Create main layout
+        let mut constraints = vec![
+            Constraint::Min(8),     // Label list
+        ];
+
+        if !state.selected_labels.is_empty() {
+            constraints.insert(0, Constraint::Length(3)); // Selected labels
+        }
+
+        if state.is_filtering {
+            constraints.push(Constraint::Length(3)); // Filter input
+        }
+
+        if self.show_filter_hint && !state.is_filtering {
+            constraints.push(Constraint::Length(1)); // Hint text
+        }
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(constraints)
+            .split(area);
+
+        let mut chunk_index = 0;
+
+        // Render selected labels
+        if !state.selected_labels.is_empty() {
+            let selected_text = state
+                .selected_labels
+                .iter()
+                .map(|l| format!("🏷 {}", l))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            let selected_block = Block::default()
+                .borders(Borders::ALL)
+                .title("Selected");
+
+            let selected_inner = selected_block.inner(chunks[chunk_index]);
+            selected_block.render(chunks[chunk_index], buf);
+
+            let selected_para = Paragraph::new(Line::from(Span::styled(
+                selected_text,
+                self.active_style,
+            )));
+            selected_para.render(selected_inner, buf);
+
+            chunk_index += 1;
+        }
+
+        // Render label list
+        let filtered = state.filtered_labels();
+        let items: Vec<ListItem> = filtered
+            .iter()
+            .map(|label| {
+                let is_selected = state.is_selected(label);
+                let checkbox = if is_selected { "[✓]" } else { "[ ]" };
+                let style = if is_selected {
+                    self.active_style
+                } else {
+                    Style::default()
+                };
+
+                ListItem::new(Line::from(vec![
+                    Span::raw(checkbox),
+                    Span::raw(" 🏷  "),
+                    Span::styled(label.to_string(), style),
+                ]))
+            })
+            .collect();
+
+        let list_title = if state.is_filtering {
+            format!("{} (filtering)", self.title)
+        } else {
+            self.title.to_string()
+        };
+
+        let list = if items.is_empty() {
+            let empty_items = vec![ListItem::new(Line::from(Span::styled(
+                if state.is_filtering {
+                    "No labels match filter"
+                } else {
+                    "No labels available"
+                },
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )))];
+            List::new(empty_items)
+                .block(Block::default().borders(Borders::ALL).title(list_title))
+        } else {
+            List::new(items)
+                .block(Block::default().borders(Borders::ALL).title(list_title))
+                .highlight_style(self.selected_style)
+                .highlight_symbol("> ")
+        };
+
+        StatefulWidget::render(list, chunks[chunk_index], buf, &mut state.list_state);
+        chunk_index += 1;
+
+        // Render filter input
+        if state.is_filtering && chunk_index < chunks.len() {
+            let filter_block = Block::default()
+                .borders(Borders::ALL)
+                .title("Filter");
+
+            let filter_inner = filter_block.inner(chunks[chunk_index]);
+            filter_block.render(chunks[chunk_index], buf);
+
+            let filter_text = if state.filter_query.is_empty() {
+                Line::from(Span::styled(
+                    "Type to filter...",
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
+                ))
+            } else {
+                Line::from(state.filter_query.as_str())
+            };
+
+            let filter_para = Paragraph::new(filter_text);
+            filter_para.render(filter_inner, buf);
+
+            // Render cursor
+            if !state.filter_query.is_empty() && filter_inner.width > 0 && filter_inner.height > 0
+            {
+                let cursor_x = filter_inner.x + state.filter_cursor as u16;
+                let cursor_y = filter_inner.y;
+
+                if cursor_x < filter_inner.x + filter_inner.width {
+                    buf.get_mut(cursor_x, cursor_y)
+                        .set_style(Style::default().bg(Color::White).fg(Color::Black));
+                }
+            }
+
+            chunk_index += 1;
+        }
+
+        // Render hint text
+        if self.show_filter_hint && !state.is_filtering && chunk_index < chunks.len() {
+            let hint = Line::from(vec![
+                Span::styled("/", Style::default().fg(Color::Yellow)),
+                Span::raw(" to filter  "),
+                Span::styled("Space", Style::default().fg(Color::Green)),
+                Span::raw(" to toggle"),
+            ]);
+            hint.render(chunks[chunk_index], buf);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_label_picker_state_creation() {
+        let labels = vec!["bug".to_string(), "feature".to_string()];
+        let state = LabelPickerState::new(labels.clone());
+
+        assert_eq!(state.available_labels(), &labels);
+        assert!(state.selected_labels().is_empty());
+        assert_eq!(state.filter_query(), "");
+        assert!(!state.is_filtering());
+    }
+
+    #[test]
+    fn test_label_picker_filtering() {
+        let labels = vec![
+            "bug".to_string(),
+            "feature".to_string(),
+            "urgent".to_string(),
+            "enhancement".to_string(),
+        ];
+        let mut state = LabelPickerState::new(labels);
+
+        state.start_filtering();
+        assert!(state.is_filtering());
+
+        state.insert_char('u');
+        state.insert_char('r');
+        state.insert_char('g');
+
+        let filtered = state.filtered_labels();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0], "urgent");
+
+        state.stop_filtering();
+        assert!(!state.is_filtering());
+        assert_eq!(state.filter_query(), "");
+    }
+
+    #[test]
+    fn test_label_picker_selection() {
+        let labels = vec!["bug".to_string(), "feature".to_string()];
+        let mut state = LabelPickerState::new(labels);
+
+        state.add_label("bug");
+        assert!(state.is_selected("bug"));
+        assert!(!state.is_selected("feature"));
+
+        state.remove_label("bug");
+        assert!(!state.is_selected("bug"));
+
+        state.add_label("bug");
+        state.add_label("feature");
+        assert_eq!(state.selected_labels().len(), 2);
+
+        state.clear_selected();
+        assert!(state.selected_labels().is_empty());
+    }
+
+    #[test]
+    fn test_label_picker_toggle() {
+        let labels = vec!["bug".to_string(), "feature".to_string()];
+        let mut state = LabelPickerState::new(labels);
+
+        state.list_state.select(Some(0));
+        state.toggle_selected();
+        assert!(state.is_selected("bug"));
+
+        state.toggle_selected();
+        assert!(!state.is_selected("bug"));
+    }
+
+    #[test]
+    fn test_label_picker_navigation() {
+        let labels = vec![
+            "bug".to_string(),
+            "feature".to_string(),
+            "urgent".to_string(),
+        ];
+        let mut state = LabelPickerState::new(labels);
+
+        assert_eq!(state.list_state.selected(), Some(0));
+
+        state.select_next();
+        assert_eq!(state.list_state.selected(), Some(1));
+
+        state.select_next();
+        assert_eq!(state.list_state.selected(), Some(2));
+
+        state.select_next();
+        assert_eq!(state.list_state.selected(), Some(0)); // Wrap around
+
+        state.select_previous();
+        assert_eq!(state.list_state.selected(), Some(2));
+    }
+
+    #[test]
+    fn test_label_picker_filter_deletion() {
+        let labels = vec!["bug".to_string()];
+        let mut state = LabelPickerState::new(labels);
+
+        state.start_filtering();
+        state.insert_char('t');
+        state.insert_char('e');
+        state.insert_char('s');
+        state.insert_char('t');
+
+        assert_eq!(state.filter_query(), "test");
+
+        state.delete_char();
+        assert_eq!(state.filter_query(), "tes");
+
+        state.delete_char();
+        state.delete_char();
+        state.delete_char();
+        assert_eq!(state.filter_query(), "");
+    }
+
+    #[test]
+    fn test_label_picker_case_insensitive_filter() {
+        let labels = vec!["BUG".to_string(), "Feature".to_string(), "URGENT".to_string()];
+        let mut state = LabelPickerState::new(labels);
+
+        state.start_filtering();
+        state.insert_char('u');
+        state.insert_char('r');
+
+        let filtered = state.filtered_labels();
+        assert_eq!(filtered.len(), 2); // "Feature" and "URGENT" contain "ur"
+    }
+
+    #[test]
+    fn test_label_picker_no_duplicates() {
+        let labels = vec!["bug".to_string()];
+        let mut state = LabelPickerState::new(labels);
+
+        state.add_label("bug");
+        state.add_label("bug");
+        state.add_label("bug");
+
+        assert_eq!(state.selected_labels().len(), 1);
+    }
+
+    #[test]
+    fn test_label_picker_ignore_newlines() {
+        let labels = vec!["bug".to_string()];
+        let mut state = LabelPickerState::new(labels);
+
+        state.start_filtering();
+        state.insert_char('t');
+        state.insert_char('\n');
+        state.insert_char('e');
+
+        assert_eq!(state.filter_query(), "te");
+    }
+}
