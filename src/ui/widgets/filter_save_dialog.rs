@@ -27,6 +27,15 @@ pub enum FilterSaveField {
     Hotkey,
 }
 
+/// Parameters for rendering a field in the filter save dialog
+struct FieldRenderParams<'a> {
+    label: &'a str,
+    value: &'a str,
+    cursor_pos: usize,
+    is_focused: bool,
+    placeholder: &'a str,
+}
+
 impl Default for FilterSaveDialogState {
     fn default() -> Self {
         Self::new()
@@ -310,22 +319,26 @@ impl<'a> FilterSaveDialog<'a> {
         self.render_field(
             chunks[0],
             buf,
-            "Name",
-            &state.name,
-            state.name_cursor,
-            state.focused_field == FilterSaveField::Name,
-            "Enter a name for this filter",
+            FieldRenderParams {
+                label: "Name",
+                value: &state.name,
+                cursor_pos: state.name_cursor,
+                is_focused: state.focused_field == FilterSaveField::Name,
+                placeholder: "Enter a name for this filter",
+            },
         );
 
         // Render description field
         self.render_field(
             chunks[1],
             buf,
-            "Description (optional)",
-            &state.description,
-            state.description_cursor,
-            state.focused_field == FilterSaveField::Description,
-            "Brief description",
+            FieldRenderParams {
+                label: "Description (optional)",
+                value: &state.description,
+                cursor_pos: state.description_cursor,
+                is_focused: state.focused_field == FilterSaveField::Description,
+                placeholder: "Brief description",
+            },
         );
 
         // Render hotkey field
@@ -335,11 +348,13 @@ impl<'a> FilterSaveDialog<'a> {
             self.render_field(
                 chunks[2],
                 buf,
-                "Hotkey (optional)",
-                hotkey_text,
-                0,
-                state.focused_field == FilterSaveField::Hotkey,
-                "Press 1-9 or F1-F12",
+                FieldRenderParams {
+                    label: "Hotkey (optional)",
+                    value: hotkey_text,
+                    cursor_pos: 0,
+                    is_focused: state.focused_field == FilterSaveField::Hotkey,
+                    placeholder: "Press 1-9 or F12",
+                },
             );
             chunk_index = 3;
         }
@@ -362,12 +377,15 @@ impl<'a> FilterSaveDialog<'a> {
         &self,
         area: Rect,
         buf: &mut Buffer,
-        label: &str,
-        value: &str,
-        cursor_pos: usize,
-        is_focused: bool,
-        placeholder: &str,
+        params: FieldRenderParams,
     ) {
+        let FieldRenderParams {
+            label,
+            value,
+            cursor_pos,
+            is_focused,
+            placeholder,
+        } = params;
         let block = Block::default()
             .borders(Borders::ALL)
             .title(label)

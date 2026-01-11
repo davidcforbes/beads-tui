@@ -7,9 +7,9 @@ use chrono::Utc;
 /// Create a test issue for benchmarking
 fn create_test_issue(id: u32) -> Issue {
     Issue {
-        id: format!("beads-test-{:04}", id),
-        title: format!("Test Issue {}", id),
-        description: Some(format!("Description for issue {}", id)),
+        id: format!("beads-test-{id:04}"),
+        title: format!("Test Issue {id}"),
+        description: Some(format!("Description for issue {id}")),
         issue_type: match id % 5 {
             0 => IssueType::Bug,
             1 => IssueType::Feature,
@@ -197,11 +197,9 @@ fn bench_parse_list_output(c: &mut Criterion) {
     let mut group = c.benchmark_group("parse_json_list");
 
     // Generate JSON output from issues
-    let sample_outputs = vec![
-        (10, generate_json_output(10)),
+    let sample_outputs = [(10, generate_json_output(10)),
         (100, generate_json_output(100)),
-        (500, generate_json_output(500)),
-    ];
+        (500, generate_json_output(500))];
 
     for (size, output) in sample_outputs.iter() {
         group.bench_with_input(BenchmarkId::from_parameter(size), output, |b, output| {

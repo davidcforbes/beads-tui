@@ -99,13 +99,13 @@ impl PertChartConfig {
 
     /// Set zoom level
     pub fn zoom(mut self, zoom: f32) -> Self {
-        self.zoom = zoom.max(0.5).min(3.0);
+        self.zoom = zoom.clamp(0.5, 3.0);
         self
     }
 
     /// Adjust zoom by factor
     pub fn adjust_zoom(&mut self, factor: f32) {
-        self.zoom = (self.zoom * factor).max(0.5).min(3.0);
+        self.zoom = (self.zoom * factor).clamp(0.5, 3.0);
     }
 
     /// Toggle critical path highlighting
@@ -289,8 +289,7 @@ impl<'a> PertChart<'a> {
         let is_selected = self
             .config
             .selected_node
-            .as_ref()
-            .map_or(false, |id| id == &node.issue_id);
+            .as_ref() == Some(&node.issue_id);
         let is_critical = node.is_critical && self.config.show_critical_path;
 
         let style = if is_selected {
@@ -560,7 +559,7 @@ impl<'a> Widget for PertChart<'a> {
 
             let mut x_offset = area.x + 2;
             for (symbol, label, style) in legend_items {
-                let text = format!("{} {} ", symbol, label);
+                let text = format!("{symbol} {label} ");
                 if x_offset + text.len() as u16 <= area.x + area.width {
                     buf.set_string(x_offset, legend_y, &text, style);
                     x_offset += text.len() as u16;

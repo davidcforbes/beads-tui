@@ -181,7 +181,7 @@ impl<'a> GanttChart<'a> {
 
             lanes
                 .entry(lane_key)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(schedule.clone());
         }
 
@@ -259,7 +259,7 @@ impl<'a> GanttChart<'a> {
                 }
             }
 
-            current = current + tick_interval;
+            current += tick_interval;
         }
 
         // Render today marker if enabled

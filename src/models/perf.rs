@@ -1,5 +1,4 @@
 /// Performance profiling and metrics tracking for the render loop
-
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 

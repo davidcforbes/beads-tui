@@ -38,6 +38,7 @@ impl TimeEstimate {
 /// Schedule data for an issue (future extension of Issue model)
 /// These fields will eventually be added to the Issue model
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct ScheduleData {
     /// Earliest date work can start (deferred until)
     pub defer_until: Option<DateTime<Utc>>,
@@ -47,15 +48,6 @@ pub struct ScheduleData {
     pub estimate: Option<TimeEstimate>,
 }
 
-impl Default for ScheduleData {
-    fn default() -> Self {
-        Self {
-            defer_until: None,
-            due_at: None,
-            estimate: None,
-        }
-    }
-}
 
 /// Computed schedule for an issue in Gantt chart
 #[derive(Debug, Clone)]
@@ -113,12 +105,7 @@ impl IssueSchedule {
         } else if let (Some(start_date), Some(estimate)) = (start, &schedule_data.estimate) {
             // Compute from start + estimate
             Some(start_date + estimate.to_duration())
-        } else if let Some(start_date) = start {
-            // Default: 1 day minimum duration
-            Some(start_date + Duration::days(1))
-        } else {
-            None
-        };
+        } else { start.map(|start_date| start_date + Duration::days(1)) };
 
         (start, end)
     }
@@ -166,10 +153,12 @@ impl IssueSchedule {
 
 /// Zoom level for Gantt chart timeline
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum ZoomLevel {
     /// Show hours (for short-term planning)
     Hours,
     /// Show days (default view)
+    #[default]
     Days,
     /// Show weeks (for medium-term planning)
     Weeks,
@@ -177,11 +166,6 @@ pub enum ZoomLevel {
     Months,
 }
 
-impl Default for ZoomLevel {
-    fn default() -> Self {
-        ZoomLevel::Days
-    }
-}
 
 impl ZoomLevel {
     /// Get the duration represented by one unit at this zoom level
@@ -271,15 +255,15 @@ impl TimelineConfig {
     /// Pan the viewport forward in time
     pub fn pan_forward(&mut self) {
         let delta = self.zoom_level.unit_duration() * 5; // Pan by 5 units
-        self.viewport_start = self.viewport_start + delta;
-        self.viewport_end = self.viewport_end + delta;
+        self.viewport_start += delta;
+        self.viewport_end += delta;
     }
 
     /// Pan the viewport backward in time
     pub fn pan_backward(&mut self) {
         let delta = self.zoom_level.unit_duration() * 5; // Pan by 5 units
-        self.viewport_start = self.viewport_start - delta;
-        self.viewport_end = self.viewport_end - delta;
+        self.viewport_start -= delta;
+        self.viewport_end -= delta;
     }
 
     /// Fit the timeline to show all scheduled issues

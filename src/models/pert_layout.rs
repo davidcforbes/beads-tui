@@ -347,19 +347,19 @@ impl PertGraph {
             let bucket = (node.earliest_start / bucket_size) as u16;
             time_buckets
                 .entry(bucket)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(id.clone());
         }
 
         // Assign Y positions within each bucket to avoid overlap
         let mut lane_assignments: HashMap<u16, HashSet<u16>> = HashMap::new();
 
-        for (_id, node) in &mut self.nodes {
+        for node in self.nodes.values_mut() {
             let bucket = (node.earliest_start / bucket_size) as u16;
             node.x = bucket * 4; // Horizontal spacing
 
             // Find available lane (Y position) in this bucket
-            let used_lanes = lane_assignments.entry(bucket).or_insert_with(HashSet::new);
+            let used_lanes = lane_assignments.entry(bucket).or_default();
             let mut lane = 0;
             while used_lanes.contains(&lane) {
                 lane += 1;
@@ -493,13 +493,13 @@ impl PertGraph {
                 filtered_graph
                     .adjacency
                     .entry(edge.from.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(edge.to.clone());
 
                 filtered_graph
                     .reverse_adjacency
                     .entry(edge.to.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(edge.from.clone());
             }
         }

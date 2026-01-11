@@ -214,12 +214,9 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
         }
         IssuesViewMode::Edit => {
             // Edit mode: form controls
-            match key_code {
-                KeyCode::Esc => {
-                    issues_state.cancel_edit();
-                }
-                // TODO: Add more editor controls (Tab for field navigation, etc.)
-                _ => {}
+            // TODO: Add more editor controls (Tab for field navigation, etc.)
+            if key_code == KeyCode::Esc {
+                issues_state.cancel_edit();
             }
         }
     }
@@ -420,8 +417,8 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 .daemon_running(false); // TODO: Check actual daemon status
             f.render_widget(database_view, tabs_chunks[1]);
         }
-        4 | _ => {
-            // Help view
+        _ => {
+            // Help view (tab 4 and beyond)
             let help_view = HelpView::new();
             f.render_widget(help_view, tabs_chunks[1]);
         }

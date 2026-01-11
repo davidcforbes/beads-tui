@@ -5,8 +5,10 @@ use serde::{Deserialize, Serialize};
 /// Grouping mode for Kanban columns
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum GroupingMode {
     /// Group by issue status (default)
+    #[default]
     Status,
     /// Group by assignee
     Assignee,
@@ -16,11 +18,6 @@ pub enum GroupingMode {
     Priority,
 }
 
-impl Default for GroupingMode {
-    fn default() -> Self {
-        GroupingMode::Status
-    }
-}
 
 impl GroupingMode {
     /// Returns the display name for this grouping mode
@@ -145,8 +142,10 @@ impl Default for WidthConstraints {
 /// Sort order for cards within a column
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum CardSort {
     /// Sort by priority (P0 first)
+    #[default]
     Priority,
     /// Sort by title alphabetically
     Title,
@@ -156,11 +155,6 @@ pub enum CardSort {
     Updated,
 }
 
-impl Default for CardSort {
-    fn default() -> Self {
-        CardSort::Priority
-    }
-}
 
 /// Column definition for the Kanban board
 #[derive(Debug, Clone, Serialize, Deserialize)]
