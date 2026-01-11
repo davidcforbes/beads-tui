@@ -13,6 +13,7 @@ pub mod search_input;
 pub mod selector;
 pub mod status_bar;
 pub mod tab_bar;
+pub mod text_editor;
 
 pub use dialog::{Dialog, DialogButton, DialogState, DialogType};
 pub use field_editor::{EditorMode, FieldEditor, FieldEditorState};
@@ -27,6 +28,7 @@ pub use search_input::{SearchInput, SearchInputState};
 pub use selector::{PrioritySelector, SelectorState, StatusSelector, TypeSelector};
 pub use status_bar::StatusBar;
 pub use tab_bar::TabBar;
+pub use text_editor::{TextEditor, TextEditorState};
 
 // Future widgets:
 // - Issue list widget
