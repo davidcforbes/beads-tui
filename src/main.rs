@@ -67,6 +67,90 @@ fn main() -> Result<()> {
 
 // App struct moved to models::AppState
 
+/// Handle keyboard events for the Issues view
+fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
+    use ui::views::IssuesViewMode;
+
+    let issues_state = &mut app.issues_view_state;
+    let view_mode = issues_state.view_mode();
+
+    match view_mode {
+        IssuesViewMode::List => {
+            // List mode: navigation, search, and quick actions
+            match key_code {
+                KeyCode::Char('j') | KeyCode::Down => {
+                    let len = issues_state.search_state().filtered_issues().len();
+                    issues_state.search_state_mut().list_state_mut().select_next(len);
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    let len = issues_state.search_state().filtered_issues().len();
+                    issues_state
+                        .search_state_mut()
+                        .list_state_mut()
+                        .select_previous(len);
+                }
+                KeyCode::Enter => {
+                    issues_state.enter_detail_view();
+                }
+                KeyCode::Char('e') => {
+                    issues_state.enter_edit_mode();
+                }
+                KeyCode::Char('/') => {
+                    issues_state.search_state_mut().search_state_mut().set_focused(true);
+                }
+                KeyCode::Esc => {
+                    issues_state.search_state_mut().clear_search();
+                    issues_state.search_state_mut().search_state_mut().set_focused(false);
+                }
+                _ => {}
+            }
+        }
+        IssuesViewMode::Detail => {
+            // Detail mode: view navigation
+            match key_code {
+                KeyCode::Esc | KeyCode::Char('q') => {
+                    issues_state.return_to_list();
+                }
+                KeyCode::Char('e') => {
+                    issues_state.return_to_list();
+                    issues_state.enter_edit_mode();
+                }
+                _ => {}
+            }
+        }
+        IssuesViewMode::Edit => {
+            // Edit mode: form controls
+            match key_code {
+                KeyCode::Esc => {
+                    issues_state.cancel_edit();
+                }
+                // TODO: Add more editor controls (Tab for field navigation, etc.)
+                _ => {}
+            }
+        }
+    }
+}
+
+/// Handle keyboard events for the Dependencies view
+fn handle_dependencies_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
+    // TODO: Implement dependency view controls
+}
+
+/// Handle keyboard events for the Labels view
+fn handle_labels_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
+    // TODO: Implement labels view controls
+}
+
+/// Handle keyboard events for the Database view
+fn handle_database_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
+    // TODO: Implement database view controls
+}
+
+/// Handle keyboard events for the Help view
+fn handle_help_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
+    // TODO: Implement help view controls
+}
+
 fn run_app<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     app: &mut models::AppState,
@@ -76,15 +160,49 @@ fn run_app<B: ratatui::backend::Backend>(
 
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                // Global key bindings
                 match key.code {
-                    KeyCode::Char('q') => app.should_quit = true,
+                    KeyCode::Char('q') => {
+                        app.should_quit = true;
+                        continue;
+                    }
+                    KeyCode::Char('1') => {
+                        app.selected_tab = 0;
+                        continue;
+                    }
+                    KeyCode::Char('2') => {
+                        app.selected_tab = 1;
+                        continue;
+                    }
+                    KeyCode::Char('3') => {
+                        app.selected_tab = 2;
+                        continue;
+                    }
+                    KeyCode::Char('4') => {
+                        app.selected_tab = 3;
+                        continue;
+                    }
+                    KeyCode::Char('5') => {
+                        app.selected_tab = 4;
+                        continue;
+                    }
+                    _ => {}
+                }
+
+                // Tab-specific key bindings
+                match app.selected_tab {
+                    0 => handle_issues_view_event(key.code, app),
+                    1 => handle_dependencies_view_event(key.code, app),
+                    2 => handle_labels_view_event(key.code, app),
+                    3 => handle_database_view_event(key.code, app),
+                    4 => handle_help_view_event(key.code, app),
+                    _ => {}
+                }
+
+                // Handle global tab navigation after view-specific handling
+                match key.code {
                     KeyCode::Tab => app.next_tab(),
                     KeyCode::BackTab => app.previous_tab(),
-                    KeyCode::Char('1') => app.selected_tab = 0,
-                    KeyCode::Char('2') => app.selected_tab = 1,
-                    KeyCode::Char('3') => app.selected_tab = 2,
-                    KeyCode::Char('4') => app.selected_tab = 3,
-                    KeyCode::Char('5') => app.selected_tab = 4,
                     _ => {}
                 }
             }
