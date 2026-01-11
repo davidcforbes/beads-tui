@@ -1,0 +1,36 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Beads
+.beads/
+*.db
+*.db-shm
+*.db-wal
+beads.jsonl
+
+# Logs
+*.log
+
+# Build artifacts
+/dist/
+/release/
+
+# Testing
+/test-repos/
+/fixtures/generated/
+
+# OS
+Thumbs.db
+.Spotlight-V100
+.Trashes

@@ -1,0 +1,87 @@
+[package]
+name = "beads-tui"
+version = "0.1.0"
+edition = "2021"
+authors = ["David Forbes <david@example.com>"]
+description = "Interactive terminal UI for Beads issue management system"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/davidcforbes/beads-tui"
+keywords = ["tui", "terminal", "issue-tracking", "beads", "ratatui"]
+categories = ["command-line-utilities", "development-tools"]
+rust-version = "1.70"
+
+[[bin]]
+name = "beads-tui"
+path = "src/main.rs"
+
+[dependencies]
+# TUI Framework
+ratatui = "0.26"
+crossterm = { version = "0.27", features = ["event-stream"] }
+
+# Async runtime
+tokio = { version = "1.36", features = ["full"] }
+futures = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# CLI and process management
+clap = { version = "4.5", features = ["derive", "cargo"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Date/time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Terminal utilities
+unicode-width = "0.1"
+textwrap = "0.16"
+
+# Fuzzy search
+fuzzy-matcher = "0.3"
+
+# Configuration
+config = "0.14"
+directories = "5.0"
+
+# Colors and styling
+owo-colors = "4.0"
+
+[dev-dependencies]
+# Testing
+proptest = "1.4"
+criterion = "0.5"
+mockall = "0.12"
+tempfile = "3.10"
+assert_cmd = "2.0"
+predicates = "3.1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 0
+
+[profile.dev.package."*"]
+opt-level = 2
+
+# Benchmarks will be added later
+# [[bench]]
+# name = "rendering"
+# harness = false
+#
+# [[bench]]
+# name = "parsing"
+# harness = false
