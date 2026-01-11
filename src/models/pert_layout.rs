@@ -384,6 +384,144 @@ impl PertGraph {
             .filter_map(|id| self.nodes.get(id))
             .collect()
     }
+
+    /// Compute a subgraph focused on a specific node
+    /// Returns nodes and edges within the specified depth
+    /// direction: "upstream" (dependencies), "downstream" (blocks), "both"
+    pub fn compute_subgraph(
+        &self,
+        focus_node: &str,
+        depth: usize,
+        direction: &str,
+    ) -> (HashSet<String>, Vec<PertEdge>) {
+        let mut included_nodes = HashSet::new();
+
+        if !self.nodes.contains_key(focus_node) {
+            return (included_nodes, Vec::new());
+        }
+
+        // Start with the focus node
+        included_nodes.insert(focus_node.to_string());
+
+        // BFS to find nodes within depth
+        match direction {
+            "upstream" => {
+                self.traverse_direction(&mut included_nodes, focus_node, depth, true);
+            }
+            "downstream" => {
+                self.traverse_direction(&mut included_nodes, focus_node, depth, false);
+            }
+            "both" => {
+                self.traverse_direction(&mut included_nodes, focus_node, depth, true);
+                self.traverse_direction(&mut included_nodes, focus_node, depth, false);
+            }
+            _ => {}
+        }
+
+        // Filter edges to only include those between included nodes
+        let filtered_edges: Vec<PertEdge> = self
+            .edges
+            .iter()
+            .filter(|edge| included_nodes.contains(&edge.from) && included_nodes.contains(&edge.to))
+            .cloned()
+            .collect();
+
+        (included_nodes, filtered_edges)
+    }
+
+    /// Helper to traverse the graph in a specific direction (upstream or downstream)
+    fn traverse_direction(
+        &self,
+        included_nodes: &mut HashSet<String>,
+        start_node: &str,
+        depth: usize,
+        upstream: bool,
+    ) {
+        let mut queue = VecDeque::new();
+        queue.push_back((start_node.to_string(), 0));
+
+        while let Some((node_id, current_depth)) = queue.pop_front() {
+            if current_depth >= depth {
+                continue;
+            }
+
+            let neighbors = if upstream {
+                self.reverse_adjacency.get(&node_id)
+            } else {
+                self.adjacency.get(&node_id)
+            };
+
+            if let Some(neighbors) = neighbors {
+                for neighbor in neighbors {
+                    if included_nodes.insert(neighbor.clone()) {
+                        queue.push_back((neighbor.clone(), current_depth + 1));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Create a filtered view of the graph based on node IDs
+    /// Returns a new PertGraph containing only the specified nodes and their edges
+    pub fn filter_by_nodes(&self, node_ids: &HashSet<String>) -> Self {
+        let mut filtered_graph = Self {
+            nodes: HashMap::new(),
+            adjacency: HashMap::new(),
+            reverse_adjacency: HashMap::new(),
+            edges: Vec::new(),
+            topological_order: Vec::new(),
+            critical_path: Vec::new(),
+            cycle_detection: CycleDetection {
+                has_cycle: false,
+                cycle_edges: Vec::new(),
+            },
+        };
+
+        // Copy nodes
+        for (id, node) in &self.nodes {
+            if node_ids.contains(id) {
+                filtered_graph.nodes.insert(id.clone(), node.clone());
+            }
+        }
+
+        // Copy edges
+        for edge in &self.edges {
+            if node_ids.contains(&edge.from) && node_ids.contains(&edge.to) {
+                filtered_graph.edges.push(edge.clone());
+
+                // Update adjacency lists
+                filtered_graph
+                    .adjacency
+                    .entry(edge.from.clone())
+                    .or_insert_with(Vec::new)
+                    .push(edge.to.clone());
+
+                filtered_graph
+                    .reverse_adjacency
+                    .entry(edge.to.clone())
+                    .or_insert_with(Vec::new)
+                    .push(edge.from.clone());
+            }
+        }
+
+        // Filter topological order
+        filtered_graph.topological_order = self
+            .topological_order
+            .iter()
+            .filter(|id| node_ids.contains(id.as_str()))
+            .cloned()
+            .collect();
+
+        // Filter critical path
+        filtered_graph.critical_path = self
+            .critical_path
+            .iter()
+            .filter(|id| node_ids.contains(id.as_str()))
+            .cloned()
+            .collect();
+
+        filtered_graph
+    }
 }
 
 #[cfg(test)]
@@ -581,5 +719,109 @@ mod tests {
         assert_eq!(ordered_nodes.len(), 2);
         assert_eq!(ordered_nodes[0].issue_id, "A");
         assert_eq!(ordered_nodes[1].issue_id, "B");
+    }
+
+    #[test]
+    fn test_compute_subgraph_upstream() {
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+
+        // Chain: A -> B -> C
+        issue2.dependencies = vec!["A".to_string()];
+        issue3.dependencies = vec!["B".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2, issue3], 1.0);
+
+        // Focus on C, upstream depth 1 (should include B and C)
+        let (nodes, edges) = graph.compute_subgraph("C", 1, "upstream");
+        assert_eq!(nodes.len(), 2);
+        assert!(nodes.contains("B"));
+        assert!(nodes.contains("C"));
+        assert_eq!(edges.len(), 1); // B -> C
+
+        // Focus on C, upstream depth 2 (should include A, B, and C)
+        let (nodes, edges) = graph.compute_subgraph("C", 2, "upstream");
+        assert_eq!(nodes.len(), 3);
+        assert!(nodes.contains("A"));
+        assert!(nodes.contains("B"));
+        assert!(nodes.contains("C"));
+        assert_eq!(edges.len(), 2); // A -> B, B -> C
+    }
+
+    #[test]
+    fn test_compute_subgraph_downstream() {
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+
+        // Chain: A -> B -> C
+        issue2.dependencies = vec!["A".to_string()];
+        issue3.dependencies = vec!["B".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2, issue3], 1.0);
+
+        // Focus on A, downstream depth 1 (should include A and B)
+        let (nodes, edges) = graph.compute_subgraph("A", 1, "downstream");
+        assert_eq!(nodes.len(), 2);
+        assert!(nodes.contains("A"));
+        assert!(nodes.contains("B"));
+        assert_eq!(edges.len(), 1); // A -> B
+
+        // Focus on A, downstream depth 2 (should include A, B, and C)
+        let (nodes, edges) = graph.compute_subgraph("A", 2, "downstream");
+        assert_eq!(nodes.len(), 3);
+        assert!(nodes.contains("A"));
+        assert!(nodes.contains("B"));
+        assert!(nodes.contains("C"));
+        assert_eq!(edges.len(), 2); // A -> B, B -> C
+    }
+
+    #[test]
+    fn test_compute_subgraph_both() {
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+
+        // Chain: A -> B -> C
+        issue2.dependencies = vec!["A".to_string()];
+        issue3.dependencies = vec!["B".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2, issue3], 1.0);
+
+        // Focus on B, both directions depth 1 (should include all three)
+        let (nodes, edges) = graph.compute_subgraph("B", 1, "both");
+        assert_eq!(nodes.len(), 3);
+        assert!(nodes.contains("A"));
+        assert!(nodes.contains("B"));
+        assert!(nodes.contains("C"));
+        assert_eq!(edges.len(), 2); // A -> B, B -> C
+    }
+
+    #[test]
+    fn test_filter_by_nodes() {
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+
+        issue2.dependencies = vec!["A".to_string()];
+        issue3.dependencies = vec!["B".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2, issue3], 1.0);
+
+        // Filter to only include A and B
+        let mut filter_nodes = HashSet::new();
+        filter_nodes.insert("A".to_string());
+        filter_nodes.insert("B".to_string());
+
+        let filtered = graph.filter_by_nodes(&filter_nodes);
+
+        assert_eq!(filtered.nodes.len(), 2);
+        assert!(filtered.nodes.contains_key("A"));
+        assert!(filtered.nodes.contains_key("B"));
+        assert!(!filtered.nodes.contains_key("C"));
+
+        assert_eq!(filtered.edges.len(), 1); // Only A -> B
+        assert_eq!(filtered.topological_order.len(), 2);
     }
 }

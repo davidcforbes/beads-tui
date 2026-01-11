@@ -35,6 +35,16 @@ pub struct PertChartConfig {
     pub node_width: u16,
     /// Node box height
     pub node_height: u16,
+    /// Focus mode: show only subgraph around focused node
+    pub focus_mode: bool,
+    /// Focused node ID (for subgraph focus)
+    pub focus_node: Option<String>,
+    /// Focus depth (how many levels up/downstream to show)
+    pub focus_depth: usize,
+    /// Focus direction: "upstream", "downstream", "both"
+    pub focus_direction: String,
+    /// Show legend
+    pub show_legend: bool,
 }
 
 impl Default for PertChartConfig {
@@ -59,6 +69,11 @@ impl Default for PertChartConfig {
                 .add_modifier(Modifier::BOLD),
             node_width: 20,
             node_height: 5,
+            focus_mode: false,
+            focus_node: None,
+            focus_depth: 1,
+            focus_direction: "both".to_string(),
+            show_legend: true,
         }
     }
 }
@@ -163,6 +178,43 @@ impl PertChartConfig {
             // Select first node if none selected
             self.selected_node = graph.topological_order.first().cloned();
         }
+    }
+
+    /// Toggle focus mode
+    pub fn toggle_focus_mode(&mut self) {
+        self.focus_mode = !self.focus_mode;
+        if self.focus_mode && self.focus_node.is_none() {
+            // Set focus to selected node if entering focus mode
+            self.focus_node = self.selected_node.clone();
+        }
+    }
+
+    /// Set focus on a specific node
+    pub fn focus_on_node(&mut self, node_id: Option<String>) {
+        self.focus_node = node_id;
+        if self.focus_node.is_some() {
+            self.focus_mode = true;
+        }
+    }
+
+    /// Set focus depth
+    pub fn set_focus_depth(&mut self, depth: usize) {
+        self.focus_depth = depth;
+    }
+
+    /// Set focus direction
+    pub fn set_focus_direction(&mut self, direction: &str) {
+        self.focus_direction = direction.to_string();
+    }
+
+    /// Toggle legend visibility
+    pub fn toggle_legend(&mut self) {
+        self.show_legend = !self.show_legend;
+    }
+
+    /// Exit focus mode (restore full graph view)
+    pub fn exit_focus_mode(&mut self) {
+        self.focus_mode = false;
     }
 }
 
@@ -372,14 +424,39 @@ impl<'a> PertChart<'a> {
 
 impl<'a> Widget for PertChart<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        // Apply focus mode filtering if enabled
+        let (nodes_to_render, edges_to_render) = if self.config.focus_mode {
+            if let Some(focus_node) = &self.config.focus_node {
+                self.graph.compute_subgraph(
+                    focus_node,
+                    self.config.focus_depth,
+                    &self.config.focus_direction,
+                )
+            } else {
+                // No focus node set, render full graph
+                (
+                    self.graph.nodes.keys().cloned().collect(),
+                    self.graph.edges.clone(),
+                )
+            }
+        } else {
+            // Normal mode, render full graph
+            (
+                self.graph.nodes.keys().cloned().collect(),
+                self.graph.edges.clone(),
+            )
+        };
+
         // Render edges first (so they appear behind nodes)
-        for edge in &self.graph.edges {
+        for edge in &edges_to_render {
             self.render_edge(edge, area, buf);
         }
 
         // Render nodes
-        for node in self.graph.nodes.values() {
-            self.render_node(node, area, buf);
+        for node_id in &nodes_to_render {
+            if let Some(node) = self.graph.nodes.get(node_id) {
+                self.render_node(node, area, buf);
+            }
         }
 
         // Render cycle warning if any
@@ -398,24 +475,59 @@ impl<'a> Widget for PertChart<'a> {
             }
         }
 
+        // Render legend if enabled
+        if self.config.show_legend && area.height > 3 {
+            let legend_y = area.y + 1;
+            let legend_items = vec![
+                ("─→", "Dependency", self.config.edge_style),
+                ("─→", "Critical Path", self.config.critical_edge_style),
+                ("□", "Normal", self.config.normal_style),
+                ("■", "Selected", self.config.selected_style),
+            ];
+
+            let mut x_offset = area.x + 2;
+            for (symbol, label, style) in legend_items {
+                let text = format!("{} {} ", symbol, label);
+                if x_offset + text.len() as u16 <= area.x + area.width {
+                    buf.set_string(x_offset, legend_y, &text, style);
+                    x_offset += text.len() as u16;
+                }
+            }
+        }
+
         // Render status line at bottom
         if area.height > 1 {
             let status = if let Some(selected) = &self.config.selected_node {
                 if let Some(node) = self.graph.nodes.get(selected) {
+                    let focus_info = if self.config.focus_mode {
+                        format!(" | Focus: {} depth {}", self.config.focus_direction, self.config.focus_depth)
+                    } else {
+                        String::new()
+                    };
                     format!(
-                        "Selected: {} | ES: {:.1} LS: {:.1} Slack: {:.1} | Zoom: {:.1}x",
+                        "Selected: {} | ES: {:.1} LS: {:.1} Slack: {:.1} | Zoom: {:.1}x{}",
                         node.issue_id,
                         node.earliest_start,
                         node.latest_start,
                         node.slack,
-                        self.config.zoom
+                        self.config.zoom,
+                        focus_info
                     )
                 } else {
                     format!("Zoom: {:.1}x", self.config.zoom)
                 }
             } else {
+                let focus_info = if self.config.focus_mode {
+                    if let Some(focus) = &self.config.focus_node {
+                        format!(" | Focus: {} on {} (depth {})", self.config.focus_direction, focus, self.config.focus_depth)
+                    } else {
+                        " | Focus mode (no node)".to_string()
+                    }
+                } else {
+                    String::new()
+                };
                 format!(
-                    "{} nodes, {} edges | Zoom: {:.1}x | [c]ritical path: {}",
+                    "{} nodes, {} edges | Zoom: {:.1}x | [c]ritical: {}{}",
                     self.graph.nodes.len(),
                     self.graph.edges.len(),
                     self.config.zoom,
@@ -423,7 +535,8 @@ impl<'a> Widget for PertChart<'a> {
                         "ON"
                     } else {
                         "OFF"
-                    }
+                    },
+                    focus_info
                 )
             };
             buf.set_string(
@@ -601,5 +714,61 @@ mod tests {
 
         assert_eq!(chart.graph.nodes.len(), 1);
         assert!(chart.config.show_critical_path);
+    }
+
+    #[test]
+    fn test_pert_chart_config_focus_mode() {
+        let mut config = PertChartConfig::default();
+        assert!(!config.focus_mode);
+        assert!(config.focus_node.is_none());
+
+        // Set selected node first
+        config.selected_node = Some("A".to_string());
+
+        // Toggle focus mode should enable and set focus to selected
+        config.toggle_focus_mode();
+        assert!(config.focus_mode);
+        assert_eq!(config.focus_node, Some("A".to_string()));
+
+        // Toggle again to disable
+        config.toggle_focus_mode();
+        assert!(!config.focus_mode);
+    }
+
+    #[test]
+    fn test_pert_chart_config_focus_on_node() {
+        let mut config = PertChartConfig::default();
+        
+        config.focus_on_node(Some("B".to_string()));
+        assert!(config.focus_mode);
+        assert_eq!(config.focus_node, Some("B".to_string()));
+
+        config.exit_focus_mode();
+        assert!(!config.focus_mode);
+    }
+
+    #[test]
+    fn test_pert_chart_config_focus_settings() {
+        let mut config = PertChartConfig::default();
+        assert_eq!(config.focus_depth, 1);
+        assert_eq!(config.focus_direction, "both");
+
+        config.set_focus_depth(3);
+        assert_eq!(config.focus_depth, 3);
+
+        config.set_focus_direction("upstream");
+        assert_eq!(config.focus_direction, "upstream");
+    }
+
+    #[test]
+    fn test_pert_chart_config_toggle_legend() {
+        let mut config = PertChartConfig::default();
+        assert!(config.show_legend);
+
+        config.toggle_legend();
+        assert!(!config.show_legend);
+
+        config.toggle_legend();
+        assert!(config.show_legend);
     }
 }
