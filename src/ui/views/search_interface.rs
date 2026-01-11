@@ -28,6 +28,8 @@ pub enum SearchScope {
     Title,
     /// Search in description only
     Description,
+    /// Search in notes only
+    Notes,
     /// Search in all fields
     All,
 }
@@ -38,13 +40,14 @@ impl SearchScope {
         match self {
             Self::Title => "Title",
             Self::Description => "Description",
+            Self::Notes => "Notes",
             Self::All => "All",
         }
     }
 
     /// Get all scopes
     pub fn all() -> Vec<SearchScope> {
-        vec![Self::Title, Self::Description, Self::All]
+        vec![Self::Title, Self::Description, Self::Notes, Self::All]
     }
 }
 
@@ -101,7 +104,8 @@ impl SearchInterfaceState {
     pub fn next_search_scope(&mut self) {
         self.search_scope = match self.search_scope {
             SearchScope::Title => SearchScope::Description,
-            SearchScope::Description => SearchScope::All,
+            SearchScope::Description => SearchScope::Notes,
+            SearchScope::Notes => SearchScope::All,
             SearchScope::All => SearchScope::Title,
         };
         self.update_filtered_issues();
@@ -151,6 +155,9 @@ impl SearchInterfaceState {
                     false
                 }
             }
+            SearchScope::Notes => {
+                issue.notes.iter().any(|note| note.content.to_lowercase().contains(query))
+            }
             SearchScope::All => {
                 issue.title.to_lowercase().contains(query)
                     || issue
@@ -165,6 +172,7 @@ impl SearchInterfaceState {
                         .map(|a| a.to_lowercase().contains(query))
                         .unwrap_or(false)
                     || issue.labels.iter().any(|l| l.to_lowercase().contains(query))
+                    || issue.notes.iter().any(|note| note.content.to_lowercase().contains(query))
             }
         }
     }
@@ -419,6 +427,28 @@ mod tests {
     }
 
     #[test]
+    fn test_search_by_notes() {
+        use crate::beads::models::Note;
+
+        let mut issues = create_test_issues();
+        // Add notes to the first issue
+        issues[0].notes.push(Note {
+            timestamp: Utc::now(),
+            author: "alice".to_string(),
+            content: "Investigation complete, ready to implement".to_string(),
+        });
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::Notes);
+        state.search_state_mut().set_query("investigation");
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-001");
+    }
+
+    #[test]
     fn test_search_all_fields() {
         let issues = create_test_issues();
         let mut state = SearchInterfaceState::new(issues);
@@ -479,6 +509,9 @@ mod tests {
         assert_eq!(state.search_scope(), SearchScope::Description);
 
         state.next_search_scope();
+        assert_eq!(state.search_scope(), SearchScope::Notes);
+
+        state.next_search_scope();
         assert_eq!(state.search_scope(), SearchScope::All);
     }
 
@@ -514,6 +547,7 @@ mod tests {
     fn test_search_scope_display_name() {
         assert_eq!(SearchScope::Title.display_name(), "Title");
         assert_eq!(SearchScope::Description.display_name(), "Description");
+        assert_eq!(SearchScope::Notes.display_name(), "Notes");
         assert_eq!(SearchScope::All.display_name(), "All");
     }
 
