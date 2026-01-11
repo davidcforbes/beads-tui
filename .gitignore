@@ -12,12 +12,25 @@ Cargo.lock
 *~
 .DS_Store
 
-# Beads
-.beads/
-*.db
-*.db-shm
-*.db-wal
+# Beads - ignore database and runtime files
+.beads/*.db
+.beads/*.db-shm
+.beads/*.db-wal
+.beads/*.lock
+.beads/*.tmp
+.beads/daemon.*
+.beads/sync-state.json
+.beads/last-touched
+.beads/.local_version
+.beads/redirect
 beads.jsonl
+# Allow .beads configuration and data files to be tracked
+!.beads/issues.jsonl
+!.beads/interactions.jsonl
+!.beads/config.yaml
+!.beads/.gitignore
+!.beads/README.md
+!.beads/metadata.json
 
 # Logs
 *.log
