@@ -117,20 +117,34 @@ impl SearchInterfaceState {
         self.update_filtered_issues();
     }
 
-    /// Update filtered issues based on search query and scope
+    /// Update filtered issues based on search query, scope, and column filters
     pub fn update_filtered_issues(&mut self) {
         let query = self.search_state.query().to_lowercase();
+        let column_filters = self.list_state.column_filters();
+        let filters_enabled = self.list_state.filters_enabled();
 
-        if query.is_empty() {
-            self.filtered_issues = self.all_issues.clone();
-        } else {
-            self.filtered_issues = self
-                .all_issues
-                .iter()
-                .filter(|issue| self.matches_query(issue, &query))
-                .cloned()
-                .collect();
-        }
+        self.filtered_issues = self
+            .all_issues
+            .iter()
+            .filter(|issue| {
+                // First apply search query filter
+                let matches_search = if query.is_empty() {
+                    true
+                } else {
+                    self.matches_query(issue, &query)
+                };
+
+                // Then apply column filters if enabled
+                let matches_filters = if !filters_enabled {
+                    true
+                } else {
+                    column_filters.matches(issue)
+                };
+
+                matches_search && matches_filters
+            })
+            .cloned()
+            .collect();
 
         // Reset selection if out of bounds
         if let Some(selected) = self.list_state.selected() {

@@ -63,6 +63,60 @@ impl ColumnFilters {
             && self.priority.is_empty()
             && self.type_filter.is_empty()
     }
+
+    /// Check if an issue matches the current filters
+    pub fn matches(&self, issue: &Issue) -> bool {
+        // If all filters are empty, match everything
+        if self.is_empty() {
+            return true;
+        }
+
+        // Check ID filter (substring match, case-insensitive)
+        if !self.id.is_empty() {
+            let id_lower = issue.id.to_lowercase();
+            let filter_lower = self.id.to_lowercase();
+            if !id_lower.contains(&filter_lower) {
+                return false;
+            }
+        }
+
+        // Check title filter (substring match, case-insensitive)
+        if !self.title.is_empty() {
+            let title_lower = issue.title.to_lowercase();
+            let filter_lower = self.title.to_lowercase();
+            if !title_lower.contains(&filter_lower) {
+                return false;
+            }
+        }
+
+        // Check status filter (exact match, case-insensitive)
+        if !self.status.is_empty() {
+            let status_str = issue.status.to_string().to_lowercase();
+            let filter_lower = self.status.to_lowercase();
+            if status_str != filter_lower {
+                return false;
+            }
+        }
+
+        // Check priority filter (exact match)
+        if !self.priority.is_empty() {
+            let priority_str = issue.priority.to_string();
+            if priority_str != self.priority {
+                return false;
+            }
+        }
+
+        // Check type filter (exact match, case-insensitive)
+        if !self.type_filter.is_empty() {
+            let type_str = issue.issue_type.to_string().to_lowercase();
+            let filter_lower = self.type_filter.to_lowercase();
+            if type_str != filter_lower {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 /// Issue list state

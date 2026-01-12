@@ -322,6 +322,13 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
                             }
                         }
                     }
+                    KeyCode::Char('f') => {
+                        // Toggle quick filters
+                        issues_state.search_state_mut().list_state_mut().toggle_filters();
+                        issues_state.search_state_mut().update_filtered_issues();
+                        let enabled = issues_state.search_state().list_state().filters_enabled();
+                        tracing::info!("Quick filters toggled: {}", if enabled { "enabled" } else { "disabled" });
+                    }
                     KeyCode::Char('/') => {
                         issues_state
                             .search_state_mut()
