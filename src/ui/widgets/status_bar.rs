@@ -73,3 +73,88 @@ impl<'a> Default for StatusBar<'a> {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_status_bar_new() {
+        let status_bar = StatusBar::new();
+        assert!(status_bar.left.is_empty());
+        assert!(status_bar.center.is_empty());
+        assert!(status_bar.right.is_empty());
+    }
+
+    #[test]
+    fn test_status_bar_default() {
+        let status_bar = StatusBar::default();
+        assert!(status_bar.left.is_empty());
+        assert!(status_bar.center.is_empty());
+        assert!(status_bar.right.is_empty());
+    }
+
+    #[test]
+    fn test_status_bar_left() {
+        let spans = vec![Span::raw("left")];
+        let status_bar = StatusBar::new().left(spans.clone());
+        assert_eq!(status_bar.left.len(), 1);
+        assert_eq!(status_bar.left[0].content, "left");
+    }
+
+    #[test]
+    fn test_status_bar_center() {
+        let spans = vec![Span::raw("center")];
+        let status_bar = StatusBar::new().center(spans.clone());
+        assert_eq!(status_bar.center.len(), 1);
+        assert_eq!(status_bar.center[0].content, "center");
+    }
+
+    #[test]
+    fn test_status_bar_right() {
+        let spans = vec![Span::raw("right")];
+        let status_bar = StatusBar::new().right(spans.clone());
+        assert_eq!(status_bar.right.len(), 1);
+        assert_eq!(status_bar.right[0].content, "right");
+    }
+
+    #[test]
+    fn test_status_bar_builder_chain() {
+        let status_bar = StatusBar::new()
+            .left(vec![Span::raw("left")])
+            .center(vec![Span::raw("center")])
+            .right(vec![Span::raw("right")]);
+
+        assert_eq!(status_bar.left.len(), 1);
+        assert_eq!(status_bar.center.len(), 1);
+        assert_eq!(status_bar.right.len(), 1);
+        assert_eq!(status_bar.left[0].content, "left");
+        assert_eq!(status_bar.center[0].content, "center");
+        assert_eq!(status_bar.right[0].content, "right");
+    }
+
+    #[test]
+    fn test_status_bar_multiple_spans() {
+        let spans = vec![Span::raw("first"), Span::raw("second"), Span::raw("third")];
+        let status_bar = StatusBar::new().left(spans.clone());
+        assert_eq!(status_bar.left.len(), 3);
+        assert_eq!(status_bar.left[0].content, "first");
+        assert_eq!(status_bar.left[1].content, "second");
+        assert_eq!(status_bar.left[2].content, "third");
+    }
+
+    #[test]
+    fn test_status_bar_empty_spans() {
+        let status_bar = StatusBar::new().left(vec![]);
+        assert!(status_bar.left.is_empty());
+    }
+
+    #[test]
+    fn test_status_bar_styled_spans() {
+        let span = Span::styled("styled", Style::default().fg(Color::Red));
+        let status_bar = StatusBar::new().left(vec![span.clone()]);
+        assert_eq!(status_bar.left.len(), 1);
+        assert_eq!(status_bar.left[0].content, "styled");
+        assert_eq!(status_bar.left[0].style.fg, Some(Color::Red));
+    }
+}
