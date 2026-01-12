@@ -598,14 +598,27 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                     Ok(issue_id) => {
                                         // Successfully created
                                         tracing::info!("Successfully created issue: {}", issue_id);
-                                        
+
                                         // Reload issues list
                                         app.reload_issues();
-                                        
+
                                         // Return to list
                                         app.issues_view_state.cancel_create();
-                                        
-                                        // TODO: Select the newly created issue in the list
+
+                                        // Select the newly created issue in the list
+                                        let created_issue = app.issues_view_state
+                                            .search_state()
+                                            .filtered_issues()
+                                            .iter()
+                                            .find(|issue| issue.id == issue_id)
+                                            .cloned();
+
+                                        if let Some(issue) = created_issue {
+                                            app.issues_view_state.set_selected_issue(Some(issue));
+                                            tracing::debug!("Selected newly created issue: {}", issue_id);
+                                        } else {
+                                            tracing::warn!("Could not find newly created issue {} in list", issue_id);
+                                        }
                                     }
                                     Err(e) => {
                                         // TODO: Show error message to user in UI
