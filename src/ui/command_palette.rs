@@ -729,4 +729,443 @@ mod tests {
         assert!(cmd.is_some());
         assert_eq!(cmd.unwrap().keys.len(), 3);
     }
+
+    #[test]
+    fn test_app_context_copy_trait() {
+        let context1 = AppContext::Issues;
+        let context2 = context1;
+        assert_eq!(context1, context2);
+        // Both should still be usable after copy
+        assert_eq!(context1, AppContext::Issues);
+        assert_eq!(context2, AppContext::Issues);
+    }
+
+    #[test]
+    fn test_command_category_copy_trait() {
+        let cat1 = CommandCategory::Navigation;
+        let cat2 = cat1;
+        assert_eq!(cat1, cat2);
+        // Both should still be usable after copy
+        assert_eq!(cat1, CommandCategory::Navigation);
+        assert_eq!(cat2, CommandCategory::Navigation);
+    }
+
+    #[test]
+    fn test_all_command_category_inequality() {
+        assert_ne!(CommandCategory::Navigation, CommandCategory::Issue);
+        assert_ne!(CommandCategory::Navigation, CommandCategory::Dependency);
+        assert_ne!(CommandCategory::Navigation, CommandCategory::Label);
+        assert_ne!(CommandCategory::Navigation, CommandCategory::Database);
+        assert_ne!(CommandCategory::Navigation, CommandCategory::View);
+        assert_ne!(CommandCategory::Navigation, CommandCategory::System);
+
+        assert_ne!(CommandCategory::Issue, CommandCategory::Dependency);
+        assert_ne!(CommandCategory::Issue, CommandCategory::Label);
+        assert_ne!(CommandCategory::View, CommandCategory::System);
+    }
+
+    #[test]
+    fn test_command_with_empty_keys() {
+        let cmd = Command {
+            id: "no.keys".to_string(),
+            name: "No Keys".to_string(),
+            description: "Command with no key bindings".to_string(),
+            category: CommandCategory::System,
+            keys: vec![],
+            contexts: vec![AppContext::Global],
+        };
+
+        assert!(cmd.keys.is_empty());
+    }
+
+    #[test]
+    fn test_search_scoring_exact_match() {
+        let mut palette = CommandPalette::new();
+        palette.set_query("Quit".to_string());
+
+        let results = palette.search();
+        assert!(!results.is_empty());
+
+        // Exact match should have higher score
+        let quit_result = results.iter().find(|(cmd, _)| cmd.name == "Quit");
+        assert!(quit_result.is_some());
+        let (_, quit_score) = quit_result.unwrap();
+        assert!(*quit_score > 0);
+    }
+
+    #[test]
+    fn test_context_filtering_help_context() {
+        let mut palette = CommandPalette::new();
+        palette.add_command(Command {
+            id: "help.specific".to_string(),
+            name: "Help Specific".to_string(),
+            description: "Help context only".to_string(),
+            category: CommandCategory::View,
+            keys: vec![],
+            contexts: vec![AppContext::Help],
+        });
+
+        palette.set_context(AppContext::Help);
+        let results = palette.search();
+        assert!(results.iter().any(|(cmd, _)| cmd.id == "help.specific"));
+
+        palette.set_context(AppContext::Global);
+        let global_results = palette.search();
+        assert!(!global_results.iter().any(|(cmd, _)| cmd.id == "help.specific"));
+    }
+
+    #[test]
+    fn test_context_filtering_settings_context() {
+        let mut palette = CommandPalette::new();
+        palette.add_command(Command {
+            id: "settings.specific".to_string(),
+            name: "Settings Specific".to_string(),
+            description: "Settings context only".to_string(),
+            category: CommandCategory::System,
+            keys: vec![],
+            contexts: vec![AppContext::Settings],
+        });
+
+        palette.set_context(AppContext::Settings);
+        let results = palette.search();
+        assert!(results.iter().any(|(cmd, _)| cmd.id == "settings.specific"));
+
+        palette.set_context(AppContext::Issues);
+        let issues_results = palette.search();
+        assert!(!issues_results.iter().any(|(cmd, _)| cmd.id == "settings.specific"));
+    }
+
+    #[test]
+    fn test_context_filtering_dependency_graph_context() {
+        let mut palette = CommandPalette::new();
+        palette.add_command(Command {
+            id: "graph.specific".to_string(),
+            name: "Graph Specific".to_string(),
+            description: "Dependency graph context only".to_string(),
+            category: CommandCategory::View,
+            keys: vec![],
+            contexts: vec![AppContext::DependencyGraph],
+        });
+
+        palette.set_context(AppContext::DependencyGraph);
+        let results = palette.search();
+        assert!(results.iter().any(|(cmd, _)| cmd.id == "graph.specific"));
+
+        palette.set_context(AppContext::Database);
+        let database_results = palette.search();
+        assert!(!database_results.iter().any(|(cmd, _)| cmd.id == "graph.specific"));
+    }
+
+    #[test]
+    fn test_history_duplicate_entries() {
+        let mut palette = CommandPalette::new();
+        palette.add_to_history("cmd1".to_string());
+        palette.add_to_history("cmd2".to_string());
+        palette.add_to_history("cmd1".to_string());
+
+        assert_eq!(palette.history().len(), 3);
+        assert_eq!(palette.history()[0], "cmd1");
+        assert_eq!(palette.history()[1], "cmd2");
+        assert_eq!(palette.history()[2], "cmd1");
+    }
+
+    #[test]
+    fn test_selection_after_context_change_different_counts() {
+        let mut palette = CommandPalette::new();
+
+        palette.set_context(AppContext::Global);
+        let global_count = palette.search().len();
+        palette.selected_index = 5;
+
+        palette.set_context(AppContext::IssueDetail);
+        assert_eq!(palette.selected_index, 0);
+
+        let detail_count = palette.search().len();
+        // Counts should differ due to context filtering
+        assert!(global_count > 0 && detail_count > 0);
+    }
+
+    #[test]
+    fn test_search_matching_description_only() {
+        let mut palette = CommandPalette::new();
+        palette.add_command(Command {
+            id: "test.desc".to_string(),
+            name: "Generic".to_string(),
+            description: "Unique description keyword xyzabc".to_string(),
+            category: CommandCategory::View,
+            keys: vec![],
+            contexts: vec![AppContext::Global],
+        });
+
+        palette.set_query("xyzabc".to_string());
+        let results = palette.search();
+
+        assert!(results.iter().any(|(cmd, _)| cmd.id == "test.desc"));
+    }
+
+    #[test]
+    fn test_available_command_count_after_context_change() {
+        let mut palette = CommandPalette::new();
+
+        palette.set_context(AppContext::Global);
+        let global_count = palette.available_command_count();
+
+        palette.set_context(AppContext::Issues);
+        let issues_count = palette.available_command_count();
+
+        // Issues context should have additional issue-specific commands
+        assert!(issues_count >= global_count);
+    }
+
+    #[test]
+    fn test_multiple_queries_in_sequence() {
+        let mut palette = CommandPalette::new();
+
+        palette.set_query("issue".to_string());
+        let results1 = palette.search();
+        assert!(!results1.is_empty());
+
+        palette.set_query("nav".to_string());
+        let results2 = palette.search();
+        assert!(!results2.is_empty());
+
+        palette.set_query("".to_string());
+        let results3 = palette.search();
+        assert!(!results3.is_empty());
+
+        // Query should be updated each time
+        assert_eq!(palette.query(), "");
+    }
+
+    #[test]
+    fn test_selection_behavior_when_query_reduces_results() {
+        let mut palette = CommandPalette::new();
+
+        palette.set_query("".to_string());
+        palette.selected_index = 10;
+
+        palette.set_query("xyzveryspecificnonmatch".to_string());
+        assert_eq!(palette.selected_index, 0); // Reset on query change
+
+        let results = palette.search();
+        assert!(results.is_empty());
+        assert!(palette.selected().is_none());
+    }
+
+    #[test]
+    fn test_history_ordering_fifo() {
+        let mut palette = CommandPalette::new();
+        palette.max_history = 5;
+
+        for i in 1..=7 {
+            palette.add_to_history(format!("cmd{}", i));
+        }
+
+        assert_eq!(palette.history().len(), 5);
+        assert_eq!(palette.history()[0], "cmd3"); // First two removed
+        assert_eq!(palette.history()[1], "cmd4");
+        assert_eq!(palette.history()[4], "cmd7"); // Last one added
+    }
+
+    #[test]
+    fn test_command_category_all_equality() {
+        assert_eq!(CommandCategory::Navigation, CommandCategory::Navigation);
+        assert_eq!(CommandCategory::Issue, CommandCategory::Issue);
+        assert_eq!(CommandCategory::Dependency, CommandCategory::Dependency);
+        assert_eq!(CommandCategory::Label, CommandCategory::Label);
+        assert_eq!(CommandCategory::Database, CommandCategory::Database);
+        assert_eq!(CommandCategory::View, CommandCategory::View);
+        assert_eq!(CommandCategory::System, CommandCategory::System);
+    }
+
+    #[test]
+    fn test_search_partial_match_scoring() {
+        let mut palette = CommandPalette::new();
+        palette.set_query("is".to_string());
+
+        let results = palette.search();
+        assert!(!results.is_empty());
+
+        // Should match "Issues" and similar
+        let has_issue_match = results.iter().any(|(cmd, score)| {
+            (cmd.name.contains("Issue") || cmd.description.contains("issue")) && *score > 0
+        });
+        assert!(has_issue_match);
+    }
+
+    #[test]
+    fn test_context_issue_detail_specific() {
+        let mut palette = CommandPalette::new();
+
+        palette.set_context(AppContext::IssueDetail);
+        assert_eq!(palette.context(), AppContext::IssueDetail);
+
+        let results = palette.search();
+        // Should have issue.close and issue.edit available
+        assert!(results.iter().any(|(cmd, _)| cmd.id == "issue.close"));
+        assert!(results.iter().any(|(cmd, _)| cmd.id == "issue.edit"));
+    }
+
+    #[test]
+    fn test_selected_index_bounds_after_query() {
+        let mut palette = CommandPalette::new();
+
+        palette.set_query("".to_string());
+        let all_results = palette.search();
+        palette.selected_index = all_results.len().saturating_sub(1);
+
+        palette.set_query("quit".to_string());
+        assert_eq!(palette.selected_index, 0); // Reset to 0 on query change
+    }
+
+    #[test]
+    fn test_command_with_single_context_non_global() {
+        let mut palette = CommandPalette::new();
+        palette.add_command(Command {
+            id: "single.context".to_string(),
+            name: "Single Context".to_string(),
+            description: "Only in Labels".to_string(),
+            category: CommandCategory::Label,
+            keys: vec![],
+            contexts: vec![AppContext::Labels],
+        });
+
+        palette.set_context(AppContext::Labels);
+        let results = palette.search();
+        assert!(results.iter().any(|(cmd, _)| cmd.id == "single.context"));
+
+        palette.set_context(AppContext::Global);
+        let global_results = palette.search();
+        assert!(!global_results.iter().any(|(cmd, _)| cmd.id == "single.context"));
+    }
+
+    #[test]
+    fn test_select_next_with_filtered_results() {
+        let mut palette = CommandPalette::new();
+        palette.set_context(AppContext::Issues); // Set context where issue commands are available
+        palette.set_query("issue".to_string());
+
+        let initial_results = palette.search();
+        assert!(!initial_results.is_empty());
+        assert!(initial_results.len() >= 3); // Should have multiple issue commands
+
+        palette.select_next();
+        assert_eq!(palette.selected_index, 1);
+
+        palette.select_next();
+        assert_eq!(palette.selected_index, 2);
+    }
+
+    #[test]
+    fn test_select_previous_with_filtered_results() {
+        let mut palette = CommandPalette::new();
+        palette.set_query("go".to_string());
+
+        palette.selected_index = 3;
+        palette.select_previous();
+        assert_eq!(palette.selected_index, 2);
+
+        palette.select_previous();
+        assert_eq!(palette.selected_index, 1);
+    }
+
+    #[test]
+    fn test_app_context_clone() {
+        let context = AppContext::Dependencies;
+        let cloned = context;
+        assert_eq!(context, cloned);
+    }
+
+    #[test]
+    fn test_command_category_clone() {
+        let category = CommandCategory::Database;
+        let cloned = category;
+        assert_eq!(category, cloned);
+    }
+
+    #[test]
+    fn test_history_max_boundary_exact() {
+        let mut palette = CommandPalette::new();
+        palette.max_history = 2;
+
+        palette.add_to_history("cmd1".to_string());
+        palette.add_to_history("cmd2".to_string());
+        assert_eq!(palette.history().len(), 2);
+
+        palette.add_to_history("cmd3".to_string());
+        assert_eq!(palette.history().len(), 2);
+        assert_eq!(palette.history()[0], "cmd2");
+        assert_eq!(palette.history()[1], "cmd3");
+    }
+
+    #[test]
+    fn test_search_with_single_command() {
+        let mut palette = CommandPalette {
+            commands: vec![],
+            matcher: SkimMatcherV2::default(),
+            search_query: String::new(),
+            selected_index: 0,
+            history: Vec::new(),
+            max_history: 100,
+            current_context: AppContext::Global,
+        };
+
+        palette.add_command(Command {
+            id: "only.one".to_string(),
+            name: "Only One".to_string(),
+            description: "Single command".to_string(),
+            category: CommandCategory::System,
+            keys: vec![],
+            contexts: vec![AppContext::Global],
+        });
+
+        let results = palette.search();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].0.id, "only.one");
+    }
+
+    #[test]
+    fn test_available_command_count_empty_palette() {
+        let palette = CommandPalette {
+            commands: vec![],
+            matcher: SkimMatcherV2::default(),
+            search_query: String::new(),
+            selected_index: 0,
+            history: Vec::new(),
+            max_history: 100,
+            current_context: AppContext::Global,
+        };
+
+        assert_eq!(palette.available_command_count(), 0);
+    }
+
+    #[test]
+    fn test_selected_with_empty_results() {
+        let palette = CommandPalette {
+            commands: vec![],
+            matcher: SkimMatcherV2::default(),
+            search_query: String::new(),
+            selected_index: 0,
+            history: Vec::new(),
+            max_history: 100,
+            current_context: AppContext::Global,
+        };
+
+        assert!(palette.selected().is_none());
+    }
+
+    #[test]
+    fn test_get_command_with_empty_palette() {
+        let palette = CommandPalette {
+            commands: vec![],
+            matcher: SkimMatcherV2::default(),
+            search_query: String::new(),
+            selected_index: 0,
+            history: Vec::new(),
+            max_history: 100,
+            current_context: AppContext::Global,
+        };
+
+        assert!(palette.get_command("any.id").is_none());
+    }
 }
