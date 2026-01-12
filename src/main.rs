@@ -78,9 +78,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 
     let key_code = key.code;
 
-    // Handle error dismissal with Esc
-    if app.error_message.is_some() && key_code == KeyCode::Esc {
-        app.clear_error();
+    // Handle notification dismissal with Esc
+    if app.notification.is_some() && key_code == KeyCode::Esc {
+        app.clear_notification();
         return;
     }
 
@@ -753,7 +753,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             match rt.block_on(client.export_issues("beads_export.jsonl")) {
                 Ok(_) => {
                     tracing::info!("Issues exported successfully");
-                    app.set_error("Issues exported to beads_export.jsonl".to_string());
+                    app.set_success("Issues exported to beads_export.jsonl".to_string());
                 }
                 Err(e) => {
                     tracing::error!("Failed to export issues: {:?}", e);
@@ -783,10 +783,12 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             match rt.block_on(client.verify_database()) {
                 Ok(output) => {
                     tracing::info!("Database verification result: {}", output);
-                    if output.contains("error") || output.contains("issue") {
+                    if output.contains("error") {
                         app.set_error(format!("Database check: {output}"));
+                    } else if output.contains("issue") || output.contains("warning") {
+                        app.set_warning(format!("Database check: {output}"));
                     } else {
-                        app.set_error("Database verification completed successfully".to_string());
+                        app.set_success("Database verification completed successfully".to_string());
                     }
                 }
                 Err(e) => {
@@ -1058,29 +1060,42 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         }
     }
 
-    // Render error message banner if present
-    if let Some(ref error_msg) = app.error_message {
+    // Render notification banner if present
+    if let Some(ref notification) = app.notification {
         let area = f.size();
-        let error_area = Rect {
+        let notification_area = Rect {
             x: 0,
             y: 0,
             width: area.width,
             height: 3,
         };
 
-        let error_text = Paragraph::new(format!(" ✖ {error_msg} (Press Esc to dismiss)"))
-            .style(
-                Style::default()
-                    .fg(Color::White)
-                    .bg(Color::Red)
-                    .add_modifier(Modifier::BOLD),
-            )
-            .block(Block::default().borders(Borders::ALL).border_style(
-                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-            ));
+        // Determine colors and icon based on notification type
+        let (bg_color, border_color, icon) = match notification.notification_type {
+            models::NotificationType::Error => (Color::Red, Color::Red, "✖"),
+            models::NotificationType::Success => (Color::Green, Color::Green, "✓"),
+            models::NotificationType::Info => (Color::Blue, Color::Blue, "ℹ"),
+            models::NotificationType::Warning => (Color::Yellow, Color::Yellow, "⚠"),
+        };
 
-        f.render_widget(Clear, error_area);
-        f.render_widget(error_text, error_area);
+        let notification_text = Paragraph::new(format!(
+            " {} {} (Press Esc to dismiss)",
+            icon, notification.message
+        ))
+        .style(
+            Style::default()
+                .fg(Color::White)
+                .bg(bg_color)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(Block::default().borders(Borders::ALL).border_style(
+            Style::default()
+                .fg(border_color)
+                .add_modifier(Modifier::BOLD),
+        ));
+
+        f.render_widget(Clear, notification_area);
+        f.render_widget(notification_text, notification_area);
     }
 }
 

@@ -7,6 +7,22 @@ use crate::ui::widgets::DialogState;
 
 use super::PerfStats;
 
+/// Notification message type for user feedback
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NotificationType {
+    Error,
+    Success,
+    Info,
+    Warning,
+}
+
+/// Notification message with type and content
+#[derive(Debug, Clone)]
+pub struct NotificationMessage {
+    pub message: String,
+    pub notification_type: NotificationType,
+}
+
 #[derive(Debug)]
 pub struct AppState {
     pub should_quit: bool,
@@ -29,8 +45,8 @@ pub struct AppState {
     pub dialog_state: Option<DialogState>,
     /// Pending action waiting for dialog confirmation
     pub pending_action: Option<String>,
-    /// Error message to display to user
-    pub error_message: Option<String>,
+    /// Notification message to display to user
+    pub notification: Option<NotificationMessage>,
     /// Whether beads daemon is currently running
     pub daemon_running: bool,
 }
@@ -73,7 +89,7 @@ impl AppState {
             help_section: HelpSection::Global,
             dialog_state: None,
             pending_action: None,
-            error_message: None,
+            notification: None,
             daemon_running,
         }
     }
@@ -176,16 +192,44 @@ impl AppState {
         self.mark_dirty();
     }
 
-    /// Set an error message to display to the user
-    pub fn set_error(&mut self, message: String) {
-        self.error_message = Some(message);
+    /// Set a notification message to display to the user
+    pub fn set_notification(&mut self, message: String, notification_type: NotificationType) {
+        self.notification = Some(NotificationMessage {
+            message,
+            notification_type,
+        });
         self.mark_dirty();
     }
 
-    /// Clear the current error message
-    pub fn clear_error(&mut self) {
-        self.error_message = None;
+    /// Set an error notification
+    pub fn set_error(&mut self, message: String) {
+        self.set_notification(message, NotificationType::Error);
+    }
+
+    /// Set a success notification
+    pub fn set_success(&mut self, message: String) {
+        self.set_notification(message, NotificationType::Success);
+    }
+
+    /// Set an info notification
+    pub fn set_info(&mut self, message: String) {
+        self.set_notification(message, NotificationType::Info);
+    }
+
+    /// Set a warning notification
+    pub fn set_warning(&mut self, message: String) {
+        self.set_notification(message, NotificationType::Warning);
+    }
+
+    /// Clear the current notification
+    pub fn clear_notification(&mut self) {
+        self.notification = None;
         self.mark_dirty();
+    }
+
+    /// Clear error (alias for clear_notification for backward compatibility)
+    pub fn clear_error(&mut self) {
+        self.clear_notification();
     }
 }
 
