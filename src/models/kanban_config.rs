@@ -938,4 +938,182 @@ mod tests {
         assert!(config.is_valid_for_mode(&ColumnId::Unassigned));
         assert!(!config.is_valid_for_mode(&ColumnId::PriorityP0));
     }
+
+    #[test]
+    fn test_grouping_mode_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(GroupingMode::Status);
+        set.insert(GroupingMode::Assignee);
+        set.insert(GroupingMode::Status); // Duplicate
+        
+        assert_eq!(set.len(), 2); // Only 2 unique values
+    }
+
+    #[test]
+    fn test_column_id_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(ColumnId::StatusOpen);
+        set.insert(ColumnId::PriorityP0);
+        set.insert(ColumnId::StatusOpen); // Duplicate
+        
+        assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn test_column_id_assignee_different_names() {
+        let id1 = ColumnId::Assignee("alice".to_string());
+        let id2 = ColumnId::Assignee("bob".to_string());
+        assert_ne!(id1, id2);
+    }
+
+    #[test]
+    fn test_column_id_label_different_names() {
+        let id1 = ColumnId::Label("bug".to_string());
+        let id2 = ColumnId::Label("feature".to_string());
+        assert_ne!(id1, id2);
+    }
+
+    #[test]
+    fn test_width_constraints_equality() {
+        let c1 = WidthConstraints::new(10, Some(50), 30);
+        let c2 = WidthConstraints::new(10, Some(50), 30);
+        let c3 = WidthConstraints::new(15, Some(50), 30);
+        
+        assert_eq!(c1, c2);
+        assert_ne!(c1, c3);
+    }
+
+    #[test]
+    fn test_width_constraints_clamp_at_boundaries() {
+        let constraints = WidthConstraints::new(10, Some(50), 30);
+        assert_eq!(constraints.clamp(10), 10); // Exactly at min
+        assert_eq!(constraints.clamp(50), 50); // Exactly at max
+    }
+
+    #[test]
+    fn test_column_definition_set_width_clamped() {
+        let mut col = ColumnDefinition::new(ColumnId::StatusOpen);
+        let constraints = col.width_constraints;
+        
+        col.set_width(1000); // Very large
+        assert!(col.width <= constraints.max.unwrap_or(u16::MAX));
+    }
+
+    #[test]
+    fn test_column_definition_card_sort_field() {
+        let mut col = ColumnDefinition::new(ColumnId::StatusOpen);
+        col.card_sort = CardSort::Title;
+        assert_eq!(col.card_sort, CardSort::Title);
+    }
+
+    #[test]
+    fn test_kanban_config_default_columns_all_visible() {
+        let columns = KanbanConfig::default_columns(GroupingMode::Status);
+        assert!(columns.iter().all(|c| c.visible));
+    }
+
+    #[test]
+    fn test_kanban_config_validate_restores_empty_columns() {
+        let mut config = KanbanConfig {
+            grouping_mode: GroupingMode::Status,
+            columns: vec![],
+            card_height: 3,
+            filters: BoardFilters::default(),
+            version: 1,
+        };
+        
+        config = config.validate_and_migrate();
+        
+        // Should have restored default columns
+        assert_eq!(config.columns.len(), 4);
+    }
+
+    #[test]
+    fn test_kanban_config_validate_forces_mandatory_visible() {
+        let mut config = KanbanConfig {
+            grouping_mode: GroupingMode::Priority,
+            columns: vec![],
+            card_height: 3,
+            filters: BoardFilters::default(),
+            version: 1,
+        };
+        
+        config.columns = KanbanConfig::default_columns(GroupingMode::Priority);
+        config.columns[0].visible = false; // Try to hide P0
+        
+        config = config.validate_and_migrate();
+        
+        // All mandatory columns should be visible
+        assert!(config.columns.iter().all(|c| c.visible));
+    }
+
+    #[test]
+    fn test_kanban_config_get_column_mut_none() {
+        let mut config = KanbanConfig::default();
+        let col = config.get_column_mut(&ColumnId::PriorityP0);
+        assert!(col.is_none());
+    }
+
+    #[test]
+    fn test_kanban_config_visible_columns_all() {
+        let config = KanbanConfig::default();
+        let visible = config.visible_columns();
+        assert_eq!(visible.len(), config.columns.len());
+    }
+
+    #[test]
+    fn test_kanban_config_toggle_visibility_non_mandatory() {
+        let mut config = KanbanConfig {
+            grouping_mode: GroupingMode::Assignee,
+            columns: vec![
+                ColumnDefinition::new(ColumnId::Unassigned),
+                ColumnDefinition::new(ColumnId::Assignee("alice".to_string())),
+            ],
+            card_height: 3,
+            filters: BoardFilters::default(),
+            version: 1,
+        };
+        
+        let assignee_id = ColumnId::Assignee("alice".to_string());
+        config.toggle_column_visibility(&assignee_id);
+        
+        assert!(!config.get_column(&assignee_id).unwrap().visible);
+    }
+
+    #[test]
+    fn test_serialization_roundtrip() {
+        let config = KanbanConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: KanbanConfig = serde_json::from_str(&json).unwrap();
+        
+        assert_eq!(config.grouping_mode, deserialized.grouping_mode);
+        assert_eq!(config.card_height, deserialized.card_height);
+        assert_eq!(config.version, deserialized.version);
+    }
+
+    #[test]
+    fn test_grouping_mode_serialization() {
+        let mode = GroupingMode::Assignee;
+        let json = serde_json::to_string(&mode).unwrap();
+        let deserialized: GroupingMode = serde_json::from_str(&json).unwrap();
+        assert_eq!(mode, deserialized);
+    }
+
+    #[test]
+    fn test_column_id_serialization_dynamic() {
+        let id = ColumnId::Assignee("test@example.com".to_string());
+        let json = serde_json::to_string(&id).unwrap();
+        let deserialized: ColumnId = serde_json::from_str(&json).unwrap();
+        assert_eq!(id, deserialized);
+    }
+
+    #[test]
+    fn test_card_sort_serialization() {
+        let sort = CardSort::Updated;
+        let json = serde_json::to_string(&sort).unwrap();
+        let deserialized: CardSort = serde_json::from_str(&json).unwrap();
+        assert_eq!(sort, deserialized);
+    }
 }
