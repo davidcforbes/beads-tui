@@ -1,6 +1,6 @@
 //! Column manager widget for hiding/showing/reordering table columns
 
-use crate::models::table_config::{ColumnDefinition, ColumnId};
+use crate::models::table_config::ColumnDefinition;
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -286,6 +286,7 @@ impl<'a> StatefulWidget for ColumnManager<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::table_config::ColumnId;
 
     fn create_test_columns() -> Vec<ColumnDefinition> {
         vec![
