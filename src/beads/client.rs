@@ -265,6 +265,20 @@ impl BeadsClient {
         }
     }
 
+    /// Start the beads daemon
+    pub async fn start_daemon(&self) -> Result<()> {
+        let args = vec!["daemon".to_string(), "--start".to_string()];
+        self.execute_command(&args).await?;
+        Ok(())
+    }
+
+    /// Stop the beads daemon
+    pub async fn stop_daemon(&self) -> Result<()> {
+        let args = vec!["daemon".to_string(), "--stop".to_string()];
+        self.execute_command(&args).await?;
+        Ok(())
+    }
+
     /// Execute a bd command with timeout
     async fn execute_command(&self, args: &[String]) -> Result<String> {
         let mut cmd = TokioCommand::new(&self.bd_path);

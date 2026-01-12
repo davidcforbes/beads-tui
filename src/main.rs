@@ -668,8 +668,50 @@ fn handle_labels_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
 }
 
 /// Handle keyboard events for the Database view
-fn handle_database_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
-    // TODO: Implement database view controls
+fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
+    match key_code {
+        KeyCode::Char('r') => {
+            // Refresh database status
+            tracing::info!("Refreshing database status");
+            app.reload_issues();
+        }
+        KeyCode::Char('d') => {
+            // Toggle daemon (start/stop)
+            tracing::info!("Toggling daemon");
+
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let client = &app.beads_client;
+
+            if app.daemon_running {
+                // Stop daemon
+                match rt.block_on(client.stop_daemon()) {
+                    Ok(_) => {
+                        tracing::info!("Daemon stopped successfully");
+                        app.daemon_running = false;
+                        app.mark_dirty();
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to stop daemon: {:?}", e);
+                        app.set_error(format!("Failed to stop daemon: {e}"));
+                    }
+                }
+            } else {
+                // Start daemon
+                match rt.block_on(client.start_daemon()) {
+                    Ok(_) => {
+                        tracing::info!("Daemon started successfully");
+                        app.daemon_running = true;
+                        app.mark_dirty();
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to start daemon: {:?}", e);
+                        app.set_error(format!("Failed to start daemon: {e}"));
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Handle keyboard events for the Help view
