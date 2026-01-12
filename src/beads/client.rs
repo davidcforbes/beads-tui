@@ -700,4 +700,400 @@ mod tests {
         let update = IssueUpdate::new().labels(vec!["single".to_string()]);
         assert_eq!(update.labels, Some(vec!["single".to_string()]));
     }
+
+    // Debug trait tests
+    #[test]
+    fn test_client_debug_trait() {
+        let client = BeadsClient::new();
+        let debug_str = format!("{:?}", client);
+        assert!(debug_str.contains("BeadsClient"));
+        assert!(debug_str.contains("bd"));
+    }
+
+    #[test]
+    fn test_issue_update_debug_trait() {
+        let update = IssueUpdate::new().title("Test".to_string());
+        let debug_str = format!("{:?}", update);
+        assert!(debug_str.contains("IssueUpdate"));
+        assert!(debug_str.contains("Test"));
+    }
+
+    // Default equals new equivalence
+    #[test]
+    fn test_client_default_equals_new() {
+        let client1 = BeadsClient::default();
+        let client2 = BeadsClient::new();
+        assert_eq!(client1.bd_path, client2.bd_path);
+        assert_eq!(client1.command_timeout, client2.command_timeout);
+    }
+
+    #[test]
+    fn test_issue_update_default_equals_new() {
+        let update1 = IssueUpdate::default();
+        let update2 = IssueUpdate::new();
+        assert_eq!(update1.title, update2.title);
+        assert_eq!(update1.issue_type, update2.issue_type);
+        assert_eq!(update1.status, update2.status);
+        assert_eq!(update1.priority, update2.priority);
+        assert_eq!(update1.assignee, update2.assignee);
+        assert!(update1.labels.is_none() && update2.labels.is_none());
+        assert!(update1.description.is_none() && update2.description.is_none());
+    }
+
+    // Complex builder chain scenarios
+    #[test]
+    fn test_client_builder_chain_order_independence() {
+        let client1 = BeadsClient::with_timeout(Duration::from_secs(60))
+            .with_bd_path("/test/bd".to_string());
+        let client2 = BeadsClient::with_timeout(Duration::from_secs(60))
+            .with_bd_path("/test/bd".to_string());
+
+        assert_eq!(client1.bd_path, client2.bd_path);
+        assert_eq!(client1.command_timeout, client2.command_timeout);
+    }
+
+    #[test]
+    fn test_issue_update_builder_chain_order() {
+        let update1 = IssueUpdate::new()
+            .title("Test".to_string())
+            .priority(Priority::P1)
+            .status(IssueStatus::Open);
+
+        let update2 = IssueUpdate::new()
+            .status(IssueStatus::Open)
+            .priority(Priority::P1)
+            .title("Test".to_string());
+
+        assert_eq!(update1.title, update2.title);
+        assert_eq!(update1.priority, update2.priority);
+        assert_eq!(update1.status, update2.status);
+    }
+
+    // Empty string edge cases
+    #[test]
+    fn test_issue_update_empty_title() {
+        let update = IssueUpdate::new().title("".to_string());
+        assert_eq!(update.title, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_issue_update_empty_description() {
+        let update = IssueUpdate::new().description("".to_string());
+        assert_eq!(update.description, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_issue_update_empty_assignee() {
+        let update = IssueUpdate::new().assignee("".to_string());
+        assert_eq!(update.assignee, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_client_empty_bd_path() {
+        let client = BeadsClient::new().with_bd_path("".to_string());
+        assert_eq!(client.bd_path, "");
+    }
+
+    // Whitespace edge cases
+    #[test]
+    fn test_issue_update_whitespace_only_title() {
+        let update = IssueUpdate::new().title("   ".to_string());
+        assert_eq!(update.title, Some("   ".to_string()));
+    }
+
+    #[test]
+    fn test_issue_update_title_with_newlines() {
+        let title = "Title\nwith\nnewlines".to_string();
+        let update = IssueUpdate::new().title(title.clone());
+        assert_eq!(update.title, Some(title));
+    }
+
+    #[test]
+    fn test_issue_update_title_with_tabs() {
+        let title = "Title\twith\ttabs".to_string();
+        let update = IssueUpdate::new().title(title.clone());
+        assert_eq!(update.title, Some(title));
+    }
+
+    // Label edge cases
+    #[test]
+    fn test_issue_update_labels_with_special_chars() {
+        let labels = vec![
+            "bug-fix".to_string(),
+            "p1:urgent".to_string(),
+            "backend/api".to_string(),
+        ];
+        let update = IssueUpdate::new().labels(labels.clone());
+        assert_eq!(update.labels, Some(labels));
+    }
+
+    #[test]
+    fn test_issue_update_labels_with_empty_strings() {
+        let labels = vec!["".to_string(), "valid".to_string(), "".to_string()];
+        let update = IssueUpdate::new().labels(labels.clone());
+        assert_eq!(update.labels, Some(labels));
+    }
+
+    #[test]
+    fn test_issue_update_labels_duplicates() {
+        let labels = vec!["bug".to_string(), "bug".to_string(), "urgent".to_string()];
+        let update = IssueUpdate::new().labels(labels.clone());
+        assert_eq!(update.labels, Some(labels));
+    }
+
+    // Multiple overwrites
+    #[test]
+    fn test_issue_update_multiple_title_overwrites() {
+        let update = IssueUpdate::new()
+            .title("First".to_string())
+            .title("Second".to_string())
+            .title("Third".to_string());
+        assert_eq!(update.title, Some("Third".to_string()));
+    }
+
+    #[test]
+    fn test_issue_update_multiple_status_overwrites() {
+        let update = IssueUpdate::new()
+            .status(IssueStatus::Open)
+            .status(IssueStatus::InProgress)
+            .status(IssueStatus::Closed);
+        assert_eq!(update.status, Some(IssueStatus::Closed));
+    }
+
+    #[test]
+    fn test_issue_update_multiple_label_overwrites() {
+        let update = IssueUpdate::new()
+            .labels(vec!["first".to_string()])
+            .labels(vec!["second".to_string()])
+            .labels(vec!["third".to_string()]);
+        assert_eq!(update.labels, Some(vec!["third".to_string()]));
+    }
+
+    // Clone trait tests
+    #[test]
+    fn test_client_clone_trait() {
+        let client1 = BeadsClient::new().with_bd_path("/custom/bd".to_string());
+        let client2 = client1.clone();
+
+        // Both should be usable after clone
+        assert_eq!(client1.bd_path, "/custom/bd");
+        assert_eq!(client2.bd_path, "/custom/bd");
+        assert_eq!(client1.command_timeout, client2.command_timeout);
+    }
+
+    #[test]
+    fn test_issue_update_clone_trait() {
+        let update1 = IssueUpdate::new()
+            .title("Test".to_string())
+            .priority(Priority::P1);
+        let update2 = update1.clone();
+
+        // Both should be usable after clone
+        assert_eq!(update1.title, Some("Test".to_string()));
+        assert_eq!(update2.title, Some("Test".to_string()));
+        assert_eq!(update1.priority, Some(Priority::P1));
+        assert_eq!(update2.priority, Some(Priority::P1));
+    }
+
+    // Very large timeout values
+    #[test]
+    fn test_client_very_large_timeout() {
+        let client = BeadsClient::with_timeout(Duration::from_secs(86400)); // 24 hours
+        assert_eq!(client.command_timeout, Duration::from_secs(86400));
+    }
+
+    #[test]
+    fn test_client_millisecond_timeout() {
+        let client = BeadsClient::with_timeout(Duration::from_millis(1));
+        assert_eq!(client.command_timeout, Duration::from_millis(1));
+    }
+
+    // Multiple field updates in various combinations
+    #[test]
+    fn test_issue_update_title_and_description_only() {
+        let update = IssueUpdate::new()
+            .title("Title".to_string())
+            .description("Description".to_string());
+
+        assert_eq!(update.title, Some("Title".to_string()));
+        assert_eq!(update.description, Some("Description".to_string()));
+        assert!(update.issue_type.is_none());
+        assert!(update.status.is_none());
+        assert!(update.priority.is_none());
+        assert!(update.assignee.is_none());
+        assert!(update.labels.is_none());
+    }
+
+    #[test]
+    fn test_issue_update_labels_and_assignee_only() {
+        let update = IssueUpdate::new()
+            .labels(vec!["bug".to_string()])
+            .assignee("dev@example.com".to_string());
+
+        assert!(update.title.is_none());
+        assert!(update.issue_type.is_none());
+        assert!(update.status.is_none());
+        assert!(update.priority.is_none());
+        assert_eq!(update.assignee, Some("dev@example.com".to_string()));
+        assert_eq!(update.labels, Some(vec!["bug".to_string()]));
+        assert!(update.description.is_none());
+    }
+
+    #[test]
+    fn test_issue_update_type_status_priority_only() {
+        let update = IssueUpdate::new()
+            .issue_type(IssueType::Feature)
+            .status(IssueStatus::InProgress)
+            .priority(Priority::P2);
+
+        assert!(update.title.is_none());
+        assert_eq!(update.issue_type, Some(IssueType::Feature));
+        assert_eq!(update.status, Some(IssueStatus::InProgress));
+        assert_eq!(update.priority, Some(Priority::P2));
+        assert!(update.assignee.is_none());
+        assert!(update.labels.is_none());
+        assert!(update.description.is_none());
+    }
+
+    // Path with special characters
+    #[test]
+    fn test_client_bd_path_with_spaces() {
+        let client = BeadsClient::new().with_bd_path("/path with spaces/bd".to_string());
+        assert_eq!(client.bd_path, "/path with spaces/bd");
+    }
+
+    #[test]
+    fn test_client_bd_path_with_unicode() {
+        let client = BeadsClient::new().with_bd_path("/路径/bd".to_string());
+        assert_eq!(client.bd_path, "/路径/bd");
+    }
+
+    // Assignee variations
+    #[test]
+    fn test_issue_update_assignee_email() {
+        let update = IssueUpdate::new().assignee("user@example.com".to_string());
+        assert_eq!(update.assignee, Some("user@example.com".to_string()));
+    }
+
+    #[test]
+    fn test_issue_update_assignee_username() {
+        let update = IssueUpdate::new().assignee("johndoe".to_string());
+        assert_eq!(update.assignee, Some("johndoe".to_string()));
+    }
+
+    #[test]
+    fn test_issue_update_assignee_with_special_chars() {
+        let update = IssueUpdate::new().assignee("user.name+tag@example.com".to_string());
+        assert_eq!(update.assignee, Some("user.name+tag@example.com".to_string()));
+    }
+
+    // Very long label lists
+    #[test]
+    fn test_issue_update_many_labels() {
+        let labels: Vec<String> = (0..100).map(|i| format!("label{}", i)).collect();
+        let update = IssueUpdate::new().labels(labels.clone());
+        assert_eq!(update.labels, Some(labels));
+    }
+
+    // Builder chain with all None values preserved
+    #[test]
+    fn test_issue_update_builder_preserves_none() {
+        let update = IssueUpdate::new()
+            .title("Title".to_string());
+        // Only title should be set, all others should remain None
+
+        assert_eq!(update.title, Some("Title".to_string()));
+        assert!(update.issue_type.is_none());
+        assert!(update.status.is_none());
+        assert!(update.priority.is_none());
+        assert!(update.assignee.is_none());
+        assert!(update.labels.is_none());
+        assert!(update.description.is_none());
+    }
+
+    // Test different timeout configurations
+    #[test]
+    fn test_client_timeout_configuration_variations() {
+        let client1 = BeadsClient::with_timeout(Duration::from_secs(5));
+        let client2 = BeadsClient::with_timeout(Duration::from_secs(30));
+        let client3 = BeadsClient::with_timeout(Duration::from_secs(120));
+
+        assert_eq!(client1.command_timeout, Duration::from_secs(5));
+        assert_eq!(client2.command_timeout, Duration::from_secs(30));
+        assert_eq!(client3.command_timeout, Duration::from_secs(120));
+    }
+
+    // Chained clones
+    #[test]
+    fn test_client_multiple_clones() {
+        let client1 = BeadsClient::new().with_bd_path("/test/bd".to_string());
+        let client2 = client1.clone();
+        let client3 = client2.clone();
+        let client4 = client3.clone();
+
+        assert_eq!(client1.bd_path, client4.bd_path);
+        assert_eq!(client1.command_timeout, client4.command_timeout);
+    }
+
+    #[test]
+    fn test_issue_update_multiple_clones() {
+        let update1 = IssueUpdate::new().title("Test".to_string());
+        let update2 = update1.clone();
+        let update3 = update2.clone();
+
+        assert_eq!(update1.title, update3.title);
+    }
+
+    // Mixed status and type combinations
+    #[test]
+    fn test_issue_update_bug_with_all_statuses() {
+        let open = IssueUpdate::new()
+            .issue_type(IssueType::Bug)
+            .status(IssueStatus::Open);
+        assert_eq!(open.issue_type, Some(IssueType::Bug));
+        assert_eq!(open.status, Some(IssueStatus::Open));
+
+        let in_progress = IssueUpdate::new()
+            .issue_type(IssueType::Bug)
+            .status(IssueStatus::InProgress);
+        assert_eq!(in_progress.issue_type, Some(IssueType::Bug));
+        assert_eq!(in_progress.status, Some(IssueStatus::InProgress));
+
+        let blocked = IssueUpdate::new()
+            .issue_type(IssueType::Bug)
+            .status(IssueStatus::Blocked);
+        assert_eq!(blocked.issue_type, Some(IssueType::Bug));
+        assert_eq!(blocked.status, Some(IssueStatus::Blocked));
+
+        let closed = IssueUpdate::new()
+            .issue_type(IssueType::Bug)
+            .status(IssueStatus::Closed);
+        assert_eq!(closed.issue_type, Some(IssueType::Bug));
+        assert_eq!(closed.status, Some(IssueStatus::Closed));
+    }
+
+    // Description variations
+    #[test]
+    fn test_issue_update_multiline_description() {
+        let description = "Line 1\nLine 2\nLine 3\n\nLine 5".to_string();
+        let update = IssueUpdate::new().description(description.clone());
+        assert_eq!(update.description, Some(description));
+    }
+
+    #[test]
+    fn test_issue_update_description_with_code_blocks() {
+        let description = "Fix:\n```rust\nfn main() {\n    println!(\"Hello\");\n}\n```".to_string();
+        let update = IssueUpdate::new().description(description.clone());
+        assert_eq!(update.description, Some(description));
+    }
+
+    // Default timeout is 30 seconds
+    #[test]
+    fn test_client_new_has_default_timeout() {
+        let client = BeadsClient::new();
+        assert_eq!(client.command_timeout, Duration::from_secs(30));
+
+        let default_client = BeadsClient::default();
+        assert_eq!(default_client.command_timeout, Duration::from_secs(30));
+    }
 }
