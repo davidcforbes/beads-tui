@@ -401,4 +401,254 @@ mod tests {
         assert_eq!(state.selected(), 0);
         assert!(state.is_modified());
     }
+
+    #[test]
+    fn test_column_manager_action_equality() {
+        assert_eq!(ColumnManagerAction::MoveUp, ColumnManagerAction::MoveUp);
+        assert_eq!(ColumnManagerAction::MoveDown, ColumnManagerAction::MoveDown);
+        assert_eq!(ColumnManagerAction::ToggleVisibility, ColumnManagerAction::ToggleVisibility);
+        assert_eq!(ColumnManagerAction::Reset, ColumnManagerAction::Reset);
+        assert_eq!(ColumnManagerAction::Apply, ColumnManagerAction::Apply);
+        assert_eq!(ColumnManagerAction::Cancel, ColumnManagerAction::Cancel);
+
+        assert_ne!(ColumnManagerAction::MoveUp, ColumnManagerAction::MoveDown);
+        assert_ne!(ColumnManagerAction::Apply, ColumnManagerAction::Cancel);
+    }
+
+    #[test]
+    fn test_apply_action_move_up() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        state.selected = 1;
+
+        let should_close = state.apply_action(ColumnManagerAction::MoveUp);
+        assert!(!should_close); // Move actions don't close
+        assert_eq!(state.selected(), 0);
+        assert!(state.is_modified());
+    }
+
+    #[test]
+    fn test_apply_action_move_down() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        state.selected = 1;
+
+        let should_close = state.apply_action(ColumnManagerAction::MoveDown);
+        assert!(!should_close);
+        assert_eq!(state.selected(), 2);
+        assert!(state.is_modified());
+    }
+
+    #[test]
+    fn test_apply_action_toggle_visibility() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        state.selected = 2;
+
+        let should_close = state.apply_action(ColumnManagerAction::ToggleVisibility);
+        assert!(!should_close);
+        assert!(!state.columns()[2].visible);
+        assert!(state.is_modified());
+    }
+
+    #[test]
+    fn test_apply_action_reset() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+
+        let should_close = state.apply_action(ColumnManagerAction::Reset);
+        assert!(should_close); // Reset needs caller handling
+    }
+
+    #[test]
+    fn test_apply_action_apply() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+
+        let should_close = state.apply_action(ColumnManagerAction::Apply);
+        assert!(should_close); // Apply closes the dialog
+    }
+
+    #[test]
+    fn test_apply_action_cancel() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+
+        let should_close = state.apply_action(ColumnManagerAction::Cancel);
+        assert!(should_close); // Cancel closes the dialog
+    }
+
+    #[test]
+    fn test_move_up_at_top() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        
+        state.selected = 0;
+        state.move_up();
+        
+        // Should not move when at the top
+        assert_eq!(state.selected(), 0);
+        assert!(!state.is_modified());
+    }
+
+    #[test]
+    fn test_move_down_at_bottom() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        
+        state.selected = 3; // Last column
+        state.move_down();
+        
+        // Should not move when at the bottom
+        assert_eq!(state.selected(), 3);
+        assert!(!state.is_modified());
+    }
+
+    #[test]
+    fn test_select_next_wraparound() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        
+        state.selected = 3; // Last column
+        state.select_next();
+        
+        // Should wrap to first column
+        assert_eq!(state.selected(), 0);
+    }
+
+    #[test]
+    fn test_select_previous_wraparound() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        
+        state.selected = 0;
+        state.select_previous();
+        
+        // Should wrap to last column
+        assert_eq!(state.selected(), 3);
+    }
+
+    #[test]
+    fn test_toggle_visibility_out_of_bounds() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        
+        state.selected = 999; // Out of bounds
+        state.toggle_visibility();
+        
+        // Should not panic or modify
+        assert!(!state.is_modified());
+    }
+
+    #[test]
+    fn test_columns_accessor() {
+        let cols = create_test_columns();
+        let state = ColumnManagerState::new(cols.clone());
+        
+        let columns = state.columns();
+        assert_eq!(columns.len(), 4);
+        assert_eq!(columns[0].id, ColumnId::Id);
+        assert_eq!(columns[1].id, ColumnId::Title);
+    }
+
+    #[test]
+    fn test_selected_accessor() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        
+        assert_eq!(state.selected(), 0);
+        
+        state.selected = 2;
+        assert_eq!(state.selected(), 2);
+    }
+
+    #[test]
+    fn test_column_manager_new() {
+        let manager = ColumnManager::new();
+        assert_eq!(manager.title, "Column Manager");
+        assert!(manager.show_help);
+    }
+
+    #[test]
+    fn test_column_manager_default() {
+        let manager = ColumnManager::default();
+        assert_eq!(manager.title, "Column Manager");
+        assert!(manager.show_help);
+    }
+
+    #[test]
+    fn test_column_manager_title() {
+        let manager = ColumnManager::new().title("Custom Title");
+        assert_eq!(manager.title, "Custom Title");
+    }
+
+    #[test]
+    fn test_column_manager_show_help() {
+        let manager = ColumnManager::new().show_help(false);
+        assert!(!manager.show_help);
+    }
+
+    #[test]
+    fn test_column_manager_builder_chain() {
+        let manager = ColumnManager::new()
+            .title("Test Manager")
+            .show_help(false);
+        
+        assert_eq!(manager.title, "Test Manager");
+        assert!(!manager.show_help);
+    }
+
+    #[test]
+    fn test_multiple_toggles() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        state.selected = 2;
+        
+        for _ in 0..4 {
+            let before = state.columns()[2].visible;
+            state.toggle_visibility();
+            assert_ne!(before, state.columns()[2].visible);
+        }
+        
+        // After even number of toggles, should be back to visible
+        assert!(state.columns()[2].visible);
+    }
+
+    #[test]
+    fn test_select_next_with_empty_list() {
+        let state = ColumnManagerState::new(vec![]);
+        let mut state_copy = state;
+        
+        state_copy.select_next();
+        // Should not panic with empty list
+        assert_eq!(state_copy.selected(), 0);
+    }
+
+    #[test]
+    fn test_reset_clears_selection() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        
+        state.selected = 3;
+        state.reset(create_test_columns());
+        
+        assert_eq!(state.selected(), 0);
+    }
+
+    #[test]
+    fn test_modified_flag_preserved_across_operations() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        
+        assert!(!state.is_modified());
+        
+        state.move_down();
+        assert!(state.is_modified());
+        
+        state.move_down();
+        assert!(state.is_modified()); // Still modified
+        
+        state.move_up();
+        assert!(state.is_modified()); // Still modified after reverting
+    }
 }
