@@ -780,4 +780,501 @@ mod tests {
         let id_col = config.get_column(ColumnId::Id).unwrap();
         assert_eq!(id_col.width, id_col.width_constraints.min);
     }
+
+    #[test]
+    fn test_column_id_copy_trait() {
+        let id1 = ColumnId::Title;
+        let id2 = id1;
+        assert_eq!(id1, id2);
+        // Both should still be usable after copy
+        assert_eq!(id1, ColumnId::Title);
+        assert_eq!(id2, ColumnId::Title);
+    }
+
+    #[test]
+    fn test_all_column_id_inequalities() {
+        let ids = vec![
+            ColumnId::Id,
+            ColumnId::Title,
+            ColumnId::Status,
+            ColumnId::Priority,
+            ColumnId::Type,
+            ColumnId::Assignee,
+            ColumnId::Labels,
+            ColumnId::Updated,
+            ColumnId::Created,
+        ];
+        
+        for (i, id1) in ids.iter().enumerate() {
+            for (j, id2) in ids.iter().enumerate() {
+                if i != j {
+                    assert_ne!(id1, id2);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_alignment_copy_trait() {
+        let align1 = Alignment::Center;
+        let align2 = align1;
+        assert_eq!(align1, align2);
+        assert_eq!(align1, Alignment::Center);
+        assert_eq!(align2, Alignment::Center);
+    }
+
+    #[test]
+    fn test_all_alignment_inequalities() {
+        let aligns = vec![Alignment::Left, Alignment::Center, Alignment::Right];
+        
+        for (i, a1) in aligns.iter().enumerate() {
+            for (j, a2) in aligns.iter().enumerate() {
+                if i != j {
+                    assert_ne!(a1, a2);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_wrap_behavior_copy_trait() {
+        let wrap1 = WrapBehavior::Wrap;
+        let wrap2 = wrap1;
+        assert_eq!(wrap1, wrap2);
+        assert_eq!(wrap1, WrapBehavior::Wrap);
+        assert_eq!(wrap2, WrapBehavior::Wrap);
+    }
+
+    #[test]
+    fn test_all_wrap_behavior_inequalities() {
+        let wraps = vec![
+            WrapBehavior::Truncate,
+            WrapBehavior::Wrap,
+            WrapBehavior::WrapAnywhere,
+        ];
+        
+        for (i, w1) in wraps.iter().enumerate() {
+            for (j, w2) in wraps.iter().enumerate() {
+                if i != j {
+                    assert_ne!(w1, w2);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_width_constraints_min_equals_max() {
+        let constraints = WidthConstraints::new(20, Some(20), 25);
+        assert_eq!(constraints.min, 20);
+        assert_eq!(constraints.max, Some(20));
+        assert_eq!(constraints.preferred, 25);
+        
+        // Clamping should work correctly
+        assert_eq!(constraints.clamp(15), 20);
+        assert_eq!(constraints.clamp(20), 20);
+        assert_eq!(constraints.clamp(25), 20);
+    }
+
+    #[test]
+    fn test_width_constraints_clamp_at_max() {
+        let constraints = WidthConstraints::new(10, Some(50), 30);
+        assert_eq!(constraints.clamp(60), 50);
+        assert_eq!(constraints.clamp(50), 50);
+        assert_eq!(constraints.clamp(40), 40);
+    }
+
+    #[test]
+    fn test_column_definition_set_width_above_max() {
+        let mut col = ColumnDefinition::new(ColumnId::Id);
+        col.set_width(100); // Above max of 20
+        assert_eq!(col.width, 20);
+    }
+
+    #[test]
+    fn test_column_definition_set_width_below_min() {
+        let mut col = ColumnDefinition::new(ColumnId::Id);
+        col.set_width(5); // Below min of 10
+        assert_eq!(col.width, 10);
+    }
+
+    #[test]
+    fn test_column_definition_set_visible_non_mandatory() {
+        let mut col = ColumnDefinition::new(ColumnId::Status);
+        assert!(col.visible);
+        
+        col.set_visible(false);
+        assert!(!col.visible);
+        
+        col.set_visible(true);
+        assert!(col.visible);
+    }
+
+    #[test]
+    fn test_column_definition_set_visible_mandatory_id() {
+        let mut col = ColumnDefinition::new(ColumnId::Id);
+        assert!(col.visible);
+        
+        col.set_visible(false);
+        assert!(col.visible); // Should remain visible
+    }
+
+    #[test]
+    fn test_column_definition_set_visible_mandatory_title() {
+        let mut col = ColumnDefinition::new(ColumnId::Title);
+        assert!(col.visible);
+        
+        col.set_visible(false);
+        assert!(col.visible); // Should remain visible
+    }
+
+    #[test]
+    fn test_sort_config_all_columns() {
+        let columns = vec![
+            ColumnId::Id,
+            ColumnId::Title,
+            ColumnId::Status,
+            ColumnId::Priority,
+            ColumnId::Type,
+            ColumnId::Assignee,
+            ColumnId::Labels,
+            ColumnId::Updated,
+            ColumnId::Created,
+        ];
+        
+        for column in columns {
+            let sort = SortConfig {
+                column,
+                ascending: true,
+            };
+            assert_eq!(sort.column, column);
+            assert!(sort.ascending);
+        }
+    }
+
+    #[test]
+    fn test_sort_config_ascending_false() {
+        let sort = SortConfig {
+            column: ColumnId::Updated,
+            ascending: false,
+        };
+        assert_eq!(sort.column, ColumnId::Updated);
+        assert!(!sort.ascending);
+    }
+
+    #[test]
+    fn test_filter_config_empty() {
+        let config = FilterConfig::default();
+        assert!(config.filters.is_empty());
+    }
+
+    #[test]
+    fn test_filter_config_single_filter() {
+        let mut config = FilterConfig::default();
+        config.filters.insert(ColumnId::Status, "open".to_string());
+        
+        assert_eq!(config.filters.len(), 1);
+        assert_eq!(config.filters.get(&ColumnId::Status), Some(&"open".to_string()));
+    }
+
+    #[test]
+    fn test_filter_config_multiple_filters() {
+        let mut config = FilterConfig::default();
+        config.filters.insert(ColumnId::Status, "open".to_string());
+        config.filters.insert(ColumnId::Priority, "high".to_string());
+        config.filters.insert(ColumnId::Type, "bug".to_string());
+        
+        assert_eq!(config.filters.len(), 3);
+        assert_eq!(config.filters.get(&ColumnId::Status), Some(&"open".to_string()));
+        assert_eq!(config.filters.get(&ColumnId::Priority), Some(&"high".to_string()));
+        assert_eq!(config.filters.get(&ColumnId::Type), Some(&"bug".to_string()));
+    }
+
+    #[test]
+    fn test_table_config_all_columns_hidden_except_mandatory() {
+        let mut config = TableConfig::default();
+        
+        // Try to hide all columns
+        for col in &mut config.columns {
+            col.set_visible(false);
+        }
+        
+        // Mandatory columns should remain visible
+        assert!(config.columns.iter().find(|c| c.id == ColumnId::Id).unwrap().visible);
+        assert!(config.columns.iter().find(|c| c.id == ColumnId::Title).unwrap().visible);
+        
+        // Non-mandatory should be hidden
+        if let Some(status) = config.columns.iter().find(|c| c.id == ColumnId::Status) {
+            assert!(!status.visible);
+        }
+    }
+
+    #[test]
+    fn test_table_config_custom_column_order() {
+        let config = TableConfig {
+            columns: vec![
+                ColumnDefinition::new(ColumnId::Priority),
+                ColumnDefinition::new(ColumnId::Title),
+                ColumnDefinition::new(ColumnId::Id),
+                ColumnDefinition::new(ColumnId::Status),
+            ],
+            row_height: 1,
+            sort: SortConfig::default(),
+            filters: FilterConfig::default(),
+            version: 1,
+        };
+        
+        assert_eq!(config.columns[0].id, ColumnId::Priority);
+        assert_eq!(config.columns[1].id, ColumnId::Title);
+        assert_eq!(config.columns[2].id, ColumnId::Id);
+        assert_eq!(config.columns[3].id, ColumnId::Status);
+    }
+
+    #[test]
+    fn test_table_config_very_large_row_height() {
+        let config = TableConfig {
+            columns: TableConfig::default_columns(),
+            row_height: 1000,
+            sort: SortConfig::default(),
+            filters: FilterConfig::default(),
+            version: 1,
+        };
+        
+        assert_eq!(config.row_height, 1000);
+    }
+
+    #[test]
+    fn test_table_config_row_height_zero() {
+        let config = TableConfig {
+            columns: TableConfig::default_columns(),
+            row_height: 0,
+            sort: SortConfig::default(),
+            filters: FilterConfig::default(),
+            version: 1,
+        };
+        
+        assert_eq!(config.row_height, 0);
+    }
+
+    #[test]
+    fn test_width_constraints_preferred_less_than_min() {
+        let constraints = WidthConstraints::new(20, Some(50), 10);
+        // Preferred should be clamped to min
+        assert_eq!(constraints.preferred, 20);
+    }
+
+    #[test]
+    fn test_column_definition_all_alignments() {
+        let mut col = ColumnDefinition::new(ColumnId::Id);
+        
+        col.alignment = Alignment::Left;
+        assert_eq!(col.alignment, Alignment::Left);
+        
+        col.alignment = Alignment::Center;
+        assert_eq!(col.alignment, Alignment::Center);
+        
+        col.alignment = Alignment::Right;
+        assert_eq!(col.alignment, Alignment::Right);
+    }
+
+    #[test]
+    fn test_column_definition_all_wrap_behaviors() {
+        let mut col = ColumnDefinition::new(ColumnId::Title);
+        
+        col.wrap = WrapBehavior::Truncate;
+        assert_eq!(col.wrap, WrapBehavior::Truncate);
+        
+        col.wrap = WrapBehavior::Wrap;
+        assert_eq!(col.wrap, WrapBehavior::Wrap);
+        
+        col.wrap = WrapBehavior::WrapAnywhere;
+        assert_eq!(col.wrap, WrapBehavior::WrapAnywhere);
+    }
+
+    #[test]
+    fn test_table_config_get_column_by_id() {
+        let config = TableConfig::default();
+        
+        let id_col = config.get_column(ColumnId::Id);
+        assert!(id_col.is_some());
+        assert_eq!(id_col.unwrap().id, ColumnId::Id);
+        
+        let title_col = config.get_column(ColumnId::Title);
+        assert!(title_col.is_some());
+        assert_eq!(title_col.unwrap().id, ColumnId::Title);
+    }
+
+    #[test]
+    fn test_table_config_get_column_mut_by_id() {
+        let mut config = TableConfig::default();
+        
+        if let Some(col) = config.get_column_mut(ColumnId::Id) {
+            col.width = 15;
+        }
+        
+        let id_col = config.get_column(ColumnId::Id);
+        assert_eq!(id_col.unwrap().width, 15);
+    }
+
+    #[test]
+    fn test_table_config_reorder_column_to_end() {
+        let mut config = TableConfig::default();
+        let original_len = config.columns.len();
+        
+        // Find Id column index
+        let id_index = config.columns.iter().position(|c| c.id == ColumnId::Id).unwrap();
+        
+        // Move Id column to end
+        config.reorder_column(id_index, original_len - 1);
+        
+        assert_eq!(config.columns[original_len - 1].id, ColumnId::Id);
+    }
+
+    #[test]
+    fn test_table_config_reorder_column_to_start() {
+        let mut config = TableConfig::default();
+        
+        // Find Updated column index
+        let updated_index = config.columns.iter().position(|c| c.id == ColumnId::Updated).unwrap();
+        
+        // Move Updated column to start
+        config.reorder_column(updated_index, 0);
+        
+        assert_eq!(config.columns[0].id, ColumnId::Updated);
+    }
+
+    #[test]
+    fn test_table_config_toggle_visibility_multiple_times() {
+        let mut config = TableConfig::default();
+        
+        config.toggle_column_visibility(ColumnId::Status);
+        let status = config.get_column(ColumnId::Status).unwrap();
+        assert!(!status.visible);
+        
+        config.toggle_column_visibility(ColumnId::Status);
+        let status = config.get_column(ColumnId::Status).unwrap();
+        assert!(status.visible);
+        
+        config.toggle_column_visibility(ColumnId::Status);
+        let status = config.get_column(ColumnId::Status).unwrap();
+        assert!(!status.visible);
+    }
+
+    #[test]
+    fn test_table_config_toggle_visibility_mandatory() {
+        let mut config = TableConfig::default();
+        
+        config.toggle_column_visibility(ColumnId::Id);
+        let id_col = config.get_column(ColumnId::Id).unwrap();
+        assert!(id_col.visible); // Should remain visible
+        
+        config.toggle_column_visibility(ColumnId::Title);
+        let title_col = config.get_column(ColumnId::Title).unwrap();
+        assert!(title_col.visible); // Should remain visible
+    }
+
+    #[test]
+    fn test_table_config_version() {
+        let config = TableConfig::default();
+        assert_eq!(config.version, 1);
+        
+        let custom_config = TableConfig {
+            columns: TableConfig::default_columns(),
+            row_height: 1,
+            sort: SortConfig::default(),
+            filters: FilterConfig::default(),
+            version: 2,
+        };
+        assert_eq!(custom_config.version, 2);
+    }
+
+    #[test]
+    fn test_column_id_hash_different() {
+        use std::collections::HashSet;
+        
+        let mut set = HashSet::new();
+        set.insert(ColumnId::Id);
+        set.insert(ColumnId::Title);
+        set.insert(ColumnId::Status);
+        
+        assert_eq!(set.len(), 3);
+        assert!(set.contains(&ColumnId::Id));
+        assert!(set.contains(&ColumnId::Title));
+        assert!(set.contains(&ColumnId::Status));
+    }
+
+    #[test]
+    fn test_width_constraints_debug_trait() {
+        let constraints = WidthConstraints::new(10, Some(50), 30);
+        let debug_str = format!("{:?}", constraints);
+        assert!(debug_str.contains("WidthConstraints"));
+    }
+
+    #[test]
+    fn test_column_definition_debug_trait() {
+        let col = ColumnDefinition::new(ColumnId::Id);
+        let debug_str = format!("{:?}", col);
+        assert!(debug_str.contains("ColumnDefinition"));
+    }
+
+    #[test]
+    fn test_sort_config_copy_trait() {
+        let sort1 = SortConfig::default();
+        let sort2 = sort1;
+        assert_eq!(sort1, sort2);
+        assert_eq!(sort1.column, sort2.column);
+        assert_eq!(sort1.ascending, sort2.ascending);
+    }
+
+    #[test]
+    fn test_table_config_validate_both_mandatory_missing() {
+        let mut config = TableConfig {
+            columns: vec![
+                ColumnDefinition::new(ColumnId::Status),
+                ColumnDefinition::new(ColumnId::Priority),
+            ],
+            row_height: 1,
+            sort: SortConfig::default(),
+            filters: FilterConfig::default(),
+            version: 1,
+        };
+        
+        config = config.validate_and_migrate();
+        
+        // Should have added both Id and Title
+        assert_eq!(config.columns[0].id, ColumnId::Id);
+        assert_eq!(config.columns[1].id, ColumnId::Title);
+        assert!(config.columns[0].visible);
+        assert!(config.columns[1].visible);
+    }
+
+    #[test]
+    fn test_width_constraints_clamp_exact_min() {
+        let constraints = WidthConstraints::new(10, Some(50), 30);
+        assert_eq!(constraints.clamp(10), 10);
+    }
+
+    #[test]
+    fn test_width_constraints_clamp_exact_max() {
+        let constraints = WidthConstraints::new(10, Some(50), 30);
+        assert_eq!(constraints.clamp(50), 50);
+    }
+
+    #[test]
+    fn test_filter_config_update_existing() {
+        let mut config = FilterConfig::default();
+        config.filters.insert(ColumnId::Status, "open".to_string());
+        assert_eq!(config.filters.get(&ColumnId::Status), Some(&"open".to_string()));
+        
+        config.filters.insert(ColumnId::Status, "closed".to_string());
+        assert_eq!(config.filters.get(&ColumnId::Status), Some(&"closed".to_string()));
+    }
+
+    #[test]
+    fn test_column_definition_label_customization() {
+        let mut col = ColumnDefinition::new(ColumnId::Id);
+        assert_eq!(col.label, "ID");
+        
+        col.label = "Identifier".to_string();
+        assert_eq!(col.label, "Identifier");
+    }
 }
