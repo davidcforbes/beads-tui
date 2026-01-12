@@ -250,6 +250,21 @@ impl BeadsClient {
         Ok(())
     }
 
+    /// Check if beads daemon is running
+    pub async fn check_daemon_status(&self) -> Result<bool> {
+        let args = vec!["daemon".to_string(), "--status".to_string()];
+        match self.execute_command(&args).await {
+            Ok(output) => {
+                // Check if output indicates daemon is running
+                Ok(output.contains("running") || output.contains("active"))
+            }
+            Err(_) => {
+                // If command fails, assume daemon is not running
+                Ok(false)
+            }
+        }
+    }
+
     /// Execute a bd command with timeout
     async fn execute_command(&self, args: &[String]) -> Result<String> {
         let mut cmd = TokioCommand::new(&self.bd_path);

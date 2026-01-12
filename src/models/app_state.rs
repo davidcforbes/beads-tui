@@ -31,6 +31,8 @@ pub struct AppState {
     pub pending_action: Option<String>,
     /// Error message to display to user
     pub error_message: Option<String>,
+    /// Whether beads daemon is currently running
+    pub daemon_running: bool,
 }
 
 impl AppState {
@@ -53,6 +55,9 @@ impl AppState {
             last_sync: None,
         };
 
+        // Check daemon status
+        let daemon_running = Self::check_daemon_status_sync(&beads_client);
+
         Self {
             should_quit: false,
             selected_tab: 0,
@@ -69,6 +74,7 @@ impl AppState {
             dialog_state: None,
             pending_action: None,
             error_message: None,
+            daemon_running,
         }
     }
 
@@ -82,19 +88,32 @@ impl AppState {
             })
     }
 
+    /// Check daemon status synchronously using tokio runtime
+    fn check_daemon_status_sync(client: &BeadsClient) -> bool {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(client.check_daemon_status())
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to check daemon status: {:?}", e);
+                false
+            })
+    }
+
     /// Reload issues from beads database
     pub fn reload_issues(&mut self) {
         let issues = Self::load_issues_sync(&self.beads_client);
-        
+
         // Update label statistics
         self.label_stats = compute_label_stats(&issues);
-        
+
         // Update database stats
         self.database_stats.total_issues = issues.len();
-        
+
+        // Update daemon status
+        self.daemon_running = Self::check_daemon_status_sync(&self.beads_client);
+
         // Update issues view
         self.issues_view_state.set_issues(issues);
-        
+
         // Mark dirty to trigger redraw
         self.mark_dirty();
     }

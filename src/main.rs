@@ -857,7 +857,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             let database_view = DatabaseView::new()
                 .status(app.database_status)
                 .stats(app.database_stats.clone())
-                .daemon_running(false); // TODO: Check actual daemon status
+                .daemon_running(app.daemon_running);
             f.render_widget(database_view, tabs_chunks[1]);
         }
         _ => {
