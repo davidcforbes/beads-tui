@@ -3,6 +3,7 @@ use crate::beads::BeadsClient;
 use crate::ui::views::{
     compute_label_stats, DatabaseStats, DatabaseStatus, HelpSection, IssuesViewState, LabelStats,
 };
+use crate::ui::widgets::DialogState;
 
 use super::PerfStats;
 
@@ -24,6 +25,10 @@ pub struct AppState {
     pub show_perf_stats: bool,
     /// Selected help section
     pub help_section: HelpSection,
+    /// Dialog state for confirmations
+    pub dialog_state: Option<DialogState>,
+    /// Pending action waiting for dialog confirmation
+    pub pending_action: Option<String>,
 }
 
 impl AppState {
@@ -59,6 +64,8 @@ impl AppState {
             perf_stats: PerfStats::new(),
             show_perf_stats: false,
             help_section: HelpSection::Global,
+            dialog_state: None,
+            pending_action: None,
         }
     }
 

@@ -14,10 +14,10 @@ use crossterm::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::Line,
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame, Terminal,
 };
 use std::io;
@@ -77,6 +77,62 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
     use ui::views::IssuesViewMode;
 
     let key_code = key.code;
+
+    // Handle dialog events if dialog is active
+    if let Some(ref mut dialog_state) = app.dialog_state {
+        match key_code {
+            KeyCode::Left => {
+                dialog_state.select_previous(2); // Yes/No = 2 buttons
+                return;
+            }
+            KeyCode::Right | KeyCode::Tab => {
+                dialog_state.select_next(2);
+                return;
+            }
+            KeyCode::Enter => {
+                // Execute pending action based on selected button
+                let selected = dialog_state.selected_button();
+                if selected == 0 {
+                    // Yes was selected
+                    if let Some(action) = app.pending_action.take() {
+                        if let Some(issue_id) = action.strip_prefix("delete:") {
+                            tracing::info!("Confirmed delete for issue: {}", issue_id);
+
+                            // Create a tokio runtime to execute the async call
+                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            let client = &app.beads_client;
+
+                            match rt.block_on(client.delete_issue(issue_id)) {
+                                Ok(()) => {
+                                    tracing::info!("Successfully deleted issue: {}", issue_id);
+                                    app.reload_issues();
+                                }
+                                Err(e) => {
+                                    tracing::error!("Failed to delete issue: {:?}", e);
+                                }
+                            }
+                        }
+                    }
+                }
+                // Close dialog (both Yes and No)
+                app.dialog_state = None;
+                app.pending_action = None;
+                return;
+            }
+            KeyCode::Esc => {
+                // Cancel dialog
+                tracing::debug!("Dialog cancelled");
+                app.dialog_state = None;
+                app.pending_action = None;
+                return;
+            }
+            _ => {
+                // Ignore other keys when dialog is active
+                return;
+            }
+        }
+    }
+
     let issues_state = &mut app.issues_view_state;
     let view_mode = issues_state.view_mode();
 
@@ -291,26 +347,18 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         }
                     }
                     KeyCode::Char('d') => {
-                        // Delete selected issue (TODO: add confirmation dialog)
+                        // Delete selected issue with confirmation dialog
                         if let Some(issue) = issues_state.search_state().selected_issue() {
                             let issue_id = issue.id.clone();
-                            tracing::warn!("Deleting issue: {} (no confirmation yet)", issue_id);
+                            let issue_title = issue.title.clone();
+                            tracing::info!("Requesting confirmation to delete issue: {}", issue_id);
 
-                            // Create a tokio runtime to execute the async call
-                            let rt = tokio::runtime::Runtime::new().unwrap();
-                            let client = &app.beads_client;
+                            // Show confirmation dialog
+                            app.dialog_state = Some(ui::widgets::DialogState::new());
+                            app.pending_action = Some(format!("delete:{}", issue_id));
 
-                            match rt.block_on(client.delete_issue(&issue_id)) {
-                                Ok(()) => {
-                                    tracing::info!("Successfully deleted issue: {}", issue_id);
-
-                                    // Reload issues list
-                                    app.reload_issues();
-                                }
-                                Err(e) => {
-                                    tracing::error!("Failed to delete issue: {:?}", e);
-                                }
-                            }
+                            // Store issue title for dialog message (we'll need to format it in rendering)
+                            tracing::debug!("Showing delete confirmation for: {}", issue_title);
                         }
                     }
                     KeyCode::Char('r') => {
@@ -812,4 +860,46 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         .block(Block::default().borders(Borders::ALL))
     };
     f.render_widget(status_text, chunks[2]);
+
+    // Render dialog overlay if active
+    if let Some(ref dialog_state) = app.dialog_state {
+        if let Some(ref action) = app.pending_action {
+            // Parse action to get issue ID and construct message
+            if let Some(issue_id) = action.strip_prefix("delete:") {
+                let message = format!("Are you sure you want to delete issue {}?", issue_id);
+                let dialog = ui::widgets::Dialog::confirm("Confirm Delete", &message);
+
+                // Render dialog centered on screen
+                let area = f.size();
+                let dialog_area = centered_rect(60, 30, area);
+
+                // Clear and render dialog
+                f.render_widget(Clear, dialog_area);
+                dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
+            }
+        }
+    }
+}
+
+/// Helper to create a centered rect
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    use ratatui::layout::{Constraint, Direction, Layout};
+
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }
