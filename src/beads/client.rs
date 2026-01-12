@@ -105,42 +105,33 @@ impl BeadsClient {
     }
 
     /// Create a new issue with full options
-    pub async fn create_issue_full(
-        &self,
-        title: &str,
-        issue_type: IssueType,
-        priority: Priority,
-        status: Option<&str>,
-        assignee: Option<&str>,
-        labels: &[String],
-        description: Option<&str>,
-    ) -> Result<String> {
+    pub async fn create_issue_full(&self, params: super::models::CreateIssueParams<'_>) -> Result<String> {
         let mut args = vec![
             "create".to_string(),
             "--title".to_string(),
-            title.to_string(),
+            params.title.to_string(),
             "--type".to_string(),
-            issue_type.to_string(),
+            params.issue_type.to_string(),
             "--priority".to_string(),
-            priority.to_string(),
+            params.priority.to_string(),
         ];
 
-        if let Some(s) = status {
+        if let Some(s) = params.status {
             args.push("--status".to_string());
             args.push(s.to_string());
         }
 
-        if let Some(a) = assignee {
+        if let Some(a) = params.assignee {
             args.push("--assignee".to_string());
             args.push(a.to_string());
         }
 
-        if !labels.is_empty() {
+        if !params.labels.is_empty() {
             args.push("--label".to_string());
-            args.push(labels.join(","));
+            args.push(params.labels.join(","));
         }
 
-        if let Some(d) = description {
+        if let Some(d) = params.description {
             args.push("--description".to_string());
             args.push(d.to_string());
         }

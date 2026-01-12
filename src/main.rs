@@ -532,17 +532,20 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 // Create a tokio runtime to execute the async call
                                 let rt = tokio::runtime::Runtime::new().unwrap();
                                 let client = &app.beads_client;
-                                
+
+                                // Build create params
+                                let mut params = beads::models::CreateIssueParams::new(
+                                    &data.title,
+                                    data.issue_type,
+                                    data.priority,
+                                );
+                                params.status = Some(&data.status);
+                                params.assignee = data.assignee.as_deref();
+                                params.labels = &data.labels;
+                                params.description = data.description.as_deref();
+
                                 match rt.block_on(
-                                    client.create_issue_full(
-                                        &data.title,
-                                        data.issue_type,
-                                        data.priority,
-                                        Some(&data.status),
-                                        data.assignee.as_deref(),
-                                        &data.labels,
-                                        data.description.as_deref(),
-                                    )
+                                    client.create_issue_full(params)
                                 ) {
                                     Ok(issue_id) => {
                                         // Successfully created

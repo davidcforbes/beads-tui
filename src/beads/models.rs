@@ -137,3 +137,54 @@ impl std::fmt::Display for DependencyType {
         }
     }
 }
+
+/// Parameters for creating a new issue
+#[derive(Debug, Clone)]
+pub struct CreateIssueParams<'a> {
+    pub title: &'a str,
+    pub issue_type: IssueType,
+    pub priority: Priority,
+    pub status: Option<&'a str>,
+    pub assignee: Option<&'a str>,
+    pub labels: &'a [String],
+    pub description: Option<&'a str>,
+}
+
+impl<'a> CreateIssueParams<'a> {
+    /// Create new params with required fields
+    pub fn new(title: &'a str, issue_type: IssueType, priority: Priority) -> Self {
+        Self {
+            title,
+            issue_type,
+            priority,
+            status: None,
+            assignee: None,
+            labels: &[],
+            description: None,
+        }
+    }
+
+    /// Set status
+    pub fn with_status(mut self, status: &'a str) -> Self {
+        self.status = Some(status);
+        self
+    }
+
+    /// Set assignee
+    pub fn with_assignee(mut self, assignee: &'a str) -> Self {
+        self.assignee = Some(assignee);
+        self
+    }
+
+    /// Set labels
+    pub fn with_labels(mut self, labels: &'a [String]) -> Self {
+        self.labels = labels;
+        self
+    }
+
+    /// Set description
+    pub fn with_description(mut self, description: &'a str) -> Self {
+        self.description = Some(description);
+        self
+    }
+}
