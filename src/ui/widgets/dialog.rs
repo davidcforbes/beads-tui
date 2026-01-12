@@ -438,4 +438,192 @@ mod tests {
         ]);
         assert_eq!(dialog.buttons.len(), 3);
     }
+
+    #[test]
+    fn test_dialog_button_clone() {
+        let button = DialogButton::new("OK", "ok");
+        let cloned = button.clone();
+        assert_eq!(button.label, cloned.label);
+        assert_eq!(button.action, cloned.action);
+    }
+
+    #[test]
+    fn test_dialog_button_equality() {
+        let button1 = DialogButton::new("OK", "ok");
+        let button2 = DialogButton::new("OK", "ok");
+        let button3 = DialogButton::new("Cancel", "cancel");
+        assert_eq!(button1, button2);
+        assert_ne!(button1, button3);
+    }
+
+    #[test]
+    fn test_dialog_button_into_string() {
+        let button = DialogButton::new(String::from("Save"), String::from("save"));
+        assert_eq!(button.label, "Save");
+        assert_eq!(button.action, "save");
+    }
+
+    #[test]
+    fn test_dialog_button_empty_strings() {
+        let button = DialogButton::new("", "");
+        assert_eq!(button.label, "");
+        assert_eq!(button.action, "");
+    }
+
+    #[test]
+    fn test_dialog_button_unicode() {
+        let button = DialogButton::new("保存", "save");
+        assert_eq!(button.label, "保存");
+        assert_eq!(button.action, "save");
+    }
+
+    #[test]
+    fn test_dialog_type_equality() {
+        assert_eq!(DialogType::Info, DialogType::Info);
+        assert_eq!(DialogType::Warning, DialogType::Warning);
+        assert_ne!(DialogType::Info, DialogType::Warning);
+        assert_ne!(DialogType::Error, DialogType::Success);
+    }
+
+    #[test]
+    fn test_dialog_type_clone() {
+        let dialog_type = DialogType::Error;
+        let cloned = dialog_type.clone();
+        assert_eq!(dialog_type, cloned);
+    }
+
+    #[test]
+    fn test_dialog_type_all_variants() {
+        let _info = DialogType::Info;
+        let _warning = DialogType::Warning;
+        let _error = DialogType::Error;
+        let _success = DialogType::Success;
+        let _confirm = DialogType::Confirm;
+        assert!(true); // All variants compile and can be created
+    }
+
+    #[test]
+    fn test_dialog_state_default() {
+        let state = DialogState::default();
+        assert_eq!(state.selected_button(), 0);
+    }
+
+    #[test]
+    fn test_dialog_state_clone() {
+        let mut state = DialogState::new();
+        state.select_next(3);
+        let cloned = state.clone();
+        assert_eq!(state.selected_button(), cloned.selected_button());
+    }
+
+    #[test]
+    fn test_dialog_state_select_next_zero_buttons() {
+        let mut state = DialogState::new();
+        state.select_next(0);
+        assert_eq!(state.selected_button(), 0); // No change with 0 buttons
+    }
+
+    #[test]
+    fn test_dialog_state_select_previous_zero_buttons() {
+        let mut state = DialogState::new();
+        state.select_previous(0);
+        assert_eq!(state.selected_button(), 0); // No change with 0 buttons
+    }
+
+    #[test]
+    fn test_dialog_state_select_next_one_button() {
+        let mut state = DialogState::new();
+        state.select_next(1);
+        assert_eq!(state.selected_button(), 0); // Wraps to 0 immediately
+        state.select_next(1);
+        assert_eq!(state.selected_button(), 0); // Still 0
+    }
+
+    #[test]
+    fn test_dialog_state_select_previous_one_button() {
+        let mut state = DialogState::new();
+        state.select_previous(1);
+        assert_eq!(state.selected_button(), 0); // Wraps to 0 immediately
+    }
+
+    #[test]
+    fn test_dialog_state_multiple_resets() {
+        let mut state = DialogState::new();
+        state.select_next(3);
+        state.reset();
+        state.select_next(3);
+        state.reset();
+        assert_eq!(state.selected_button(), 0);
+    }
+
+    #[test]
+    fn test_warning_dialog() {
+        let dialog = Dialog::warning("Warning", "This is a warning");
+        assert_eq!(dialog.dialog_type, DialogType::Warning);
+        assert_eq!(dialog.buttons.len(), 1);
+        assert_eq!(dialog.buttons[0].label, "OK");
+    }
+
+    #[test]
+    fn test_info_dialog() {
+        let dialog = Dialog::info("Info", "This is information");
+        assert_eq!(dialog.dialog_type, DialogType::Info);
+        assert_eq!(dialog.buttons.len(), 1);
+        assert_eq!(dialog.buttons[0].label, "OK");
+    }
+
+    #[test]
+    fn test_success_dialog() {
+        let dialog = Dialog::success("Success", "Operation completed");
+        assert_eq!(dialog.dialog_type, DialogType::Success);
+        assert_eq!(dialog.buttons.len(), 1);
+        assert_eq!(dialog.buttons[0].label, "OK");
+    }
+
+    #[test]
+    fn test_dialog_type_builder() {
+        let dialog = Dialog::new("Test", "Message").dialog_type(DialogType::Warning);
+        assert_eq!(dialog.dialog_type, DialogType::Warning);
+    }
+
+    #[test]
+    fn test_dialog_width_builder() {
+        let dialog = Dialog::new("Test", "Message").width(80);
+        assert_eq!(dialog.width, 80);
+    }
+
+    #[test]
+    fn test_dialog_height_builder() {
+        let dialog = Dialog::new("Test", "Message").height(20);
+        assert_eq!(dialog.height, 20);
+    }
+
+    #[test]
+    fn test_dialog_builder_chain() {
+        let buttons = vec![DialogButton::new("Yes", "yes"), DialogButton::new("No", "no")];
+        let dialog = Dialog::new("Test", "Message")
+            .dialog_type(DialogType::Error)
+            .width(60)
+            .height(15)
+            .buttons(buttons.clone());
+
+        assert_eq!(dialog.dialog_type, DialogType::Error);
+        assert_eq!(dialog.width, 60);
+        assert_eq!(dialog.height, 15);
+        assert_eq!(dialog.buttons.len(), 2);
+    }
+
+    #[test]
+    fn test_dialog_empty_message() {
+        let dialog = Dialog::new("Title", "");
+        assert_eq!(dialog.message, "");
+        assert_eq!(dialog.title, "Title");
+    }
+
+    #[test]
+    fn test_dialog_unicode_content() {
+        let dialog = Dialog::new("タイトル", "これはメッセージです");
+        assert_eq!(dialog.title, "タイトル");
+        assert_eq!(dialog.message, "これはメッセージです");
+    }
 }
