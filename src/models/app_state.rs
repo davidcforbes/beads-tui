@@ -532,4 +532,204 @@ mod tests {
         assert_eq!(notification.message, "Test");
         assert_eq!(notification.notification_type, NotificationType::Success);
     }
+
+    #[test]
+    fn test_notification_type_clone() {
+        let nt = NotificationType::Error;
+        let cloned = nt.clone();
+        assert_eq!(nt, cloned);
+    }
+
+    #[test]
+    fn test_notification_type_copy() {
+        let nt = NotificationType::Success;
+        let copied = nt;
+        assert_eq!(nt, copied);
+    }
+
+    #[test]
+    fn test_notification_message_clone() {
+        let notification = NotificationMessage {
+            message: "Test".to_string(),
+            notification_type: NotificationType::Info,
+            created_at: std::time::Instant::now(),
+        };
+
+        let cloned = notification.clone();
+        assert_eq!(notification.message, cloned.message);
+        assert_eq!(notification.notification_type, cloned.notification_type);
+    }
+
+    #[test]
+    fn test_app_state_default() {
+        let state = AppState::default();
+        assert!(!state.should_quit);
+        assert_eq!(state.selected_tab, 0);
+        assert_eq!(state.tabs.len(), 5);
+    }
+
+    #[test]
+    fn test_next_tab_multiple_times() {
+        let mut state = create_test_app_state();
+
+        // Navigate through all tabs
+        for i in 1..5 {
+            state.next_tab();
+            assert_eq!(state.selected_tab, i);
+        }
+
+        // Next should wrap to 0
+        state.next_tab();
+        assert_eq!(state.selected_tab, 0);
+    }
+
+    #[test]
+    fn test_previous_tab_multiple_times() {
+        let mut state = create_test_app_state();
+        state.selected_tab = 4; // Start at last tab
+
+        // Navigate backward through all tabs
+        for i in (0..4).rev() {
+            state.previous_tab();
+            assert_eq!(state.selected_tab, i);
+        }
+
+        // Previous should wrap to last
+        state.previous_tab();
+        assert_eq!(state.selected_tab, 4);
+    }
+
+    #[test]
+    fn test_dirty_flag_on_tab_navigation() {
+        let mut state = create_test_app_state();
+        state.dirty = false;
+
+        state.next_tab();
+        assert!(state.is_dirty());
+
+        state.clear_dirty();
+        assert!(!state.is_dirty());
+
+        state.previous_tab();
+        assert!(state.is_dirty());
+    }
+
+    #[test]
+    fn test_toggle_perf_stats_enables_profiling() {
+        let mut state = create_test_app_state();
+        assert!(!state.show_perf_stats);
+        assert!(!state.perf_stats.is_enabled());
+
+        state.toggle_perf_stats();
+        assert!(state.show_perf_stats);
+        assert!(state.perf_stats.is_enabled());
+    }
+
+    #[test]
+    fn test_help_section_wraps_around() {
+        let mut state = create_test_app_state();
+        let sections = HelpSection::all();
+
+        // Set to last section
+        state.help_section = sections[sections.len() - 1];
+
+        // Next should wrap to first
+        state.next_help_section();
+        assert_eq!(state.help_section, sections[0]);
+    }
+
+    #[test]
+    fn test_previous_help_section_wraps_around() {
+        let mut state = create_test_app_state();
+        let sections = HelpSection::all();
+
+        // Set to first section
+        state.help_section = sections[0];
+
+        // Previous should wrap to last
+        state.previous_help_section();
+        assert_eq!(state.help_section, sections[sections.len() - 1]);
+    }
+
+    #[test]
+    fn test_notification_replacement() {
+        let mut state = create_test_app_state();
+
+        state.set_error("First error".to_string());
+        assert_eq!(
+            state.notification.as_ref().unwrap().message,
+            "First error"
+        );
+
+        // Setting a new notification should replace the old one
+        state.set_success("Success!".to_string());
+        assert_eq!(
+            state.notification.as_ref().unwrap().message,
+            "Success!"
+        );
+        assert_eq!(
+            state.notification.as_ref().unwrap().notification_type,
+            NotificationType::Success
+        );
+    }
+
+    #[test]
+    fn test_set_notification_marks_dirty() {
+        let mut state = create_test_app_state();
+        state.dirty = false;
+
+        state.set_notification("Test".to_string(), NotificationType::Info);
+        assert!(state.is_dirty());
+    }
+
+    #[test]
+    fn test_clear_notification_marks_dirty() {
+        let mut state = create_test_app_state();
+        state.set_info("Info".to_string());
+        state.dirty = false;
+
+        state.clear_notification();
+        assert!(state.is_dirty());
+    }
+
+    #[test]
+    fn test_notification_types_all_different() {
+        assert_ne!(NotificationType::Error, NotificationType::Warning);
+        assert_ne!(NotificationType::Success, NotificationType::Info);
+        assert_ne!(NotificationType::Error, NotificationType::Info);
+        assert_ne!(NotificationType::Warning, NotificationType::Success);
+    }
+
+    #[test]
+    fn test_help_section_navigation_marks_dirty() {
+        let mut state = create_test_app_state();
+        state.dirty = false;
+
+        state.next_help_section();
+        assert!(state.is_dirty());
+
+        state.dirty = false;
+        state.previous_help_section();
+        assert!(state.is_dirty());
+    }
+
+    #[test]
+    fn test_clear_notification_when_none() {
+        let mut state = create_test_app_state();
+        assert!(state.notification.is_none());
+
+        // Should not panic
+        state.clear_notification();
+        assert!(state.notification.is_none());
+    }
+
+    #[test]
+    fn test_check_notification_timeout_when_none() {
+        let mut state = create_test_app_state();
+        assert!(state.notification.is_none());
+
+        // Should not panic
+        state.check_notification_timeout();
+        assert!(state.notification.is_none());
+    }
 }
