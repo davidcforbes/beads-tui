@@ -19,5 +19,5 @@ pub use help_view::{HelpSection, HelpView};
 pub use issue_detail::IssueDetailView;
 pub use issue_editor::{IssueEditorState, IssueEditorView};
 pub use issues_view::{IssuesView, IssuesViewMode, IssuesViewState};
-pub use labels_view::{compute_label_stats, LabelStats, LabelsView};
+pub use labels_view::{compute_label_stats, LabelStats, LabelsView, LabelsViewState};
 pub use search_interface::{SearchInterfaceState, SearchInterfaceView, SearchScope};

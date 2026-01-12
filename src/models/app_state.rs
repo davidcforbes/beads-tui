@@ -2,6 +2,7 @@
 use crate::beads::BeadsClient;
 use crate::ui::views::{
     compute_label_stats, DatabaseStats, DatabaseStatus, HelpSection, IssuesViewState, LabelStats,
+    LabelsViewState,
 };
 use crate::ui::widgets::DialogState;
 
@@ -30,6 +31,7 @@ pub struct AppState {
     pub tabs: Vec<&'static str>,
     pub beads_client: BeadsClient,
     pub issues_view_state: IssuesViewState,
+    pub labels_view_state: LabelsViewState,
     pub label_stats: Vec<LabelStats>,
     pub database_stats: DatabaseStats,
     pub database_status: DatabaseStatus,
@@ -80,6 +82,7 @@ impl AppState {
             tabs: vec!["Issues", "Dependencies", "Labels", "Database", "Help"],
             beads_client,
             issues_view_state: IssuesViewState::new(issues),
+            labels_view_state: LabelsViewState::new(),
             label_stats,
             database_stats,
             database_status: DatabaseStatus::Ready,

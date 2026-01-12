@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Widget},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, StatefulWidget, Widget},
 };
 use std::collections::HashMap;
 
@@ -18,6 +18,97 @@ pub struct LabelStats {
     pub count: usize,
     /// Color for the label (optional)
     pub color: Option<Color>,
+}
+
+/// Labels view state for tracking selection and interaction
+#[derive(Debug)]
+pub struct LabelsViewState {
+    list_state: ListState,
+    search_query: String,
+}
+
+impl Default for LabelsViewState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl LabelsViewState {
+    /// Create a new labels view state
+    pub fn new() -> Self {
+        let mut list_state = ListState::default();
+        list_state.select(Some(0));
+        Self {
+            list_state,
+            search_query: String::new(),
+        }
+    }
+
+    /// Get the list state
+    pub fn list_state(&self) -> &ListState {
+        &self.list_state
+    }
+
+    /// Get mutable list state
+    pub fn list_state_mut(&mut self) -> &mut ListState {
+        &mut self.list_state
+    }
+
+    /// Get selected index
+    pub fn selected(&self) -> Option<usize> {
+        self.list_state.selected()
+    }
+
+    /// Select next label
+    pub fn select_next(&mut self, len: usize) {
+        if len == 0 {
+            return;
+        }
+        let i = match self.list_state.selected() {
+            Some(i) => {
+                if i >= len - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.list_state.select(Some(i));
+    }
+
+    /// Select previous label
+    pub fn select_previous(&mut self, len: usize) {
+        if len == 0 {
+            return;
+        }
+        let i = match self.list_state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    len - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.list_state.select(Some(i));
+    }
+
+    /// Get search query
+    pub fn search_query(&self) -> &str {
+        &self.search_query
+    }
+
+    /// Set search query
+    pub fn set_search_query(&mut self, query: String) {
+        self.search_query = query;
+    }
+
+    /// Clear search
+    pub fn clear_search(&mut self) {
+        self.search_query.clear();
+    }
 }
 
 /// Labels view widget
@@ -86,7 +177,7 @@ impl<'a> LabelsView<'a> {
         summary.render(area, buf);
     }
 
-    fn render_labels_list(&self, area: Rect, buf: &mut Buffer) {
+    fn render_labels_list(&self, area: Rect, buf: &mut Buffer, state: &mut ListState) {
         let label_items: Vec<ListItem> = if self.labels.is_empty() {
             vec![ListItem::new(Line::from(Span::styled(
                 "No labels found",
@@ -114,14 +205,22 @@ impl<'a> LabelsView<'a> {
                 .collect()
         };
 
-        let labels_list = List::new(label_items).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(format!("Labels ({})", self.labels.len()))
-                .style(self.block_style),
-        );
+        let labels_list = List::new(label_items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(format!("Labels ({})", self.labels.len()))
+                    .style(self.block_style),
+            )
+            .highlight_style(
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .highlight_symbol("▶ ");
 
-        labels_list.render(area, buf);
+        StatefulWidget::render(labels_list, area, buf, state);
     }
 
     fn render_help(&self, area: Rect, buf: &mut Buffer) {
@@ -141,8 +240,10 @@ impl<'a> Default for LabelsView<'a> {
     }
 }
 
-impl<'a> Widget for LabelsView<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
+impl<'a> StatefulWidget for LabelsView<'a> {
+    type State = LabelsViewState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         // Create layout: summary (7) + labels list (fill) + help (1)
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -155,7 +256,7 @@ impl<'a> Widget for LabelsView<'a> {
 
         // Render components
         self.render_summary(chunks[0], buf);
-        self.render_labels_list(chunks[1], buf);
+        self.render_labels_list(chunks[1], buf, &mut state.list_state);
         self.render_help(chunks[2], buf);
     }
 }

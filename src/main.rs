@@ -682,10 +682,54 @@ fn handle_dependencies_view_event(_key_code: KeyCode, _app: &mut models::AppStat
 }
 
 /// Handle keyboard events for the Labels view
-/// See beads-tui-0san for implementation
-fn handle_labels_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
-    // Requires: selection state for labels list, input dialog widget, label editor
-    // Controls: a (add), d (delete), e (edit), s (stats), / (search)
+fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
+    let labels_len = app.label_stats.len();
+
+    match key_code {
+        KeyCode::Char('j') | KeyCode::Down => {
+            app.labels_view_state.select_next(labels_len);
+            app.mark_dirty();
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            app.labels_view_state.select_previous(labels_len);
+            app.mark_dirty();
+        }
+        KeyCode::Char('a') => {
+            // Add label - show notification for now (needs input dialog widget)
+            app.set_info("Add label: Not yet implemented (requires input dialog)".to_string());
+            tracing::info!("Add label requested");
+        }
+        KeyCode::Char('d') => {
+            // Delete selected label
+            if let Some(selected_idx) = app.labels_view_state.selected() {
+                if selected_idx < app.label_stats.len() {
+                    let label_name = app.label_stats[selected_idx].name.clone();
+                    app.set_info(format!("Delete label '{}': Not yet implemented", label_name));
+                    tracing::info!("Delete label requested: {}", label_name);
+                }
+            }
+        }
+        KeyCode::Char('e') => {
+            // Edit selected label
+            if let Some(selected_idx) = app.labels_view_state.selected() {
+                if selected_idx < app.label_stats.len() {
+                    let label_name = app.label_stats[selected_idx].name.clone();
+                    app.set_info(format!("Edit label '{}': Not yet implemented", label_name));
+                    tracing::info!("Edit label requested: {}", label_name);
+                }
+            }
+        }
+        KeyCode::Char('s') => {
+            // Show statistics - already visible in the view
+            app.set_info("Label statistics are displayed in the summary panel".to_string());
+        }
+        KeyCode::Char('/') => {
+            // Search labels
+            app.set_info("Search labels: Not yet implemented (requires search input widget)".to_string());
+            tracing::info!("Search labels requested");
+        }
+        _ => {}
+    }
 }
 
 /// Handle keyboard events for the Database view
@@ -988,7 +1032,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         2 => {
             // Labels view
             let labels_view = LabelsView::new().labels(app.label_stats.clone());
-            f.render_widget(labels_view, tabs_chunks[1]);
+            f.render_stateful_widget(labels_view, tabs_chunks[1], &mut app.labels_view_state);
         }
         3 => {
             // Database view
