@@ -440,4 +440,293 @@ mod tests {
         // Should have commands available in all contexts
         assert!(palette.available_command_count() > 0);
     }
+
+    #[test]
+    fn test_app_context_equality() {
+        assert_eq!(AppContext::Global, AppContext::Global);
+        assert_eq!(AppContext::Issues, AppContext::Issues);
+        assert_eq!(AppContext::IssueDetail, AppContext::IssueDetail);
+        assert_eq!(AppContext::Dependencies, AppContext::Dependencies);
+        assert_eq!(AppContext::DependencyGraph, AppContext::DependencyGraph);
+        assert_eq!(AppContext::Labels, AppContext::Labels);
+        assert_eq!(AppContext::Database, AppContext::Database);
+        assert_eq!(AppContext::Help, AppContext::Help);
+        assert_eq!(AppContext::Settings, AppContext::Settings);
+
+        assert_ne!(AppContext::Global, AppContext::Issues);
+        assert_ne!(AppContext::Dependencies, AppContext::Labels);
+    }
+
+    #[test]
+    fn test_command_category_display() {
+        assert_eq!(CommandCategory::Navigation.to_string(), "Navigation");
+        assert_eq!(CommandCategory::Issue.to_string(), "Issue");
+        assert_eq!(CommandCategory::Dependency.to_string(), "Dependency");
+        assert_eq!(CommandCategory::Label.to_string(), "Label");
+        assert_eq!(CommandCategory::Database.to_string(), "Database");
+        assert_eq!(CommandCategory::View.to_string(), "View");
+        assert_eq!(CommandCategory::System.to_string(), "System");
+    }
+
+    #[test]
+    fn test_command_category_equality() {
+        assert_eq!(CommandCategory::Navigation, CommandCategory::Navigation);
+        assert_ne!(CommandCategory::Issue, CommandCategory::View);
+    }
+
+    #[test]
+    fn test_command_creation() {
+        let cmd = Command {
+            id: "test.command".to_string(),
+            name: "Test Command".to_string(),
+            description: "A test command".to_string(),
+            category: CommandCategory::System,
+            keys: vec!["t".to_string()],
+            contexts: vec![AppContext::Global],
+        };
+
+        assert_eq!(cmd.id, "test.command");
+        assert_eq!(cmd.name, "Test Command");
+        assert_eq!(cmd.description, "A test command");
+        assert_eq!(cmd.category, CommandCategory::System);
+        assert_eq!(cmd.keys.len(), 1);
+        assert_eq!(cmd.contexts.len(), 1);
+    }
+
+    #[test]
+    fn test_command_clone() {
+        let cmd = Command {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            description: "Desc".to_string(),
+            category: CommandCategory::View,
+            keys: vec!["k".to_string()],
+            contexts: vec![AppContext::Global, AppContext::Issues],
+        };
+
+        let cloned = cmd.clone();
+        assert_eq!(cmd, cloned);
+    }
+
+    #[test]
+    fn test_command_palette_default() {
+        let palette = CommandPalette::default();
+        assert!(!palette.commands.is_empty());
+        assert_eq!(palette.selected_index, 0);
+    }
+
+    #[test]
+    fn test_command_palette_default_same_as_new() {
+        let default_palette = CommandPalette::default();
+        let new_palette = CommandPalette::new();
+        assert_eq!(default_palette.commands.len(), new_palette.commands.len());
+    }
+
+    #[test]
+    fn test_query_initial_value() {
+        let palette = CommandPalette::new();
+        assert_eq!(palette.query(), "");
+    }
+
+    #[test]
+    fn test_set_query_updates_query() {
+        let mut palette = CommandPalette::new();
+        palette.set_query("test".to_string());
+        assert_eq!(palette.query(), "test");
+    }
+
+    #[test]
+    fn test_set_query_resets_selection() {
+        let mut palette = CommandPalette::new();
+        palette.selected_index = 5;
+        palette.set_query("new query".to_string());
+        assert_eq!(palette.selected_index, 0);
+    }
+
+    #[test]
+    fn test_search_empty_query() {
+        let palette = CommandPalette::new();
+        let results = palette.search();
+        assert!(!results.is_empty());
+        // Empty query should return all context-filtered commands with score 0
+        for (_, score) in &results {
+            assert_eq!(*score, 0);
+        }
+    }
+
+    #[test]
+    fn test_search_non_matching_query() {
+        let mut palette = CommandPalette::new();
+        palette.set_query("xyzabc123nonexistent".to_string());
+        let results = palette.search();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_selected_none_when_no_match() {
+        let mut palette = CommandPalette::new();
+        palette.set_query("xyzabc123nonexistent".to_string());
+        assert!(palette.selected().is_none());
+    }
+
+    #[test]
+    fn test_selected_some_when_match() {
+        let palette = CommandPalette::new();
+        assert!(palette.selected().is_some());
+    }
+
+    #[test]
+    fn test_select_previous_at_zero() {
+        let mut palette = CommandPalette::new();
+        assert_eq!(palette.selected_index, 0);
+        palette.select_previous();
+        assert_eq!(palette.selected_index, 0); // Should stay at 0
+    }
+
+    #[test]
+    fn test_select_next_at_max() {
+        let mut palette = CommandPalette::new();
+        let max = palette.search().len().saturating_sub(1);
+        palette.selected_index = max;
+        palette.select_next();
+        assert_eq!(palette.selected_index, max); // Should stay at max
+    }
+
+    #[test]
+    fn test_add_to_history() {
+        let mut palette = CommandPalette::new();
+        assert!(palette.history().is_empty());
+
+        palette.add_to_history("cmd1".to_string());
+        assert_eq!(palette.history().len(), 1);
+        assert_eq!(palette.history()[0], "cmd1");
+
+        palette.add_to_history("cmd2".to_string());
+        assert_eq!(palette.history().len(), 2);
+        assert_eq!(palette.history()[1], "cmd2");
+    }
+
+    #[test]
+    fn test_add_to_history_respects_max() {
+        let mut palette = CommandPalette::new();
+        palette.max_history = 3;
+
+        palette.add_to_history("cmd1".to_string());
+        palette.add_to_history("cmd2".to_string());
+        palette.add_to_history("cmd3".to_string());
+        assert_eq!(palette.history().len(), 3);
+
+        palette.add_to_history("cmd4".to_string());
+        assert_eq!(palette.history().len(), 3); // Should not exceed max
+        assert_eq!(palette.history()[0], "cmd2"); // First one removed
+        assert_eq!(palette.history()[2], "cmd4"); // New one added
+    }
+
+    #[test]
+    fn test_history_initial_empty() {
+        let palette = CommandPalette::new();
+        assert!(palette.history().is_empty());
+    }
+
+    #[test]
+    fn test_get_command_exists() {
+        let palette = CommandPalette::new();
+        let cmd = palette.get_command("nav.issues");
+        assert!(cmd.is_some());
+        assert_eq!(cmd.unwrap().id, "nav.issues");
+    }
+
+    #[test]
+    fn test_get_command_not_exists() {
+        let palette = CommandPalette::new();
+        let cmd = palette.get_command("nonexistent.command");
+        assert!(cmd.is_none());
+    }
+
+    #[test]
+    fn test_add_command_increases_count() {
+        let mut palette = CommandPalette::new();
+        let initial_count = palette.commands.len();
+
+        palette.add_command(Command {
+            id: "custom.cmd".to_string(),
+            name: "Custom".to_string(),
+            description: "Custom command".to_string(),
+            category: CommandCategory::System,
+            keys: vec![],
+            contexts: vec![AppContext::Global],
+        });
+
+        assert_eq!(palette.commands.len(), initial_count + 1);
+    }
+
+    #[test]
+    fn test_context_returns_current() {
+        let mut palette = CommandPalette::new();
+        assert_eq!(palette.context(), AppContext::Global);
+
+        palette.set_context(AppContext::Labels);
+        assert_eq!(palette.context(), AppContext::Labels);
+    }
+
+    #[test]
+    fn test_search_sorts_by_score() {
+        let mut palette = CommandPalette::new();
+        palette.set_query("go".to_string());
+
+        let results = palette.search();
+        if results.len() > 1 {
+            // Verify sorted in descending order by score
+            for i in 0..results.len() - 1 {
+                assert!(results[i].1 >= results[i + 1].1);
+            }
+        }
+    }
+
+    #[test]
+    fn test_multiple_contexts_in_command() {
+        let mut palette = CommandPalette::new();
+        palette.add_command(Command {
+            id: "multi.context".to_string(),
+            name: "Multi Context".to_string(),
+            description: "Available in multiple contexts".to_string(),
+            category: CommandCategory::View,
+            keys: vec![],
+            contexts: vec![AppContext::Issues, AppContext::Labels],
+        });
+
+        // Should be visible in Issues context
+        palette.set_context(AppContext::Issues);
+        let issues_results = palette.search();
+        assert!(issues_results.iter().any(|(cmd, _)| cmd.id == "multi.context"));
+
+        // Should be visible in Labels context
+        palette.set_context(AppContext::Labels);
+        let labels_results = palette.search();
+        assert!(labels_results.iter().any(|(cmd, _)| cmd.id == "multi.context"));
+
+        // Should NOT be visible in Database context
+        palette.set_context(AppContext::Database);
+        let database_results = palette.search();
+        assert!(!database_results
+            .iter()
+            .any(|(cmd, _)| cmd.id == "multi.context"));
+    }
+
+    #[test]
+    fn test_command_with_multiple_keys() {
+        let mut palette = CommandPalette::new();
+        palette.add_command(Command {
+            id: "multi.key".to_string(),
+            name: "Multi Key".to_string(),
+            description: "Command with multiple key bindings".to_string(),
+            category: CommandCategory::Navigation,
+            keys: vec!["a".to_string(), "b".to_string(), "c".to_string()],
+            contexts: vec![AppContext::Global],
+        });
+
+        let cmd = palette.get_command("multi.key");
+        assert!(cmd.is_some());
+        assert_eq!(cmd.unwrap().keys.len(), 3);
+    }
 }
