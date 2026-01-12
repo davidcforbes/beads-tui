@@ -872,4 +872,524 @@ mod tests {
         assert_eq!(view.block_style, block_style);
         assert_eq!(view.help_style, help_style);
     }
+
+    // ========== Additional Comprehensive Tests ==========
+
+    #[test]
+    fn test_search_interface_state_debug_trait() {
+        let issues = create_test_issues();
+        let state = SearchInterfaceState::new(issues);
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("SearchInterfaceState"));
+    }
+
+    #[test]
+    fn test_search_scope_debug_trait() {
+        let scope = SearchScope::All;
+        let debug_str = format!("{:?}", scope);
+        assert!(debug_str.contains("All"));
+    }
+
+    #[test]
+    fn test_search_scope_copy_trait() {
+        let scope1 = SearchScope::Title;
+        let scope2 = scope1; // Copy
+        assert_eq!(scope1, scope2);
+
+        let scope3 = SearchScope::All;
+        let scope4 = scope3; // Copy
+        assert_eq!(scope3, scope4);
+    }
+
+    #[test]
+    fn test_all_search_scope_variants() {
+        let scopes = vec![
+            SearchScope::Title,
+            SearchScope::Description,
+            SearchScope::Notes,
+            SearchScope::All,
+        ];
+
+        for scope in &scopes {
+            assert!(!scope.display_name().is_empty());
+        }
+
+        // Verify all are distinct
+        assert_ne!(scopes[0], scopes[1]);
+        assert_ne!(scopes[1], scopes[2]);
+        assert_ne!(scopes[2], scopes[3]);
+    }
+
+    #[test]
+    fn test_search_interface_view_builder_order_independence() {
+        let block_style = Style::default().fg(Color::Green);
+        let help_style = Style::default().fg(Color::Yellow);
+
+        let view1 = SearchInterfaceView::new()
+            .block_style(block_style)
+            .help_style(help_style);
+
+        let view2 = SearchInterfaceView::new()
+            .help_style(help_style)
+            .block_style(block_style);
+
+        assert_eq!(view1.block_style, view2.block_style);
+        assert_eq!(view1.help_style, view2.help_style);
+    }
+
+    #[test]
+    fn test_search_interface_view_multiple_setter_applications() {
+        let style1 = Style::default().fg(Color::Red);
+        let style2 = Style::default().fg(Color::Blue);
+        let style3 = Style::default().fg(Color::Green);
+
+        let view = SearchInterfaceView::new()
+            .block_style(style1)
+            .block_style(style2)
+            .block_style(style3);
+
+        assert_eq!(view.block_style, style3); // Last wins
+    }
+
+    #[test]
+    fn test_search_with_very_long_query() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        let long_query = "x".repeat(1000);
+        state.search_state_mut().set_query(&long_query);
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), 0); // Should not match anything
+    }
+
+    #[test]
+    fn test_search_with_special_characters() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.search_state_mut().set_query("@#$%");
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), 0);
+    }
+
+    #[test]
+    fn test_search_with_unicode() {
+        let mut issues = create_test_issues();
+        issues[0].title = "测试 Unicode search".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.search_state_mut().set_query("测试");
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-001");
+    }
+
+    #[test]
+    fn test_multiple_search_updates() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.search_state_mut().set_query("search");
+        state.update_filtered_issues();
+        assert_eq!(state.result_count(), 1);
+
+        state.search_state_mut().set_query("bug");
+        state.update_filtered_issues();
+        assert_eq!(state.result_count(), 1);
+
+        state.search_state_mut().set_query("editor");
+        state.update_filtered_issues();
+        assert_eq!(state.result_count(), 1);
+
+        state.clear_search();
+        assert_eq!(state.result_count(), 3);
+    }
+
+    #[test]
+    fn test_search_scope_cycling_complete_loop() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        let initial = state.search_scope();
+
+        state.next_search_scope();
+        state.next_search_scope();
+        state.next_search_scope();
+        state.next_search_scope();
+
+        assert_eq!(state.search_scope(), initial); // Full cycle
+    }
+
+    #[test]
+    fn test_set_search_scope_directly_all_variants() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::Title);
+        assert_eq!(state.search_scope(), SearchScope::Title);
+
+        state.set_search_scope(SearchScope::Description);
+        assert_eq!(state.search_scope(), SearchScope::Description);
+
+        state.set_search_scope(SearchScope::Notes);
+        assert_eq!(state.search_scope(), SearchScope::Notes);
+
+        state.set_search_scope(SearchScope::All);
+        assert_eq!(state.search_scope(), SearchScope::All);
+    }
+
+    #[test]
+    fn test_filtered_issues_preserves_order() {
+        let issues = create_test_issues();
+        let state = SearchInterfaceState::new(issues);
+
+        // Should preserve original order
+        assert_eq!(state.filtered_issues()[0].id, "beads-001");
+        assert_eq!(state.filtered_issues()[1].id, "beads-002");
+        assert_eq!(state.filtered_issues()[2].id, "beads-003");
+    }
+
+    #[test]
+    fn test_search_with_partial_match_in_title() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::Title);
+        state.search_state_mut().set_query("fix");
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), 1);
+        assert!(state.filtered_issues()[0].title.to_lowercase().contains("fix"));
+    }
+
+    #[test]
+    fn test_search_with_partial_match_in_description() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::Description);
+        state.search_state_mut().set_query("text");
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-002");
+    }
+
+    #[test]
+    fn test_result_count_consistency() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        assert_eq!(state.result_count(), state.filtered_issues().len());
+
+        state.search_state_mut().set_query("bug");
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), state.filtered_issues().len());
+    }
+
+    #[test]
+    fn test_selected_issue_after_filter_change() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.list_state_mut().select(Some(0));
+        let selected_before = state.selected_issue().map(|i| i.id.clone());
+
+        state.search_state_mut().set_query("bug");
+        state.update_filtered_issues();
+
+        let selected_after = state.selected_issue().map(|i| i.id.clone());
+
+        // Selection should reset to first match
+        assert_ne!(selected_before, selected_after);
+    }
+
+    #[test]
+    fn test_help_toggle_multiple_times() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        for i in 0..10 {
+            state.toggle_help();
+            if i % 2 == 0 {
+                assert!(!state.is_help_visible());
+            } else {
+                assert!(state.is_help_visible());
+            }
+        }
+    }
+
+    #[test]
+    fn test_set_issues_clears_previous_results() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        assert_eq!(state.result_count(), 3);
+
+        let new_issues = vec![];
+        state.set_issues(new_issues);
+
+        assert_eq!(state.result_count(), 0);
+    }
+
+    #[test]
+    fn test_search_all_with_multiple_matches() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::All);
+        state.search_state_mut().set_query("beads");
+        state.update_filtered_issues();
+
+        // All issues have "beads" in their ID
+        assert_eq!(state.result_count(), 3);
+    }
+
+    #[test]
+    fn test_search_title_with_no_match_in_description() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::Title);
+        state.search_state_mut().set_query("crashes");
+        state.update_filtered_issues();
+
+        // "crashes" is in description, not title
+        assert_eq!(state.result_count(), 0);
+    }
+
+    #[test]
+    fn test_search_description_with_no_match_in_title() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::Description);
+        state.search_state_mut().set_query("implement");
+        state.update_filtered_issues();
+
+        // "implement" is in title, not description
+        assert_eq!(state.result_count(), 0);
+    }
+
+    #[test]
+    fn test_clear_search_resets_to_all_issues() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.search_state_mut().set_query("bug");
+        state.update_filtered_issues();
+        assert_eq!(state.result_count(), 1);
+
+        state.clear_search();
+        assert_eq!(state.result_count(), 3);
+        assert_eq!(state.search_state().query(), "");
+    }
+
+    #[test]
+    fn test_search_state_mut_allows_modifications() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.search_state_mut().set_query("test");
+        assert_eq!(state.search_state().query(), "test");
+
+        state.search_state_mut().clear();
+        assert_eq!(state.search_state().query(), "");
+    }
+
+    #[test]
+    fn test_list_state_mut_allows_modifications() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.list_state_mut().select(Some(2));
+        assert_eq!(state.list_state().selected(), Some(2));
+
+        state.list_state_mut().select(None);
+        assert_eq!(state.list_state().selected(), None);
+    }
+
+    #[test]
+    fn test_filtered_issues_empty_after_no_match_search() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.search_state_mut().set_query("zzzznonexistent");
+        state.update_filtered_issues();
+
+        assert!(state.filtered_issues().is_empty());
+        assert_eq!(state.result_count(), 0);
+    }
+
+    #[test]
+    fn test_selected_issue_with_single_result() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.search_state_mut().set_query("bug");
+        state.update_filtered_issues();
+
+        state.list_state_mut().select(Some(0));
+        let selected = state.selected_issue();
+
+        assert!(selected.is_some());
+        assert_eq!(selected.unwrap().id, "beads-002");
+    }
+
+    #[test]
+    fn test_update_filtered_issues_with_empty_filter_to_none_selection() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.list_state_mut().select(Some(1));
+        state.search_state_mut().set_query("nonexistent");
+        state.update_filtered_issues();
+
+        // Selection should become None when no results
+        assert_eq!(state.list_state().selected(), None);
+    }
+
+    #[test]
+    fn test_search_scope_all_includes_all_scopes() {
+        let mut issues = create_test_issues();
+
+        // Add content to all searchable fields
+        issues[0].title = "title_match".to_string();
+        issues[1].description = Some("description_match".to_string());
+        
+        use crate::beads::models::Note;
+        issues[2].notes.push(Note {
+            timestamp: Utc::now(),
+            author: "test".to_string(),
+            content: "notes_match".to_string(),
+        });
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::All);
+
+        // Should match title
+        state.search_state_mut().set_query("title_match");
+        state.update_filtered_issues();
+        assert_eq!(state.result_count(), 1);
+
+        // Should match description
+        state.search_state_mut().set_query("description_match");
+        state.update_filtered_issues();
+        assert_eq!(state.result_count(), 1);
+
+        // Should match notes
+        state.search_state_mut().set_query("notes_match");
+        state.update_filtered_issues();
+        assert_eq!(state.result_count(), 1);
+    }
+
+    #[test]
+    fn test_search_with_whitespace() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.search_state_mut().set_query("  search  ");
+        state.update_filtered_issues();
+
+        // Whitespace is not trimmed, so won't match
+        assert_eq!(state.result_count(), 0);
+    }
+
+    #[test]
+    fn test_cycle_search_scope_from_each_start() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Start from Title
+        state.set_search_scope(SearchScope::Title);
+        state.next_search_scope();
+        assert_eq!(state.search_scope(), SearchScope::Description);
+
+        // Start from Description
+        state.set_search_scope(SearchScope::Description);
+        state.next_search_scope();
+        assert_eq!(state.search_scope(), SearchScope::Notes);
+
+        // Start from Notes
+        state.set_search_scope(SearchScope::Notes);
+        state.next_search_scope();
+        assert_eq!(state.search_scope(), SearchScope::All);
+
+        // Start from All
+        state.set_search_scope(SearchScope::All);
+        state.next_search_scope();
+        assert_eq!(state.search_scope(), SearchScope::Title);
+    }
+
+    #[test]
+    fn test_filtered_issues_slice_vs_vec() {
+        let issues = create_test_issues();
+        let state = SearchInterfaceState::new(issues.clone());
+
+        let filtered_slice = state.filtered_issues();
+        assert_eq!(filtered_slice.len(), issues.len());
+
+        // Verify it returns a slice
+        for (i, issue) in filtered_slice.iter().enumerate() {
+            assert_eq!(issue.id, issues[i].id);
+        }
+    }
+
+    #[test]
+    fn test_search_case_insensitive_all_scopes() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Title scope
+        state.set_search_scope(SearchScope::Title);
+        state.search_state_mut().set_query("SEARCH");
+        state.update_filtered_issues();
+        assert_eq!(state.result_count(), 1);
+
+        // Description scope
+        state.set_search_scope(SearchScope::Description);
+        state.search_state_mut().set_query("CRASHES");
+        state.update_filtered_issues();
+        assert_eq!(state.result_count(), 1);
+
+        // All scope
+        state.set_search_scope(SearchScope::All);
+        state.search_state_mut().set_query("ALICE");
+        state.update_filtered_issues();
+        assert_eq!(state.result_count(), 1);
+    }
+
+    #[test]
+    fn test_search_interface_state_initial_help_visible() {
+        let issues = create_test_issues();
+        let state = SearchInterfaceState::new(issues);
+
+        assert!(state.is_help_visible());
+    }
+
+    #[test]
+    fn test_search_with_numbers() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.search_state_mut().set_query("001");
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-001");
+    }
+
+    #[test]
+    fn test_result_count_zero_with_empty_issues() {
+        let issues = vec![];
+        let state = SearchInterfaceState::new(issues);
+
+        assert_eq!(state.result_count(), 0);
+    }
 }
