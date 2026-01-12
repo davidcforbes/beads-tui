@@ -564,4 +564,216 @@ mod tests {
         assert_eq!(BulkAction::Delete.icon(), "✗");
         assert_eq!(BulkAction::Cancel.icon(), "←");
     }
+
+    #[test]
+    fn test_bulk_action_clone() {
+        let action = BulkAction::Close;
+        let cloned = action.clone();
+        assert_eq!(action, cloned);
+    }
+
+    #[test]
+    fn test_bulk_action_equality() {
+        assert_eq!(BulkAction::Close, BulkAction::Close);
+        assert_ne!(BulkAction::Close, BulkAction::Reopen);
+        assert_eq!(BulkAction::SetPriority, BulkAction::SetPriority);
+    }
+
+    #[test]
+    fn test_all_bulk_actions_display_names() {
+        // Verify all actions have display names
+        for action in BulkAction::all() {
+            assert!(!action.display_name().is_empty());
+        }
+    }
+
+    #[test]
+    fn test_all_bulk_actions_icons() {
+        // Verify all actions have icons
+        for action in BulkAction::all() {
+            assert!(!action.icon().is_empty());
+        }
+    }
+
+    #[test]
+    fn test_all_bulk_actions_colors() {
+        // Verify all actions have colors (shouldn't panic)
+        for action in BulkAction::all() {
+            let _ = action.color();
+        }
+    }
+
+    #[test]
+    fn test_bulk_action_all_count() {
+        let all_actions = BulkAction::all();
+        assert_eq!(all_actions.len(), 12); // Should have exactly 12 actions
+    }
+
+    #[test]
+    fn test_bulk_action_all_contains_cancel() {
+        let all_actions = BulkAction::all();
+        assert!(all_actions.contains(&BulkAction::Cancel));
+    }
+
+    #[test]
+    fn test_bulk_action_menu_state_clone() {
+        let state = BulkActionMenuState::new(5);
+        let cloned = state.clone();
+        
+        assert_eq!(cloned.selected_count(), state.selected_count());
+        assert_eq!(cloned.highlighted_action(), state.highlighted_action());
+        assert_eq!(cloned.confirmed_action(), state.confirmed_action());
+    }
+
+    #[test]
+    fn test_bulk_action_menu_state_default() {
+        let state = BulkActionMenuState::default();
+        assert_eq!(state.selected_count(), 0);
+        assert!(state.highlighted_action().is_some()); // Should select first action
+    }
+
+    #[test]
+    fn test_highlighted_action_with_no_selection() {
+        let mut state = BulkActionMenuState::new(5);
+        state.list_state.select(None);
+        
+        assert_eq!(state.highlighted_action(), None);
+    }
+
+    #[test]
+    fn test_navigation_with_empty_actions() {
+        let mut state = BulkActionMenuState::with_actions(Vec::new(), 0);
+        
+        // Navigation should be no-op with empty actions
+        state.select_next();
+        assert_eq!(state.highlighted_action(), None);
+        
+        state.select_previous();
+        assert_eq!(state.highlighted_action(), None);
+    }
+
+    #[test]
+    fn test_navigation_with_single_action() {
+        let actions = vec![BulkAction::Close];
+        let mut state = BulkActionMenuState::with_actions(actions, 1);
+        
+        let initial = state.highlighted_action();
+        
+        // Next should wrap to same (only one item)
+        state.select_next();
+        assert_eq!(state.highlighted_action(), initial);
+        
+        // Previous should wrap to same
+        state.select_previous();
+        assert_eq!(state.highlighted_action(), initial);
+    }
+
+    #[test]
+    fn test_confirm_selection_with_no_highlighted() {
+        let mut state = BulkActionMenuState::new(5);
+        state.list_state.select(None);
+        
+        let confirmed = state.confirm_selection();
+        assert_eq!(confirmed, None);
+        assert_eq!(state.confirmed_action(), None);
+    }
+
+    #[test]
+    fn test_confirm_selection_multiple_times() {
+        let mut state = BulkActionMenuState::new(5);
+        
+        let first = state.confirm_selection();
+        assert!(first.is_some());
+        
+        // Confirm again should return same action
+        let second = state.confirm_selection();
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn test_reset_multiple_times() {
+        let mut state = BulkActionMenuState::new(5);
+        
+        state.select_next();
+        state.confirm_selection();
+        
+        state.reset();
+        assert_eq!(state.list_state.selected(), Some(0));
+        
+        // Reset again should be idempotent
+        state.reset();
+        assert_eq!(state.list_state.selected(), Some(0));
+        assert_eq!(state.confirmed_action(), None);
+    }
+
+    #[test]
+    fn test_set_selected_count_zero() {
+        let mut state = BulkActionMenuState::new(10);
+        state.set_selected_count(0);
+        
+        assert_eq!(state.selected_count(), 0);
+    }
+
+    #[test]
+    fn test_set_selected_count_large() {
+        let mut state = BulkActionMenuState::new(1);
+        state.set_selected_count(1000);
+        
+        assert_eq!(state.selected_count(), 1000);
+    }
+
+    #[test]
+    fn test_actions_getter() {
+        let custom_actions = vec![BulkAction::Close, BulkAction::Reopen];
+        let state = BulkActionMenuState::with_actions(custom_actions.clone(), 2);
+        
+        assert_eq!(state.actions(), &custom_actions);
+    }
+
+    #[test]
+    fn test_clear_confirmed_when_none() {
+        let mut state = BulkActionMenuState::new(5);
+        
+        // Clear when nothing is confirmed should be no-op
+        state.clear_confirmed();
+        assert_eq!(state.confirmed_action(), None);
+    }
+
+    #[test]
+    fn test_is_destructive_for_all_actions() {
+        // Only Close and Delete should be destructive
+        assert!(BulkAction::Close.is_destructive());
+        assert!(BulkAction::Delete.is_destructive());
+        
+        // All others should not be
+        assert!(!BulkAction::Reopen.is_destructive());
+        assert!(!BulkAction::SetInProgress.is_destructive());
+        assert!(!BulkAction::SetBlocked.is_destructive());
+        assert!(!BulkAction::SetPriority.is_destructive());
+        assert!(!BulkAction::AddLabels.is_destructive());
+        assert!(!BulkAction::RemoveLabels.is_destructive());
+        assert!(!BulkAction::SetAssignee.is_destructive());
+        assert!(!BulkAction::ClearAssignee.is_destructive());
+        assert!(!BulkAction::Export.is_destructive());
+        assert!(!BulkAction::Cancel.is_destructive());
+    }
+
+    #[test]
+    fn test_requires_input_for_all_actions() {
+        // These should require input
+        assert!(BulkAction::SetPriority.requires_input());
+        assert!(BulkAction::AddLabels.requires_input());
+        assert!(BulkAction::RemoveLabels.requires_input());
+        assert!(BulkAction::SetAssignee.requires_input());
+        assert!(BulkAction::Export.requires_input());
+        
+        // All others should not require input
+        assert!(!BulkAction::Close.requires_input());
+        assert!(!BulkAction::Reopen.requires_input());
+        assert!(!BulkAction::SetInProgress.requires_input());
+        assert!(!BulkAction::SetBlocked.requires_input());
+        assert!(!BulkAction::ClearAssignee.requires_input());
+        assert!(!BulkAction::Delete.requires_input());
+        assert!(!BulkAction::Cancel.requires_input());
+    }
 }
