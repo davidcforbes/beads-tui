@@ -421,4 +421,229 @@ mod tests {
         assert_eq!(config.max_labels, 3);
         assert_eq!(config.separator, " • ");
     }
+
+    #[test]
+    fn test_metadata_display_config_clone() {
+        let config = MetadataDisplayConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.show_labels, cloned.show_labels);
+        assert_eq!(config.show_assignee, cloned.show_assignee);
+        assert_eq!(config.show_age, cloned.show_age);
+        assert_eq!(config.max_labels, cloned.max_labels);
+        assert_eq!(config.separator, cloned.separator);
+    }
+
+    #[test]
+    fn test_metadata_display_config_new_equals_default() {
+        let new_config = MetadataDisplayConfig::new();
+        let default_config = MetadataDisplayConfig::default();
+        assert_eq!(new_config.show_labels, default_config.show_labels);
+        assert_eq!(new_config.show_assignee, default_config.show_assignee);
+        assert_eq!(new_config.max_labels, default_config.max_labels);
+    }
+
+    #[test]
+    fn test_metadata_display_config_builder_chain() {
+        let style = Style::default().fg(Color::Red);
+        let config = MetadataDisplayConfig::new()
+            .show_labels(false)
+            .show_assignee(true)
+            .show_age(false)
+            .show_updated(true)
+            .max_labels(10)
+            .separator(" | ")
+            .label_style(style)
+            .assignee_style(style)
+            .age_style(style);
+
+        assert!(!config.show_labels);
+        assert!(config.show_assignee);
+        assert!(!config.show_age);
+        assert!(config.show_updated);
+        assert_eq!(config.max_labels, 10);
+        assert_eq!(config.separator, " | ");
+        assert_eq!(config.label_style.fg, Some(Color::Red));
+        assert_eq!(config.assignee_style.fg, Some(Color::Red));
+        assert_eq!(config.age_style.fg, Some(Color::Red));
+    }
+
+    #[test]
+    fn test_format_age_boundary_59_seconds() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::seconds(59);
+        assert_eq!(format_age(timestamp), "just now");
+    }
+
+    #[test]
+    fn test_format_age_boundary_60_seconds() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::seconds(60);
+        assert_eq!(format_age(timestamp), "1m ago");
+    }
+
+    #[test]
+    fn test_format_age_boundary_59_minutes() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::minutes(59);
+        assert_eq!(format_age(timestamp), "59m ago");
+    }
+
+    #[test]
+    fn test_format_age_boundary_60_minutes() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::minutes(60);
+        assert_eq!(format_age(timestamp), "1h ago");
+    }
+
+    #[test]
+    fn test_format_age_boundary_23_hours() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::hours(23);
+        assert_eq!(format_age(timestamp), "23h ago");
+    }
+
+    #[test]
+    fn test_format_age_boundary_24_hours() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::hours(24);
+        assert_eq!(format_age(timestamp), "1d ago");
+    }
+
+    #[test]
+    fn test_format_age_boundary_6_days() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::days(6);
+        assert_eq!(format_age(timestamp), "6d ago");
+    }
+
+    #[test]
+    fn test_format_age_boundary_7_days() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::days(7);
+        assert_eq!(format_age(timestamp), "1w ago");
+    }
+
+    #[test]
+    fn test_format_age_boundary_29_days() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::days(29);
+        assert_eq!(format_age(timestamp), "4w ago");
+    }
+
+    #[test]
+    fn test_format_age_boundary_30_days() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::days(30);
+        assert_eq!(format_age(timestamp), "1mo ago");
+    }
+
+    #[test]
+    fn test_format_age_boundary_364_days() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::days(364);
+        assert_eq!(format_age(timestamp), "12mo ago");
+    }
+
+    #[test]
+    fn test_format_age_boundary_365_days() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::days(365);
+        assert_eq!(format_age(timestamp), "1y ago");
+    }
+
+    #[test]
+    fn test_format_labels_max_one() {
+        let labels = vec!["bug".to_string(), "urgent".to_string()];
+        assert_eq!(format_labels(&labels, 1), "#bug +1");
+    }
+
+    #[test]
+    fn test_format_labels_max_exact_count() {
+        let labels = vec!["bug".to_string(), "urgent".to_string()];
+        assert_eq!(format_labels(&labels, 2), "#bug #urgent");
+    }
+
+    #[test]
+    fn test_format_assignee_with_special_chars() {
+        assert_eq!(format_assignee(Some("alice-bob")), "@alice-bob");
+        assert_eq!(format_assignee(Some("alice_bob")), "@alice_bob");
+    }
+
+    #[test]
+    fn test_build_metadata_spans_show_updated_enabled() {
+        let labels: Vec<String> = Vec::new();
+        let created = Utc::now() - chrono::Duration::hours(5);
+        let updated = Some(Utc::now() - chrono::Duration::hours(1));
+        let config = MetadataDisplayConfig::default()
+            .show_labels(false)
+            .show_assignee(false)
+            .show_updated(true);
+
+        let spans = build_metadata_spans(&labels, None, created, updated, &config);
+
+        // Should have: age + sep + updated = 3 spans
+        assert_eq!(spans.len(), 3);
+        assert!(spans.iter().any(|s| s.content.contains("updated")));
+    }
+
+    #[test]
+    fn test_build_metadata_spans_show_updated_no_value() {
+        let labels: Vec<String> = Vec::new();
+        let created = Utc::now() - chrono::Duration::hours(5);
+        let config = MetadataDisplayConfig::default()
+            .show_labels(false)
+            .show_assignee(false)
+            .show_updated(true);
+
+        let spans = build_metadata_spans(&labels, None, created, None, &config);
+
+        // Should have only age (no updated available)
+        assert_eq!(spans.len(), 1);
+        assert!(!spans.iter().any(|s| s.content.contains("updated")));
+    }
+
+    #[test]
+    fn test_build_metadata_spans_all_disabled() {
+        let labels = vec!["bug".to_string()];
+        let assignee = Some("alice");
+        let created = Utc::now() - chrono::Duration::hours(2);
+        let config = MetadataDisplayConfig::default()
+            .show_labels(false)
+            .show_assignee(false)
+            .show_age(false);
+
+        let spans = build_metadata_spans(&labels, assignee, created, None, &config);
+
+        // Should have no spans
+        assert_eq!(spans.len(), 0);
+    }
+
+    #[test]
+    fn test_build_metadata_spans_with_all_features() {
+        let labels = vec!["bug".to_string(), "urgent".to_string(), "backend".to_string()];
+        let assignee = Some("alice");
+        let created = Utc::now() - chrono::Duration::hours(5);
+        let updated = Some(Utc::now() - chrono::Duration::hours(1));
+        let config = MetadataDisplayConfig::default()
+            .show_updated(true)
+            .max_labels(2);
+
+        let spans = build_metadata_spans(&labels, assignee, created, updated, &config);
+
+        // Should have: labels + sep + assignee + sep + age + sep + updated = 7 spans
+        assert_eq!(spans.len(), 7);
+    }
+
+    #[test]
+    fn test_build_metadata_spans_empty_labels_not_shown() {
+        let labels: Vec<String> = Vec::new();
+        let assignee = Some("alice");
+        let created = Utc::now() - chrono::Duration::hours(2);
+        let config = MetadataDisplayConfig::default().show_labels(true);
+
+        let spans = build_metadata_spans(&labels, assignee, created, None, &config);
+
+        // Should not include labels section (empty)
+        assert!(!spans.iter().any(|s| s.content.contains('#')));
+    }
 }
