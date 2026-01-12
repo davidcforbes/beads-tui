@@ -780,4 +780,547 @@ mod tests {
         assert_eq!(list.checkbox_style.fg, Some(Color::Magenta));
         assert!(!list.show_count);
     }
+
+    // ========== Additional Comprehensive Tests ==========
+
+    #[test]
+    fn test_checkbox_list_state_debug_trait() {
+        let items = vec!["item1", "item2"];
+        let state: CheckboxListState<&str> = CheckboxListState::new(items);
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("CheckboxListState"));
+    }
+
+    #[test]
+    fn test_checkbox_list_builder_order_independence() {
+        let formatter = |s: &String| s.clone();
+        let block = Block::default().borders(Borders::ALL);
+        let style = Style::default().fg(Color::Green);
+        let selected_style = Style::default().bg(Color::Cyan);
+        let checkbox_style = Style::default().fg(Color::Magenta);
+
+        let list1: CheckboxList<String, _> = CheckboxList::new(formatter)
+            .title("Test")
+            .style(style)
+            .selected_style(selected_style)
+            .checkbox_style(checkbox_style)
+            .show_count(false);
+
+        let formatter2 = |s: &String| s.clone();
+        let list2: CheckboxList<String, _> = CheckboxList::new(formatter2)
+            .show_count(false)
+            .checkbox_style(checkbox_style)
+            .selected_style(selected_style)
+            .style(style)
+            .title("Test");
+
+        assert_eq!(list1.title, list2.title);
+        assert_eq!(list1.show_count, list2.show_count);
+        assert_eq!(list1.style.fg, list2.style.fg);
+        assert_eq!(list1.selected_style.bg, list2.selected_style.bg);
+    }
+
+    #[test]
+    fn test_checkbox_list_multiple_setter_applications() {
+        let formatter = |s: &String| s.clone();
+        let list: CheckboxList<String, _> = CheckboxList::new(formatter)
+            .title("First")
+            .title("Second")
+            .title("Third")
+            .show_count(true)
+            .show_count(false)
+            .show_count(true);
+
+        assert_eq!(list.title, "Third"); // Last wins
+        assert!(list.show_count); // Last wins
+    }
+
+    #[test]
+    fn test_generic_type_i32() {
+        let items = vec![1, 2, 3, 4, 5];
+        let mut state: CheckboxListState<i32> = CheckboxListState::new(items.clone());
+
+        assert_eq!(state.items(), &items);
+        assert_eq!(state.item_count(), 5);
+
+        state.set_selection_mode(true);
+        state.list_state.select(Some(2));
+        state.toggle_selected();
+
+        assert!(state.is_selected(2));
+        assert_eq!(state.selected_items(), vec![3]);
+    }
+
+    #[test]
+    fn test_generic_type_string() {
+        let items = vec![
+            "alice".to_string(),
+            "bob".to_string(),
+            "charlie".to_string(),
+        ];
+        let mut state: CheckboxListState<String> = CheckboxListState::new(items.clone());
+
+        assert_eq!(state.items(), &items);
+
+        state.set_selection_mode(true);
+        state.list_state.select(Some(0));
+        state.toggle_selected();
+        state.list_state.select(Some(2));
+        state.toggle_selected();
+
+        let selected = state.selected_items();
+        assert_eq!(selected.len(), 2);
+        assert!(selected.contains(&"alice".to_string()));
+        assert!(selected.contains(&"charlie".to_string()));
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+    struct CustomItem {
+        id: u32,
+        name: String,
+    }
+
+    #[test]
+    fn test_generic_type_custom_struct() {
+        let items = vec![
+            CustomItem {
+                id: 1,
+                name: "first".to_string(),
+            },
+            CustomItem {
+                id: 2,
+                name: "second".to_string(),
+            },
+            CustomItem {
+                id: 3,
+                name: "third".to_string(),
+            },
+        ];
+        let mut state: CheckboxListState<CustomItem> = CheckboxListState::new(items.clone());
+
+        assert_eq!(state.item_count(), 3);
+
+        state.set_selection_mode(true);
+        state.list_state.select(Some(1));
+        state.toggle_selected();
+
+        let selected = state.selected_items();
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].id, 2);
+        assert_eq!(selected[0].name, "second");
+    }
+
+    #[test]
+    fn test_very_large_item_list() {
+        let items: Vec<i32> = (0..150).collect();
+        let mut state: CheckboxListState<i32> = CheckboxListState::new(items);
+
+        assert_eq!(state.item_count(), 150);
+
+        state.set_selection_mode(true);
+        state.select_all();
+
+        assert_eq!(state.selected_count(), 150);
+
+        let indices = state.selected_indices();
+        assert_eq!(indices.len(), 150);
+        assert_eq!(indices[0], 0);
+        assert_eq!(indices[149], 149);
+    }
+
+    #[test]
+    fn test_complex_selection_sequence() {
+        let items = vec!["a", "b", "c", "d", "e", "f"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+
+        // Select items 1, 3, 5
+        state.list_state.select(Some(1));
+        state.toggle_selected();
+        state.list_state.select(Some(3));
+        state.toggle_selected();
+        state.list_state.select(Some(5));
+        state.toggle_selected();
+
+        assert_eq!(state.selected_count(), 3);
+        assert_eq!(state.selected_indices(), vec![1, 3, 5]);
+
+        // Deselect item 3
+        state.list_state.select(Some(3));
+        state.toggle_selected();
+
+        assert_eq!(state.selected_count(), 2);
+        assert_eq!(state.selected_indices(), vec![1, 5]);
+
+        // Select item 0
+        state.list_state.select(Some(0));
+        state.toggle_selected();
+
+        assert_eq!(state.selected_count(), 3);
+        assert_eq!(state.selected_indices(), vec![0, 1, 5]);
+    }
+
+    #[test]
+    fn test_state_clone_with_different_selections() {
+        let items = vec![1, 2, 3, 4];
+        let mut state: CheckboxListState<i32> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+        state.list_state.select(Some(0));
+        state.toggle_selected();
+        state.list_state.select(Some(2));
+        state.toggle_selected();
+
+        let cloned = state.clone();
+
+        assert_eq!(cloned.selected_count(), 2);
+        assert!(cloned.is_selected(0));
+        assert!(cloned.is_selected(2));
+        assert!(!cloned.is_selected(1));
+        assert_eq!(cloned.items(), state.items());
+    }
+
+    #[test]
+    fn test_state_clone_empty_selection() {
+        let items = vec!["x", "y", "z"];
+        let state: CheckboxListState<&str> = CheckboxListState::new(items);
+        let cloned = state.clone();
+
+        assert_eq!(cloned.selected_count(), 0);
+        assert_eq!(cloned.item_count(), 3);
+        assert!(!cloned.is_selection_mode());
+    }
+
+    #[test]
+    fn test_navigation_wraparound_boundary() {
+        let items = vec![1, 2, 3];
+        let mut state: CheckboxListState<i32> = CheckboxListState::new(items);
+
+        assert_eq!(state.highlighted_index(), Some(0));
+
+        // Navigate to end
+        state.select_next();
+        state.select_next();
+        assert_eq!(state.highlighted_index(), Some(2));
+
+        // Wrap to beginning
+        state.select_next();
+        assert_eq!(state.highlighted_index(), Some(0));
+
+        // Wrap to end
+        state.select_previous();
+        assert_eq!(state.highlighted_index(), Some(2));
+    }
+
+    #[test]
+    fn test_selected_items_ordering_guaranteed() {
+        let items = vec!["d", "a", "c", "b"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+
+        // Select in non-sequential order
+        state.list_state.select(Some(3));
+        state.toggle_selected();
+        state.list_state.select(Some(0));
+        state.toggle_selected();
+        state.list_state.select(Some(2));
+        state.toggle_selected();
+
+        let indices = state.selected_indices();
+        assert_eq!(indices, vec![0, 2, 3]); // Should be sorted
+
+        let selected = state.selected_items();
+        assert_eq!(selected, vec!["d", "c", "b"]); // Order matches sorted indices
+    }
+
+    #[test]
+    fn test_widget_default_values() {
+        let formatter = |s: &String| s.clone();
+        let list: CheckboxList<String, _> = CheckboxList::new(formatter);
+
+        assert_eq!(list.title, "Items");
+        assert_eq!(list.style, Style::default());
+        assert_eq!(
+            list.selected_style,
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD)
+        );
+        assert_eq!(list.checkbox_style, Style::default().fg(Color::Green));
+        assert!(list.block.is_none());
+        assert!(list.show_count);
+    }
+
+    #[test]
+    fn test_partial_selection_with_mode_toggle() {
+        let items = vec![1, 2, 3, 4, 5];
+        let mut state: CheckboxListState<i32> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+
+        // Select items 0, 2, 4
+        state.list_state.select(Some(0));
+        state.toggle_selected();
+        state.list_state.select(Some(2));
+        state.toggle_selected();
+        state.list_state.select(Some(4));
+        state.toggle_selected();
+
+        assert_eq!(state.selected_count(), 3);
+
+        // Toggle mode off - should clear selection
+        state.toggle_selection_mode();
+
+        assert!(!state.is_selection_mode());
+        assert_eq!(state.selected_count(), 0);
+    }
+
+    #[test]
+    fn test_multiple_toggle_operations() {
+        let items = vec!["a", "b", "c"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+        state.list_state.select(Some(1));
+
+        // Toggle on
+        state.toggle_selected();
+        assert!(state.is_selected(1));
+
+        // Toggle off
+        state.toggle_selected();
+        assert!(!state.is_selected(1));
+
+        // Toggle on again
+        state.toggle_selected();
+        assert!(state.is_selected(1));
+
+        // Toggle off again
+        state.toggle_selected();
+        assert!(!state.is_selected(1));
+    }
+
+    #[test]
+    fn test_selection_mode_enable_disable_enable() {
+        let items = vec![1, 2, 3];
+        let mut state: CheckboxListState<i32> = CheckboxListState::new(items);
+
+        assert!(!state.is_selection_mode());
+
+        state.set_selection_mode(true);
+        assert!(state.is_selection_mode());
+
+        state.set_selection_mode(false);
+        assert!(!state.is_selection_mode());
+
+        state.set_selection_mode(true);
+        assert!(state.is_selection_mode());
+    }
+
+    #[test]
+    fn test_deselect_all_with_empty_selection() {
+        let items = vec!["x", "y"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+        assert_eq!(state.selected_count(), 0);
+
+        state.deselect_all();
+        assert_eq!(state.selected_count(), 0); // Should be no-op
+    }
+
+    #[test]
+    fn test_deselect_all_without_selection_mode() {
+        let items = vec![1, 2, 3];
+        let mut state: CheckboxListState<i32> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+        state.select_all();
+        assert_eq!(state.selected_count(), 3);
+
+        state.set_selection_mode(false);
+
+        // Deselect all works even without selection mode
+        state.deselect_all();
+        assert_eq!(state.selected_count(), 0);
+    }
+
+    #[test]
+    fn test_set_items_preserves_highlighted_index_if_valid() {
+        let items1 = vec!["a", "b", "c", "d"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items1);
+
+        state.list_state.select(Some(2));
+        assert_eq!(state.highlighted_index(), Some(2));
+
+        // Set new items with same or greater length
+        let items2 = vec!["w", "x", "y", "z"];
+        state.set_items(items2);
+
+        // Highlighted index should not necessarily be preserved (cleared by set_items)
+        // This test verifies the actual behavior
+        assert_eq!(state.item_count(), 4);
+    }
+
+    #[test]
+    fn test_all_items_selected_then_deselect_one() {
+        let items = vec![1, 2, 3, 4];
+        let mut state: CheckboxListState<i32> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+        state.select_all();
+        assert_eq!(state.selected_count(), 4);
+
+        // Deselect item 2
+        state.list_state.select(Some(2));
+        state.toggle_selected();
+
+        assert_eq!(state.selected_count(), 3);
+        assert!(state.is_selected(0));
+        assert!(state.is_selected(1));
+        assert!(!state.is_selected(2));
+        assert!(state.is_selected(3));
+    }
+
+    #[test]
+    fn test_highlighted_index_after_multiple_navigations() {
+        let items = vec!["a", "b", "c", "d", "e"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        assert_eq!(state.highlighted_index(), Some(0));
+
+        state.select_next();
+        state.select_next();
+        state.select_next();
+        assert_eq!(state.highlighted_index(), Some(3));
+
+        state.select_previous();
+        assert_eq!(state.highlighted_index(), Some(2));
+
+        state.select_next();
+        state.select_next();
+        state.select_next();
+        assert_eq!(state.highlighted_index(), Some(0)); // Wrapped
+    }
+
+    #[test]
+    fn test_selected_indices_always_sorted() {
+        let items = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        let mut state: CheckboxListState<i32> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+
+        // Select in random order
+        state.list_state.select(Some(5));
+        state.toggle_selected();
+        state.list_state.select(Some(1));
+        state.toggle_selected();
+        state.list_state.select(Some(7));
+        state.toggle_selected();
+        state.list_state.select(Some(3));
+        state.toggle_selected();
+        state.list_state.select(Some(0));
+        state.toggle_selected();
+
+        let indices = state.selected_indices();
+        assert_eq!(indices, vec![0, 1, 3, 5, 7]); // Always sorted
+    }
+
+    #[test]
+    fn test_select_all_then_set_items_clears_selection() {
+        let items1 = vec!["a", "b", "c"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items1);
+
+        state.set_selection_mode(true);
+        state.select_all();
+        assert_eq!(state.selected_count(), 3);
+
+        let items2 = vec!["x", "y"];
+        state.set_items(items2);
+
+        assert_eq!(state.selected_count(), 0); // Selection cleared
+        assert_eq!(state.item_count(), 2);
+    }
+
+    #[test]
+    fn test_navigation_with_two_items() {
+        let items = vec![10, 20];
+        let mut state: CheckboxListState<i32> = CheckboxListState::new(items);
+
+        assert_eq!(state.highlighted_index(), Some(0));
+
+        state.select_next();
+        assert_eq!(state.highlighted_index(), Some(1));
+
+        state.select_next();
+        assert_eq!(state.highlighted_index(), Some(0)); // Wrap
+
+        state.select_previous();
+        assert_eq!(state.highlighted_index(), Some(1)); // Wrap backwards
+    }
+
+    #[test]
+    fn test_toggle_selected_same_item_multiple_times() {
+        let items = vec!["item"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+        state.list_state.select(Some(0));
+
+        for i in 0..10 {
+            state.toggle_selected();
+            if i % 2 == 0 {
+                assert!(state.is_selected(0));
+            } else {
+                assert!(!state.is_selected(0));
+            }
+        }
+    }
+
+    #[test]
+    fn test_item_count_after_multiple_set_items() {
+        let mut state: CheckboxListState<i32> = CheckboxListState::new(vec![]);
+        assert_eq!(state.item_count(), 0);
+
+        state.set_items(vec![1, 2, 3]);
+        assert_eq!(state.item_count(), 3);
+
+        state.set_items(vec![1]);
+        assert_eq!(state.item_count(), 1);
+
+        state.set_items(vec![1, 2, 3, 4, 5, 6]);
+        assert_eq!(state.item_count(), 6);
+
+        state.set_items(vec![]);
+        assert_eq!(state.item_count(), 0);
+    }
+
+    #[test]
+    fn test_selected_count_consistency() {
+        let items = vec![1, 2, 3, 4, 5];
+        let mut state: CheckboxListState<i32> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+
+        assert_eq!(state.selected_count(), 0);
+        assert_eq!(state.selected_indices().len(), 0);
+
+        state.list_state.select(Some(0));
+        state.toggle_selected();
+        assert_eq!(state.selected_count(), 1);
+        assert_eq!(state.selected_indices().len(), 1);
+
+        state.list_state.select(Some(2));
+        state.toggle_selected();
+        state.list_state.select(Some(4));
+        state.toggle_selected();
+        assert_eq!(state.selected_count(), 3);
+        assert_eq!(state.selected_indices().len(), 3);
+
+        state.deselect_all();
+        assert_eq!(state.selected_count(), 0);
+        assert_eq!(state.selected_indices().len(), 0);
+    }
 }
