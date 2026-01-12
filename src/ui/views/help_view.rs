@@ -394,4 +394,198 @@ mod tests {
         let view = HelpView::new().selected_section(HelpSection::About);
         assert_eq!(view.selected_section, HelpSection::About);
     }
+
+    #[test]
+    fn test_help_section_equality() {
+        assert_eq!(HelpSection::Global, HelpSection::Global);
+        assert_eq!(HelpSection::Issues, HelpSection::Issues);
+        assert_eq!(HelpSection::Dependencies, HelpSection::Dependencies);
+        assert_eq!(HelpSection::Labels, HelpSection::Labels);
+        assert_eq!(HelpSection::Database, HelpSection::Database);
+        assert_eq!(HelpSection::About, HelpSection::About);
+
+        assert_ne!(HelpSection::Global, HelpSection::Issues);
+        assert_ne!(HelpSection::Dependencies, HelpSection::About);
+    }
+
+    #[test]
+    fn test_help_section_all_order() {
+        let sections = HelpSection::all();
+        assert_eq!(sections[0], HelpSection::Global);
+        assert_eq!(sections[1], HelpSection::Issues);
+        assert_eq!(sections[2], HelpSection::Dependencies);
+        assert_eq!(sections[3], HelpSection::Labels);
+        assert_eq!(sections[4], HelpSection::Database);
+        assert_eq!(sections[5], HelpSection::About);
+    }
+
+    #[test]
+    fn test_help_section_all_contains_all() {
+        let sections = HelpSection::all();
+        assert!(sections.contains(&HelpSection::Global));
+        assert!(sections.contains(&HelpSection::Issues));
+        assert!(sections.contains(&HelpSection::Dependencies));
+        assert!(sections.contains(&HelpSection::Labels));
+        assert!(sections.contains(&HelpSection::Database));
+        assert!(sections.contains(&HelpSection::About));
+    }
+
+    #[test]
+    fn test_help_view_default() {
+        let view = HelpView::default();
+        assert_eq!(view.selected_section, HelpSection::Global);
+    }
+
+    #[test]
+    fn test_help_view_default_same_as_new() {
+        let default_view = HelpView::default();
+        let new_view = HelpView::new();
+        assert_eq!(default_view.selected_section, new_view.selected_section);
+    }
+
+    #[test]
+    fn test_help_view_block_style() {
+        let style = Style::default().fg(Color::Red);
+        let view = HelpView::new().block_style(style);
+        assert_eq!(view.block_style, style);
+    }
+
+    #[test]
+    fn test_help_view_builder_chain() {
+        let style = Style::default().fg(Color::Yellow);
+        let view = HelpView::new()
+            .selected_section(HelpSection::Labels)
+            .block_style(style);
+
+        assert_eq!(view.selected_section, HelpSection::Labels);
+        assert_eq!(view.block_style, style);
+    }
+
+    #[test]
+    fn test_help_view_all_sections() {
+        for section in HelpSection::all() {
+            let view = HelpView::new().selected_section(section);
+            assert_eq!(view.selected_section, section);
+        }
+    }
+
+    #[test]
+    fn test_render_global_help_non_empty() {
+        let view = HelpView::new();
+        let lines = view.render_global_help();
+        assert!(!lines.is_empty());
+        assert!(lines.len() > 5); // Should have title + shortcuts
+    }
+
+    #[test]
+    fn test_render_issues_help_non_empty() {
+        let view = HelpView::new();
+        let lines = view.render_issues_help();
+        assert!(!lines.is_empty());
+        assert!(lines.len() > 5);
+    }
+
+    #[test]
+    fn test_render_dependencies_help_non_empty() {
+        let view = HelpView::new();
+        let lines = view.render_dependencies_help();
+        assert!(!lines.is_empty());
+        assert!(lines.len() > 5);
+    }
+
+    #[test]
+    fn test_render_labels_help_non_empty() {
+        let view = HelpView::new();
+        let lines = view.render_labels_help();
+        assert!(!lines.is_empty());
+        assert!(lines.len() > 5);
+    }
+
+    #[test]
+    fn test_render_database_help_non_empty() {
+        let view = HelpView::new();
+        let lines = view.render_database_help();
+        assert!(!lines.is_empty());
+        assert!(lines.len() > 3);
+    }
+
+    #[test]
+    fn test_render_about_non_empty() {
+        let view = HelpView::new();
+        let lines = view.render_about();
+        assert!(!lines.is_empty());
+        assert!(lines.len() > 5);
+    }
+
+    #[test]
+    fn test_get_section_content_global() {
+        let view = HelpView::new();
+        let content = view.get_section_content(HelpSection::Global);
+        assert!(!content.is_empty());
+    }
+
+    #[test]
+    fn test_get_section_content_issues() {
+        let view = HelpView::new();
+        let content = view.get_section_content(HelpSection::Issues);
+        assert!(!content.is_empty());
+    }
+
+    #[test]
+    fn test_get_section_content_dependencies() {
+        let view = HelpView::new();
+        let content = view.get_section_content(HelpSection::Dependencies);
+        assert!(!content.is_empty());
+    }
+
+    #[test]
+    fn test_get_section_content_labels() {
+        let view = HelpView::new();
+        let content = view.get_section_content(HelpSection::Labels);
+        assert!(!content.is_empty());
+    }
+
+    #[test]
+    fn test_get_section_content_database() {
+        let view = HelpView::new();
+        let content = view.get_section_content(HelpSection::Database);
+        assert!(!content.is_empty());
+    }
+
+    #[test]
+    fn test_get_section_content_about() {
+        let view = HelpView::new();
+        let content = view.get_section_content(HelpSection::About);
+        assert!(!content.is_empty());
+    }
+
+    #[test]
+    fn test_get_section_content_matches_render_methods() {
+        let view = HelpView::new();
+
+        assert_eq!(
+            view.get_section_content(HelpSection::Global).len(),
+            view.render_global_help().len()
+        );
+        assert_eq!(
+            view.get_section_content(HelpSection::Issues).len(),
+            view.render_issues_help().len()
+        );
+        assert_eq!(
+            view.get_section_content(HelpSection::Dependencies).len(),
+            view.render_dependencies_help().len()
+        );
+        assert_eq!(
+            view.get_section_content(HelpSection::Labels).len(),
+            view.render_labels_help().len()
+        );
+        assert_eq!(
+            view.get_section_content(HelpSection::Database).len(),
+            view.render_database_help().len()
+        );
+        assert_eq!(
+            view.get_section_content(HelpSection::About).len(),
+            view.render_about().len()
+        );
+    }
 }
