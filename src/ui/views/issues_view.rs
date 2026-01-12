@@ -363,4 +363,315 @@ mod tests {
         state.set_issues(new_issues);
         assert_eq!(state.search_state().result_count(), 2);
     }
+
+    #[test]
+    fn test_issues_view_mode_equality() {
+        assert_eq!(IssuesViewMode::List, IssuesViewMode::List);
+        assert_eq!(IssuesViewMode::Detail, IssuesViewMode::Detail);
+        assert_eq!(IssuesViewMode::Edit, IssuesViewMode::Edit);
+        assert_eq!(IssuesViewMode::Create, IssuesViewMode::Create);
+
+        assert_ne!(IssuesViewMode::List, IssuesViewMode::Detail);
+        assert_ne!(IssuesViewMode::Detail, IssuesViewMode::Edit);
+        assert_ne!(IssuesViewMode::Edit, IssuesViewMode::Create);
+    }
+
+    #[test]
+    fn test_set_view_mode() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.set_view_mode(IssuesViewMode::Detail);
+        assert_eq!(state.view_mode(), IssuesViewMode::Detail);
+
+        state.set_view_mode(IssuesViewMode::Edit);
+        assert_eq!(state.view_mode(), IssuesViewMode::Edit);
+
+        state.set_view_mode(IssuesViewMode::Create);
+        assert_eq!(state.view_mode(), IssuesViewMode::Create);
+
+        state.set_view_mode(IssuesViewMode::List);
+        assert_eq!(state.view_mode(), IssuesViewMode::List);
+    }
+
+    #[test]
+    fn test_search_state_mut() {
+        let issues = vec![
+            create_test_issue("beads-abcd-0001", "Issue 1"),
+            create_test_issue("beads-efgh-0002", "Issue 2"),
+        ];
+        let mut state = IssuesViewState::new(issues);
+
+        // Modify search state through mutable reference
+        state.search_state_mut().search_state_mut().set_query("Issue 1".to_string());
+        assert_eq!(state.search_state().search_state().query(), "Issue 1");
+    }
+
+    #[test]
+    fn test_editor_state_mut() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        assert!(state.editor_state_mut().is_none());
+
+        state.enter_edit_mode();
+        assert!(state.editor_state_mut().is_some());
+
+        // Modify editor state
+        if let Some(editor) = state.editor_state_mut() {
+            editor.form_state_mut().set_value("title", "Modified Title".to_string());
+        }
+
+        assert!(state.editor_state().is_some());
+    }
+
+    #[test]
+    fn test_create_form_state_mut() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        assert!(state.create_form_state_mut().is_none());
+
+        state.enter_create_mode();
+        assert!(state.create_form_state_mut().is_some());
+
+        // Modify create form state
+        if let Some(form) = state.create_form_state_mut() {
+            form.form_state_mut().set_value("title", "New Issue".to_string());
+        }
+
+        assert!(state.create_form_state().is_some());
+    }
+
+    #[test]
+    fn test_enter_detail_view_no_selection() {
+        let issues: Vec<Issue> = vec![];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_detail_view();
+        // Should remain in List mode when no issue selected
+        assert_eq!(state.view_mode(), IssuesViewMode::List);
+        assert!(state.selected_issue().is_none());
+    }
+
+    #[test]
+    fn test_enter_edit_mode_no_selection() {
+        let issues: Vec<Issue> = vec![];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_edit_mode();
+        // Should remain in List mode when no issue selected
+        assert_eq!(state.view_mode(), IssuesViewMode::List);
+        assert!(state.selected_issue().is_none());
+        assert!(state.editor_state().is_none());
+    }
+
+    #[test]
+    fn test_enter_create_mode() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_create_mode();
+        assert_eq!(state.view_mode(), IssuesViewMode::Create);
+        assert!(state.create_form_state().is_some());
+    }
+
+    #[test]
+    fn test_cancel_create() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_create_mode();
+        assert_eq!(state.view_mode(), IssuesViewMode::Create);
+
+        state.cancel_create();
+        assert_eq!(state.view_mode(), IssuesViewMode::List);
+        assert!(state.create_form_state().is_none());
+    }
+
+    #[test]
+    fn test_save_create_with_valid_data() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_create_mode();
+        if let Some(form) = state.create_form_state_mut() {
+            form.form_state_mut().set_value("title", "New Issue".to_string());
+            form.form_state_mut().set_value("description", "Description".to_string());
+        }
+
+        let data = state.save_create();
+        assert!(data.is_some());
+        if let Some(d) = data {
+            assert_eq!(d.title, "New Issue");
+        }
+    }
+
+    #[test]
+    fn test_save_create_returns_none_when_no_form() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        // Try to save without entering create mode
+        let data = state.save_create();
+        assert!(data.is_none());
+    }
+
+    #[test]
+    fn test_save_edit_with_valid_data() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_edit_mode();
+        if let Some(editor) = state.editor_state_mut() {
+            editor.form_state_mut().set_value("title", "Modified Title".to_string());
+        }
+
+        let updated = state.save_edit();
+        assert!(updated.is_some());
+    }
+
+    #[test]
+    fn test_return_to_list_clears_editor() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_edit_mode();
+        assert!(state.editor_state().is_some());
+
+        state.return_to_list();
+        assert!(state.editor_state().is_none());
+    }
+
+    #[test]
+    fn test_multiple_view_mode_transitions() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        // List -> Detail
+        state.enter_detail_view();
+        assert_eq!(state.view_mode(), IssuesViewMode::Detail);
+
+        // Detail -> List
+        state.return_to_list();
+        assert_eq!(state.view_mode(), IssuesViewMode::List);
+
+        // List -> Edit
+        state.enter_edit_mode();
+        assert_eq!(state.view_mode(), IssuesViewMode::Edit);
+
+        // Edit -> List
+        state.cancel_edit();
+        assert_eq!(state.view_mode(), IssuesViewMode::List);
+
+        // List -> Create
+        state.enter_create_mode();
+        assert_eq!(state.view_mode(), IssuesViewMode::Create);
+
+        // Create -> List
+        state.cancel_create();
+        assert_eq!(state.view_mode(), IssuesViewMode::List);
+    }
+
+    #[test]
+    fn test_set_selected_issue() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        assert!(state.selected_issue().is_none());
+
+        let test_issue = create_test_issue("beads-efgh-0002", "Issue 2");
+        state.set_selected_issue(Some(test_issue.clone()));
+
+        assert!(state.selected_issue().is_some());
+        assert_eq!(state.selected_issue().unwrap().id, "beads-efgh-0002");
+
+        state.set_selected_issue(None);
+        assert!(state.selected_issue().is_none());
+    }
+
+    #[test]
+    fn test_help_visibility_initial_state() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let state = IssuesViewState::new(issues);
+
+        assert!(state.is_help_visible());
+    }
+
+    #[test]
+    fn test_help_visibility_multiple_toggles() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        for _ in 0..4 {
+            let before = state.is_help_visible();
+            state.toggle_help();
+            let after = state.is_help_visible();
+            assert_ne!(before, after);
+        }
+
+        // After even number of toggles, should be back to initial state
+        assert!(state.is_help_visible());
+    }
+
+    #[test]
+    fn test_issues_view_new() {
+        let view = IssuesView::new();
+        // Should create successfully with default values
+        assert_eq!(view.block_style, Style::default().fg(Color::Cyan));
+    }
+
+    #[test]
+    fn test_issues_view_default() {
+        let view = IssuesView::default();
+        assert_eq!(view.block_style, Style::default().fg(Color::Cyan));
+    }
+
+    #[test]
+    fn test_issues_view_block_style() {
+        let custom_style = Style::default().fg(Color::Red);
+        let view = IssuesView::new().block_style(custom_style);
+        assert_eq!(view.block_style, custom_style);
+    }
+
+    #[test]
+    fn test_issues_view_builder_chain() {
+        let custom_style = Style::default().fg(Color::Green);
+        let view = IssuesView::new().block_style(custom_style);
+        assert_eq!(view.block_style, custom_style);
+    }
+
+    #[test]
+    fn test_search_state_access() {
+        let issues = vec![
+            create_test_issue("beads-abcd-0001", "Issue 1"),
+            create_test_issue("beads-efgh-0002", "Issue 2"),
+        ];
+        let state = IssuesViewState::new(issues);
+
+        let search_state = state.search_state();
+        assert_eq!(search_state.result_count(), 2);
+    }
+
+    #[test]
+    fn test_editor_state_access() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        assert!(state.editor_state().is_none());
+
+        state.enter_edit_mode();
+        assert!(state.editor_state().is_some());
+    }
+
+    #[test]
+    fn test_create_form_state_access() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        assert!(state.create_form_state().is_none());
+
+        state.enter_create_mode();
+        assert!(state.create_form_state().is_some());
+    }
 }
