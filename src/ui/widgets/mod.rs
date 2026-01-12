@@ -3,6 +3,7 @@
 pub mod autocomplete;
 pub mod bulk_action_menu;
 pub mod checkbox_list;
+pub mod column_manager;
 pub mod date_picker;
 pub mod dialog;
 pub mod field_editor;
@@ -27,6 +28,7 @@ pub mod text_editor;
 pub use autocomplete::{Autocomplete, AutocompleteState};
 pub use bulk_action_menu::{BulkAction, BulkActionMenu, BulkActionMenuState};
 pub use checkbox_list::{CheckboxList, CheckboxListState};
+pub use column_manager::{ColumnManager, ColumnManagerAction, ColumnManagerState};
 pub use date_picker::{DateRange, DateRangePicker, DateRangePickerState, DateRangePreset};
 pub use dialog::{Dialog, DialogButton, DialogState, DialogType};
 pub use field_editor::{EditorMode, FieldEditor, FieldEditorState};
