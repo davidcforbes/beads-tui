@@ -676,6 +676,12 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 
 /// Handle keyboard events for the Dependencies view
 fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState) {
+    // Handle notification dismissal with Esc
+    if app.notification.is_some() && key_code == KeyCode::Esc {
+        app.clear_notification();
+        return;
+    }
+
     let selected_issue = app.issues_view_state.selected_issue();
 
     match key_code {
@@ -762,6 +768,12 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
 
 /// Handle keyboard events for the Labels view
 fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
+    // Handle notification dismissal with Esc
+    if app.notification.is_some() && key_code == KeyCode::Esc {
+        app.clear_notification();
+        return;
+    }
+
     let labels_len = app.label_stats.len();
 
     match key_code {
@@ -813,6 +825,12 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
 
 /// Handle keyboard events for the Database view
 fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
+    // Handle notification dismissal with Esc
+    if app.notification.is_some() && key_code == KeyCode::Esc {
+        app.clear_notification();
+        return;
+    }
+
     let rt = tokio::runtime::Runtime::new().unwrap();
     let client = &app.beads_client;
 
@@ -935,6 +953,12 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
 
 /// Handle keyboard events for the Help view
 fn handle_help_view_event(key_code: KeyCode, app: &mut models::AppState) {
+    // Handle notification dismissal with Esc
+    if app.notification.is_some() && key_code == KeyCode::Esc {
+        app.clear_notification();
+        return;
+    }
+
     match key_code {
         KeyCode::Right | KeyCode::Tab | KeyCode::Char('l') => {
             app.next_help_section();
