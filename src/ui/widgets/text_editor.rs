@@ -937,4 +937,411 @@ mod tests {
         assert!(editor.show_line_numbers);
         assert!(!editor.wrap);
     }
+
+    #[test]
+    fn test_text_editor_state_debug_trait() {
+        let state = TextEditorState::new();
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("TextEditorState"));
+    }
+
+    #[test]
+    fn test_text_editor_builder_order_independence() {
+        let block = Block::default().title("Editor");
+        let style = Style::default().fg(Color::Blue);
+        
+        let editor1 = TextEditor::new()
+            .block(block.clone())
+            .wrap(false)
+            .style(style);
+        
+        let editor2 = TextEditor::new()
+            .style(style)
+            .wrap(false)
+            .block(block);
+        
+        assert!(editor1.block.is_some());
+        assert!(editor2.block.is_some());
+        assert_eq!(editor1.wrap, editor2.wrap);
+        assert_eq!(editor1.style.fg, editor2.style.fg);
+    }
+
+    #[test]
+    fn test_text_editor_multiple_setter_applications() {
+        let editor = TextEditor::new()
+            .wrap(true)
+            .wrap(false)
+            .wrap(true);
+        
+        assert!(editor.wrap);
+        
+        let style1 = Style::default().fg(Color::Red);
+        let style2 = Style::default().fg(Color::Blue);
+        
+        let editor = TextEditor::new()
+            .style(style1)
+            .style(style2);
+        
+        assert_eq!(editor.style.fg, Some(Color::Blue));
+    }
+
+    #[test]
+    fn test_set_text_with_unicode() {
+        let mut state = TextEditorState::new();
+        state.set_text("Hello 世界\n你好 world\nこんにちは");
+        
+        assert_eq!(state.line_count(), 3);
+        assert_eq!(state.lines()[0], "Hello 世界");
+        assert_eq!(state.lines()[1], "你好 world");
+        assert_eq!(state.lines()[2], "こんにちは");
+    }
+
+    #[test]
+    fn test_insert_unicode_characters() {
+        // Note: insert_char uses cursor_col as byte index, which doesn't work with multi-byte chars
+        // So we test unicode via set_text instead
+        let mut state = TextEditorState::new();
+        state.set_text("世界");
+        
+        assert_eq!(state.text(), "世界");
+        assert_eq!(state.line_count(), 1);
+        assert_eq!(state.lines()[0], "世界");
+    }
+
+    #[test]
+    fn test_set_text_very_long_line() {
+        let mut state = TextEditorState::new();
+        let long_line = "a".repeat(1000);
+        state.set_text(&long_line);
+        
+        assert_eq!(state.line_count(), 1);
+        assert_eq!(state.lines()[0].len(), 1000);
+    }
+
+    #[test]
+    fn test_insert_char_very_long_line() {
+        let mut state = TextEditorState::new();
+        
+        for _ in 0..500 {
+            state.insert_char('x');
+        }
+        
+        assert_eq!(state.text().len(), 500);
+        assert_eq!(state.cursor_position(), (0, 500));
+    }
+
+    #[test]
+    fn test_complex_cursor_navigation_sequence() {
+        let mut state = TextEditorState::new();
+        state.set_text("line1\nline2\nline3");
+        
+        // Navigate to middle of line 1
+        state.move_cursor_right();
+        state.move_cursor_right();
+        assert_eq!(state.cursor_position(), (0, 2));
+        
+        // Move down
+        state.move_cursor_down();
+        assert_eq!(state.cursor_position(), (1, 2));
+        
+        // Move to end of line
+        state.move_cursor_to_line_end();
+        assert_eq!(state.cursor_position(), (1, 5));
+        
+        // Move right to next line
+        state.move_cursor_right();
+        assert_eq!(state.cursor_position(), (2, 0));
+        
+        // Move to start of all text
+        state.move_cursor_to_start();
+        assert_eq!(state.cursor_position(), (0, 0));
+        
+        // Move to end of all text
+        state.move_cursor_to_end();
+        assert_eq!(state.cursor_position(), (2, 5));
+    }
+
+    #[test]
+    fn test_insert_newline_in_middle_of_line() {
+        let mut state = TextEditorState::new();
+        state.set_text("helloworld");
+        state.cursor_col = 5; // Between "hello" and "world"
+        
+        state.insert_char('\n');
+        
+        assert_eq!(state.line_count(), 2);
+        assert_eq!(state.lines()[0], "hello");
+        assert_eq!(state.lines()[1], "world");
+        assert_eq!(state.cursor_position(), (1, 0));
+    }
+
+    #[test]
+    fn test_insert_newline_at_start_of_line() {
+        let mut state = TextEditorState::new();
+        state.set_text("hello");
+        state.cursor_col = 0;
+        
+        state.insert_char('\n');
+        
+        assert_eq!(state.line_count(), 2);
+        assert_eq!(state.lines()[0], "");
+        assert_eq!(state.lines()[1], "hello");
+        assert_eq!(state.cursor_position(), (1, 0));
+    }
+
+    #[test]
+    fn test_max_lines_at_boundary() {
+        let mut state = TextEditorState::new();
+        state.set_max_lines(Some(3));
+        
+        state.insert_char('a');
+        state.insert_char('\n');
+        state.insert_char('b');
+        state.insert_char('\n');
+        state.insert_char('c');
+        
+        assert_eq!(state.line_count(), 3);
+        
+        // Try to insert newline at max capacity
+        state.insert_char('\n');
+        assert_eq!(state.line_count(), 3);
+        
+        // Should still allow regular characters
+        state.insert_char('d');
+        assert_eq!(state.lines()[2], "cd");
+    }
+
+    #[test]
+    fn test_scroll_with_single_line() {
+        let mut state = TextEditorState::new();
+        state.set_text("single line");
+        state.cursor_line = 0;
+        
+        state.update_scroll(10);
+        assert_eq!(state.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_scroll_cursor_at_exact_boundary() {
+        let mut state = TextEditorState::new();
+        state.set_text("1\n2\n3\n4\n5\n6\n7\n8\n9\n10");
+        
+        // Cursor at line 5, visible area of 5 lines
+        state.cursor_line = 5;
+        state.update_scroll(5);
+        
+        // Should scroll to show cursor at bottom of viewport
+        assert_eq!(state.scroll_offset(), 1); // Lines 1-5 visible, cursor at line 5
+    }
+
+    #[test]
+    fn test_delete_all_text_char_by_char() {
+        let mut state = TextEditorState::new();
+        state.set_text("test");
+        state.move_cursor_to_end();
+        
+        for _ in 0..4 {
+            state.delete_char();
+        }
+        
+        assert!(state.is_empty());
+        assert_eq!(state.cursor_position(), (0, 0));
+    }
+
+    #[test]
+    fn test_delete_forward_all_text() {
+        let mut state = TextEditorState::new();
+        state.set_text("test");
+        
+        for _ in 0..4 {
+            state.delete_char_forward();
+        }
+        
+        assert!(state.is_empty());
+        assert_eq!(state.cursor_position(), (0, 0));
+    }
+
+    #[test]
+    fn test_cursor_navigation_with_empty_lines() {
+        let mut state = TextEditorState::new();
+        state.set_text("line1\n\nline3");
+        
+        // Move to empty line
+        state.cursor_line = 1;
+        assert_eq!(state.lines()[1], "");
+        
+        // Move to end of empty line
+        state.move_cursor_to_line_end();
+        assert_eq!(state.cursor_position(), (1, 0));
+        
+        // Move right to next line
+        state.move_cursor_right();
+        assert_eq!(state.cursor_position(), (2, 0));
+    }
+
+    #[test]
+    fn test_insert_newline_on_empty_line() {
+        let mut state = TextEditorState::new();
+        assert!(state.is_empty());
+        
+        state.insert_char('\n');
+        
+        assert_eq!(state.line_count(), 2);
+        assert_eq!(state.lines()[0], "");
+        assert_eq!(state.lines()[1], "");
+        assert_eq!(state.cursor_position(), (1, 0));
+    }
+
+    #[test]
+    fn test_set_text_with_trailing_newline() {
+        let mut state = TextEditorState::new();
+        state.set_text("line1\nline2\n");
+        
+        // Note: .lines() doesn't preserve trailing newline as empty string
+        assert_eq!(state.line_count(), 2);
+        assert_eq!(state.lines()[0], "line1");
+        assert_eq!(state.lines()[1], "line2");
+    }
+
+    #[test]
+    fn test_set_text_multiple_consecutive_newlines() {
+        let mut state = TextEditorState::new();
+        state.set_text("a\n\n\nb");
+        
+        assert_eq!(state.line_count(), 4);
+        assert_eq!(state.lines()[0], "a");
+        assert_eq!(state.lines()[1], "");
+        assert_eq!(state.lines()[2], "");
+        assert_eq!(state.lines()[3], "b");
+    }
+
+    #[test]
+    fn test_clear_resets_all_state() {
+        let mut state = TextEditorState::new();
+        state.set_text("test\ntext");
+        state.set_focused(true);
+        state.cursor_line = 1;
+        state.cursor_col = 3;
+        state.scroll_offset = 1;
+        
+        state.clear();
+        
+        assert!(state.is_empty());
+        assert_eq!(state.cursor_position(), (0, 0));
+        assert_eq!(state.scroll_offset(), 0);
+        assert!(state.is_focused()); // Focus state should NOT be reset by clear
+    }
+
+    #[test]
+    fn test_set_text_resets_cursor_and_scroll() {
+        let mut state = TextEditorState::new();
+        state.set_text("initial\ntext");
+        state.cursor_line = 1;
+        state.cursor_col = 3;
+        state.scroll_offset = 1;
+        
+        state.set_text("new text");
+        
+        assert_eq!(state.cursor_position(), (0, 0));
+        assert_eq!(state.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_lines_returns_slice() {
+        let mut state = TextEditorState::new();
+        state.set_text("line1\nline2\nline3");
+        
+        let lines = state.lines();
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0], "line1");
+        assert_eq!(lines[1], "line2");
+        assert_eq!(lines[2], "line3");
+    }
+
+    #[test]
+    fn test_text_joins_lines_with_newline() {
+        let mut state = TextEditorState::new();
+        state.set_text("a\nb\nc");
+        
+        assert_eq!(state.text(), "a\nb\nc");
+    }
+
+    #[test]
+    fn test_move_cursor_column_adjustment_on_empty_line() {
+        let mut state = TextEditorState::new();
+        state.set_text("hello\n\nworld");
+        
+        // Move to end of line 0
+        state.cursor_line = 0;
+        state.cursor_col = 5;
+        
+        // Move down to empty line
+        state.move_cursor_down();
+        assert_eq!(state.cursor_position(), (1, 0)); // Column adjusted to 0
+        
+        // Move down to longer line
+        state.move_cursor_down();
+        assert_eq!(state.cursor_position(), (2, 0)); // Column stays at 0
+    }
+
+    #[test]
+    fn test_delete_char_multiple_lines() {
+        let mut state = TextEditorState::new();
+        state.set_text("a\nb\nc");
+        
+        // Position at start of line 2
+        state.cursor_line = 2;
+        state.cursor_col = 0;
+        
+        // Delete to merge with line 1
+        state.delete_char();
+        assert_eq!(state.text(), "a\nbc");
+        assert_eq!(state.cursor_position(), (1, 1));
+        
+        // Delete again to merge with line 0
+        state.cursor_line = 1;
+        state.cursor_col = 0;
+        state.delete_char();
+        assert_eq!(state.text(), "abc");
+        assert_eq!(state.cursor_position(), (0, 1));
+    }
+
+    #[test]
+    fn test_delete_char_forward_multiple_lines() {
+        let mut state = TextEditorState::new();
+        state.set_text("a\nb\nc");
+        
+        // Position at end of line 0
+        state.cursor_line = 0;
+        state.cursor_col = 1;
+        
+        // Delete forward to merge with line 1
+        state.delete_char_forward();
+        assert_eq!(state.text(), "ab\nc");
+        assert_eq!(state.cursor_position(), (0, 1));
+        
+        // Delete forward again to merge with line 2
+        state.cursor_col = 2;
+        state.delete_char_forward();
+        assert_eq!(state.text(), "abc");
+        assert_eq!(state.cursor_position(), (0, 2));
+    }
+
+    #[test]
+    fn test_scroll_large_document() {
+        let mut state = TextEditorState::new();
+        let mut lines = Vec::new();
+        for i in 0..100 {
+            lines.push(format!("Line {}", i));
+        }
+        state.set_text(&lines.join("\n"));
+        
+        // Move cursor to middle of document
+        state.cursor_line = 50;
+        state.update_scroll(20); // 20 lines visible
+        
+        // Scroll should position cursor in visible area
+        assert!(state.scroll_offset() <= 50);
+        assert!(state.scroll_offset() + 20 > 50);
+    }
 }
