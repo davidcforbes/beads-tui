@@ -16,7 +16,7 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::Line,
+    text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame, Terminal,
 };
@@ -1080,14 +1080,28 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         ])
         .split(f.size());
 
-    // Title
-    let title = Paragraph::new("Beads-TUI v0.1.0")
-        .style(
+    // Title with daemon status
+    let daemon_status = if app.daemon_running {
+        Span::styled(
+            " [Daemon: Running]",
+            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+        )
+    } else {
+        Span::styled(
+            " [Daemon: Stopped]",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )
+    };
+    let title_line = Line::from(vec![
+        Span::styled(
+            "Beads-TUI v0.1.0",
             Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
-        )
-        .block(Block::default().borders(Borders::ALL));
+        ),
+        daemon_status,
+    ]);
+    let title = Paragraph::new(title_line).block(Block::default().borders(Borders::ALL));
     f.render_widget(title, chunks[0]);
 
     // Tabs and content
