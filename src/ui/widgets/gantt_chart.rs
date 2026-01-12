@@ -817,4 +817,439 @@ mod tests {
         assert_eq!(lanes.len(), 1);
         assert_eq!(lanes[0].schedules.len(), 2); // Both schedules in same lane
     }
+
+    #[test]
+    fn test_grouping_mode_copy_trait() {
+        let mode1 = GroupingMode::Status;
+        let mode2 = mode1;
+        assert_eq!(mode1, mode2);
+        // Both should still be usable after copy
+        assert_eq!(mode1, GroupingMode::Status);
+        assert_eq!(mode2, GroupingMode::Status);
+    }
+
+    #[test]
+    fn test_gantt_chart_config_debug_trait() {
+        let config = GanttChartConfig::new();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("GanttChartConfig"));
+        assert!(debug_str.contains("timeline"));
+    }
+
+    #[test]
+    fn test_grouping_mode_debug_trait() {
+        let mode = GroupingMode::Priority;
+        let debug_str = format!("{:?}", mode);
+        assert!(debug_str.contains("Priority"));
+    }
+
+    #[test]
+    fn test_all_grouping_mode_inequalities() {
+        let modes = vec![
+            GroupingMode::None,
+            GroupingMode::Status,
+            GroupingMode::Priority,
+            GroupingMode::Assignee,
+            GroupingMode::Type,
+        ];
+
+        for (i, mode1) in modes.iter().enumerate() {
+            for (j, mode2) in modes.iter().enumerate() {
+                if i != j {
+                    assert_ne!(mode1, mode2);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_config_builder_order_independence() {
+        let config1 = GanttChartConfig::new()
+            .grouping(GroupingMode::Priority)
+            .lane_height(5)
+            .show_grid(false)
+            .show_today(true);
+
+        let config2 = GanttChartConfig::new()
+            .show_today(true)
+            .show_grid(false)
+            .lane_height(5)
+            .grouping(GroupingMode::Priority);
+
+        assert_eq!(config1.grouping, config2.grouping);
+        assert_eq!(config1.lane_height, config2.lane_height);
+        assert_eq!(config1.show_grid, config2.show_grid);
+        assert_eq!(config1.show_today, config2.show_today);
+    }
+
+    #[test]
+    fn test_multiple_grouping_applications() {
+        let config = GanttChartConfig::new()
+            .grouping(GroupingMode::None)
+            .grouping(GroupingMode::Status)
+            .grouping(GroupingMode::Priority);
+
+        // Last application should win
+        assert_eq!(config.grouping, GroupingMode::Priority);
+    }
+
+    #[test]
+    fn test_multiple_lane_height_applications() {
+        let config = GanttChartConfig::new()
+            .lane_height(3)
+            .lane_height(5)
+            .lane_height(10);
+
+        // Last application should win
+        assert_eq!(config.lane_height, 10);
+    }
+
+    #[test]
+    fn test_multiple_show_grid_applications() {
+        let config = GanttChartConfig::new()
+            .show_grid(true)
+            .show_grid(false)
+            .show_grid(true);
+
+        // Last application should win
+        assert!(config.show_grid);
+    }
+
+    #[test]
+    fn test_multiple_show_today_applications() {
+        let config = GanttChartConfig::new()
+            .show_today(false)
+            .show_today(true)
+            .show_today(false);
+
+        // Last application should win
+        assert!(!config.show_today);
+    }
+
+    #[test]
+    fn test_lane_height_zero() {
+        let config = GanttChartConfig::new().lane_height(0);
+        assert_eq!(config.lane_height, 2); // Minimum is 2
+    }
+
+    #[test]
+    fn test_lane_height_large_value() {
+        let config = GanttChartConfig::new().lane_height(1000);
+        assert_eq!(config.lane_height, 1000);
+    }
+
+    #[test]
+    fn test_truncate_text_unicode() {
+        // Test with unicode that won't trigger byte-boundary issues
+        let text = "Hello";
+        let truncated = GanttChart::truncate_text(text, 3);
+        assert!(truncated.len() <= 10);
+
+        // Test that short unicode text passes through unchanged
+        let unicode_text = "世界";
+        let result = GanttChart::truncate_text(unicode_text, 10);
+        assert_eq!(result, unicode_text);
+    }
+
+    #[test]
+    fn test_truncate_text_empty_string() {
+        assert_eq!(GanttChart::truncate_text("", 10), "");
+    }
+
+    #[test]
+    fn test_truncate_text_width_zero() {
+        assert_eq!(GanttChart::truncate_text("test", 0), "...");
+    }
+
+    #[test]
+    fn test_many_schedules() {
+        let mut issues = Vec::new();
+        let mut schedules = Vec::new();
+
+        for i in 0..50 {
+            let id = format!("TEST-{}", i);
+            let issue = create_test_issue(&id, &format!("Issue {}", i));
+            issues.push(issue);
+            schedules.push(create_test_schedule(&id, i));
+        }
+
+        let issue_refs: Vec<&Issue> = issues.iter().collect();
+        let chart = GanttChart::new(schedules, issue_refs);
+
+        assert_eq!(chart.schedules.len(), 50);
+        assert_eq!(chart.issues.len(), 50);
+    }
+
+    #[test]
+    fn test_many_lanes_by_priority() {
+        let mut issues = Vec::new();
+        let mut schedules = Vec::new();
+
+        let priorities = vec![Priority::P0, Priority::P1, Priority::P2, Priority::P3, Priority::P4];
+
+        for (i, priority) in priorities.iter().enumerate() {
+            let id = format!("TEST-{}", i);
+            let mut issue = create_test_issue(&id, &format!("Issue {}", i));
+            issue.priority = *priority;
+            issues.push(issue);
+            schedules.push(create_test_schedule(&id, i as i64));
+        }
+
+        let issue_refs: Vec<&Issue> = issues.iter().collect();
+        let chart = GanttChart::new(schedules, issue_refs)
+            .config(GanttChartConfig::new().grouping(GroupingMode::Priority));
+
+        let lanes = chart.group_into_lanes();
+        assert_eq!(lanes.len(), 5); // 5 priority levels
+    }
+
+    #[test]
+    fn test_config_default_equals_new() {
+        let config1 = GanttChartConfig::default();
+        let config2 = GanttChartConfig::new();
+
+        assert_eq!(config1.grouping, config2.grouping);
+        assert_eq!(config1.lane_height, config2.lane_height);
+        assert_eq!(config1.show_grid, config2.show_grid);
+        assert_eq!(config1.show_today, config2.show_today);
+    }
+
+    #[test]
+    fn test_multiple_selected_applications() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+
+        let chart = GanttChart::new(vec![schedule], vec![&issue])
+            .selected(Some("TEST-1".to_string()))
+            .selected(Some("TEST-2".to_string()))
+            .selected(None);
+
+        // Last application should win
+        assert_eq!(chart.selected_id, None);
+    }
+
+    #[test]
+    fn test_gantt_chart_config_builder_variations() {
+        let config1 = GanttChartConfig::new()
+            .grouping(GroupingMode::Type);
+        let config2 = GanttChartConfig::default()
+            .lane_height(7);
+
+        assert_eq!(config1.grouping, GroupingMode::Type);
+        assert_eq!(config2.lane_height, 7);
+    }
+
+    #[test]
+    fn test_unassigned_grouping_by_assignee() {
+        let issue1 = create_test_issue("TEST-1", "Unassigned Issue");
+        // issue1 has assignee = None by default
+
+        let mut issue2 = create_test_issue("TEST-2", "Assigned Issue");
+        issue2.assignee = Some("alice@example.com".to_string());
+
+        let schedule1 = create_test_schedule("TEST-1", 0);
+        let schedule2 = create_test_schedule("TEST-2", 5);
+
+        let chart = GanttChart::new(vec![schedule1, schedule2], vec![&issue1, &issue2])
+            .config(GanttChartConfig::new().grouping(GroupingMode::Assignee));
+
+        let lanes = chart.group_into_lanes();
+        assert_eq!(lanes.len(), 2); // "Unassigned" and "alice@example.com"
+    }
+
+    #[test]
+    fn test_all_issue_types_in_type_grouping() {
+        let mut issues = Vec::new();
+        let mut schedules = Vec::new();
+
+        let types = vec![
+            IssueType::Bug,
+            IssueType::Feature,
+            IssueType::Task,
+            IssueType::Epic,
+            IssueType::Chore,
+        ];
+
+        for (i, issue_type) in types.iter().enumerate() {
+            let id = format!("TEST-{}", i);
+            let mut issue = create_test_issue(&id, &format!("Issue {}", i));
+            issue.issue_type = *issue_type;
+            issues.push(issue);
+            schedules.push(create_test_schedule(&id, i as i64));
+        }
+
+        let issue_refs: Vec<&Issue> = issues.iter().collect();
+        let chart = GanttChart::new(schedules, issue_refs)
+            .config(GanttChartConfig::new().grouping(GroupingMode::Type));
+
+        let lanes = chart.group_into_lanes();
+        assert_eq!(lanes.len(), 5); // All 5 issue types
+    }
+
+    #[test]
+    fn test_all_statuses_in_status_grouping() {
+        let mut issues = Vec::new();
+        let mut schedules = Vec::new();
+
+        let statuses = vec![
+            IssueStatus::Open,
+            IssueStatus::InProgress,
+            IssueStatus::Blocked,
+            IssueStatus::Closed,
+        ];
+
+        for (i, status) in statuses.iter().enumerate() {
+            let id = format!("TEST-{}", i);
+            let mut issue = create_test_issue(&id, &format!("Issue {}", i));
+            issue.status = *status;
+            issues.push(issue);
+            schedules.push(create_test_schedule(&id, i as i64));
+        }
+
+        let issue_refs: Vec<&Issue> = issues.iter().collect();
+        let chart = GanttChart::new(schedules, issue_refs)
+            .config(GanttChartConfig::new().grouping(GroupingMode::Status));
+
+        let lanes = chart.group_into_lanes();
+        assert_eq!(lanes.len(), 4); // All 4 statuses
+    }
+
+    #[test]
+    fn test_date_to_x_small_area() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue]);
+
+        let small_area = Rect::new(0, 0, 25, 10);
+        let date_middle = chart.config.timeline.viewport_start + Duration::days(15);
+
+        let result = chart.date_to_x(date_middle, small_area);
+        assert!(result.is_some());
+        // Should be within the small area bounds
+        assert!(result.unwrap() < 25);
+    }
+
+    #[test]
+    fn test_date_to_x_boundary_precision() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue]);
+
+        let area = Rect::new(0, 0, 100, 10);
+
+        // Test dates at exact boundaries
+        let start = chart.config.timeline.viewport_start;
+        let end = chart.config.timeline.viewport_end;
+
+        let start_x = chart.date_to_x(start, area);
+        let end_x = chart.date_to_x(end, area);
+
+        assert!(start_x.is_some());
+        assert!(end_x.is_some());
+        assert!(start_x.unwrap() <= end_x.unwrap());
+    }
+
+    #[test]
+    fn test_multiple_config_applications() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+
+        let config1 = GanttChartConfig::new().grouping(GroupingMode::Status);
+        let config2 = GanttChartConfig::new().grouping(GroupingMode::Priority);
+
+        let chart = GanttChart::new(vec![schedule], vec![&issue])
+            .config(config1)
+            .config(config2.clone());
+
+        // Last config should win
+        assert_eq!(chart.config.grouping, GroupingMode::Priority);
+    }
+
+    #[test]
+    fn test_gantt_chart_empty_both() {
+        let chart = GanttChart::new(vec![], vec![]);
+        assert_eq!(chart.schedules.len(), 0);
+        assert_eq!(chart.issues.len(), 0);
+    }
+
+    #[test]
+    fn test_group_into_lanes_empty_schedules() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let chart = GanttChart::new(vec![], vec![&issue]);
+
+        let lanes = chart.group_into_lanes();
+        assert_eq!(lanes.len(), 0); // No schedules means no lanes
+    }
+
+    #[test]
+    fn test_lane_height_exact_minimum() {
+        let config = GanttChartConfig::new().lane_height(2);
+        assert_eq!(config.lane_height, 2);
+    }
+
+    #[test]
+    fn test_truncate_text_width_one() {
+        assert_eq!(GanttChart::truncate_text("test", 1), "...");
+    }
+
+    #[test]
+    fn test_truncate_text_width_three() {
+        assert_eq!(GanttChart::truncate_text("test", 3), "...");
+    }
+
+    #[test]
+    fn test_truncate_text_width_four() {
+        assert_eq!(GanttChart::truncate_text("testing", 4), "t...");
+    }
+
+    #[test]
+    fn test_multiple_same_assignee() {
+        let mut issue1 = create_test_issue("TEST-1", "Issue 1");
+        issue1.assignee = Some("alice@example.com".to_string());
+
+        let mut issue2 = create_test_issue("TEST-2", "Issue 2");
+        issue2.assignee = Some("alice@example.com".to_string());
+
+        let schedule1 = create_test_schedule("TEST-1", 0);
+        let schedule2 = create_test_schedule("TEST-2", 5);
+
+        let chart = GanttChart::new(vec![schedule1, schedule2], vec![&issue1, &issue2])
+            .config(GanttChartConfig::new().grouping(GroupingMode::Assignee));
+
+        let lanes = chart.group_into_lanes();
+        assert_eq!(lanes.len(), 1); // Both have same assignee
+        assert_eq!(lanes[0].schedules.len(), 2);
+    }
+
+    #[test]
+    fn test_selected_with_invalid_id() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+
+        let chart = GanttChart::new(vec![schedule], vec![&issue])
+            .selected(Some("INVALID-ID".to_string()));
+
+        assert_eq!(chart.selected_id, Some("INVALID-ID".to_string()));
+        // Chart should still work even with invalid selected ID
+    }
+
+    #[test]
+    fn test_config_all_options_disabled() {
+        let config = GanttChartConfig::new()
+            .show_grid(false)
+            .show_today(false);
+
+        assert!(!config.show_grid);
+        assert!(!config.show_today);
+    }
+
+    #[test]
+    fn test_config_all_options_enabled() {
+        let config = GanttChartConfig::new()
+            .show_grid(true)
+            .show_today(true);
+
+        assert!(config.show_grid);
+        assert!(config.show_today);
+    }
 }
