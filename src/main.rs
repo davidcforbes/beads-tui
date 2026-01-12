@@ -675,13 +675,17 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 }
 
 /// Handle keyboard events for the Dependencies view
+/// See beads-tui-quqt for implementation
 fn handle_dependencies_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
-    // TODO: Implement dependency view controls
+    // Requires: selection state for dependency lists, input dialog widget
+    // Controls: a (add), d (remove), g (graph), c (check cycles)
 }
 
 /// Handle keyboard events for the Labels view
+/// See beads-tui-0san for implementation
 fn handle_labels_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
-    // TODO: Implement labels view controls
+    // Requires: selection state for labels list, input dialog widget, label editor
+    // Controls: a (add), d (delete), e (edit), s (stats), / (search)
 }
 
 /// Handle keyboard events for the Database view
