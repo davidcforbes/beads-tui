@@ -14,17 +14,32 @@ interactive experience for all beads CLI functionality. Instead of typing
 commands, navigate through issues, manage dependencies visually, and
 execute workflows through an intuitive interface.
 
-## Features (Planned)
+## Features
+
+### Implemented ✅
 
 - **Interactive Issue Management**: Create, edit, update, and close issues through forms and dialogs
-- **Visual Dependency Trees**: See dependency relationships as interactive trees and graphs
-- **Advanced Filtering**: Build complex filters with live preview
-- **Molecular Chemistry UI**: Interactive wizards for protos, pour, wisp, bond, squash, burn
+- **Issue List View**: Browse issues with sorting, filtering, and column customization
+- **Issue Detail View**: View full issue details with metadata and relationships
+- **Visual Dependency Trees**: See dependency relationships as interactive trees
+- **Dependencies View**: Manage dependencies with tree visualization
+- **Label Management**: Browse and manage labels with autocomplete
 - **Database Dashboard**: Monitor database health, sync status, and daemon operations
-- **Keyboard-First Design**: Efficient navigation with vim-style keybindings
-- **Theme Support**: Multiple color themes including dark, light, and high contrast modes
-- **Smart Search**: Full-text search with highlighting and filtering
+- **Column Manager**: Hide, show, and reorder table columns
+- **Smart Search**: Full-text search with filtering
+- **Markdown Rendering**: Rich text display for issue descriptions
+- **Keyboard-First Design**: Efficient navigation with intuitive keybindings
+- **Form Validation**: Field validation for required fields and formats
+- **Help System**: Context-sensitive help and keyboard shortcuts
+
+### In Progress 🚧
+
+- **Gantt Chart View**: Calendar-based timeline visualization
+- **Kanban Board View**: Column-based workflow visualization
+- **PERT Chart View**: Network diagram for dependencies
 - **Bulk Operations**: Select and operate on multiple issues at once
+- **Theme Support**: Multiple color themes
+- **Molecular Chemistry UI**: Interactive wizards for advanced operations
 
 ## Tech Stack
 
@@ -35,9 +50,9 @@ execute workflows through an intuitive interface.
 
 ## Project Status
 
-🚧 **In Planning Phase** 🚧
+✅ **Active Development** - Core functionality is working!
 
-This project is currently in the planning and design phase. See [WORKPLAN.md](WORKPLAN.md) for the comprehensive development roadmap.
+The application now has a functional terminal UI with issue management, dependency visualization, and database monitoring. See [WORKPLAN.md](WORKPLAN.md) for the comprehensive development roadmap.
 
 ## Getting Started
 
@@ -47,18 +62,62 @@ This project is currently in the planning and design phase. See [WORKPLAN.md](WO
 - [Beads CLI](https://github.com/steveyegge/beads) installed and configured
 - A terminal emulator with 256 color support
 
-### Installation (Future)
+### Building from Source
 
 ```bash
-# Via cargo (when published)
-cargo install beads-tui
-
-# Or build from source
+# Clone the repository
 git clone https://github.com/davidcforbes/beads-tui
 cd beads-tui
+
+# Build the project
 cargo build --release
+
+# Run the application
 ./target/release/beads-tui
+
+# Or install locally
+cargo install --path .
+beads-tui
 ```
+
+### Usage
+
+Once installed, run `beads-tui` in a directory with a beads repository:
+
+```bash
+cd /path/to/your/beads/project
+beads-tui
+```
+
+#### Basic Navigation
+
+- `Tab` / `Shift+Tab` - Switch between views
+- `↑` / `↓` or `j` / `k` - Navigate items
+- `Enter` - Select/View details
+- `Esc` - Go back
+- `?` - Show help
+- `q` - Quit
+
+#### Views
+
+- **Issues** (`Tab` → Issues): Browse and manage issues
+- **Dependencies** (`Tab` → Dependencies): View dependency trees
+- **Labels** (`Tab` → Labels): Manage labels
+- **Database** (`Tab` → Database): Monitor database status
+- **Help** (`?`): View all keyboard shortcuts
+
+#### Creating Issues
+
+1. Press `n` in the Issues view
+2. Fill out the form (title, type, priority, description)
+3. Press `Ctrl+S` to save or `Esc` to cancel
+
+#### Editing Issues
+
+1. Select an issue in the list
+2. Press `e` to edit
+3. Modify fields as needed
+4. Press `Ctrl+S` to save changes
 
 ### Development Setup
 
@@ -67,17 +126,17 @@ cargo build --release
 git clone https://github.com/davidcforbes/beads-tui
 cd beads-tui
 
-# Install dependencies
-cargo build
-
 # Run in development mode
 cargo run
 
 # Run tests
 cargo test
 
-# Run with logging
+# Run with debug logging
 RUST_LOG=debug cargo run
+
+# Run specific test suite
+cargo test --test integration_test
 ```
 
 ## Work Plan Import
@@ -227,11 +286,21 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-**Status**: 🚧 Planning Phase - Not yet functional
+**Status**: ✅ Active Development - Core features functional!
+
+**Recent Milestones**:
+
+- ✅ Implemented beads-rs wrapper library
+- ✅ Created interactive issue list view
+- ✅ Built issue create/edit forms
+- ✅ Added dependency tree visualization
+- ✅ Implemented column manager
+- ✅ Added markdown rendering
 
 **Next Steps**:
 
-1. Review and refine WORKPLAN.md
-2. Set up basic Rust project structure
-3. Implement beads-rs wrapper library
-4. Create proof-of-concept for issue list view
+1. Complete Gantt, Kanban, and PERT chart views
+2. Add bulk operations support
+3. Implement theme system
+4. Add molecular chemistry UI
+5. Create comprehensive documentation
