@@ -419,4 +419,353 @@ mod tests {
         let dep_issue = backend.get_issue("beads-test-002").unwrap();
         assert!(dep_issue.blocks.contains(&"beads-test-001".to_string()));
     }
+
+    #[test]
+    fn test_mock_backend_default() {
+        let backend = MockBeadsBackend::default();
+        let issues = backend.list_issues(None, None).unwrap();
+        assert_eq!(issues.len(), 0);
+        
+        let stats = backend.get_stats().unwrap();
+        assert_eq!(stats.total_issues, 0);
+    }
+
+    #[test]
+    fn test_get_issue_not_found() {
+        let backend = MockBeadsBackend::new();
+        let result = backend.get_issue("nonexistent-id");
+        
+        assert!(result.is_err());
+        match result {
+            Err(BeadsError::IssueNotFound(id)) => {
+                assert_eq!(id, "nonexistent-id");
+            }
+            _ => panic!("Expected IssueNotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_create_issue_id_increments() {
+        let backend = MockBeadsBackend::new();
+        
+        let id1 = backend.create_issue("First", IssueType::Task, Priority::P2).unwrap();
+        let id2 = backend.create_issue("Second", IssueType::Task, Priority::P2).unwrap();
+        let id3 = backend.create_issue("Third", IssueType::Task, Priority::P2).unwrap();
+        
+        assert_eq!(id1, "beads-mock-0001");
+        assert_eq!(id2, "beads-mock-0002");
+        assert_eq!(id3, "beads-mock-0003");
+    }
+
+    #[test]
+    fn test_create_issue_updates_stats() {
+        let backend = MockBeadsBackend::new();
+        
+        backend.create_issue("Test", IssueType::Task, Priority::P2).unwrap();
+        
+        let stats = backend.get_stats().unwrap();
+        assert_eq!(stats.total_issues, 1);
+        assert_eq!(stats.open, 1);
+        assert_eq!(stats.ready_to_work, 1);
+    }
+
+    #[test]
+    fn test_update_issue_priority() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        backend.update_issue("beads-test-001", None, Some(Priority::P0), None).unwrap();
+        
+        let issue = backend.get_issue("beads-test-001").unwrap();
+        assert_eq!(issue.priority, Priority::P0);
+    }
+
+    #[test]
+    fn test_update_issue_assignee() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        backend.update_issue("beads-test-001", None, None, Some("new_user".to_string())).unwrap();
+        
+        let issue = backend.get_issue("beads-test-001").unwrap();
+        assert_eq!(issue.assignee, Some("new_user".to_string()));
+    }
+
+    #[test]
+    fn test_update_issue_not_found() {
+        let backend = MockBeadsBackend::new();
+        
+        let result = backend.update_issue("nonexistent", Some(IssueStatus::Closed), None, None);
+        
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_update_issue_stats_on_status_change() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        // Initial stats: open=1, in_progress=1, closed=1
+        let stats = backend.get_stats().unwrap();
+        assert_eq!(stats.open, 1);
+        assert_eq!(stats.in_progress, 1);
+        
+        // Change from Open to InProgress
+        backend.update_issue("beads-test-001", Some(IssueStatus::InProgress), None, None).unwrap();
+        
+        let stats = backend.get_stats().unwrap();
+        assert_eq!(stats.open, 0);
+        assert_eq!(stats.in_progress, 2);
+    }
+
+    #[test]
+    fn test_update_issue_stats_blocked_to_closed() {
+        let backend = MockBeadsBackend::new();
+        let id = backend.create_issue("Test", IssueType::Task, Priority::P2).unwrap();
+        
+        // Set to Blocked first
+        backend.update_issue(&id, Some(IssueStatus::Blocked), None, None).unwrap();
+        let stats = backend.get_stats().unwrap();
+        assert_eq!(stats.blocked, 1);
+        assert_eq!(stats.open, 0);
+        
+        // Change to Closed
+        backend.update_issue(&id, Some(IssueStatus::Closed), None, None).unwrap();
+        let stats = backend.get_stats().unwrap();
+        assert_eq!(stats.blocked, 0);
+        assert_eq!(stats.closed, 1);
+    }
+
+    #[test]
+    fn test_close_issue() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        backend.close_issue("beads-test-001").unwrap();
+        
+        let issue = backend.get_issue("beads-test-001").unwrap();
+        assert_eq!(issue.status, IssueStatus::Closed);
+    }
+
+    #[test]
+    fn test_get_stats() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        let stats = backend.get_stats().unwrap();
+        assert_eq!(stats.total_issues, 3);
+        assert_eq!(stats.open, 1);
+        assert_eq!(stats.in_progress, 1);
+        assert_eq!(stats.closed, 1);
+        assert_eq!(stats.ready_to_work, 1);
+    }
+
+    #[test]
+    fn test_list_labels() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        let labels = backend.list_labels().unwrap();
+        assert_eq!(labels.len(), 4);
+        
+        let label_names: Vec<String> = labels.iter().map(|l| l.name.clone()).collect();
+        assert!(label_names.contains(&"test".to_string()));
+        assert!(label_names.contains(&"bug".to_string()));
+        assert!(label_names.contains(&"feature".to_string()));
+        assert!(label_names.contains(&"critical".to_string()));
+    }
+
+    #[test]
+    fn test_list_labels_empty() {
+        let backend = MockBeadsBackend::new();
+        
+        let labels = backend.list_labels().unwrap();
+        assert_eq!(labels.len(), 0);
+    }
+
+    #[test]
+    fn test_list_issues_with_limit() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        let issues = backend.list_issues(None, Some(2)).unwrap();
+        assert_eq!(issues.len(), 2);
+    }
+
+    #[test]
+    fn test_list_issues_sorted_by_created() {
+        let backend = MockBeadsBackend::new();
+        
+        // Create issues in order
+        let id1 = backend.create_issue("First", IssueType::Task, Priority::P2).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let id2 = backend.create_issue("Second", IssueType::Task, Priority::P2).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let id3 = backend.create_issue("Third", IssueType::Task, Priority::P2).unwrap();
+        
+        let issues = backend.list_issues(None, None).unwrap();
+        
+        // Should be sorted newest first
+        assert_eq!(issues[0].id, id3);
+        assert_eq!(issues[1].id, id2);
+        assert_eq!(issues[2].id, id1);
+    }
+
+    #[test]
+    fn test_add_dependency_duplicate() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        backend.add_dependency("beads-test-001", "beads-test-002").unwrap();
+        backend.add_dependency("beads-test-001", "beads-test-002").unwrap();
+        
+        let issue = backend.get_issue("beads-test-001").unwrap();
+        // Should only have one instance of the dependency
+        let dep_count = issue.dependencies.iter().filter(|id| *id == "beads-test-002").count();
+        assert_eq!(dep_count, 1);
+    }
+
+    #[test]
+    fn test_add_dependency_issue_not_found() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        let result = backend.add_dependency("nonexistent", "beads-test-002");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_add_dependency_depends_on_not_found() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        let result = backend.add_dependency("beads-test-001", "nonexistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_add_dependency_updates_both_issues() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        backend.add_dependency("beads-test-001", "beads-test-002").unwrap();
+        
+        let issue = backend.get_issue("beads-test-001").unwrap();
+        assert_eq!(issue.dependencies.len(), 1);
+        assert!(issue.dependencies.contains(&"beads-test-002".to_string()));
+        
+        let dep_issue = backend.get_issue("beads-test-002").unwrap();
+        assert_eq!(dep_issue.blocks.len(), 1);
+        assert!(dep_issue.blocks.contains(&"beads-test-001".to_string()));
+    }
+
+    #[test]
+    fn test_remove_dependency() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        backend.add_dependency("beads-test-001", "beads-test-002").unwrap();
+        backend.remove_dependency("beads-test-001", "beads-test-002").unwrap();
+        
+        let issue = backend.get_issue("beads-test-001").unwrap();
+        assert!(!issue.dependencies.contains(&"beads-test-002".to_string()));
+        
+        let dep_issue = backend.get_issue("beads-test-002").unwrap();
+        assert!(!dep_issue.blocks.contains(&"beads-test-001".to_string()));
+    }
+
+    #[test]
+    fn test_remove_dependency_nonexistent() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        // Should not panic when removing non-existent dependency
+        backend.remove_dependency("beads-test-001", "beads-test-002").unwrap();
+        
+        let issue = backend.get_issue("beads-test-001").unwrap();
+        assert!(issue.dependencies.is_empty());
+    }
+
+    #[test]
+    fn test_clear() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        // Verify data exists
+        assert!(backend.list_issues(None, None).unwrap().len() > 0);
+        assert!(backend.list_labels().unwrap().len() > 0);
+        
+        // Clear all data
+        backend.clear();
+        
+        // Verify everything is cleared
+        assert_eq!(backend.list_issues(None, None).unwrap().len(), 0);
+        assert_eq!(backend.list_labels().unwrap().len(), 0);
+        
+        let stats = backend.get_stats().unwrap();
+        assert_eq!(stats.total_issues, 0);
+        assert_eq!(stats.open, 0);
+        assert_eq!(stats.in_progress, 0);
+        assert_eq!(stats.blocked, 0);
+        assert_eq!(stats.closed, 0);
+    }
+
+    #[test]
+    fn test_clear_resets_next_id() {
+        let backend = MockBeadsBackend::new();
+        
+        backend.create_issue("First", IssueType::Task, Priority::P2).unwrap();
+        backend.create_issue("Second", IssueType::Task, Priority::P2).unwrap();
+        
+        backend.clear();
+        
+        let id = backend.create_issue("After Clear", IssueType::Task, Priority::P2).unwrap();
+        assert_eq!(id, "beads-mock-0001"); // Reset to 1
+    }
+
+    #[test]
+    fn test_with_test_data_labels() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        let labels = backend.list_labels().unwrap();
+        assert_eq!(labels.len(), 4);
+        
+        for label in &labels {
+            assert_eq!(label.count, 1);
+        }
+    }
+
+    #[test]
+    fn test_with_test_data_stats() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        let stats = backend.get_stats().unwrap();
+        assert_eq!(stats.total_issues, 3);
+        assert_eq!(stats.open, 1);
+        assert_eq!(stats.in_progress, 1);
+        assert_eq!(stats.blocked, 0);
+        assert_eq!(stats.closed, 1);
+        assert_eq!(stats.ready_to_work, 1);
+        assert_eq!(stats.avg_lead_time_hours, 0.0);
+    }
+
+    #[test]
+    fn test_create_issue_all_types() {
+        let backend = MockBeadsBackend::new();
+        
+        backend.create_issue("Task", IssueType::Task, Priority::P2).unwrap();
+        backend.create_issue("Bug", IssueType::Bug, Priority::P0).unwrap();
+        backend.create_issue("Feature", IssueType::Feature, Priority::P1).unwrap();
+        backend.create_issue("Epic", IssueType::Epic, Priority::P3).unwrap();
+        backend.create_issue("Chore", IssueType::Chore, Priority::P4).unwrap();
+        
+        let issues = backend.list_issues(None, None).unwrap();
+        assert_eq!(issues.len(), 5);
+    }
+
+    #[test]
+    fn test_filter_by_in_progress_status() {
+        let backend = MockBeadsBackend::with_test_data();
+        
+        let issues = backend.list_issues(Some(IssueStatus::InProgress), None).unwrap();
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].id, "beads-test-002");
+    }
+
+    #[test]
+    fn test_filter_by_blocked_status() {
+        let backend = MockBeadsBackend::new();
+        let id = backend.create_issue("Test", IssueType::Task, Priority::P2).unwrap();
+        backend.update_issue(&id, Some(IssueStatus::Blocked), None, None).unwrap();
+        
+        let issues = backend.list_issues(Some(IssueStatus::Blocked), None).unwrap();
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].status, IssueStatus::Blocked);
+    }
 }
