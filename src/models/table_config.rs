@@ -490,4 +490,294 @@ mod tests {
         assert_eq!(config.columns.len(), deserialized.columns.len());
         assert_eq!(config.row_height, deserialized.row_height);
     }
+
+    #[test]
+    fn test_column_id_equality() {
+        assert_eq!(ColumnId::Id, ColumnId::Id);
+        assert_eq!(ColumnId::Status, ColumnId::Status);
+        assert_ne!(ColumnId::Id, ColumnId::Title);
+        assert_ne!(ColumnId::Priority, ColumnId::Type);
+    }
+
+    #[test]
+    fn test_column_id_clone() {
+        let id = ColumnId::Updated;
+        let cloned = id;
+        assert_eq!(id, cloned);
+    }
+
+    #[test]
+    fn test_column_id_default_label_all_variants() {
+        assert_eq!(ColumnId::Id.default_label(), "ID");
+        assert_eq!(ColumnId::Title.default_label(), "Title");
+        assert_eq!(ColumnId::Status.default_label(), "Status");
+        assert_eq!(ColumnId::Priority.default_label(), "Priority");
+        assert_eq!(ColumnId::Type.default_label(), "Type");
+        assert_eq!(ColumnId::Assignee.default_label(), "Assignee");
+        assert_eq!(ColumnId::Labels.default_label(), "Labels");
+        assert_eq!(ColumnId::Updated.default_label(), "Updated");
+        assert_eq!(ColumnId::Created.default_label(), "Created");
+    }
+
+    #[test]
+    fn test_alignment_equality() {
+        assert_eq!(Alignment::Left, Alignment::Left);
+        assert_eq!(Alignment::Center, Alignment::Center);
+        assert_ne!(Alignment::Left, Alignment::Right);
+    }
+
+    #[test]
+    fn test_alignment_clone() {
+        let align = Alignment::Right;
+        let cloned = align;
+        assert_eq!(align, cloned);
+    }
+
+    #[test]
+    fn test_alignment_all_variants() {
+        let left = Alignment::Left;
+        let center = Alignment::Center;
+        let right = Alignment::Right;
+        assert_eq!(left, Alignment::Left);
+        assert_eq!(center, Alignment::Center);
+        assert_eq!(right, Alignment::Right);
+    }
+
+    #[test]
+    fn test_wrap_behavior_equality() {
+        assert_eq!(WrapBehavior::Truncate, WrapBehavior::Truncate);
+        assert_eq!(WrapBehavior::Wrap, WrapBehavior::Wrap);
+        assert_ne!(WrapBehavior::Truncate, WrapBehavior::WrapAnywhere);
+    }
+
+    #[test]
+    fn test_wrap_behavior_clone() {
+        let wrap = WrapBehavior::Wrap;
+        let cloned = wrap;
+        assert_eq!(wrap, cloned);
+    }
+
+    #[test]
+    fn test_wrap_behavior_all_variants() {
+        let truncate = WrapBehavior::Truncate;
+        let wrap = WrapBehavior::Wrap;
+        let wrap_anywhere = WrapBehavior::WrapAnywhere;
+        assert_eq!(truncate, WrapBehavior::Truncate);
+        assert_eq!(wrap, WrapBehavior::Wrap);
+        assert_eq!(wrap_anywhere, WrapBehavior::WrapAnywhere);
+    }
+
+    #[test]
+    fn test_width_constraints_new_min_greater_than_preferred() {
+        let constraints = WidthConstraints::new(30, Some(50), 20);
+        // Preferred should be clamped to min
+        assert_eq!(constraints.preferred, 30);
+        assert_eq!(constraints.min, 30);
+        assert_eq!(constraints.max, Some(50));
+    }
+
+    #[test]
+    fn test_width_constraints_clamp_no_max() {
+        let constraints = WidthConstraints::new(10, None, 30);
+        assert_eq!(constraints.clamp(5), 10); // Below min
+        assert_eq!(constraints.clamp(100), 100); // No max, so 100 is OK
+    }
+
+    #[test]
+    fn test_width_constraints_equality() {
+        let c1 = WidthConstraints::new(10, Some(50), 30);
+        let c2 = WidthConstraints::new(10, Some(50), 30);
+        let c3 = WidthConstraints::new(15, Some(50), 30);
+        assert_eq!(c1, c2);
+        assert_ne!(c1, c3);
+    }
+
+    #[test]
+    fn test_column_definition_new_all_column_ids() {
+        let id_col = ColumnDefinition::new(ColumnId::Id);
+        assert_eq!(id_col.id, ColumnId::Id);
+        assert_eq!(id_col.label, "ID");
+        assert!(id_col.visible);
+
+        let title_col = ColumnDefinition::new(ColumnId::Title);
+        assert_eq!(title_col.id, ColumnId::Title);
+        assert_eq!(title_col.alignment, Alignment::Left);
+        assert_eq!(title_col.wrap, WrapBehavior::Wrap);
+
+        let priority_col = ColumnDefinition::new(ColumnId::Priority);
+        assert_eq!(priority_col.alignment, Alignment::Center);
+
+        let updated_col = ColumnDefinition::new(ColumnId::Updated);
+        assert_eq!(updated_col.alignment, Alignment::Right);
+    }
+
+    #[test]
+    fn test_column_definition_clone() {
+        let col = ColumnDefinition::new(ColumnId::Status);
+        let cloned = col.clone();
+        assert_eq!(col.id, cloned.id);
+        assert_eq!(col.label, cloned.label);
+        assert_eq!(col.visible, cloned.visible);
+    }
+
+    #[test]
+    fn test_sort_config_default() {
+        let sort = SortConfig::default();
+        assert_eq!(sort.column, ColumnId::Updated);
+        assert!(!sort.ascending);
+    }
+
+    #[test]
+    fn test_sort_config_clone() {
+        let sort = SortConfig {
+            column: ColumnId::Priority,
+            ascending: true,
+        };
+        let cloned = sort;
+        assert_eq!(sort.column, cloned.column);
+        assert_eq!(sort.ascending, cloned.ascending);
+    }
+
+    #[test]
+    fn test_sort_config_equality() {
+        let s1 = SortConfig {
+            column: ColumnId::Status,
+            ascending: true,
+        };
+        let s2 = SortConfig {
+            column: ColumnId::Status,
+            ascending: true,
+        };
+        let s3 = SortConfig {
+            column: ColumnId::Priority,
+            ascending: true,
+        };
+        assert_eq!(s1, s2);
+        assert_ne!(s1, s3);
+    }
+
+    #[test]
+    fn test_filter_config_default() {
+        let filter = FilterConfig::default();
+        assert!(filter.filters.is_empty());
+    }
+
+    #[test]
+    fn test_filter_config_clone() {
+        let mut filter = FilterConfig::default();
+        filter.filters.insert(ColumnId::Status, "open".to_string());
+        let cloned = filter.clone();
+        assert_eq!(cloned.filters.len(), 1);
+        assert_eq!(cloned.filters.get(&ColumnId::Status), Some(&"open".to_string()));
+    }
+
+    #[test]
+    fn test_table_config_new() {
+        let config = TableConfig::new();
+        assert_eq!(config.columns.len(), 8);
+        assert_eq!(config.row_height, 1);
+        assert_eq!(config.sort.column, ColumnId::Updated);
+        assert_eq!(config.version, 1);
+    }
+
+    #[test]
+    fn test_table_config_clone() {
+        let config = TableConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.columns.len(), cloned.columns.len());
+        assert_eq!(config.row_height, cloned.row_height);
+        assert_eq!(config.version, cloned.version);
+    }
+
+    #[test]
+    fn test_table_config_get_column_none() {
+        let mut config = TableConfig::default();
+        // Remove Created column
+        config.columns.retain(|c| c.id != ColumnId::Created);
+        assert!(config.get_column(ColumnId::Created).is_none());
+    }
+
+    #[test]
+    fn test_table_config_get_column_mut_none() {
+        let mut config = TableConfig::default();
+        config.columns.retain(|c| c.id != ColumnId::Labels);
+        assert!(config.get_column_mut(ColumnId::Labels).is_none());
+    }
+
+    #[test]
+    fn test_table_config_reorder_column_out_of_bounds() {
+        let mut config = TableConfig::default();
+        let original_len = config.columns.len();
+        let original_first_id = config.columns[0].id;
+
+        // Try to reorder with out of bounds indices
+        config.reorder_column(100, 0);
+        assert_eq!(config.columns.len(), original_len);
+        assert_eq!(config.columns[0].id, original_first_id); // No change
+
+        config.reorder_column(0, 100);
+        assert_eq!(config.columns.len(), original_len);
+        assert_eq!(config.columns[0].id, original_first_id); // No change
+    }
+
+    #[test]
+    fn test_table_config_validate_missing_id_only() {
+        let mut config = TableConfig {
+            columns: vec![
+                ColumnDefinition::new(ColumnId::Title),
+                ColumnDefinition::new(ColumnId::Status),
+            ],
+            row_height: 1,
+            sort: SortConfig::default(),
+            filters: FilterConfig::default(),
+            version: 1,
+        };
+
+        config = config.validate_and_migrate();
+
+        // Should have added ID at position 0
+        assert_eq!(config.columns[0].id, ColumnId::Id);
+        assert_eq!(config.columns[1].id, ColumnId::Title);
+        assert!(config.columns.iter().all(|c| {
+            if c.id.is_mandatory() {
+                c.visible
+            } else {
+                true
+            }
+        }));
+    }
+
+    #[test]
+    fn test_table_config_validate_missing_title_only() {
+        let mut config = TableConfig {
+            columns: vec![
+                ColumnDefinition::new(ColumnId::Id),
+                ColumnDefinition::new(ColumnId::Status),
+            ],
+            row_height: 1,
+            sort: SortConfig::default(),
+            filters: FilterConfig::default(),
+            version: 1,
+        };
+
+        config = config.validate_and_migrate();
+
+        // Should have added Title at position 1 (after Id)
+        assert_eq!(config.columns[0].id, ColumnId::Id);
+        assert_eq!(config.columns[1].id, ColumnId::Title);
+    }
+
+    #[test]
+    fn test_table_config_validate_widths() {
+        let mut config = TableConfig::default();
+        // Manually set a width outside constraints
+        if let Some(col) = config.columns.iter_mut().find(|c| c.id == ColumnId::Id) {
+            col.width = 5; // Below min (should be clamped to min=10)
+        }
+
+        config = config.validate_and_migrate();
+
+        let id_col = config.get_column(ColumnId::Id).unwrap();
+        assert_eq!(id_col.width, id_col.width_constraints.min);
+    }
 }
