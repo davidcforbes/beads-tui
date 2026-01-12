@@ -656,7 +656,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
                         // Show edit buffer with cursor
                         let before_cursor = &edit_buffer[..cursor_pos];
                         let after_cursor = &edit_buffer[cursor_pos..];
-                        format!("{}|{}", before_cursor, after_cursor)
+                        format!("{before_cursor}|{after_cursor}")
                     } else {
                         issue.title.clone()
                     }

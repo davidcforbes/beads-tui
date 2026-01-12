@@ -197,7 +197,7 @@ impl FormField {
         match rule {
             ValidationRule::Required => {
                 if value.trim().is_empty() {
-                    Some(format!("{} is required", label))
+                    Some(format!("{label} is required"))
                 } else {
                     None
                 }
@@ -217,8 +217,8 @@ impl FormField {
                 if !value.is_empty() {
                     match value.parse::<i64>() {
                         Ok(n) if n >= 0 => None,
-                        Ok(_) => Some(format!("{} must be >= 0", label)),
-                        Err(_) => Some(format!("{} must be a valid number", label)),
+                        Ok(_) => Some(format!("{label} must be >= 0")),
+                        Err(_) => Some(format!("{label} must be a valid number")),
                     }
                 } else {
                     None
@@ -237,8 +237,7 @@ impl FormField {
                         None
                     } else {
                         Some(format!(
-                            "{} must match format: beads-xxxx-xxxx",
-                            label
+                            "{label} must match format: beads-xxxx-xxxx"
                         ))
                     }
                 } else {
@@ -247,7 +246,7 @@ impl FormField {
             }
             ValidationRule::NoSpaces => {
                 if !value.is_empty() && value.contains(' ') {
-                    Some(format!("{} must not contain spaces", label))
+                    Some(format!("{label} must not contain spaces"))
                 } else {
                     None
                 }
@@ -255,14 +254,13 @@ impl FormField {
             ValidationRule::Date => {
                 if !value.is_empty() {
                     // Try to parse as RFC3339 or relative date
-                    if chrono::DateTime::parse_from_rfc3339(value).is_ok() {
-                        None
-                    } else if Self::is_relative_date(value) {
+                    if chrono::DateTime::parse_from_rfc3339(value).is_ok()
+                        || Self::is_relative_date(value)
+                    {
                         None
                     } else {
                         Some(format!(
-                            "{} must be a valid date (RFC3339 or relative like '1d', '2w')",
-                            label
+                            "{label} must be a valid date (RFC3339 or relative like '1d', '2w')"
                         ))
                     }
                 } else {
@@ -276,15 +274,14 @@ impl FormField {
                         if parsed_date.timestamp() >= chrono::Utc::now().timestamp() {
                             None
                         } else {
-                            Some(format!("{} must be in the future", label))
+                            Some(format!("{label} must be in the future"))
                         }
                     } else if Self::is_relative_date(value) {
                         // Relative dates are always future by definition
                         None
                     } else {
                         Some(format!(
-                            "{} must be a valid future date",
-                            label
+                            "{label} must be a valid future date"
                         ))
                     }
                 } else {
@@ -503,16 +500,16 @@ impl FormState {
         // Validate file exists
         let path = Path::new(file_path);
         if !path.exists() {
-            return Err(format!("File not found: {}", file_path));
+            return Err(format!("File not found: {file_path}"));
         }
 
         if !path.is_file() {
-            return Err(format!("Path is not a file: {}", file_path));
+            return Err(format!("Path is not a file: {file_path}"));
         }
 
         // Read file content
         let content = fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read file: {}", e))?;
+            .map_err(|e| format!("Failed to read file: {e}"))?;
 
         // Validate UTF-8 (already validated by read_to_string, but check for null bytes)
         if content.contains('\0') {
@@ -671,7 +668,7 @@ impl<'a> StatefulWidget for Form<'a> {
 
             // Show file path if loaded from file
             if let Some(ref file_path) = field.loaded_from_file {
-                title = format!("{} [from: {}]", title, file_path);
+                title = format!("{title} [from: {file_path}]");
             }
 
             let title = if is_focused {

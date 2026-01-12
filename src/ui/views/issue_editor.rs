@@ -274,7 +274,7 @@ impl IssueEditorState {
             if let Some((old_val, new_val)) = changes.get(field_name) {
                 let old_display = if old_val.is_empty() { "<empty>" } else { old_val };
                 let new_display = if new_val.is_empty() { "<empty>" } else { new_val };
-                summary.push(format!("{}: {} → {}", field_name, old_display, new_display));
+                summary.push(format!("{field_name}: {old_display} → {new_display}"));
             }
         }
         
