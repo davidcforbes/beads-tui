@@ -3,10 +3,10 @@
 use crate::beads::models::{Issue, IssueStatus, IssueType, Priority};
 use ratatui::{
     buffer::Buffer,
-    layout::{Constraint, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, Row, StatefulWidget, Table, TableState},
+    widgets::{Block, Borders, Cell, Row, StatefulWidget, Table, TableState, Widget},
 };
 
 /// Sort column for issue list
@@ -511,12 +511,69 @@ impl<'a> IssueList<'a> {
             IssueType::Chore => "🔧",
         }
     }
+
+    /// Render the filter row below the table
+    fn render_filter_row(area: Rect, buf: &mut Buffer, state: &IssueListState) {
+        use ratatui::widgets::Paragraph;
+        
+        let filters = state.column_filters();
+        let mut filter_parts = Vec::new();
+
+        // Show active filters
+        if !filters.id.is_empty() {
+            filter_parts.push(format!("ID: {}", filters.id));
+        }
+        if !filters.title.is_empty() {
+            filter_parts.push(format!("Title: {}", filters.title));
+        }
+        if !filters.status.is_empty() {
+            filter_parts.push(format!("Status: {}", filters.status));
+        }
+        if !filters.priority.is_empty() {
+            filter_parts.push(format!("Priority: {}", filters.priority));
+        }
+        if !filters.type_filter.is_empty() {
+            filter_parts.push(format!("Type: {}", filters.type_filter));
+        }
+
+        let filter_text = if filter_parts.is_empty() {
+            "Quick Filters: [No filters active] Press 'f' to toggle filters".to_string()
+        } else {
+            format!("Quick Filters: {} | Press 'f' to toggle", filter_parts.join(" | "))
+        };
+
+        let filter_style = if filter_parts.is_empty() {
+            Style::default().fg(Color::DarkGray)
+        } else {
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+        };
+
+        let paragraph = Paragraph::new(filter_text)
+            .style(filter_style)
+            .block(Block::default().borders(Borders::ALL).title("Filters"));
+
+        paragraph.render(area, buf);
+    }
 }
 
 impl<'a> StatefulWidget for IssueList<'a> {
     type State = IssueListState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        // Split area if filters are enabled
+        let (table_area, filter_area) = if state.filters_enabled() {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(5),     // Table area
+                    Constraint::Length(3),  // Filter row area
+                ])
+                .split(area);
+            (chunks[0], Some(chunks[1]))
+        } else {
+            (area, None)
+        };
+
         // Update sorting if state has changed
         let mut issues = self.issues;
         if state.sort_column != self.sort_column || state.sort_direction != self.sort_direction {
@@ -679,7 +736,12 @@ impl<'a> StatefulWidget for IssueList<'a> {
             )
             .highlight_symbol(">> ");
 
-        StatefulWidget::render(table, area, buf, &mut state.table_state);
+        StatefulWidget::render(table, table_area, buf, &mut state.table_state);
+
+        // Render filter row if enabled
+        if let Some(filter_area) = filter_area {
+            Self::render_filter_row(filter_area, buf, state);
+        }
     }
 }
 
