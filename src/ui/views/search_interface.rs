@@ -611,4 +611,265 @@ mod tests {
         assert_eq!(state.result_count(), 1);
         assert_eq!(state.filtered_issues()[0].id, "beads-004");
     }
+
+    #[test]
+    fn test_search_scope_clone() {
+        let scope = SearchScope::Title;
+        let cloned = scope.clone();
+        assert_eq!(scope, cloned);
+
+        let scope = SearchScope::All;
+        let cloned = scope.clone();
+        assert_eq!(scope, cloned);
+    }
+
+    #[test]
+    fn test_search_scope_eq() {
+        assert_eq!(SearchScope::Title, SearchScope::Title);
+        assert_eq!(SearchScope::Description, SearchScope::Description);
+        assert_eq!(SearchScope::Notes, SearchScope::Notes);
+        assert_eq!(SearchScope::All, SearchScope::All);
+
+        assert_ne!(SearchScope::Title, SearchScope::Description);
+        assert_ne!(SearchScope::Notes, SearchScope::All);
+    }
+
+    #[test]
+    fn test_search_scope_all() {
+        let all_scopes = SearchScope::all();
+        assert_eq!(all_scopes.len(), 4);
+        assert_eq!(all_scopes[0], SearchScope::Title);
+        assert_eq!(all_scopes[1], SearchScope::Description);
+        assert_eq!(all_scopes[2], SearchScope::Notes);
+        assert_eq!(all_scopes[3], SearchScope::All);
+    }
+
+    #[test]
+    fn test_search_interface_state_with_empty_issues() {
+        let issues: Vec<Issue> = vec![];
+        let state = SearchInterfaceState::new(issues);
+
+        assert_eq!(state.result_count(), 0);
+        assert_eq!(state.filtered_issues().len(), 0);
+        assert!(state.selected_issue().is_none());
+    }
+
+    #[test]
+    fn test_search_state_getter() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.search_state_mut().set_query("test");
+        assert_eq!(state.search_state().query(), "test");
+    }
+
+    #[test]
+    fn test_list_state_getter() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.list_state_mut().select(Some(1));
+        assert_eq!(state.list_state().selected(), Some(1));
+    }
+
+    #[test]
+    fn test_filtered_issues_initially_all() {
+        let issues = create_test_issues();
+        let state = SearchInterfaceState::new(issues.clone());
+
+        assert_eq!(state.filtered_issues().len(), issues.len());
+        assert_eq!(state.filtered_issues()[0].id, issues[0].id);
+    }
+
+    #[test]
+    fn test_selected_issue_none_when_no_selection() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Explicitly deselect
+        state.list_state_mut().select(None);
+        assert!(state.selected_issue().is_none());
+    }
+
+    #[test]
+    fn test_selected_issue_some_when_selected() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.list_state_mut().select(Some(1));
+        let selected = state.selected_issue();
+
+        assert!(selected.is_some());
+        assert_eq!(selected.unwrap().id, "beads-002");
+    }
+
+    #[test]
+    fn test_selected_issue_out_of_bounds() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.list_state_mut().select(Some(100));
+        assert!(state.selected_issue().is_none());
+    }
+
+    #[test]
+    fn test_result_count_with_filters() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        assert_eq!(state.result_count(), 3);
+
+        state.search_state_mut().set_query("bug");
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), 1);
+    }
+
+    #[test]
+    fn test_set_search_scope_updates_filters() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.search_state_mut().set_query("editor");
+        state.set_search_scope(SearchScope::Title);
+
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-002");
+    }
+
+    #[test]
+    fn test_update_filtered_issues_resets_selection_when_out_of_bounds() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.list_state_mut().select(Some(2));
+        assert_eq!(state.list_state().selected(), Some(2));
+
+        state.search_state_mut().set_query("search");
+        state.update_filtered_issues();
+
+        // Should reset to Some(0) since only 1 result and previous selection (2) is out of bounds
+        assert_eq!(state.list_state().selected(), Some(0));
+    }
+
+    #[test]
+    fn test_search_in_labels() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::All);
+        state.search_state_mut().set_query("ui");
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-001");
+    }
+
+    #[test]
+    fn test_search_in_id() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::All);
+        state.search_state_mut().set_query("beads-002");
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-002");
+    }
+
+    #[test]
+    fn test_search_with_no_description() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::Description);
+        state.search_state_mut().set_query("anything");
+        state.update_filtered_issues();
+
+        // beads-003 has no description, so should not match
+        // beads-001 and beads-002 have descriptions but "anything" doesn't match
+        assert_eq!(state.result_count(), 0);
+    }
+
+    #[test]
+    fn test_search_with_no_assignee() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::All);
+        state.search_state_mut().set_query("charlie");
+        state.update_filtered_issues();
+
+        // No issues assigned to charlie
+        assert_eq!(state.result_count(), 0);
+    }
+
+    #[test]
+    fn test_search_with_empty_notes() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::Notes);
+        state.search_state_mut().set_query("anything");
+        state.update_filtered_issues();
+
+        // All test issues have empty notes
+        assert_eq!(state.result_count(), 0);
+    }
+
+    #[test]
+    fn test_search_with_multiple_labels() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_search_scope(SearchScope::All);
+        state.search_state_mut().set_query("editor");
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-002");
+        assert!(state.filtered_issues()[0].labels.contains(&"editor".to_string()));
+    }
+
+    #[test]
+    fn test_search_interface_view_new() {
+        let view = SearchInterfaceView::new();
+        assert_eq!(view.block_style, Style::default().fg(Color::Cyan));
+        assert_eq!(view.help_style, Style::default().fg(Color::DarkGray));
+    }
+
+    #[test]
+    fn test_search_interface_view_default() {
+        let view = SearchInterfaceView::default();
+        assert_eq!(view.block_style, Style::default().fg(Color::Cyan));
+        assert_eq!(view.help_style, Style::default().fg(Color::DarkGray));
+    }
+
+    #[test]
+    fn test_search_interface_view_block_style() {
+        let custom_style = Style::default().fg(Color::Green);
+        let view = SearchInterfaceView::new().block_style(custom_style);
+        assert_eq!(view.block_style, custom_style);
+    }
+
+    #[test]
+    fn test_search_interface_view_help_style() {
+        let custom_style = Style::default().fg(Color::Magenta);
+        let view = SearchInterfaceView::new().help_style(custom_style);
+        assert_eq!(view.help_style, custom_style);
+    }
+
+    #[test]
+    fn test_search_interface_view_builder_chain() {
+        let block_style = Style::default().fg(Color::Red);
+        let help_style = Style::default().fg(Color::Blue);
+
+        let view = SearchInterfaceView::new()
+            .block_style(block_style)
+            .help_style(help_style);
+
+        assert_eq!(view.block_style, block_style);
+        assert_eq!(view.help_style, help_style);
+    }
 }
