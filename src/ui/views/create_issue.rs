@@ -681,4 +681,388 @@ mod tests {
         assert_eq!(data.labels.len(), 0);
         assert_eq!(data.description, None);
     }
+
+    // FormSection tests
+    #[test]
+    fn test_form_section_all() {
+        let sections = FormSection::all();
+        assert_eq!(sections.len(), 6);
+        assert_eq!(sections[0], FormSection::Summary);
+        assert_eq!(sections[1], FormSection::Scheduling);
+        assert_eq!(sections[2], FormSection::Relationships);
+        assert_eq!(sections[3], FormSection::Labels);
+        assert_eq!(sections[4], FormSection::Text);
+        assert_eq!(sections[5], FormSection::Metadata);
+    }
+
+    #[test]
+    fn test_form_section_display_name() {
+        assert_eq!(FormSection::Summary.display_name(), "Summary");
+        assert_eq!(FormSection::Scheduling.display_name(), "Scheduling");
+        assert_eq!(FormSection::Relationships.display_name(), "Relationships");
+        assert_eq!(FormSection::Labels.display_name(), "Labels");
+        assert_eq!(FormSection::Text.display_name(), "Text");
+        assert_eq!(FormSection::Metadata.display_name(), "Metadata");
+    }
+
+    #[test]
+    fn test_form_section_description() {
+        assert_eq!(FormSection::Summary.description(), "Title, type, priority, status");
+        assert_eq!(FormSection::Scheduling.description(), "Due date, defer date, time estimate");
+        assert_eq!(FormSection::Relationships.description(), "Parent issue, dependencies");
+        assert_eq!(FormSection::Labels.description(), "Tags and categories");
+        assert_eq!(FormSection::Text.description(), "Description, design, acceptance criteria, notes");
+        assert_eq!(FormSection::Metadata.description(), "Read-only system information");
+    }
+
+    #[test]
+    fn test_form_section_has_required_fields() {
+        assert!(FormSection::Summary.has_required_fields());
+        assert!(!FormSection::Scheduling.has_required_fields());
+        assert!(!FormSection::Relationships.has_required_fields());
+        assert!(!FormSection::Labels.has_required_fields());
+        assert!(!FormSection::Text.has_required_fields());
+        assert!(!FormSection::Metadata.has_required_fields());
+    }
+
+    #[test]
+    fn test_form_section_equality() {
+        assert_eq!(FormSection::Summary, FormSection::Summary);
+        assert_ne!(FormSection::Summary, FormSection::Scheduling);
+        assert_eq!(FormSection::Labels, FormSection::Labels);
+    }
+
+    // CreateIssueFormState tests
+    #[test]
+    fn test_create_issue_form_state_default() {
+        let state = CreateIssueFormState::default();
+        assert_eq!(state.current_section(), FormSection::Summary);
+        assert!(!state.is_preview_mode());
+    }
+
+    #[test]
+    fn test_set_section() {
+        let mut state = CreateIssueFormState::new();
+        assert_eq!(state.current_section(), FormSection::Summary);
+
+        state.set_section(FormSection::Labels);
+        assert_eq!(state.current_section(), FormSection::Labels);
+
+        state.set_section(FormSection::Metadata);
+        assert_eq!(state.current_section(), FormSection::Metadata);
+    }
+
+    #[test]
+    fn test_next_section() {
+        let mut state = CreateIssueFormState::new();
+        assert_eq!(state.current_section(), FormSection::Summary);
+
+        state.next_section();
+        assert_eq!(state.current_section(), FormSection::Scheduling);
+
+        state.next_section();
+        assert_eq!(state.current_section(), FormSection::Relationships);
+
+        state.next_section();
+        assert_eq!(state.current_section(), FormSection::Labels);
+
+        state.next_section();
+        assert_eq!(state.current_section(), FormSection::Text);
+
+        state.next_section();
+        assert_eq!(state.current_section(), FormSection::Metadata);
+
+        // Wraparound
+        state.next_section();
+        assert_eq!(state.current_section(), FormSection::Summary);
+    }
+
+    #[test]
+    fn test_prev_section() {
+        let mut state = CreateIssueFormState::new();
+        assert_eq!(state.current_section(), FormSection::Summary);
+
+        // Wraparound to end
+        state.prev_section();
+        assert_eq!(state.current_section(), FormSection::Metadata);
+
+        state.prev_section();
+        assert_eq!(state.current_section(), FormSection::Text);
+
+        state.prev_section();
+        assert_eq!(state.current_section(), FormSection::Labels);
+
+        state.prev_section();
+        assert_eq!(state.current_section(), FormSection::Relationships);
+
+        state.prev_section();
+        assert_eq!(state.current_section(), FormSection::Scheduling);
+
+        state.prev_section();
+        assert_eq!(state.current_section(), FormSection::Summary);
+    }
+
+    #[test]
+    fn test_toggle_preview() {
+        let mut state = CreateIssueFormState::new();
+        assert!(!state.is_preview_mode());
+
+        state.toggle_preview();
+        assert!(state.is_preview_mode());
+
+        state.toggle_preview();
+        assert!(!state.is_preview_mode());
+    }
+
+    #[test]
+    fn test_current_section_fields_summary() {
+        let mut state = CreateIssueFormState::new();
+        state.set_section(FormSection::Summary);
+        let fields = state.current_section_fields();
+        assert_eq!(fields, vec!["title", "type", "priority", "status"]);
+    }
+
+    #[test]
+    fn test_current_section_fields_scheduling() {
+        let mut state = CreateIssueFormState::new();
+        state.set_section(FormSection::Scheduling);
+        let fields = state.current_section_fields();
+        assert_eq!(fields, vec!["due_date", "defer_date", "time_estimate"]);
+    }
+
+    #[test]
+    fn test_current_section_fields_relationships() {
+        let mut state = CreateIssueFormState::new();
+        state.set_section(FormSection::Relationships);
+        let fields = state.current_section_fields();
+        assert_eq!(fields, vec!["parent", "dependencies"]);
+    }
+
+    #[test]
+    fn test_current_section_fields_labels() {
+        let mut state = CreateIssueFormState::new();
+        state.set_section(FormSection::Labels);
+        let fields = state.current_section_fields();
+        assert_eq!(fields, vec!["assignee", "labels"]);
+    }
+
+    #[test]
+    fn test_current_section_fields_text() {
+        let mut state = CreateIssueFormState::new();
+        state.set_section(FormSection::Text);
+        let fields = state.current_section_fields();
+        assert_eq!(fields, vec!["description", "design", "acceptance", "notes"]);
+    }
+
+    #[test]
+    fn test_current_section_fields_metadata() {
+        let mut state = CreateIssueFormState::new();
+        state.set_section(FormSection::Metadata);
+        let fields = state.current_section_fields();
+        assert_eq!(fields.len(), 0); // Metadata is read-only
+    }
+
+    #[test]
+    fn test_is_section_complete_summary_empty() {
+        let state = CreateIssueFormState::new();
+        // Title is empty by default
+        assert!(!state.is_section_complete(FormSection::Summary));
+    }
+
+    #[test]
+    fn test_is_section_complete_summary_filled() {
+        let mut state = CreateIssueFormState::new();
+        state.form_state_mut().set_value("title", "Test Issue".to_string());
+        assert!(state.is_section_complete(FormSection::Summary));
+    }
+
+    #[test]
+    fn test_is_section_complete_other_sections() {
+        let state = CreateIssueFormState::new();
+        // Other sections have no required fields
+        assert!(state.is_section_complete(FormSection::Scheduling));
+        assert!(state.is_section_complete(FormSection::Relationships));
+        assert!(state.is_section_complete(FormSection::Labels));
+        assert!(state.is_section_complete(FormSection::Text));
+        assert!(state.is_section_complete(FormSection::Metadata));
+    }
+
+    #[test]
+    fn test_get_data_with_all_fields() {
+        let mut state = CreateIssueFormState::new();
+
+        state.form_state_mut().set_value("title", "Test Issue".to_string());
+        state.form_state_mut().set_value("type", "Feature".to_string());
+        state.form_state_mut().set_value("priority", "P1 (High)".to_string());
+        state.form_state_mut().set_value("status", "InProgress".to_string());
+        state.form_state_mut().set_value("assignee", "alice".to_string());
+        state.form_state_mut().set_value("labels", "frontend, ui".to_string());
+        state.form_state_mut().set_value("description", "Test description".to_string());
+        state.form_state_mut().set_value("due_date", "2026-01-31".to_string());
+        state.form_state_mut().set_value("defer_date", "2026-01-20".to_string());
+        state.form_state_mut().set_value("time_estimate", "3d".to_string());
+        state.form_state_mut().set_value("parent", "beads-abcd-0001".to_string());
+        state.form_state_mut().set_value("dependencies", "beads-efgh-0002, beads-ijkl-0003".to_string());
+        state.form_state_mut().set_value("design", "Design notes".to_string());
+        state.form_state_mut().set_value("acceptance", "Acceptance criteria".to_string());
+        state.form_state_mut().set_value("notes", "Additional notes".to_string());
+
+        assert!(state.validate());
+
+        let data = state.get_data().unwrap();
+        assert_eq!(data.title, "Test Issue");
+        assert_eq!(data.issue_type, IssueType::Feature);
+        assert_eq!(data.priority, Priority::P1);
+        assert_eq!(data.status, "InProgress");
+        assert_eq!(data.assignee, Some("alice".to_string()));
+        assert_eq!(data.labels.len(), 2);
+        assert!(data.labels.contains(&"frontend".to_string()));
+        assert!(data.labels.contains(&"ui".to_string()));
+        assert_eq!(data.description, Some("Test description".to_string()));
+        assert_eq!(data.due_date, Some("2026-01-31".to_string()));
+        assert_eq!(data.defer_date, Some("2026-01-20".to_string()));
+        assert_eq!(data.time_estimate, Some("3d".to_string()));
+        assert_eq!(data.parent, Some("beads-abcd-0001".to_string()));
+        assert_eq!(data.dependencies.len(), 2);
+        assert!(data.dependencies.contains(&"beads-efgh-0002".to_string()));
+        assert!(data.dependencies.contains(&"beads-ijkl-0003".to_string()));
+        assert_eq!(data.design, Some("Design notes".to_string()));
+        assert_eq!(data.acceptance, Some("Acceptance criteria".to_string()));
+        assert_eq!(data.notes, Some("Additional notes".to_string()));
+    }
+
+    #[test]
+    fn test_get_data_returns_none_with_errors() {
+        let mut state = CreateIssueFormState::new();
+        // Don't set title (required field)
+        assert!(!state.validate());
+        assert!(state.get_data().is_none());
+    }
+
+    #[test]
+    fn test_get_data_empty_strings_become_none() {
+        let mut state = CreateIssueFormState::new();
+        state.form_state_mut().set_value("title", "Test".to_string());
+        state.form_state_mut().set_value("assignee", "".to_string());
+        state.form_state_mut().set_value("description", "".to_string());
+
+        assert!(state.validate());
+
+        let data = state.get_data().unwrap();
+        assert_eq!(data.assignee, None);
+        assert_eq!(data.description, None);
+    }
+
+    #[test]
+    fn test_get_data_labels_splitting() {
+        let mut state = CreateIssueFormState::new();
+        state.form_state_mut().set_value("title", "Test".to_string());
+        state.form_state_mut().set_value("labels", "  bug ,  urgent , high-priority  ".to_string());
+
+        assert!(state.validate());
+
+        let data = state.get_data().unwrap();
+        assert_eq!(data.labels.len(), 3);
+        assert_eq!(data.labels[0], "bug");
+        assert_eq!(data.labels[1], "urgent");
+        assert_eq!(data.labels[2], "high-priority");
+    }
+
+    #[test]
+    fn test_get_data_dependencies_splitting() {
+        let mut state = CreateIssueFormState::new();
+        state.form_state_mut().set_value("title", "Test".to_string());
+        state.form_state_mut().set_value("dependencies", "  beads-abcd-0001 ,  beads-efgh-0002  ".to_string());
+
+        assert!(state.validate());
+
+        let data = state.get_data().unwrap();
+        assert_eq!(data.dependencies.len(), 2);
+        assert_eq!(data.dependencies[0], "beads-abcd-0001");
+        assert_eq!(data.dependencies[1], "beads-efgh-0002");
+    }
+
+    #[test]
+    fn test_clear_resets_section_and_preview() {
+        let mut state = CreateIssueFormState::new();
+        state.set_section(FormSection::Labels);
+        state.toggle_preview();
+        state.form_state_mut().set_value("title", "Test".to_string());
+
+        assert_eq!(state.current_section(), FormSection::Labels);
+        assert!(state.is_preview_mode());
+
+        state.clear();
+
+        assert_eq!(state.current_section(), FormSection::Summary);
+        assert!(!state.is_preview_mode());
+        assert_eq!(state.form_state().get_value("title"), Some(""));
+    }
+
+    // CreateIssueForm widget tests
+    #[test]
+    fn test_create_issue_form_new() {
+        let form = CreateIssueForm::new();
+        assert_eq!(form.title, "Create New Issue");
+        assert!(form.show_help);
+    }
+
+    #[test]
+    fn test_create_issue_form_default() {
+        let form = CreateIssueForm::default();
+        assert_eq!(form.title, "Create New Issue");
+        assert!(form.show_help);
+    }
+
+    #[test]
+    fn test_create_issue_form_title() {
+        let form = CreateIssueForm::new().title("Custom Title");
+        assert_eq!(form.title, "Custom Title");
+    }
+
+    #[test]
+    fn test_create_issue_form_show_help() {
+        let form = CreateIssueForm::new().show_help(false);
+        assert!(!form.show_help);
+
+        let form2 = CreateIssueForm::new().show_help(true);
+        assert!(form2.show_help);
+    }
+
+    #[test]
+    fn test_create_issue_form_builder_chain() {
+        let form = CreateIssueForm::new()
+            .title("Edit Issue")
+            .show_help(false);
+
+        assert_eq!(form.title, "Edit Issue");
+        assert!(!form.show_help);
+    }
+
+    // CreateIssueData tests
+    #[test]
+    fn test_create_issue_data_creation() {
+        let data = CreateIssueData {
+            title: "Test".to_string(),
+            issue_type: IssueType::Bug,
+            priority: Priority::P0,
+            status: "Open".to_string(),
+            assignee: Some("bob".to_string()),
+            labels: vec!["urgent".to_string()],
+            description: Some("desc".to_string()),
+            due_date: Some("2026-12-31".to_string()),
+            defer_date: Some("2026-01-01".to_string()),
+            time_estimate: Some("1w".to_string()),
+            parent: Some("beads-prnt-0001".to_string()),
+            dependencies: vec!["beads-deps-0001".to_string()],
+            design: Some("design".to_string()),
+            acceptance: Some("acceptance".to_string()),
+            notes: Some("notes".to_string()),
+        };
+
+        assert_eq!(data.title, "Test");
+        assert_eq!(data.issue_type, IssueType::Bug);
+        assert_eq!(data.priority, Priority::P0);
+        assert_eq!(data.assignee, Some("bob".to_string()));
+    }
 }
