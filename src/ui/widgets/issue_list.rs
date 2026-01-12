@@ -1086,4 +1086,147 @@ mod tests {
     fn test_truncate_text_one_over() {
         assert_eq!(IssueList::truncate_text("exactly11ch", 10), "exactly...");
     }
+
+    // ColumnFilters tests
+    #[test]
+    fn test_column_filters_empty() {
+        let filters = ColumnFilters::default();
+        assert!(filters.is_empty());
+    }
+
+    #[test]
+    fn test_column_filters_matches_id_substring() {
+        let mut filters = ColumnFilters::default();
+        filters.id = "tui".to_string();
+        
+        let issue = create_test_issue("beads-tui-123", "Test", Priority::P2, IssueStatus::Open);
+        assert!(filters.matches(&issue));
+    }
+
+    #[test]
+    fn test_column_filters_matches_case_insensitive() {
+        let mut filters = ColumnFilters::default();
+        filters.id = "TUI".to_string();
+        
+        let issue = create_test_issue("beads-tui-123", "Test", Priority::P2, IssueStatus::Open);
+        assert!(filters.matches(&issue));
+    }
+
+    #[test]
+    fn test_column_filters_no_match() {
+        let mut filters = ColumnFilters::default();
+        filters.id = "xyz".to_string();
+        
+        let issue = create_test_issue("beads-tui-123", "Test", Priority::P2, IssueStatus::Open);
+        assert!(!filters.matches(&issue));
+    }
+
+    #[test]
+    fn test_column_filters_clear() {
+        let mut filters = ColumnFilters::default();
+        filters.id = "test".to_string();
+        filters.title = "example".to_string();
+        filters.clear();
+        assert!(filters.is_empty());
+    }
+
+    // IssueListState editing tests
+    #[test]
+    fn test_issue_list_state_start_editing() {
+        let mut state = IssueListState::new();
+        state.start_editing(0, "Test Title".to_string());
+        assert!(state.is_editing());
+        assert_eq!(state.editing_state(), Some((0, &"Test Title".to_string(), 10)));
+    }
+
+    #[test]
+    fn test_issue_list_state_insert_char() {
+        let mut state = IssueListState::new();
+        state.start_editing(0, "Test".to_string());
+        state.insert_char_at_cursor('X');
+        assert_eq!(state.editing_state(), Some((0, &"TestX".to_string(), 5)));
+    }
+
+    #[test]
+    fn test_issue_list_state_delete_char() {
+        let mut state = IssueListState::new();
+        state.start_editing(0, "Test".to_string());
+        state.delete_char_before_cursor();
+        assert_eq!(state.editing_state(), Some((0, &"Tes".to_string(), 3)));
+    }
+
+    #[test]
+    fn test_issue_list_state_move_cursor() {
+        let mut state = IssueListState::new();
+        state.start_editing(0, "Test".to_string());
+        state.move_cursor_left();
+        state.move_cursor_left();
+        assert_eq!(state.editing_state(), Some((0, &"Test".to_string(), 2)));
+        state.move_cursor_right();
+        assert_eq!(state.editing_state(), Some((0, &"Test".to_string(), 3)));
+    }
+
+    #[test]
+    fn test_issue_list_state_cancel_editing() {
+        let mut state = IssueListState::new();
+        state.start_editing(0, "Test".to_string());
+        state.cancel_editing();
+        assert!(!state.is_editing());
+    }
+
+    #[test]
+    fn test_issue_list_state_finish_editing() {
+        let mut state = IssueListState::new();
+        state.start_editing(0, "Test".to_string());
+        let result = state.finish_editing();
+        assert_eq!(result, Some("Test".to_string()));
+        assert!(!state.is_editing());
+    }
+
+    // Column focus tests
+    #[test]
+    fn test_focus_next_column_wraparound() {
+        let mut state = IssueListState::new();
+        state.set_focused_column(Some(0));
+        let visible_count = state.table_config().visible_columns().len();
+        
+        // Advance through all columns and wrap back to start
+        for _ in 0..visible_count {
+            state.focus_next_column();
+        }
+        assert_eq!(state.focused_column(), Some(0)); // Wraps around
+    }
+
+    #[test]
+    fn test_focus_previous_column_wraparound() {
+        let mut state = IssueListState::new();
+        state.set_focused_column(Some(0));
+        state.focus_previous_column();
+        let visible_count = state.table_config().visible_columns().len();
+        assert_eq!(state.focused_column(), Some(visible_count - 1)); // Wraps to end
+    }
+
+    // IssueList widget builder tests
+    #[test]
+    fn test_issue_list_with_sort() {
+        let issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        let list = IssueList::new(vec![&issue])
+            .with_sort(SortColumn::Priority, SortDirection::Descending);
+        assert_eq!(list.sort_column, SortColumn::Priority);
+        assert_eq!(list.sort_direction, SortDirection::Descending);
+    }
+
+    #[test]
+    fn test_issue_list_show_details() {
+        let issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        let list = IssueList::new(vec![&issue]).show_details(false);
+        assert_eq!(list.show_details, false);
+    }
+
+    #[test]
+    fn test_issue_list_row_height_clamped() {
+        let issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        let list = IssueList::new(vec![&issue]).row_height(0);
+        assert_eq!(list.row_height, 1); // Clamped to minimum 1
+    }
 }
