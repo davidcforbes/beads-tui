@@ -674,4 +674,309 @@ mod tests {
         assert!(!manager.is_fullscreen());
         assert_eq!(manager.fullscreen_pane_id(), None);
     }
+
+    #[test]
+    fn test_split_orientation_clone() {
+        let orientation = SplitOrientation::Horizontal;
+        let cloned = orientation.clone();
+        assert_eq!(orientation, cloned);
+    }
+
+    #[test]
+    fn test_split_orientation_copy() {
+        let orientation = SplitOrientation::Vertical;
+        let copied = orientation;
+        assert_eq!(orientation, copied);
+    }
+
+    #[test]
+    fn test_pane_clone() {
+        let area = Rect::new(0, 0, 100, 40);
+        let pane = Pane::new(5, area);
+        let cloned = pane.clone();
+
+        assert_eq!(pane.id, cloned.id);
+        assert_eq!(pane.area, cloned.area);
+        assert_eq!(pane.is_focused, cloned.is_focused);
+        assert_eq!(pane.is_split(), cloned.is_split());
+    }
+
+    #[test]
+    fn test_pane_split_clone() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut pane = Pane::new(0, area);
+        let mut next_id = 1;
+
+        pane.split_horizontal(50, &mut next_id);
+        let cloned = pane.clone();
+
+        assert_eq!(pane.is_split(), cloned.is_split());
+        assert_eq!(pane.get_leaf_ids(), cloned.get_leaf_ids());
+    }
+
+    #[test]
+    fn test_pane_split_struct_clone() {
+        let area = Rect::new(0, 0, 100, 40);
+        let split = PaneSplit {
+            orientation: SplitOrientation::Horizontal,
+            ratio: 50,
+            first: Pane::new(1, area),
+            second: Pane::new(2, area),
+        };
+
+        let cloned = split.clone();
+        assert_eq!(split.orientation, cloned.orientation);
+        assert_eq!(split.ratio, cloned.ratio);
+        assert_eq!(split.first.id, cloned.first.id);
+        assert_eq!(split.second.id, cloned.second.id);
+    }
+
+    #[test]
+    fn test_pane_manager_focus_next_single_pane() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        let initial_focus = manager.focused_id();
+        manager.focus_next();
+        assert_eq!(manager.focused_id(), initial_focus); // Wraps to same pane
+    }
+
+    #[test]
+    fn test_pane_manager_focus_previous_single_pane() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        let initial_focus = manager.focused_id();
+        manager.focus_previous();
+        assert_eq!(manager.focused_id(), initial_focus); // Wraps to same pane
+    }
+
+    #[test]
+    fn test_pane_manager_split_with_various_ratios() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        // Split with 25%
+        assert!(manager.split_focused_horizontal(25));
+
+        let ids = manager.get_pane_ids();
+        assert_eq!(ids.len(), 2);
+
+        // Focus and split second pane with 75%
+        manager.set_focused(ids[1]);
+        assert!(manager.split_focused_vertical(75));
+
+        assert_eq!(manager.get_pane_ids().len(), 3);
+    }
+
+    #[test]
+    fn test_pane_manager_get_pane_area_after_fullscreen_exit() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        manager.split_focused_horizontal(50);
+        let ids = manager.get_pane_ids();
+
+        // Enter and exit fullscreen
+        manager.set_focused(ids[0]);
+        manager.toggle_fullscreen();
+        manager.toggle_fullscreen();
+
+        // Both panes should be visible again
+        assert!(manager.get_pane_area(ids[0], area).is_some());
+        assert!(manager.get_pane_area(ids[1], area).is_some());
+    }
+
+    #[test]
+    fn test_pane_manager_fullscreen_with_different_panes() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        manager.split_focused_horizontal(50);
+        let ids = manager.get_pane_ids();
+
+        // Fullscreen first pane
+        manager.set_focused(ids[0]);
+        manager.toggle_fullscreen();
+        assert_eq!(manager.fullscreen_pane_id(), Some(ids[0]));
+
+        // Exit and fullscreen second pane
+        manager.toggle_fullscreen();
+        manager.set_focused(ids[1]);
+        manager.toggle_fullscreen();
+        assert_eq!(manager.fullscreen_pane_id(), Some(ids[1]));
+    }
+
+    #[test]
+    fn test_pane_get_leaf_ids_single_pane() {
+        let area = Rect::new(0, 0, 100, 40);
+        let pane = Pane::new(42, area);
+
+        let leaf_ids = pane.get_leaf_ids();
+        assert_eq!(leaf_ids, vec![42]);
+    }
+
+    #[test]
+    fn test_pane_get_leaf_ids_after_horizontal_split() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut pane = Pane::new(0, area);
+        let mut next_id = 1;
+
+        pane.split_horizontal(50, &mut next_id);
+
+        let leaf_ids = pane.get_leaf_ids();
+        assert_eq!(leaf_ids.len(), 2);
+        assert_eq!(leaf_ids[0], 1);
+        assert_eq!(leaf_ids[1], 2);
+    }
+
+    #[test]
+    fn test_pane_get_leaf_ids_after_vertical_split() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut pane = Pane::new(0, area);
+        let mut next_id = 1;
+
+        pane.split_vertical(60, &mut next_id);
+
+        let leaf_ids = pane.get_leaf_ids();
+        assert_eq!(leaf_ids.len(), 2);
+        assert_eq!(leaf_ids[0], 1);
+        assert_eq!(leaf_ids[1], 2);
+    }
+
+    #[test]
+    fn test_pane_manager_multiple_focus_next_cycles() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        manager.split_focused_horizontal(50);
+        let ids = manager.get_pane_ids();
+        manager.set_focused(ids[0]);
+
+        // Cycle through multiple times
+        for _ in 0..5 {
+            manager.focus_next();
+            manager.focus_next();
+        }
+
+        // Should be back at first pane
+        assert_eq!(manager.focused_id(), ids[0]);
+    }
+
+    #[test]
+    fn test_pane_manager_multiple_focus_previous_cycles() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        manager.split_focused_horizontal(50);
+        let ids = manager.get_pane_ids();
+        manager.set_focused(ids[0]);
+
+        // Cycle through multiple times
+        for _ in 0..5 {
+            manager.focus_previous();
+            manager.focus_previous();
+        }
+
+        // Should be back at first pane
+        assert_eq!(manager.focused_id(), ids[0]);
+    }
+
+    #[test]
+    fn test_pane_manager_resize_maintains_split_orientation() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        manager.split_focused_horizontal(50);
+        let ids = manager.get_pane_ids();
+
+        let new_area = Rect::new(0, 0, 200, 80);
+        manager.resize(new_area);
+
+        // Verify both panes still exist and have valid areas
+        assert_eq!(manager.get_pane_ids().len(), 2);
+        for &id in &ids {
+            let pane_area = manager.get_pane_area(id, new_area);
+            assert!(pane_area.is_some());
+        }
+    }
+
+    #[test]
+    fn test_pane_manager_split_non_leaf_fails() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        // Split the root pane
+        assert!(manager.split_focused_horizontal(50));
+
+        // Trying to split pane 0 (now a split container) should fail
+        manager.set_focused(0);
+        assert!(!manager.split_focused_horizontal(50));
+    }
+
+    #[test]
+    fn test_pane_manager_get_pane_area_in_fullscreen_returns_full_area() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        manager.split_focused_horizontal(30);
+        let ids = manager.get_pane_ids();
+
+        manager.set_focused(ids[1]);
+        manager.toggle_fullscreen();
+
+        let fs_area = manager.get_pane_area(ids[1], area);
+        assert_eq!(fs_area, Some(area));
+    }
+
+    #[test]
+    fn test_pane_split_horizontal_updates_next_id() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut pane = Pane::new(0, area);
+        let mut next_id = 10;
+
+        pane.split_horizontal(50, &mut next_id);
+        assert_eq!(next_id, 12); // Should increment by 2
+    }
+
+    #[test]
+    fn test_pane_split_vertical_updates_next_id() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut pane = Pane::new(0, area);
+        let mut next_id = 20;
+
+        pane.split_vertical(50, &mut next_id);
+        assert_eq!(next_id, 22); // Should increment by 2
+    }
+
+    #[test]
+    fn test_pane_manager_complex_focus_navigation() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        // Create 3 panes
+        manager.split_focused_horizontal(50);
+        let ids = manager.get_pane_ids();
+        manager.set_focused(ids[0]);
+        manager.split_focused_vertical(50);
+
+        let all_ids = manager.get_pane_ids();
+        assert_eq!(all_ids.len(), 3);
+
+        // Navigate through all panes
+        manager.set_focused(all_ids[0]);
+        manager.focus_next();
+        assert_eq!(manager.focused_id(), all_ids[1]);
+        manager.focus_next();
+        assert_eq!(manager.focused_id(), all_ids[2]);
+        manager.focus_next();
+        assert_eq!(manager.focused_id(), all_ids[0]); // Wrapped
+    }
+
+    #[test]
+    fn test_pane_is_focused_field_default() {
+        let area = Rect::new(0, 0, 100, 40);
+        let pane = Pane::new(5, area);
+        assert!(!pane.is_focused);
+    }
 }
