@@ -607,4 +607,274 @@ mod tests {
         let elements = parse_markdown("");
         assert_eq!(elements.len(), 0);
     }
+
+    #[test]
+    fn test_markdown_viewer_state_default() {
+        let state = MarkdownViewerState::default();
+        assert_eq!(state.content(), "");
+        assert_eq!(state.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_markdown_viewer_state_clone() {
+        let state = MarkdownViewerState::new("Test content".to_string());
+        let cloned = state.clone();
+        assert_eq!(cloned.content(), state.content());
+        assert_eq!(cloned.scroll_offset(), state.scroll_offset());
+    }
+
+    #[test]
+    fn test_scroll_down_with_zero_lines() {
+        let mut state = MarkdownViewerState::new("Test".to_string());
+        state.total_lines = 0;
+        state.scroll_down(10);
+        assert_eq!(state.scroll_offset(), 0); // Should not scroll
+    }
+
+    #[test]
+    fn test_scroll_down_at_boundary() {
+        let mut state = MarkdownViewerState::new("Test".to_string());
+        state.total_lines = 10;
+        state.scroll_down(100); // Try to scroll past end
+        assert_eq!(state.scroll_offset(), 9); // Should clamp to total_lines - 1
+    }
+
+    #[test]
+    fn test_scroll_to_bottom_with_zero_lines() {
+        let mut state = MarkdownViewerState::new("Test".to_string());
+        state.total_lines = 0;
+        state.scroll_to_bottom();
+        assert_eq!(state.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_set_content_resets_scroll() {
+        let mut state = MarkdownViewerState::new("Original".to_string());
+        state.total_lines = 100;
+        state.scroll_down(50);
+        assert_eq!(state.scroll_offset(), 50);
+
+        state.set_content("New".to_string());
+        assert_eq!(state.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_parse_numbered_list() {
+        let content = "1. First item\n2. Second item\n10. Tenth item";
+        let elements = parse_markdown(content);
+        assert_eq!(elements.len(), 3);
+        assert!(matches!(elements[0], MarkdownElement::ListItem(_)));
+        assert!(matches!(elements[1], MarkdownElement::ListItem(_)));
+        assert!(matches!(elements[2], MarkdownElement::ListItem(_)));
+    }
+
+    #[test]
+    fn test_parse_all_heading_levels() {
+        let content = "# H1\n## H2\n### H3\n#### H4\n##### H5\n###### H6";
+        let elements = parse_markdown(content);
+        assert_eq!(elements.len(), 6);
+        
+        for (i, element) in elements.iter().enumerate() {
+            if let MarkdownElement::Heading(level, _) = element {
+                assert_eq!(*level, i + 1);
+            } else {
+                panic!("Expected heading");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_heading_without_space() {
+        let content = "#NoSpace";
+        let elements = parse_markdown(content);
+        // Should still parse as heading
+        assert_eq!(elements.len(), 1);
+        assert!(matches!(elements[0], MarkdownElement::Heading(1, _)));
+    }
+
+    #[test]
+    fn test_parse_empty_heading() {
+        let content = "##\n### \n";
+        let elements = parse_markdown(content);
+        // Empty headings (just #) are treated as paragraphs
+        assert_eq!(elements.len(), 2);
+        assert!(matches!(elements[0], MarkdownElement::Paragraph(_)));
+        assert!(matches!(elements[1], MarkdownElement::Paragraph(_)));
+    }
+
+    #[test]
+    fn test_parse_paragraph() {
+        let content = "This is a regular paragraph.";
+        let elements = parse_markdown(content);
+        assert_eq!(elements.len(), 1);
+        assert!(matches!(elements[0], MarkdownElement::Paragraph(_)));
+    }
+
+    #[test]
+    fn test_parse_unclosed_code_block() {
+        let content = "```\ncode line 1\ncode line 2";
+        let elements = parse_markdown(content);
+        assert_eq!(elements.len(), 1);
+        assert!(matches!(elements[0], MarkdownElement::CodeBlock(_)));
+    }
+
+    #[test]
+    fn test_parse_empty_code_block() {
+        let content = "```\n```";
+        let elements = parse_markdown(content);
+        // Empty code blocks are still added (as empty string)
+        assert_eq!(elements.len(), 1);
+        assert!(matches!(elements[0], MarkdownElement::CodeBlock(_)));
+    }
+
+    #[test]
+    fn test_parse_mixed_content() {
+        let content = "# Title\n\nParagraph text\n\n- List item\n\n```\ncode\n```";
+        let elements = parse_markdown(content);
+        assert!(elements.len() >= 4);
+    }
+
+    #[test]
+    fn test_parse_inline_unclosed_bold() {
+        let spans = parse_inline_formatting("This is **unclosed");
+        // Should treat as literal
+        assert!(spans.iter().any(|s| s.content.contains("**")));
+    }
+
+    #[test]
+    fn test_parse_inline_unclosed_italic() {
+        let spans = parse_inline_formatting("This is *unclosed");
+        // Should treat as literal
+        assert!(spans.iter().any(|s| s.content.contains("*")));
+    }
+
+    #[test]
+    fn test_parse_inline_unclosed_code() {
+        let spans = parse_inline_formatting("This is `unclosed");
+        // Should treat as literal
+        assert!(spans.iter().any(|s| s.content.contains("`")));
+    }
+
+    #[test]
+    fn test_parse_inline_empty_bold() {
+        let spans = parse_inline_formatting("****");
+        // Empty bold should be treated as literal
+        assert_eq!(spans.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_inline_plain_text() {
+        let spans = parse_inline_formatting("Plain text with no formatting");
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].content, "Plain text with no formatting");
+    }
+
+    #[test]
+    fn test_markdown_element_eq() {
+        let h1 = MarkdownElement::Heading(1, "Title".to_string());
+        let h1_same = MarkdownElement::Heading(1, "Title".to_string());
+        let h2 = MarkdownElement::Heading(2, "Title".to_string());
+        
+        assert_eq!(h1, h1_same);
+        assert_ne!(h1, h2);
+        assert_eq!(MarkdownElement::HorizontalRule, MarkdownElement::HorizontalRule);
+    }
+
+    #[test]
+    fn test_markdown_element_clone() {
+        let element = MarkdownElement::Heading(1, "Test".to_string());
+        let cloned = element.clone();
+        assert_eq!(element, cloned);
+    }
+
+    #[test]
+    fn test_markdown_viewer_new() {
+        let viewer = MarkdownViewer::new();
+        assert!(viewer.block.is_none());
+        assert!(viewer.wrap);
+    }
+
+    #[test]
+    fn test_markdown_viewer_default() {
+        let viewer = MarkdownViewer::default();
+        assert!(viewer.block.is_none());
+        assert!(viewer.wrap);
+    }
+
+    #[test]
+    fn test_markdown_viewer_block() {
+        let block = Block::default().title("Test");
+        let viewer = MarkdownViewer::new().block(block);
+        assert!(viewer.block.is_some());
+    }
+
+    #[test]
+    fn test_markdown_viewer_wrap() {
+        let viewer = MarkdownViewer::new().wrap(false);
+        assert!(!viewer.wrap);
+
+        let viewer = MarkdownViewer::new().wrap(true);
+        assert!(viewer.wrap);
+    }
+
+    #[test]
+    fn test_markdown_viewer_style() {
+        let style = Style::default().fg(Color::Red);
+        let viewer = MarkdownViewer::new().style(style);
+        assert_eq!(viewer.style.fg, Some(Color::Red));
+    }
+
+    #[test]
+    fn test_markdown_viewer_builder_chain() {
+        let block = Block::default().title("Doc");
+        let style = Style::default().fg(Color::Blue);
+        
+        let viewer = MarkdownViewer::new()
+            .block(block)
+            .wrap(false)
+            .style(style);
+
+        assert!(viewer.block.is_some());
+        assert!(!viewer.wrap);
+        assert_eq!(viewer.style.fg, Some(Color::Blue));
+    }
+
+    #[test]
+    fn test_parse_list_variants() {
+        let content = "- Dash item\n* Star item\n+ Plus item";
+        let elements = parse_markdown(content);
+        assert_eq!(elements.len(), 3);
+        
+        for element in elements {
+            assert!(matches!(element, MarkdownElement::ListItem(_)));
+        }
+    }
+
+    #[test]
+    fn test_parse_horizontal_rule_variants() {
+        let hr1 = parse_markdown("---");
+        let hr2 = parse_markdown("***");
+        let hr3 = parse_markdown("___");
+        
+        assert_eq!(hr1[0], MarkdownElement::HorizontalRule);
+        assert_eq!(hr2[0], MarkdownElement::HorizontalRule);
+        assert_eq!(hr3[0], MarkdownElement::HorizontalRule);
+    }
+
+    #[test]
+    fn test_scroll_offset_after_multiple_operations() {
+        let mut state = MarkdownViewerState::new("Test".to_string());
+        state.total_lines = 50;
+
+        state.scroll_down(10);
+        state.scroll_down(5);
+        state.scroll_up(3);
+        assert_eq!(state.scroll_offset(), 12);
+
+        state.scroll_to_top();
+        assert_eq!(state.scroll_offset(), 0);
+
+        state.scroll_to_bottom();
+        assert_eq!(state.scroll_offset(), 49);
+    }
 }
