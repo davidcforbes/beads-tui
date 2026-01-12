@@ -29,6 +29,8 @@ pub struct AppState {
     pub dialog_state: Option<DialogState>,
     /// Pending action waiting for dialog confirmation
     pub pending_action: Option<String>,
+    /// Error message to display to user
+    pub error_message: Option<String>,
 }
 
 impl AppState {
@@ -66,6 +68,7 @@ impl AppState {
             help_section: HelpSection::Global,
             dialog_state: None,
             pending_action: None,
+            error_message: None,
         }
     }
 
@@ -151,6 +154,18 @@ impl AppState {
         } else {
             sections[current_idx - 1]
         };
+        self.mark_dirty();
+    }
+
+    /// Set an error message to display to the user
+    pub fn set_error(&mut self, message: String) {
+        self.error_message = Some(message);
+        self.mark_dirty();
+    }
+
+    /// Clear the current error message
+    pub fn clear_error(&mut self) {
+        self.error_message = None;
         self.mark_dirty();
     }
 }

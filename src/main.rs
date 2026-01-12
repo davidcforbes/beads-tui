@@ -78,6 +78,17 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 
     let key_code = key.code;
 
+    // Handle error dismissal with Esc
+    if app.error_message.is_some() && key_code == KeyCode::Esc {
+        app.clear_error();
+        return;
+    }
+
+    // Clear errors when entering create or edit mode
+    if matches!(key_code, KeyCode::Char('c') | KeyCode::Char('e')) {
+        app.clear_error();
+    }
+
     // Handle dialog events if dialog is active
     if let Some(ref mut dialog_state) = app.dialog_state {
         match key_code {
@@ -355,7 +366,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 
                             // Show confirmation dialog
                             app.dialog_state = Some(ui::widgets::DialogState::new());
-                            app.pending_action = Some(format!("delete:{}", issue_id));
+                            app.pending_action = Some(format!("delete:{issue_id}"));
 
                             // Store issue title for dialog message (we'll need to format it in rendering)
                             tracing::debug!("Showing delete confirmation for: {}", issue_title);
@@ -491,14 +502,17 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                     match rt.block_on(client.update_issue(&issue_id, update)) {
                                         Ok(()) => {
                                             tracing::info!("Successfully updated issue: {}", issue_id);
-                                            
+
+                                            // Clear any previous errors
+                                            app.clear_error();
+
                                             // Reload issues list
                                             app.reload_issues();
                                         }
                                         Err(e) => {
-                                            // TODO: Show error message to user in UI
                                             tracing::error!("Failed to update issue: {:?}", e);
-                                            // TODO: Re-enter edit mode on error
+                                            app.set_error(format!("Failed to update issue: {e}"));
+                                            // Stay in edit mode so user can fix and retry
                                         }
                                     }
                                 }
@@ -599,6 +613,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                         // Successfully created
                                         tracing::info!("Successfully created issue: {}", issue_id);
 
+                                        // Clear any previous errors
+                                        app.clear_error();
+
                                         // Reload issues list
                                         app.reload_issues();
 
@@ -621,9 +638,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                         }
                                     }
                                     Err(e) => {
-                                        // TODO: Show error message to user in UI
                                         tracing::error!("Failed to create issue: {:?}", e);
-                                        // For now, stay in create mode so user can fix and retry
+                                        app.set_error(format!("Failed to create issue: {e}"));
+                                        // Stay in create mode so user can fix and retry
                                     }
                                 }
                             }
@@ -879,7 +896,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         if let Some(ref action) = app.pending_action {
             // Parse action to get issue ID and construct message
             if let Some(issue_id) = action.strip_prefix("delete:") {
-                let message = format!("Are you sure you want to delete issue {}?", issue_id);
+                let message = format!("Are you sure you want to delete issue {issue_id}?");
                 let dialog = ui::widgets::Dialog::confirm("Confirm Delete", &message);
 
                 // Render dialog centered on screen
@@ -891,6 +908,31 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
             }
         }
+    }
+
+    // Render error message banner if present
+    if let Some(ref error_msg) = app.error_message {
+        let area = f.size();
+        let error_area = Rect {
+            x: 0,
+            y: 0,
+            width: area.width,
+            height: 3,
+        };
+
+        let error_text = Paragraph::new(format!(" ✖ {error_msg} (Press Esc to dismiss)"))
+            .style(
+                Style::default()
+                    .fg(Color::White)
+                    .bg(Color::Red)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .block(Block::default().borders(Borders::ALL).border_style(
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            ));
+
+        f.render_widget(Clear, error_area);
+        f.render_widget(error_text, error_area);
     }
 }
 
