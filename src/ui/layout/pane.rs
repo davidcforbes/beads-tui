@@ -355,4 +355,323 @@ mod tests {
         let fs_area = manager.get_pane_area(0, area);
         assert_eq!(fs_area, Some(area));
     }
+
+    #[test]
+    fn test_pane_vertical_split() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut pane = Pane::new(0, area);
+        let mut next_id = 1;
+
+        assert!(!pane.is_split());
+
+        pane.split_vertical(60, &mut next_id);
+        assert!(pane.is_split());
+
+        let leaf_ids = pane.get_leaf_ids();
+        assert_eq!(leaf_ids.len(), 2);
+        assert_eq!(leaf_ids[0], 1);
+        assert_eq!(leaf_ids[1], 2);
+        assert_eq!(next_id, 3);
+    }
+
+    #[test]
+    fn test_pane_nested_splits() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut pane = Pane::new(0, area);
+        let mut next_id = 1;
+
+        // First horizontal split
+        pane.split_horizontal(50, &mut next_id);
+        assert_eq!(next_id, 3);
+
+        // Split the first child vertically
+        if let Some(split) = &mut pane.split {
+            split.first.split_vertical(40, &mut next_id);
+            assert_eq!(next_id, 5);
+        }
+
+        let leaf_ids = pane.get_leaf_ids();
+        assert_eq!(leaf_ids.len(), 3); // Two from first split, one from second
+        assert!(leaf_ids.contains(&2)); // Original second pane
+        assert!(leaf_ids.contains(&3)); // First nested pane
+        assert!(leaf_ids.contains(&4)); // Second nested pane
+    }
+
+    #[test]
+    fn test_pane_get_leaf_ids_complex_tree() {
+        let area = Rect::new(0, 0, 200, 80);
+        let mut pane = Pane::new(0, area);
+        let mut next_id = 1;
+
+        // Create complex nested structure
+        pane.split_horizontal(50, &mut next_id);
+        if let Some(split) = &mut pane.split {
+            split.first.split_vertical(50, &mut next_id);
+            split.second.split_horizontal(50, &mut next_id);
+        }
+
+        let leaf_ids = pane.get_leaf_ids();
+        assert_eq!(leaf_ids.len(), 4);
+        assert_eq!(next_id, 7);
+    }
+
+    #[test]
+    fn test_pane_manager_focus_next_multiple_panes() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        // Split to create multiple panes
+        assert!(manager.split_focused_horizontal(50));
+
+        let ids = manager.get_pane_ids();
+        assert_eq!(ids.len(), 2);
+        // After split, the original pane 0 is split and IDs 1 and 2 are created
+        assert_eq!(ids[0], 1);
+        assert_eq!(ids[1], 2);
+
+        // Focus is still 0 (the split container), need to set focus to a leaf
+        manager.set_focused(ids[0]);
+        assert_eq!(manager.focused_id(), ids[0]);
+
+        // Focus next should go to second pane
+        manager.focus_next();
+        assert_eq!(manager.focused_id(), ids[1]);
+
+        // Focus next should wrap back to first
+        manager.focus_next();
+        assert_eq!(manager.focused_id(), ids[0]);
+    }
+
+    #[test]
+    fn test_pane_manager_focus_previous() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        // First split
+        manager.split_focused_horizontal(50);
+
+        // Focus on one of the new leaf panes before second split
+        let ids = manager.get_pane_ids();
+        manager.set_focused(ids[0]);
+
+        // Second split
+        manager.split_focused_vertical(50);
+
+        let ids = manager.get_pane_ids();
+        assert_eq!(ids.len(), 3);
+
+        // Start at first pane
+        let start_id = ids[0];
+        manager.set_focused(start_id);
+
+        // Focus previous should wrap to last pane
+        manager.focus_previous();
+        assert_eq!(manager.focused_id(), ids[2]);
+
+        // Focus previous again
+        manager.focus_previous();
+        assert_eq!(manager.focused_id(), ids[1]);
+
+        // One more to get back to start
+        manager.focus_previous();
+        assert_eq!(manager.focused_id(), start_id);
+    }
+
+    #[test]
+    fn test_pane_manager_split_focused_vertical() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        assert!(manager.split_focused_vertical(70));
+        assert_eq!(manager.get_pane_ids().len(), 2);
+
+        // Focus on one of the leaf panes before splitting again
+        let ids = manager.get_pane_ids();
+        manager.set_focused(ids[0]);
+
+        // Split one of the resulting panes
+        assert!(manager.split_focused_vertical(30));
+        assert_eq!(manager.get_pane_ids().len(), 3);
+    }
+
+    #[test]
+    fn test_pane_manager_split_already_split_pane_fails() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        // First split succeeds
+        assert!(manager.split_focused_horizontal(50));
+
+        // Trying to split the root again should fail (it's already split)
+        let original_count = manager.get_pane_ids().len();
+        manager.set_focused(0);
+        assert!(!manager.split_focused_horizontal(50));
+        assert_eq!(manager.get_pane_ids().len(), original_count);
+    }
+
+    #[test]
+    fn test_pane_manager_set_focused() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        manager.split_focused_horizontal(50);
+        let ids = manager.get_pane_ids();
+
+        manager.set_focused(ids[0]);
+        assert_eq!(manager.focused_id(), ids[0]);
+
+        manager.set_focused(ids[1]);
+        assert_eq!(manager.focused_id(), ids[1]);
+    }
+
+    #[test]
+    fn test_pane_manager_get_pane_area_nested() {
+        let area = Rect::new(0, 0, 200, 100);
+        let mut manager = PaneManager::new(area);
+
+        manager.split_focused_horizontal(50);
+        manager.focus_next();
+        manager.split_focused_vertical(60);
+
+        let ids = manager.get_pane_ids();
+        for &id in &ids {
+            let pane_area = manager.get_pane_area(id, area);
+            assert!(pane_area.is_some());
+        }
+    }
+
+    #[test]
+    fn test_pane_manager_get_pane_area_non_existent() {
+        let area = Rect::new(0, 0, 100, 40);
+        let manager = PaneManager::new(area);
+
+        let non_existent_area = manager.get_pane_area(999, area);
+        assert_eq!(non_existent_area, None);
+    }
+
+    #[test]
+    fn test_pane_manager_fullscreen_hides_other_panes() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        manager.split_focused_horizontal(50);
+        let ids = manager.get_pane_ids();
+        assert_eq!(ids.len(), 2);
+
+        // Enter fullscreen on first pane
+        manager.set_focused(ids[0]);
+        manager.toggle_fullscreen();
+
+        // First pane should get full area
+        assert_eq!(manager.get_pane_area(ids[0], area), Some(area));
+
+        // Second pane should be hidden
+        assert_eq!(manager.get_pane_area(ids[1], area), None);
+    }
+
+    #[test]
+    fn test_pane_manager_resize_single_pane() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        let new_area = Rect::new(0, 0, 120, 50);
+        manager.resize(new_area);
+
+        let pane_area = manager.get_pane_area(0, new_area);
+        assert_eq!(pane_area, Some(new_area));
+    }
+
+    #[test]
+    fn test_pane_manager_resize_with_splits() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        manager.split_focused_horizontal(50);
+        let ids = manager.get_pane_ids();
+
+        let new_area = Rect::new(0, 0, 200, 80);
+        manager.resize(new_area);
+
+        // Check that all panes got updated areas
+        for &id in &ids {
+            let pane_area = manager.get_pane_area(id, new_area);
+            assert!(pane_area.is_some());
+            let rect = pane_area.unwrap();
+            assert!(rect.width > 0);
+            assert!(rect.height > 0);
+        }
+    }
+
+    #[test]
+    fn test_pane_manager_resize_nested_splits() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        manager.split_focused_horizontal(50);
+
+        // Focus on a leaf pane before second split
+        let ids = manager.get_pane_ids();
+        manager.set_focused(ids[0]);
+
+        manager.split_focused_vertical(60);
+
+        let ids = manager.get_pane_ids();
+        assert_eq!(ids.len(), 3);
+
+        let new_area = Rect::new(0, 0, 150, 60);
+        manager.resize(new_area);
+
+        // All panes should have valid areas after resize
+        for &id in &ids {
+            let pane_area = manager.get_pane_area(id, new_area);
+            assert!(pane_area.is_some());
+        }
+    }
+
+    #[test]
+    fn test_split_orientation_equality() {
+        assert_eq!(SplitOrientation::Horizontal, SplitOrientation::Horizontal);
+        assert_eq!(SplitOrientation::Vertical, SplitOrientation::Vertical);
+        assert_ne!(SplitOrientation::Horizontal, SplitOrientation::Vertical);
+    }
+
+    #[test]
+    fn test_pane_split_ratio_edge_cases() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut pane = Pane::new(0, area);
+        let mut next_id = 1;
+
+        // Test with 0% ratio (first pane gets nothing)
+        pane.split_horizontal(0, &mut next_id);
+        assert!(pane.is_split());
+
+        let mut pane2 = Pane::new(5, area);
+        let mut next_id2 = 6;
+
+        // Test with 100% ratio (second pane gets nothing)
+        pane2.split_vertical(100, &mut next_id2);
+        assert!(pane2.is_split());
+    }
+
+    #[test]
+    fn test_pane_new_initialization() {
+        let area = Rect::new(10, 20, 100, 50);
+        let pane = Pane::new(42, area);
+
+        assert_eq!(pane.id, 42);
+        assert_eq!(pane.area, area);
+        assert!(!pane.is_focused);
+        assert!(!pane.is_split());
+    }
+
+    #[test]
+    fn test_pane_manager_new_initialization() {
+        let area = Rect::new(0, 0, 100, 40);
+        let manager = PaneManager::new(area);
+
+        assert_eq!(manager.focused_id(), 0);
+        assert_eq!(manager.get_pane_ids(), vec![0]);
+        assert!(!manager.is_fullscreen());
+        assert_eq!(manager.fullscreen_pane_id(), None);
+    }
 }
