@@ -361,36 +361,62 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
             if let Some(editor_state) = issues_state.editor_state_mut() {
                 let form = editor_state.form_state_mut();
 
-                match key_code {
-                    // Field navigation
-                    KeyCode::Tab | KeyCode::Down => {
-                        form.focus_next();
+                // Check for Ctrl+L first (before generic Char handler)
+                if key_code == KeyCode::Char('l') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                    // Load from file (Ctrl+L)
+                    // Get the current field value as the file path
+                    if let Some(focused_field) = form.focused_field() {
+                        let file_path = focused_field.value.trim().to_string();
+
+                        if file_path.is_empty() {
+                            // Set error on focused field
+                            if let Some(field) = form.focused_field_mut() {
+                                field.error = Some("Enter a file path first, then press Ctrl+L to load it".to_string());
+                            }
+                        } else {
+                            // Try to load from file
+                            match form.load_from_file(&file_path) {
+                                Ok(()) => {
+                                    tracing::info!("Loaded content from file: {}", file_path);
+                                }
+                                Err(err) => {
+                                    tracing::error!("Failed to load file {}: {}", file_path, err);
+                                    // Error is already set in the field by load_from_file
+                                }
+                            }
+                        }
                     }
-                    KeyCode::BackTab | KeyCode::Up => {
-                        form.focus_previous();
-                    }
-                    // Text input
-                    KeyCode::Char(c) => {
-                        form.insert_char(c);
-                    }
-                    KeyCode::Backspace => {
-                        form.delete_char();
-                    }
-                    // Cursor movement
-                    KeyCode::Left => {
-                        form.move_cursor_left();
-                    }
-                    KeyCode::Right => {
-                        form.move_cursor_right();
-                    }
-                    KeyCode::Home => {
-                        form.move_cursor_to_start();
-                    }
-                    KeyCode::End => {
-                        form.move_cursor_to_end();
-                    }
-                    // Save/Cancel
-                    KeyCode::Enter => {
+                } else {
+                    match key_code {
+                        // Field navigation
+                        KeyCode::Tab | KeyCode::Down => {
+                            form.focus_next();
+                        }
+                        KeyCode::BackTab | KeyCode::Up => {
+                            form.focus_previous();
+                        }
+                        // Text input
+                        KeyCode::Char(c) => {
+                            form.insert_char(c);
+                        }
+                        KeyCode::Backspace => {
+                            form.delete_char();
+                        }
+                        // Cursor movement
+                        KeyCode::Left => {
+                            form.move_cursor_left();
+                        }
+                        KeyCode::Right => {
+                            form.move_cursor_right();
+                        }
+                        KeyCode::Home => {
+                            form.move_cursor_to_start();
+                        }
+                        KeyCode::End => {
+                            form.move_cursor_to_end();
+                        }
+                        // Save/Cancel
+                        KeyCode::Enter => {
                         // Validate and save
                         if editor_state.validate() {
                             // Check if there are any changes
@@ -430,11 +456,12 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 }
                             }
                         }
+                        }
+                        KeyCode::Esc => {
+                            issues_state.cancel_edit();
+                        }
+                        _ => {}
                     }
-                    KeyCode::Esc => {
-                        issues_state.cancel_edit();
-                    }
-                    _ => {}
                 }
             }
         }
