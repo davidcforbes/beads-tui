@@ -526,4 +526,258 @@ mod tests {
         assert_eq!(state.selected_count(), 0);
         assert_eq!(state.highlighted_index(), None);
     }
+
+    #[test]
+    fn test_checkbox_list_state_default() {
+        let state: CheckboxListState<String> = CheckboxListState::default();
+        assert_eq!(state.item_count(), 0);
+        assert_eq!(state.selected_count(), 0);
+        assert!(!state.is_selection_mode());
+        assert_eq!(state.highlighted_index(), None);
+    }
+
+    #[test]
+    fn test_checkbox_list_state_clone() {
+        let items = vec!["item1", "item2", "item3"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items.clone());
+        state.set_selection_mode(true);
+        state.list_state.select(Some(0));
+        state.toggle_selected();
+
+        let cloned = state.clone();
+        assert_eq!(cloned.items(), state.items());
+        assert_eq!(cloned.selected_count(), state.selected_count());
+        assert_eq!(cloned.is_selection_mode(), state.is_selection_mode());
+        assert!(cloned.is_selected(0));
+    }
+
+    #[test]
+    fn test_single_item_list() {
+        let items = vec!["only"];
+        let state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        assert_eq!(state.item_count(), 1);
+        assert_eq!(state.highlighted_index(), Some(0));
+    }
+
+    #[test]
+    fn test_single_item_navigation() {
+        let items = vec!["only"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        assert_eq!(state.highlighted_index(), Some(0));
+
+        state.select_next();
+        assert_eq!(state.highlighted_index(), Some(0)); // Wraps to same item
+
+        state.select_previous();
+        assert_eq!(state.highlighted_index(), Some(0)); // Wraps to same item
+    }
+
+    #[test]
+    fn test_toggle_selected_out_of_bounds() {
+        let items = vec!["item1", "item2"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+        state.list_state.select(Some(10)); // Out of bounds
+        state.toggle_selected();
+
+        assert_eq!(state.selected_count(), 0); // Should not select anything
+    }
+
+    #[test]
+    fn test_toggle_selected_no_selection() {
+        let items = vec!["item1", "item2"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+        state.list_state.select(None); // No selection
+        state.toggle_selected();
+
+        assert_eq!(state.selected_count(), 0); // Should not select anything
+    }
+
+    #[test]
+    fn test_select_all_without_selection_mode() {
+        let items = vec!["item1", "item2", "item3"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        // Don't enable selection mode
+        state.select_all();
+
+        assert_eq!(state.selected_count(), 0); // Should not select anything
+    }
+
+    #[test]
+    fn test_is_selected_out_of_bounds() {
+        let items = vec!["item1", "item2"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+        state.list_state.select(Some(0));
+        state.toggle_selected();
+
+        assert!(!state.is_selected(10)); // Out of bounds should return false
+    }
+
+    #[test]
+    fn test_set_items_empty_to_non_empty() {
+        let items1: Vec<&str> = Vec::new();
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items1);
+        assert_eq!(state.highlighted_index(), None);
+
+        let items2 = vec!["item1", "item2"];
+        state.set_items(items2.clone());
+
+        assert_eq!(state.items(), &items2);
+        assert_eq!(state.highlighted_index(), Some(0)); // Should select first item
+    }
+
+    #[test]
+    fn test_set_items_non_empty_to_empty() {
+        let items1 = vec!["item1", "item2"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items1);
+        assert_eq!(state.highlighted_index(), Some(0));
+
+        let items2: Vec<&str> = Vec::new();
+        state.set_items(items2);
+
+        assert_eq!(state.item_count(), 0);
+        assert_eq!(state.selected_count(), 0);
+    }
+
+    #[test]
+    fn test_selected_items_empty() {
+        let items = vec!["item1", "item2"];
+        let state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        let selected = state.selected_items();
+        assert_eq!(selected.len(), 0);
+    }
+
+    #[test]
+    fn test_selected_indices_empty() {
+        let items = vec!["item1", "item2"];
+        let state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        let indices = state.selected_indices();
+        assert_eq!(indices.len(), 0);
+    }
+
+    #[test]
+    fn test_navigation_empty_list() {
+        let items: Vec<&str> = Vec::new();
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        assert_eq!(state.highlighted_index(), None);
+
+        state.select_next();
+        assert_eq!(state.highlighted_index(), None); // Should remain None
+
+        state.select_previous();
+        assert_eq!(state.highlighted_index(), None); // Should remain None
+    }
+
+    #[test]
+    fn test_item_count_various() {
+        let state1: CheckboxListState<i32> = CheckboxListState::new(vec![]);
+        assert_eq!(state1.item_count(), 0);
+
+        let state2: CheckboxListState<i32> = CheckboxListState::new(vec![1]);
+        assert_eq!(state2.item_count(), 1);
+
+        let state3: CheckboxListState<i32> = CheckboxListState::new(vec![1, 2, 3, 4, 5]);
+        assert_eq!(state3.item_count(), 5);
+    }
+
+    #[test]
+    fn test_selected_count_after_deselect_all() {
+        let items = vec!["item1", "item2", "item3"];
+        let mut state: CheckboxListState<&str> = CheckboxListState::new(items);
+
+        state.set_selection_mode(true);
+        state.select_all();
+        assert_eq!(state.selected_count(), 3);
+
+        state.deselect_all();
+        assert_eq!(state.selected_count(), 0);
+    }
+
+    #[test]
+    fn test_checkbox_list_new() {
+        let formatter = |s: &String| s.clone();
+        let list: CheckboxList<String, _> = CheckboxList::new(formatter);
+        assert_eq!(list.title, "Items");
+        assert!(list.show_count);
+    }
+
+    #[test]
+    fn test_checkbox_list_title() {
+        let formatter = |s: &String| s.clone();
+        let list: CheckboxList<String, _> = CheckboxList::new(formatter).title("My Items");
+        assert_eq!(list.title, "My Items");
+    }
+
+    #[test]
+    fn test_checkbox_list_style() {
+        let formatter = |s: &String| s.clone();
+        let style = Style::default().fg(Color::Red);
+        let list: CheckboxList<String, _> = CheckboxList::new(formatter).style(style);
+        assert_eq!(list.style.fg, Some(Color::Red));
+    }
+
+    #[test]
+    fn test_checkbox_list_selected_style() {
+        let formatter = |s: &String| s.clone();
+        let style = Style::default().bg(Color::Blue);
+        let list: CheckboxList<String, _> = CheckboxList::new(formatter).selected_style(style);
+        assert_eq!(list.selected_style.bg, Some(Color::Blue));
+    }
+
+    #[test]
+    fn test_checkbox_list_checkbox_style() {
+        let formatter = |s: &String| s.clone();
+        let style = Style::default().fg(Color::Yellow);
+        let list: CheckboxList<String, _> = CheckboxList::new(formatter).checkbox_style(style);
+        assert_eq!(list.checkbox_style.fg, Some(Color::Yellow));
+    }
+
+    #[test]
+    fn test_checkbox_list_block() {
+        let formatter = |s: &String| s.clone();
+        let block = Block::default().borders(Borders::ALL);
+        let list: CheckboxList<String, _> = CheckboxList::new(formatter).block(block);
+        assert!(list.block.is_some());
+    }
+
+    #[test]
+    fn test_checkbox_list_show_count() {
+        let formatter = |s: &String| s.clone();
+        let list: CheckboxList<String, _> = CheckboxList::new(formatter).show_count(false);
+        assert!(!list.show_count);
+    }
+
+    #[test]
+    fn test_checkbox_list_builder_chain() {
+        let formatter = |s: &String| s.clone();
+        let block = Block::default().title("Custom");
+        let style = Style::default().fg(Color::Green);
+        let selected_style = Style::default().bg(Color::Cyan);
+        let checkbox_style = Style::default().fg(Color::Magenta);
+
+        let list: CheckboxList<String, _> = CheckboxList::new(formatter)
+            .title("Labels")
+            .style(style)
+            .selected_style(selected_style)
+            .checkbox_style(checkbox_style)
+            .block(block)
+            .show_count(false);
+
+        assert_eq!(list.title, "Labels");
+        assert_eq!(list.style.fg, Some(Color::Green));
+        assert_eq!(list.selected_style.bg, Some(Color::Cyan));
+        assert_eq!(list.checkbox_style.fg, Some(Color::Magenta));
+        assert!(!list.show_count);
+    }
 }
