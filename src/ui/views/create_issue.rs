@@ -1,4 +1,4 @@
-//! Create issue form view
+//! Create issue form view with section navigator
 
 use crate::beads::models::{IssueType, Priority};
 use crate::ui::widgets::{Form, FormField, FormState, ValidationRule};
@@ -10,10 +10,66 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
 };
 
+/// Form sections for the create issue form
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FormSection {
+    Summary,
+    Scheduling,
+    Relationships,
+    Labels,
+    Text,
+    Metadata,
+}
+
+impl FormSection {
+    /// Get all sections in order
+    pub fn all() -> Vec<Self> {
+        vec![
+            Self::Summary,
+            Self::Scheduling,
+            Self::Relationships,
+            Self::Labels,
+            Self::Text,
+            Self::Metadata,
+        ]
+    }
+
+    /// Get the display name for the section
+    pub fn display_name(&self) -> &str {
+        match self {
+            Self::Summary => "Summary",
+            Self::Scheduling => "Scheduling",
+            Self::Relationships => "Relationships",
+            Self::Labels => "Labels",
+            Self::Text => "Text",
+            Self::Metadata => "Metadata",
+        }
+    }
+
+    /// Get the description for the section
+    pub fn description(&self) -> &str {
+        match self {
+            Self::Summary => "Title, type, priority, status",
+            Self::Scheduling => "Due date, defer date, time estimate",
+            Self::Relationships => "Parent issue, dependencies",
+            Self::Labels => "Tags and categories",
+            Self::Text => "Description, design, acceptance criteria, notes",
+            Self::Metadata => "Read-only system information",
+        }
+    }
+
+    /// Check if section has required fields
+    pub fn has_required_fields(&self) -> bool {
+        matches!(self, Self::Summary)
+    }
+}
+
 /// Create issue form state
 #[derive(Debug)]
 pub struct CreateIssueFormState {
     form_state: FormState,
+    current_section: FormSection,
+    show_preview: bool,
 }
 
 impl Default for CreateIssueFormState {
@@ -26,6 +82,7 @@ impl CreateIssueFormState {
     /// Create a new create issue form state
     pub fn new() -> Self {
         let fields = vec![
+            // Summary section
             FormField::text("title", "Title")
                 .required()
                 .placeholder("Brief description of the issue")
@@ -88,14 +145,106 @@ impl CreateIssueFormState {
                 "Blocked".to_string(),
                 "Closed".to_string(),
             ])),
+            // Scheduling section
+            FormField::text("due_date", "Due Date").placeholder("YYYY-MM-DD (optional)"),
+            FormField::text("defer_date", "Defer Date").placeholder("YYYY-MM-DD (optional)"),
+            FormField::text("time_estimate", "Time Estimate")
+                .placeholder("e.g., 2h, 3d, 1w (optional)"),
+            // Relationships section
+            FormField::text("parent", "Parent Issue")
+                .placeholder("beads-xxx (optional)")
+                .with_validation(ValidationRule::BeadsIdFormat),
+            FormField::text("dependencies", "Dependencies")
+                .placeholder("comma-separated beads-xxx (optional)"),
+            // Labels section
             FormField::text("assignee", "Assignee").placeholder("username (optional)"),
             FormField::text("labels", "Labels").placeholder("comma-separated labels (optional)"),
+            // Text section
             FormField::text_area("description", "Description")
                 .placeholder("Detailed description of the issue (optional)"),
+            FormField::text_area("design", "Design")
+                .placeholder("Design notes and approach (optional)"),
+            FormField::text_area("acceptance", "Acceptance Criteria")
+                .placeholder("How to verify this is done (optional)"),
+            FormField::text_area("notes", "Notes").placeholder("Additional notes (optional)"),
         ];
 
         Self {
             form_state: FormState::new(fields),
+            current_section: FormSection::Summary,
+            show_preview: false,
+        }
+    }
+
+    /// Get the current section
+    pub fn current_section(&self) -> FormSection {
+        self.current_section
+    }
+
+    /// Set the current section
+    pub fn set_section(&mut self, section: FormSection) {
+        self.current_section = section;
+    }
+
+    /// Navigate to the next section
+    pub fn next_section(&mut self) {
+        let sections = FormSection::all();
+        let current_idx = sections
+            .iter()
+            .position(|s| *s == self.current_section)
+            .unwrap_or(0);
+        let next_idx = (current_idx + 1) % sections.len();
+        self.current_section = sections[next_idx];
+    }
+
+    /// Navigate to the previous section
+    pub fn prev_section(&mut self) {
+        let sections = FormSection::all();
+        let current_idx = sections
+            .iter()
+            .position(|s| *s == self.current_section)
+            .unwrap_or(0);
+        let prev_idx = if current_idx == 0 {
+            sections.len() - 1
+        } else {
+            current_idx - 1
+        };
+        self.current_section = sections[prev_idx];
+    }
+
+    /// Toggle preview mode
+    pub fn toggle_preview(&mut self) {
+        self.show_preview = !self.show_preview;
+    }
+
+    /// Check if in preview mode
+    pub fn is_preview_mode(&self) -> bool {
+        self.show_preview
+    }
+
+    /// Get fields for the current section
+    pub fn current_section_fields(&self) -> Vec<&str> {
+        match self.current_section {
+            FormSection::Summary => vec!["title", "type", "priority", "status"],
+            FormSection::Scheduling => vec!["due_date", "defer_date", "time_estimate"],
+            FormSection::Relationships => vec!["parent", "dependencies"],
+            FormSection::Labels => vec!["assignee", "labels"],
+            FormSection::Text => vec!["description", "design", "acceptance", "notes"],
+            FormSection::Metadata => vec![], // Read-only, shown in preview
+        }
+    }
+
+    /// Check if current section is complete (all required fields filled)
+    pub fn is_section_complete(&self, section: FormSection) -> bool {
+        match section {
+            FormSection::Summary => {
+                // Title is required
+                self.form_state
+                    .get_value("title")
+                    .filter(|s| !s.is_empty())
+                    .is_some()
+            }
+            _ => true, // Other sections have no required fields
         }
     }
 
@@ -144,6 +293,53 @@ impl CreateIssueFormState {
             .get_value("description")
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string());
+        
+        // New fields
+        let due_date = self
+            .form_state
+            .get_value("due_date")
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+        let defer_date = self
+            .form_state
+            .get_value("defer_date")
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+        let time_estimate = self
+            .form_state
+            .get_value("time_estimate")
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+        let parent = self
+            .form_state
+            .get_value("parent")
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+        let dependencies_str = self
+            .form_state
+            .get_value("dependencies")
+            .filter(|s| !s.is_empty())
+            .unwrap_or("");
+        let dependencies: Vec<String> = dependencies_str
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        let design = self
+            .form_state
+            .get_value("design")
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+        let acceptance = self
+            .form_state
+            .get_value("acceptance")
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+        let notes = self
+            .form_state
+            .get_value("notes")
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
 
         Some(CreateIssueData {
             title,
@@ -153,6 +349,14 @@ impl CreateIssueFormState {
             assignee,
             labels,
             description,
+            due_date,
+            defer_date,
+            time_estimate,
+            parent,
+            dependencies,
+            design,
+            acceptance,
+            notes,
         })
     }
 
@@ -186,6 +390,7 @@ impl CreateIssueFormState {
     /// Clear the form
     pub fn clear(&mut self) {
         self.form_state = FormState::new(vec![
+            // Summary section
             FormField::text("title", "Title")
                 .required()
                 .placeholder("Brief description of the issue"),
@@ -227,11 +432,30 @@ impl CreateIssueFormState {
             )
             .value("Open")
             .required(),
+            // Scheduling section
+            FormField::text("due_date", "Due Date").placeholder("YYYY-MM-DD (optional)"),
+            FormField::text("defer_date", "Defer Date").placeholder("YYYY-MM-DD (optional)"),
+            FormField::text("time_estimate", "Time Estimate")
+                .placeholder("e.g., 2h, 3d, 1w (optional)"),
+            // Relationships section
+            FormField::text("parent", "Parent Issue")
+                .placeholder("beads-xxx (optional)"),
+            FormField::text("dependencies", "Dependencies")
+                .placeholder("comma-separated beads-xxx (optional)"),
+            // Labels section
             FormField::text("assignee", "Assignee").placeholder("username (optional)"),
             FormField::text("labels", "Labels").placeholder("comma-separated labels (optional)"),
+            // Text section
             FormField::text_area("description", "Description")
                 .placeholder("Detailed description of the issue (optional)"),
+            FormField::text_area("design", "Design")
+                .placeholder("Design notes and approach (optional)"),
+            FormField::text_area("acceptance", "Acceptance Criteria")
+                .placeholder("How to verify this is done (optional)"),
+            FormField::text_area("notes", "Notes").placeholder("Additional notes (optional)"),
         ]);
+        self.current_section = FormSection::Summary;
+        self.show_preview = false;
     }
 }
 
@@ -245,6 +469,14 @@ pub struct CreateIssueData {
     pub assignee: Option<String>,
     pub labels: Vec<String>,
     pub description: Option<String>,
+    pub due_date: Option<String>,
+    pub defer_date: Option<String>,
+    pub time_estimate: Option<String>,
+    pub parent: Option<String>,
+    pub dependencies: Vec<String>,
+    pub design: Option<String>,
+    pub acceptance: Option<String>,
+    pub notes: Option<String>,
 }
 
 /// Create issue form view
@@ -342,7 +574,9 @@ mod tests {
     #[test]
     fn test_create_issue_form_state_creation() {
         let state = CreateIssueFormState::new();
-        assert_eq!(state.form_state().fields().len(), 7);
+        assert_eq!(state.form_state().fields().len(), 15); // Updated for all fields
+        assert_eq!(state.current_section(), FormSection::Summary);
+        assert!(!state.is_preview_mode());
     }
 
     #[test]
