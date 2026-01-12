@@ -392,4 +392,273 @@ mod tests {
         let view = DependenciesView::new(issues).block_style(style);
         assert_eq!(view.block_style, style);
     }
+
+    // status_color tests
+    #[test]
+    fn test_status_color_open() {
+        assert_eq!(status_color(&IssueStatus::Open), Color::Green);
+    }
+
+    #[test]
+    fn test_status_color_in_progress() {
+        assert_eq!(status_color(&IssueStatus::InProgress), Color::Cyan);
+    }
+
+    #[test]
+    fn test_status_color_blocked() {
+        assert_eq!(status_color(&IssueStatus::Blocked), Color::Red);
+    }
+
+    #[test]
+    fn test_status_color_closed() {
+        assert_eq!(status_color(&IssueStatus::Closed), Color::Gray);
+    }
+
+    // DependencyFocus tests
+    #[test]
+    fn test_dependency_focus_equality() {
+        assert_eq!(DependencyFocus::Dependencies, DependencyFocus::Dependencies);
+        assert_eq!(DependencyFocus::Blocks, DependencyFocus::Blocks);
+        assert_ne!(DependencyFocus::Dependencies, DependencyFocus::Blocks);
+    }
+
+    // DependenciesViewState tests
+    #[test]
+    fn test_dependencies_view_state_new() {
+        let state = DependenciesViewState::new();
+        assert_eq!(state.focus(), DependencyFocus::Dependencies);
+        assert_eq!(state.selected_dependency(), Some(0));
+        assert_eq!(state.selected_block(), Some(0));
+    }
+
+    #[test]
+    fn test_dependencies_view_state_default() {
+        let state = DependenciesViewState::default();
+        assert_eq!(state.focus(), DependencyFocus::Dependencies);
+        assert_eq!(state.selected_dependency(), Some(0));
+        assert_eq!(state.selected_block(), Some(0));
+    }
+
+    #[test]
+    fn test_dependencies_view_state_toggle_focus() {
+        let mut state = DependenciesViewState::new();
+        assert_eq!(state.focus(), DependencyFocus::Dependencies);
+
+        state.toggle_focus();
+        assert_eq!(state.focus(), DependencyFocus::Blocks);
+
+        state.toggle_focus();
+        assert_eq!(state.focus(), DependencyFocus::Dependencies);
+    }
+
+    #[test]
+    fn test_dependencies_view_state_select_next_empty_list() {
+        let mut state = DependenciesViewState::new();
+        state.select_next(0); // Empty list
+        // Should not panic or change state
+        assert_eq!(state.selected_dependency(), Some(0));
+    }
+
+    #[test]
+    fn test_dependencies_view_state_select_previous_empty_list() {
+        let mut state = DependenciesViewState::new();
+        state.select_previous(0); // Empty list
+        // Should not panic or change state
+        assert_eq!(state.selected_dependency(), Some(0));
+    }
+
+    #[test]
+    fn test_dependencies_view_state_select_next_dependencies() {
+        let mut state = DependenciesViewState::new();
+        assert_eq!(state.focus(), DependencyFocus::Dependencies);
+        assert_eq!(state.selected_dependency(), Some(0));
+
+        state.select_next(3);
+        assert_eq!(state.selected_dependency(), Some(1));
+
+        state.select_next(3);
+        assert_eq!(state.selected_dependency(), Some(2));
+
+        // Wraparound
+        state.select_next(3);
+        assert_eq!(state.selected_dependency(), Some(0));
+    }
+
+    #[test]
+    fn test_dependencies_view_state_select_previous_dependencies() {
+        let mut state = DependenciesViewState::new();
+        assert_eq!(state.focus(), DependencyFocus::Dependencies);
+        assert_eq!(state.selected_dependency(), Some(0));
+
+        // Wraparound to end
+        state.select_previous(3);
+        assert_eq!(state.selected_dependency(), Some(2));
+
+        state.select_previous(3);
+        assert_eq!(state.selected_dependency(), Some(1));
+
+        state.select_previous(3);
+        assert_eq!(state.selected_dependency(), Some(0));
+    }
+
+    #[test]
+    fn test_dependencies_view_state_select_next_blocks() {
+        let mut state = DependenciesViewState::new();
+        state.toggle_focus(); // Switch to Blocks
+        assert_eq!(state.focus(), DependencyFocus::Blocks);
+        assert_eq!(state.selected_block(), Some(0));
+
+        state.select_next(3);
+        assert_eq!(state.selected_block(), Some(1));
+
+        state.select_next(3);
+        assert_eq!(state.selected_block(), Some(2));
+
+        // Wraparound
+        state.select_next(3);
+        assert_eq!(state.selected_block(), Some(0));
+    }
+
+    #[test]
+    fn test_dependencies_view_state_select_previous_blocks() {
+        let mut state = DependenciesViewState::new();
+        state.toggle_focus(); // Switch to Blocks
+        assert_eq!(state.focus(), DependencyFocus::Blocks);
+        assert_eq!(state.selected_block(), Some(0));
+
+        // Wraparound to end
+        state.select_previous(3);
+        assert_eq!(state.selected_block(), Some(2));
+
+        state.select_previous(3);
+        assert_eq!(state.selected_block(), Some(1));
+
+        state.select_previous(3);
+        assert_eq!(state.selected_block(), Some(0));
+    }
+
+    #[test]
+    fn test_dependencies_view_state_independent_list_selections() {
+        let mut state = DependenciesViewState::new();
+
+        // Navigate in dependencies list
+        assert_eq!(state.focus(), DependencyFocus::Dependencies);
+        state.select_next(5);
+        state.select_next(5);
+        assert_eq!(state.selected_dependency(), Some(2));
+
+        // Toggle to blocks and navigate
+        state.toggle_focus();
+        state.select_next(5);
+        assert_eq!(state.selected_block(), Some(1));
+
+        // Toggle back - dependencies selection should be preserved
+        state.toggle_focus();
+        assert_eq!(state.selected_dependency(), Some(2));
+    }
+
+    #[test]
+    fn test_dependencies_view_state_select_next_single_item() {
+        let mut state = DependenciesViewState::new();
+        state.select_next(1);
+        // With single item, should wrap from 0 to 0
+        assert_eq!(state.selected_dependency(), Some(0));
+    }
+
+    #[test]
+    fn test_dependencies_view_state_select_previous_single_item() {
+        let mut state = DependenciesViewState::new();
+        state.select_previous(1);
+        // With single item, should wrap from 0 to 0
+        assert_eq!(state.selected_dependency(), Some(0));
+    }
+
+    // DependenciesView widget tests
+    #[test]
+    fn test_dependencies_view_new_empty() {
+        let issues: Vec<&Issue> = vec![];
+        let view = DependenciesView::new(issues);
+        assert!(view.issue.is_none());
+        assert_eq!(view.all_issues.len(), 0);
+    }
+
+    #[test]
+    fn test_dependencies_view_new_with_issues() {
+        let issue1 = create_test_issue("beads-001", "Issue 1");
+        let issue2 = create_test_issue("beads-002", "Issue 2");
+        let issues = vec![&issue1, &issue2];
+
+        let view = DependenciesView::new(issues);
+        assert!(view.issue.is_none());
+        assert_eq!(view.all_issues.len(), 2);
+    }
+
+    #[test]
+    fn test_dependencies_view_builder_chain() {
+        let issue1 = create_test_issue("beads-001", "Issue 1");
+        let issue2 = create_test_issue("beads-002", "Issue 2");
+        let issues = vec![&issue1, &issue2];
+        let style = Style::default().fg(Color::Magenta);
+
+        let view = DependenciesView::new(issues)
+            .issue(&issue1)
+            .block_style(style);
+
+        assert!(view.issue.is_some());
+        assert_eq!(view.block_style, style);
+    }
+
+    #[test]
+    fn test_dependencies_view_issue_with_dependencies() {
+        let mut issue1 = create_test_issue("beads-001", "Issue 1");
+        let issue2 = create_test_issue("beads-002", "Issue 2");
+        let issue3 = create_test_issue("beads-003", "Issue 3");
+
+        // Issue 1 depends on Issue 2
+        issue1.dependencies = vec!["beads-002".to_string()];
+
+        let issues = vec![&issue1, &issue2, &issue3];
+        let view = DependenciesView::new(issues).issue(&issue1);
+
+        assert!(view.issue.is_some());
+        assert_eq!(view.issue.unwrap().id, "beads-001");
+        assert_eq!(view.issue.unwrap().dependencies.len(), 1);
+    }
+
+    #[test]
+    fn test_dependencies_view_issue_with_blocks() {
+        let issue1 = create_test_issue("beads-001", "Issue 1");
+        let mut issue2 = create_test_issue("beads-002", "Issue 2");
+        let issue3 = create_test_issue("beads-003", "Issue 3");
+
+        // Issue 2 blocks Issue 1 and Issue 3
+        issue2.blocks = vec!["beads-001".to_string(), "beads-003".to_string()];
+
+        let issues = vec![&issue1, &issue2, &issue3];
+        let view = DependenciesView::new(issues).issue(&issue2);
+
+        assert!(view.issue.is_some());
+        assert_eq!(view.issue.unwrap().id, "beads-002");
+        assert_eq!(view.issue.unwrap().blocks.len(), 2);
+    }
+
+    #[test]
+    fn test_dependencies_view_issue_with_no_relationships() {
+        let issue1 = create_test_issue("beads-001", "Issue 1");
+        let issue2 = create_test_issue("beads-002", "Issue 2");
+
+        let issues = vec![&issue1, &issue2];
+        let view = DependenciesView::new(issues).issue(&issue1);
+
+        assert!(view.issue.is_some());
+        assert_eq!(view.issue.unwrap().dependencies.len(), 0);
+        assert_eq!(view.issue.unwrap().blocks.len(), 0);
+    }
+
+    #[test]
+    fn test_dependencies_view_default_block_style() {
+        let issues: Vec<&Issue> = vec![];
+        let view = DependenciesView::new(issues);
+        assert_eq!(view.block_style, Style::default().fg(Color::Cyan));
+    }
 }
