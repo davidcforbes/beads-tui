@@ -675,10 +675,89 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 }
 
 /// Handle keyboard events for the Dependencies view
-/// See beads-tui-quqt for implementation
-fn handle_dependencies_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
-    // Requires: selection state for dependency lists, input dialog widget
-    // Controls: a (add), d (remove), g (graph), c (check cycles)
+fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState) {
+    let selected_issue = app.issues_view_state.selected_issue();
+
+    match key_code {
+        KeyCode::Char('j') | KeyCode::Down => {
+            // Get the length of the focused list
+            let len = if let Some(issue) = selected_issue {
+                match app.dependencies_view_state.focus() {
+                    ui::views::DependencyFocus::Dependencies => issue.dependencies.len(),
+                    ui::views::DependencyFocus::Blocks => issue.blocks.len(),
+                }
+            } else {
+                0
+            };
+            app.dependencies_view_state.select_next(len);
+            app.mark_dirty();
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            let len = if let Some(issue) = selected_issue {
+                match app.dependencies_view_state.focus() {
+                    ui::views::DependencyFocus::Dependencies => issue.dependencies.len(),
+                    ui::views::DependencyFocus::Blocks => issue.blocks.len(),
+                }
+            } else {
+                0
+            };
+            app.dependencies_view_state.select_previous(len);
+            app.mark_dirty();
+        }
+        KeyCode::Tab => {
+            // Toggle focus between dependencies and blocks
+            app.dependencies_view_state.toggle_focus();
+            app.mark_dirty();
+        }
+        KeyCode::Char('a') => {
+            // Add dependency
+            app.set_info("Add dependency: Not yet implemented (requires input dialog)".to_string());
+            tracing::info!("Add dependency requested");
+        }
+        KeyCode::Char('d') => {
+            // Remove dependency
+            if let Some(issue) = selected_issue {
+                match app.dependencies_view_state.focus() {
+                    ui::views::DependencyFocus::Dependencies => {
+                        if let Some(selected_idx) = app.dependencies_view_state.selected_dependency()
+                        {
+                            if selected_idx < issue.dependencies.len() {
+                                let dep_id = issue.dependencies[selected_idx].clone();
+                                app.set_info(format!(
+                                    "Remove dependency '{}': Not yet implemented",
+                                    dep_id
+                                ));
+                                tracing::info!("Remove dependency requested: {}", dep_id);
+                            }
+                        }
+                    }
+                    ui::views::DependencyFocus::Blocks => {
+                        if let Some(selected_idx) = app.dependencies_view_state.selected_block() {
+                            if selected_idx < issue.blocks.len() {
+                                let blocked_id = issue.blocks[selected_idx].clone();
+                                app.set_info(format!(
+                                    "Remove block relationship with '{}': Not yet implemented",
+                                    blocked_id
+                                ));
+                                tracing::info!("Remove block requested: {}", blocked_id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        KeyCode::Char('g') => {
+            // Show dependency graph
+            app.set_info("Show dependency graph: Not yet implemented".to_string());
+            tracing::info!("Show dependency graph requested");
+        }
+        KeyCode::Char('c') => {
+            // Check for circular dependencies
+            app.set_info("Check circular dependencies: Not yet implemented".to_string());
+            tracing::info!("Check circular dependencies requested");
+        }
+        _ => {}
+    }
 }
 
 /// Handle keyboard events for the Labels view
@@ -1027,7 +1106,11 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             if let Some(issue) = selected_issue {
                 dependencies_view = dependencies_view.issue(issue);
             }
-            f.render_widget(dependencies_view, tabs_chunks[1]);
+            f.render_stateful_widget(
+                dependencies_view,
+                tabs_chunks[1],
+                &mut app.dependencies_view_state,
+            );
         }
         2 => {
             // Labels view

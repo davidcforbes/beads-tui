@@ -6,7 +6,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Widget},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, StatefulWidget, Widget},
 };
 
 /// Get color for issue status
@@ -16,6 +16,111 @@ fn status_color(status: &IssueStatus) -> Color {
         IssueStatus::InProgress => Color::Cyan,
         IssueStatus::Blocked => Color::Red,
         IssueStatus::Closed => Color::Gray,
+    }
+}
+
+/// Which list is currently focused in the dependencies view
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DependencyFocus {
+    Dependencies,
+    Blocks,
+}
+
+/// Dependencies view state for tracking selection and focus
+#[derive(Debug)]
+pub struct DependenciesViewState {
+    focus: DependencyFocus,
+    dependencies_list_state: ListState,
+    blocks_list_state: ListState,
+}
+
+impl Default for DependenciesViewState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DependenciesViewState {
+    /// Create a new dependencies view state
+    pub fn new() -> Self {
+        let mut dep_state = ListState::default();
+        dep_state.select(Some(0));
+        let mut blocks_state = ListState::default();
+        blocks_state.select(Some(0));
+        Self {
+            focus: DependencyFocus::Dependencies,
+            dependencies_list_state: dep_state,
+            blocks_list_state: blocks_state,
+        }
+    }
+
+    /// Get current focus
+    pub fn focus(&self) -> DependencyFocus {
+        self.focus
+    }
+
+    /// Toggle focus between dependencies and blocks
+    pub fn toggle_focus(&mut self) {
+        self.focus = match self.focus {
+            DependencyFocus::Dependencies => DependencyFocus::Blocks,
+            DependencyFocus::Blocks => DependencyFocus::Dependencies,
+        };
+    }
+
+    /// Get the selected dependency index
+    pub fn selected_dependency(&self) -> Option<usize> {
+        self.dependencies_list_state.selected()
+    }
+
+    /// Get the selected block index
+    pub fn selected_block(&self) -> Option<usize> {
+        self.blocks_list_state.selected()
+    }
+
+    /// Select next item in the focused list
+    pub fn select_next(&mut self, len: usize) {
+        if len == 0 {
+            return;
+        }
+        let list_state = match self.focus {
+            DependencyFocus::Dependencies => &mut self.dependencies_list_state,
+            DependencyFocus::Blocks => &mut self.blocks_list_state,
+        };
+
+        let i = match list_state.selected() {
+            Some(i) => {
+                if i >= len - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        list_state.select(Some(i));
+    }
+
+    /// Select previous item in the focused list
+    pub fn select_previous(&mut self, len: usize) {
+        if len == 0 {
+            return;
+        }
+        let list_state = match self.focus {
+            DependencyFocus::Dependencies => &mut self.dependencies_list_state,
+            DependencyFocus::Blocks => &mut self.blocks_list_state,
+        };
+
+        let i = match list_state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    len - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        list_state.select(Some(i));
     }
 }
 
@@ -74,7 +179,7 @@ impl<'a> DependenciesView<'a> {
         message.render(area, buf);
     }
 
-    fn render_dependencies(&self, area: Rect, buf: &mut Buffer, issue: &Issue) {
+    fn render_dependencies(&self, area: Rect, buf: &mut Buffer, issue: &Issue, state: &mut DependenciesViewState) {
         // Create layout: issue info (3) + dependencies (fill) + blocks (fill) + help (1)
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -134,13 +239,29 @@ impl<'a> DependenciesView<'a> {
                 .collect()
         };
 
-        let dependencies = List::new(dep_items).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(format!("Depends On ({})", issue.dependencies.len()))
-                .style(self.block_style),
-        );
-        dependencies.render(chunks[1], buf);
+        // Add focus indicator to title
+        let dep_title = if state.focus == DependencyFocus::Dependencies {
+            format!("▶ Depends On ({})", issue.dependencies.len())
+        } else {
+            format!("  Depends On ({})", issue.dependencies.len())
+        };
+
+        let dependencies = List::new(dep_items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(dep_title)
+                    .style(self.block_style),
+            )
+            .highlight_style(
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .highlight_symbol("▶ ");
+
+        StatefulWidget::render(dependencies, chunks[1], buf, &mut state.dependencies_list_state);
 
         // Render blocks (what this issue blocks)
         let block_items: Vec<ListItem> = if issue.blocks.is_empty() {
@@ -177,13 +298,29 @@ impl<'a> DependenciesView<'a> {
                 .collect()
         };
 
-        let blocks = List::new(block_items).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(format!("Blocks ({})", issue.blocks.len()))
-                .style(self.block_style),
-        );
-        blocks.render(chunks[2], buf);
+        // Add focus indicator to title
+        let blocks_title = if state.focus == DependencyFocus::Blocks {
+            format!("▶ Blocks ({})", issue.blocks.len())
+        } else {
+            format!("  Blocks ({})", issue.blocks.len())
+        };
+
+        let blocks = List::new(block_items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(blocks_title)
+                    .style(self.block_style),
+            )
+            .highlight_style(
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .highlight_symbol("▶ ");
+
+        StatefulWidget::render(blocks, chunks[2], buf, &mut state.blocks_list_state);
 
         // Render help
         let help_text = "a: Add Dependency | d: Remove Dependency | g: Show Graph | c: Check Cycles | Esc: Back";
@@ -195,10 +332,12 @@ impl<'a> DependenciesView<'a> {
     }
 }
 
-impl<'a> Widget for DependenciesView<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
+impl<'a> StatefulWidget for DependenciesView<'a> {
+    type State = DependenciesViewState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         match self.issue {
-            Some(issue) => self.render_dependencies(area, buf, issue),
+            Some(issue) => self.render_dependencies(area, buf, issue, state),
             None => self.render_no_selection(area, buf),
         }
     }

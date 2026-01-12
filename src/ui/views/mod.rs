@@ -13,7 +13,7 @@ pub mod search_interface;
 
 pub use create_issue::{CreateIssueData, CreateIssueForm, CreateIssueFormState};
 pub use database_view::{DatabaseStats, DatabaseStatus, DatabaseView};
-pub use dependencies_view::DependenciesView;
+pub use dependencies_view::{DependenciesView, DependenciesViewState, DependencyFocus};
 pub use description_editor::{DescriptionEditorState, DescriptionEditorView, EditorMode};
 pub use help_view::{HelpSection, HelpView};
 pub use issue_detail::IssueDetailView;
