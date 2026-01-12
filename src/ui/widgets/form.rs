@@ -769,6 +769,16 @@ mod tests {
     }
 
     #[test]
+    fn test_password_field_creation() {
+        let field = FormField::password("password", "Password");
+        assert_eq!(field.id, "password");
+        assert_eq!(field.label, "Password");
+        assert_eq!(field.field_type, FieldType::Password);
+        assert!(!field.required);
+        assert_eq!(field.value, "");
+    }
+
+    #[test]
     fn test_form_field_required() {
         let field = FormField::text("title", "Title").required();
         assert!(field.required);
