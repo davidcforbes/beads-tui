@@ -1213,4 +1213,481 @@ mod tests {
         let state = FormState::new(fields);
         assert_eq!(state.get_value("nonexistent"), None);
     }
+
+    // === New comprehensive tests ===
+
+    #[test]
+    fn test_validation_rule_debug() {
+        let rule = ValidationRule::Required;
+        let debug = format!("{:?}", rule);
+        assert!(debug.contains("Required"));
+
+        let rule2 = ValidationRule::Enum(vec!["a".to_string()]);
+        let debug2 = format!("{:?}", rule2);
+        assert!(debug2.contains("Enum"));
+    }
+
+    #[test]
+    fn test_field_type_debug() {
+        let ft = FieldType::TextArea;
+        let debug = format!("{:?}", ft);
+        assert!(debug.contains("TextArea"));
+
+        let ft2 = FieldType::Selector;
+        let debug2 = format!("{:?}", ft2);
+        assert!(debug2.contains("Selector"));
+    }
+
+    #[test]
+    fn test_form_field_debug() {
+        let field = FormField::text("title", "Title");
+        let debug = format!("{:?}", field);
+        assert!(debug.contains("FormField"));
+        assert!(debug.contains("title"));
+    }
+
+    #[test]
+    fn test_form_state_debug() {
+        let fields = vec![FormField::text("title", "Title")];
+        let state = FormState::new(fields);
+        let debug = format!("{:?}", state);
+        assert!(debug.contains("FormState"));
+    }
+
+    #[test]
+    fn test_read_only_field_insert_protection() {
+        let fields = vec![FormField::read_only("id", "ID", "beads-1234-5678")];
+        let mut state = FormState::new(fields);
+
+        state.insert_char('x');
+        assert_eq!(state.get_value("id"), Some("beads-1234-5678"));
+    }
+
+    #[test]
+    fn test_read_only_field_delete_protection() {
+        let fields = vec![FormField::read_only("id", "ID", "beads-1234-5678")];
+        let mut state = FormState::new(fields);
+        state.cursor_position = 5;
+
+        state.delete_char();
+        assert_eq!(state.get_value("id"), Some("beads-1234-5678"));
+    }
+
+    #[test]
+    fn test_text_field_newline_protection() {
+        let fields = vec![FormField::text("title", "Title")];
+        let mut state = FormState::new(fields);
+
+        state.insert_char('\n');
+        assert_eq!(state.get_value("title"), Some(""));
+    }
+
+    #[test]
+    fn test_text_area_allows_newlines() {
+        let fields = vec![FormField::text_area("description", "Description")];
+        let mut state = FormState::new(fields);
+
+        state.insert_char('a');
+        state.insert_char('\n');
+        state.insert_char('b');
+        assert_eq!(state.get_value("description"), Some("a\nb"));
+    }
+
+    #[test]
+    fn test_cursor_at_start_boundary() {
+        let fields = vec![FormField::text("title", "Title").value("Hello")];
+        let mut state = FormState::new(fields);
+        state.cursor_position = 0;
+
+        state.move_cursor_left();
+        assert_eq!(state.cursor_position(), 0);
+
+        state.delete_char();
+        assert_eq!(state.get_value("title"), Some("Hello"));
+    }
+
+    #[test]
+    fn test_cursor_at_end_boundary() {
+        let fields = vec![FormField::text("title", "Title").value("Hello")];
+        let mut state = FormState::new(fields);
+        state.cursor_position = 5;
+
+        state.move_cursor_right();
+        assert_eq!(state.cursor_position(), 5);
+    }
+
+    #[test]
+    fn test_insert_char_updates_cursor() {
+        let fields = vec![FormField::text("title", "Title")];
+        let mut state = FormState::new(fields);
+
+        assert_eq!(state.cursor_position(), 0);
+        state.insert_char('a');
+        assert_eq!(state.cursor_position(), 1);
+        state.insert_char('b');
+        assert_eq!(state.cursor_position(), 2);
+    }
+
+    #[test]
+    fn test_delete_char_updates_cursor() {
+        let fields = vec![FormField::text("title", "Title").value("abc")];
+        let mut state = FormState::new(fields);
+        state.cursor_position = 3;
+
+        state.delete_char();
+        assert_eq!(state.cursor_position(), 2);
+        assert_eq!(state.get_value("title"), Some("ab"));
+    }
+
+    #[test]
+    fn test_focus_index_boundary_checks() {
+        let fields = vec![
+            FormField::text("f1", "Field 1"),
+            FormField::text("f2", "Field 2"),
+        ];
+        let mut state = FormState::new(fields);
+
+        state.set_focused_index(1);
+        assert_eq!(state.focused_index(), 1);
+
+        state.set_focused_index(5);
+        assert_eq!(state.focused_index(), 1); // Should not change
+
+        state.set_focused_index(0);
+        assert_eq!(state.focused_index(), 0);
+    }
+
+    #[test]
+    fn test_focus_navigation_resets_cursor() {
+        let fields = vec![
+            FormField::text("f1", "Field 1").value("abc"),
+            FormField::text("f2", "Field 2").value("def"),
+        ];
+        let mut state = FormState::new(fields);
+        state.cursor_position = 3;
+
+        state.focus_next();
+        assert_eq!(state.cursor_position(), 0);
+
+        state.cursor_position = 2;
+        state.focus_previous();
+        assert_eq!(state.cursor_position(), 0);
+    }
+
+    #[test]
+    fn test_set_focused_index_resets_cursor() {
+        let fields = vec![
+            FormField::text("f1", "Field 1").value("abc"),
+            FormField::text("f2", "Field 2").value("def"),
+        ];
+        let mut state = FormState::new(fields);
+        state.cursor_position = 3;
+
+        state.set_focused_index(1);
+        assert_eq!(state.cursor_position(), 0);
+    }
+
+    #[test]
+    fn test_validation_whitespace_vs_empty() {
+        let mut field = FormField::text("title", "Title")
+            .with_validation(ValidationRule::Required);
+
+        field.value = "   ".to_string();
+        assert!(!field.validate());
+        assert!(field.error.is_some());
+
+        field.value = "".to_string();
+        assert!(!field.validate());
+        assert!(field.error.is_some());
+
+        field.value = " a ".to_string();
+        assert!(field.validate());
+        assert!(field.error.is_none());
+    }
+
+    #[test]
+    fn test_validation_beads_id_edge_cases() {
+        let mut field = FormField::text("id", "ID")
+            .with_validation(ValidationRule::BeadsIdFormat);
+
+        // Special characters in parts
+        field.value = "beads-12@4-5678".to_string();
+        assert!(!field.validate());
+
+        // Too many parts
+        field.value = "beads-1234-5678-9999".to_string();
+        assert!(!field.validate());
+
+        // Too few parts
+        field.value = "beads-1234".to_string();
+        assert!(!field.validate());
+
+        // Correct length but wrong prefix
+        field.value = "issue-1234-5678".to_string();
+        assert!(!field.validate());
+    }
+
+    #[test]
+    fn test_validation_positive_integer_edge_cases() {
+        let mut field = FormField::text("value", "Value")
+            .with_validation(ValidationRule::PositiveInteger);
+
+        // Decimal number
+        field.value = "1.5".to_string();
+        assert!(!field.validate());
+
+        // Very large number
+        field.value = "999999999999".to_string();
+        assert!(field.validate());
+
+        // Leading zeros
+        field.value = "007".to_string();
+        assert!(field.validate());
+
+        // Plus sign (i64::parse accepts this)
+        field.value = "+100".to_string();
+        assert!(field.validate());
+    }
+
+    #[test]
+    fn test_validation_relative_date_formats() {
+        let mut field = FormField::text("date", "Date")
+            .with_validation(ValidationRule::Date);
+
+        // Valid relative dates
+        field.value = "1h".to_string();
+        assert!(field.validate());
+
+        field.value = "5d".to_string();
+        assert!(field.validate());
+
+        field.value = "2w".to_string();
+        assert!(field.validate());
+
+        field.value = "3m".to_string();
+        assert!(field.validate());
+
+        field.value = "1y".to_string();
+        assert!(field.validate());
+
+        // Invalid relative dates
+        field.value = "d5".to_string();
+        assert!(!field.validate());
+
+        field.value = "1x".to_string();
+        assert!(!field.validate());
+
+        field.value = "abc".to_string();
+        assert!(!field.validate());
+    }
+
+    #[test]
+    fn test_validation_enum_case_sensitive() {
+        let mut field = FormField::text("status", "Status")
+            .with_validation(ValidationRule::Enum(vec![
+                "open".to_string(),
+                "closed".to_string(),
+            ]));
+
+        field.value = "Open".to_string();
+        assert!(!field.validate());
+
+        field.value = "OPEN".to_string();
+        assert!(!field.validate());
+
+        field.value = "open".to_string();
+        assert!(field.validate());
+    }
+
+    #[test]
+    fn test_selector_field_with_empty_options() {
+        let field = FormField::selector("status", "Status", vec![]);
+        assert_eq!(field.options.len(), 0);
+        assert_eq!(field.field_type, FieldType::Selector);
+    }
+
+    #[test]
+    fn test_form_widget_default() {
+        let form = Form::default();
+        assert_eq!(form.title, None);
+        assert!(form.block.is_some());
+    }
+
+    #[test]
+    fn test_form_widget_builder_title() {
+        let form = Form::new().title("User Settings");
+        assert_eq!(form.title, Some("User Settings"));
+    }
+
+    #[test]
+    fn test_form_widget_builder_style() {
+        let style = Style::default().fg(Color::Yellow);
+        let form = Form::new().style(style);
+        assert_eq!(form.style, style);
+    }
+
+    #[test]
+    fn test_form_widget_builder_focused_style() {
+        let style = Style::default().fg(Color::Green);
+        let form = Form::new().focused_style(style);
+        assert_eq!(form.focused_style, style);
+    }
+
+    #[test]
+    fn test_form_widget_builder_error_style() {
+        let style = Style::default().fg(Color::Red);
+        let form = Form::new().error_style(style);
+        assert_eq!(form.error_style, style);
+    }
+
+    #[test]
+    fn test_form_widget_builder_block() {
+        let block = Block::default().title("Custom Block");
+        let form = Form::new().block(block.clone());
+        assert!(form.block.is_some());
+    }
+
+    #[test]
+    fn test_form_widget_builder_chain() {
+        let form = Form::new()
+            .title("Settings")
+            .style(Style::default().fg(Color::White))
+            .focused_style(Style::default().fg(Color::Cyan))
+            .error_style(Style::default().fg(Color::Red));
+
+        assert_eq!(form.title, Some("Settings"));
+    }
+
+    #[test]
+    fn test_form_field_with_multiple_validation_rules_order() {
+        let mut field = FormField::text("label", "Label")
+            .with_validation(ValidationRule::Required)
+            .with_validation(ValidationRule::NoSpaces);
+
+        // Empty fails on Required first
+        field.value = "".to_string();
+        assert!(!field.validate());
+        assert!(field.error.as_ref().unwrap().contains("required"));
+
+        // With spaces fails on NoSpaces
+        field.value = "bug fix".to_string();
+        assert!(!field.validate());
+        assert!(field.error.as_ref().unwrap().contains("spaces"));
+
+        // Valid passes all
+        field.value = "bug-fix".to_string();
+        assert!(field.validate());
+    }
+
+    #[test]
+    fn test_get_field_mut_updates_field() {
+        let fields = vec![FormField::text("title", "Title")];
+        let mut state = FormState::new(fields);
+
+        if let Some(field) = state.get_field_mut("title") {
+            field.value = "Updated".to_string();
+        }
+
+        assert_eq!(state.get_value("title"), Some("Updated"));
+    }
+
+    #[test]
+    fn test_focused_field_mut_updates_field() {
+        let fields = vec![FormField::text("title", "Title")];
+        let mut state = FormState::new(fields);
+
+        if let Some(field) = state.focused_field_mut() {
+            field.value = "Modified".to_string();
+        }
+
+        assert_eq!(state.get_value("title"), Some("Modified"));
+    }
+
+    #[test]
+    fn test_fields_accessor() {
+        let fields = vec![
+            FormField::text("f1", "Field 1"),
+            FormField::text("f2", "Field 2"),
+        ];
+        let state = FormState::new(fields);
+
+        let all_fields = state.fields();
+        assert_eq!(all_fields.len(), 2);
+        assert_eq!(all_fields[0].id, "f1");
+        assert_eq!(all_fields[1].id, "f2");
+    }
+
+    #[test]
+    fn test_fields_mut_accessor() {
+        let fields = vec![FormField::text("f1", "Field 1")];
+        let mut state = FormState::new(fields);
+
+        let all_fields = state.fields_mut();
+        all_fields[0].value = "Changed".to_string();
+
+        assert_eq!(state.get_value("f1"), Some("Changed"));
+    }
+
+    #[test]
+    fn test_clear_errors_removes_all_errors() {
+        let fields = vec![
+            FormField::text("f1", "Field 1").with_validation(ValidationRule::Required),
+            FormField::text("f2", "Field 2").with_validation(ValidationRule::Required),
+        ];
+        let mut state = FormState::new(fields);
+
+        state.validate();
+        assert!(state.has_errors());
+
+        state.clear_errors();
+        assert!(!state.has_errors());
+    }
+
+    #[test]
+    fn test_password_field_builder() {
+        let field = FormField::password("pwd", "Password")
+            .required()
+            .placeholder("Enter password");
+
+        assert_eq!(field.field_type, FieldType::Password);
+        assert!(field.required);
+        assert_eq!(field.placeholder, Some("Enter password".to_string()));
+    }
+
+    #[test]
+    fn test_insert_char_at_middle_position() {
+        let fields = vec![FormField::text("title", "Title").value("ac")];
+        let mut state = FormState::new(fields);
+        state.cursor_position = 1;
+
+        state.insert_char('b');
+        assert_eq!(state.get_value("title"), Some("abc"));
+        assert_eq!(state.cursor_position(), 2);
+    }
+
+    #[test]
+    fn test_delete_char_at_middle_position() {
+        let fields = vec![FormField::text("title", "Title").value("abc")];
+        let mut state = FormState::new(fields);
+        state.cursor_position = 2;
+
+        state.delete_char();
+        assert_eq!(state.get_value("title"), Some("ac"));
+        assert_eq!(state.cursor_position(), 1);
+    }
+
+    #[test]
+    fn test_validation_no_spaces_allows_underscores_and_dashes() {
+        let mut field = FormField::text("label", "Label")
+            .with_validation(ValidationRule::NoSpaces);
+
+        field.value = "bug_fix".to_string();
+        assert!(field.validate());
+
+        field.value = "bug-fix".to_string();
+        assert!(field.validate());
+
+        field.value = "bug fix".to_string();
+        assert!(!field.validate());
+    }
 }
