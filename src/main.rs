@@ -537,11 +537,12 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 }
                             }
                         }
+                        }
+                        KeyCode::Esc => {
+                            issues_state.cancel_create();
+                        }
+                        _ => {}
                     }
-                    KeyCode::Esc => {
-                        issues_state.cancel_create();
-                    }
-                    _ => {}
                 }
             }
         }
