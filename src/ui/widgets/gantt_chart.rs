@@ -84,6 +84,18 @@ impl GanttChartConfig {
         self.lane_height = height.max(2);
         self
     }
+
+    /// Set whether to show grid
+    pub fn show_grid(mut self, show: bool) -> Self {
+        self.show_grid = show;
+        self
+    }
+
+    /// Set whether to show today marker
+    pub fn show_today(mut self, show: bool) -> Self {
+        self.show_today = show;
+        self
+    }
 }
 
 /// Swim lane group with issues
@@ -527,5 +539,282 @@ mod tests {
         let lanes = chart.group_into_lanes();
         assert_eq!(lanes.len(), 1); // "All Issues"
         assert_eq!(lanes[0].schedules.len(), 2);
+    }
+
+    #[test]
+    fn test_grouping_mode_equality() {
+        assert_eq!(GroupingMode::None, GroupingMode::None);
+        assert_eq!(GroupingMode::Status, GroupingMode::Status);
+        assert_ne!(GroupingMode::None, GroupingMode::Status);
+        assert_ne!(GroupingMode::Priority, GroupingMode::Assignee);
+    }
+
+    #[test]
+    fn test_grouping_mode_clone() {
+        let mode = GroupingMode::Priority;
+        let cloned = mode.clone();
+        assert_eq!(mode, cloned);
+    }
+
+    #[test]
+    fn test_grouping_mode_all_variants() {
+        let _none = GroupingMode::None;
+        let _status = GroupingMode::Status;
+        let _priority = GroupingMode::Priority;
+        let _assignee = GroupingMode::Assignee;
+        let _type = GroupingMode::Type;
+        assert!(true); // All variants compile and can be created
+    }
+
+    #[test]
+    fn test_gantt_chart_config_default() {
+        let config = GanttChartConfig::default();
+        assert_eq!(config.grouping, GroupingMode::Status);
+        assert_eq!(config.lane_height, 3);
+        assert!(config.show_grid);
+        assert!(config.show_today);
+    }
+
+    #[test]
+    fn test_gantt_chart_config_clone() {
+        let config = GanttChartConfig::new().grouping(GroupingMode::Priority).lane_height(5);
+        let cloned = config.clone();
+        assert_eq!(config.grouping, cloned.grouping);
+        assert_eq!(config.lane_height, cloned.lane_height);
+    }
+
+    #[test]
+    fn test_config_show_grid() {
+        let config = GanttChartConfig::new().show_grid(false);
+        assert!(!config.show_grid);
+    }
+
+    #[test]
+    fn test_config_show_today() {
+        let config = GanttChartConfig::new().show_today(false);
+        assert!(!config.show_today);
+    }
+
+    #[test]
+    fn test_config_builder_chain() {
+        let config = GanttChartConfig::new()
+            .grouping(GroupingMode::Type)
+            .lane_height(10)
+            .show_grid(false)
+            .show_today(false);
+        assert_eq!(config.grouping, GroupingMode::Type);
+        assert_eq!(config.lane_height, 10);
+        assert!(!config.show_grid);
+        assert!(!config.show_today);
+    }
+
+    #[test]
+    fn test_gantt_chart_empty_schedules() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let chart = GanttChart::new(vec![], vec![&issue]);
+        assert_eq!(chart.schedules.len(), 0);
+        assert_eq!(chart.issues.len(), 1);
+    }
+
+    #[test]
+    fn test_gantt_chart_empty_issues() {
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![]);
+        assert_eq!(chart.schedules.len(), 1);
+        assert_eq!(chart.issues.len(), 0);
+    }
+
+    #[test]
+    fn test_gantt_chart_builder_chain() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let config = GanttChartConfig::new().grouping(GroupingMode::Priority);
+
+        let chart = GanttChart::new(vec![schedule], vec![&issue])
+            .config(config.clone())
+            .selected(Some("TEST-1".to_string()));
+
+        assert_eq!(chart.config.grouping, GroupingMode::Priority);
+        assert_eq!(chart.selected_id, Some("TEST-1".to_string()));
+    }
+
+    #[test]
+    fn test_gantt_chart_selected_some() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue])
+            .selected(Some("TEST-1".to_string()));
+        assert_eq!(chart.selected_id, Some("TEST-1".to_string()));
+    }
+
+    #[test]
+    fn test_gantt_chart_selected_none() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue])
+            .selected(None);
+        assert_eq!(chart.selected_id, None);
+    }
+
+    #[test]
+    fn test_group_into_lanes_by_assignee() {
+        let issue1 = create_test_issue("TEST-1", "Assigned to Alice");
+        let mut issue1_mut = issue1.clone();
+        issue1_mut.assignee = Some("alice@example.com".to_string());
+
+        let mut issue2 = create_test_issue("TEST-2", "Assigned to Bob");
+        issue2.assignee = Some("bob@example.com".to_string());
+
+        let schedule1 = create_test_schedule("TEST-1", 0);
+        let schedule2 = create_test_schedule("TEST-2", 5);
+
+        let chart = GanttChart::new(vec![schedule1, schedule2], vec![&issue1_mut, &issue2])
+            .config(GanttChartConfig::new().grouping(GroupingMode::Assignee));
+
+        let lanes = chart.group_into_lanes();
+        assert_eq!(lanes.len(), 2); // Two different assignees
+    }
+
+    #[test]
+    fn test_group_into_lanes_by_type() {
+        let issue1 = create_test_issue("TEST-1", "Bug Issue");
+        let mut issue1_mut = issue1.clone();
+        issue1_mut.issue_type = IssueType::Bug;
+
+        let mut issue2 = create_test_issue("TEST-2", "Feature Issue");
+        issue2.issue_type = IssueType::Feature;
+
+        let schedule1 = create_test_schedule("TEST-1", 0);
+        let schedule2 = create_test_schedule("TEST-2", 5);
+
+        let chart = GanttChart::new(vec![schedule1, schedule2], vec![&issue1_mut, &issue2])
+            .config(GanttChartConfig::new().grouping(GroupingMode::Type));
+
+        let lanes = chart.group_into_lanes();
+        assert_eq!(lanes.len(), 2); // "Bug" and "Feature"
+    }
+
+    #[test]
+    fn test_group_into_lanes_unknown_issue() {
+        let issue = create_test_issue("TEST-1", "Known Issue");
+        let schedule1 = create_test_schedule("TEST-1", 0);
+        let schedule2 = create_test_schedule("TEST-UNKNOWN", 5); // No matching issue
+
+        let chart = GanttChart::new(vec![schedule1, schedule2], vec![&issue])
+            .config(GanttChartConfig::new().grouping(GroupingMode::Status));
+
+        let lanes = chart.group_into_lanes();
+        // Should have "Open" and "Unknown" lanes
+        assert!(lanes.len() >= 1);
+    }
+
+    #[test]
+    fn test_group_into_lanes_sorting() {
+        let mut issue1 = create_test_issue("TEST-1", "Issue 1");
+        issue1.status = IssueStatus::Open;
+
+        let mut issue2 = create_test_issue("TEST-2", "Issue 2");
+        issue2.status = IssueStatus::Blocked;
+
+        let schedule1 = create_test_schedule("TEST-1", 0);
+        let schedule2 = create_test_schedule("TEST-2", 5);
+
+        let chart = GanttChart::new(vec![schedule1, schedule2], vec![&issue1, &issue2])
+            .config(GanttChartConfig::new().grouping(GroupingMode::Status));
+
+        let lanes = chart.group_into_lanes();
+        // Lanes should be sorted alphabetically
+        assert_eq!(lanes[0].name, "Blocked");
+        assert_eq!(lanes[1].name, "Open");
+    }
+
+    #[test]
+    fn test_date_to_x_before_viewport() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue]);
+
+        let area = Rect::new(0, 0, 100, 10);
+        let date_before = chart.config.timeline.viewport_start - Duration::days(10);
+
+        let result = chart.date_to_x(date_before, area);
+        assert_eq!(result, None); // Date before viewport returns None
+    }
+
+    #[test]
+    fn test_date_to_x_after_viewport() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue]);
+
+        let area = Rect::new(0, 0, 100, 10);
+        let date_after = chart.config.timeline.viewport_end + Duration::days(10);
+
+        let result = chart.date_to_x(date_after, area);
+        assert_eq!(result, None); // Date after viewport returns None
+    }
+
+    #[test]
+    fn test_date_to_x_inside_viewport() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue]);
+
+        let area = Rect::new(0, 0, 100, 10);
+        let date_middle = chart.config.timeline.viewport_start + Duration::days(15);
+
+        let result = chart.date_to_x(date_middle, area);
+        assert!(result.is_some()); // Date inside viewport returns Some
+        assert!(result.unwrap() >= 20 && result.unwrap() < 100); // Within area bounds
+    }
+
+    #[test]
+    fn test_date_to_x_at_start() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue]);
+
+        let area = Rect::new(0, 0, 100, 10);
+        let date_start = chart.config.timeline.viewport_start;
+
+        let result = chart.date_to_x(date_start, area);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), 20); // At label offset
+    }
+
+    #[test]
+    fn test_date_to_x_at_end() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue]);
+
+        let area = Rect::new(0, 0, 100, 10);
+        let date_end = chart.config.timeline.viewport_end;
+
+        let result = chart.date_to_x(date_end, area);
+        assert!(result.is_some());
+        assert!(result.unwrap() <= 99); // At or near end, capped at area width - 1
+    }
+
+    #[test]
+    fn test_truncate_text_exact_width() {
+        let text = "exactly10!";
+        assert_eq!(GanttChart::truncate_text(text, 10), text);
+    }
+
+    #[test]
+    fn test_multiple_schedules_same_lane() {
+        let issue1 = create_test_issue("TEST-1", "Issue 1");
+        let issue2 = create_test_issue("TEST-2", "Issue 2");
+
+        let schedule1 = create_test_schedule("TEST-1", 0);
+        let schedule2 = create_test_schedule("TEST-2", 5);
+
+        let chart = GanttChart::new(vec![schedule1, schedule2], vec![&issue1, &issue2])
+            .config(GanttChartConfig::new().grouping(GroupingMode::None));
+
+        let lanes = chart.group_into_lanes();
+        assert_eq!(lanes.len(), 1);
+        assert_eq!(lanes[0].schedules.len(), 2); // Both schedules in same lane
     }
 }
