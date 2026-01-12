@@ -696,4 +696,177 @@ mod tests {
         assert_eq!(input.focused_style.fg, Some(Color::Blue));
         assert!(!input.show_icon);
     }
+
+    #[test]
+    fn test_history_previous_at_first_item() {
+        let mut state = SearchInputState::new();
+        state.set_query("first");
+        state.add_to_history();
+        state.set_query("second");
+        state.add_to_history();
+        state.clear();
+
+        // Navigate to most recent
+        state.history_previous();
+        assert_eq!(state.query(), "second");
+
+        // Navigate to first
+        state.history_previous();
+        assert_eq!(state.query(), "first");
+
+        // Try to go before first - should stay at first
+        state.history_previous();
+        assert_eq!(state.query(), "first");
+    }
+
+    #[test]
+    fn test_history_next_when_no_index() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.add_to_history();
+        state.clear();
+
+        // history_index is None, history_next should do nothing
+        state.history_next();
+        assert_eq!(state.query(), "");
+    }
+
+    #[test]
+    fn test_multiple_cursor_movements() {
+        let mut state = SearchInputState::new();
+        state.set_query("testing");
+
+        for _ in 0..3 {
+            state.move_cursor_left();
+        }
+        assert_eq!(state.cursor_position(), 4);
+
+        for _ in 0..2 {
+            state.move_cursor_right();
+        }
+        assert_eq!(state.cursor_position(), 6);
+    }
+
+    #[test]
+    fn test_clear_resets_history_index() {
+        let mut state = SearchInputState::new();
+        state.set_query("first");
+        state.add_to_history();
+        state.set_query("second");
+        state.add_to_history();
+
+        state.history_previous();
+        assert!(state.history_index.is_some());
+
+        state.clear();
+        assert!(state.history_index.is_none());
+    }
+
+    #[test]
+    fn test_set_query_resets_history_index() {
+        let mut state = SearchInputState::new();
+        state.set_query("first");
+        state.add_to_history();
+
+        state.history_previous();
+        assert!(state.history_index.is_some());
+
+        state.set_query("new query");
+        assert!(state.history_index.is_none());
+    }
+
+    #[test]
+    fn test_insert_char_resets_history_index() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.add_to_history();
+
+        state.history_previous();
+        assert!(state.history_index.is_some());
+
+        state.insert_char('x');
+        assert!(state.history_index.is_none());
+    }
+
+    #[test]
+    fn test_delete_char_resets_history_index() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.add_to_history();
+
+        state.history_previous();
+        assert!(state.history_index.is_some());
+
+        state.delete_char();
+        assert!(state.history_index.is_none());
+    }
+
+    #[test]
+    fn test_delete_char_forward_resets_history_index() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.add_to_history();
+
+        state.history_previous();
+        assert!(state.history_index.is_some());
+
+        state.move_cursor_to_start();
+        state.delete_char_forward();
+        assert!(state.history_index.is_none());
+    }
+
+    #[test]
+    fn test_show_icon_toggle() {
+        let input1 = SearchInput::new().show_icon(true);
+        assert!(input1.show_icon);
+
+        let input2 = SearchInput::new().show_icon(false);
+        assert!(!input2.show_icon);
+    }
+
+    #[test]
+    fn test_history_navigation_updates_cursor() {
+        let mut state = SearchInputState::new();
+        state.set_query("short");
+        state.add_to_history();
+        state.set_query("much longer query");
+        state.add_to_history();
+        state.clear();
+
+        state.history_previous();
+        assert_eq!(state.cursor_position(), state.query().len()); // Cursor at end of "much longer query"
+
+        state.history_previous();
+        assert_eq!(state.cursor_position(), state.query().len()); // Cursor at end of "short"
+    }
+
+    #[test]
+    fn test_add_to_history_resets_index() {
+        let mut state = SearchInputState::new();
+        state.set_query("first");
+        state.add_to_history();
+
+        state.history_previous();
+        assert!(state.history_index.is_some());
+
+        state.set_query("second");
+        state.add_to_history();
+        assert!(state.history_index.is_none());
+    }
+
+    #[test]
+    fn test_cursor_position_consistency() {
+        let mut state = SearchInputState::new();
+        state.insert_char('h');
+        state.insert_char('e');
+        state.insert_char('l');
+        state.insert_char('l');
+        state.insert_char('o');
+        assert_eq!(state.cursor_position(), 5);
+        assert_eq!(state.query().len(), 5);
+
+        state.delete_char();
+        assert_eq!(state.cursor_position(), 4);
+        assert_eq!(state.query().len(), 4);
+    }
 }
