@@ -731,4 +731,314 @@ mod tests {
         let wrapped = wrap_text("12345 678", 5);
         assert_eq!(wrapped, vec!["12345", "678"]);
     }
+
+    #[test]
+    fn test_card_mode_debug() {
+        let mode = CardMode::SingleLine;
+        let debug = format!("{:?}", mode);
+        assert!(debug.contains("SingleLine"));
+    }
+
+    #[test]
+    fn test_card_mode_copy() {
+        let mode1 = CardMode::TwoLine;
+        let mode2 = mode1;
+        assert_eq!(mode1, mode2);
+    }
+
+    #[test]
+    fn test_card_mode_partial_eq() {
+        assert_eq!(CardMode::SingleLine, CardMode::SingleLine);
+        assert_eq!(CardMode::TwoLine, CardMode::TwoLine);
+        assert_ne!(CardMode::SingleLine, CardMode::TwoLine);
+    }
+
+    #[test]
+    fn test_kanban_card_config_debug() {
+        let config = KanbanCardConfig::default();
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("KanbanCardConfig"));
+    }
+
+    #[test]
+    fn test_kanban_card_config_clone_independence() {
+        let mut config1 = KanbanCardConfig::default();
+        let mut config2 = config1.clone();
+        
+        config1.max_width = 50;
+        config2.max_width = 100;
+        
+        assert_eq!(config1.max_width, 50);
+        assert_eq!(config2.max_width, 100);
+    }
+
+    #[test]
+    fn test_kanban_card_config_builder_order_independence() {
+        let style1 = Style::default().fg(Color::Red);
+        
+        let config1 = KanbanCardConfig::default()
+            .mode(CardMode::TwoLine)
+            .max_width(80)
+            .selected_style(style1);
+        
+        let config2 = KanbanCardConfig::default()
+            .max_width(80)
+            .selected_style(style1)
+            .mode(CardMode::TwoLine);
+        
+        assert_eq!(config1.mode, config2.mode);
+        assert_eq!(config1.max_width, config2.max_width);
+        assert_eq!(config1.selected_style.fg, config2.selected_style.fg);
+    }
+
+    #[test]
+    fn test_kanban_card_config_builder_chaining() {
+        let selected = Style::default().bg(Color::Blue);
+        
+        let config = KanbanCardConfig::default()
+            .mode(CardMode::SingleLine)
+            .max_width(60)
+            .selected_style(selected);
+        
+        assert_eq!(config.mode, CardMode::SingleLine);
+        assert_eq!(config.max_width, 60);
+        assert_eq!(config.selected_style.bg, Some(Color::Blue));
+    }
+
+    #[test]
+    fn test_kanban_card_config_default_values() {
+        let config = KanbanCardConfig::default();
+        
+        assert_eq!(config.mode, CardMode::TwoLine);
+        assert!(config.priority_colors);
+    }
+
+    #[test]
+    fn test_priority_color_all_priorities() {
+        let p0_color = priority_color(Priority::P0);
+        let p1_color = priority_color(Priority::P1);
+        let p2_color = priority_color(Priority::P2);
+        let p3_color = priority_color(Priority::P3);
+        let p4_color = priority_color(Priority::P4);
+        
+        // All priorities should have colors
+        assert_eq!(p0_color, Color::Red);
+        assert_eq!(p1_color, Color::LightRed);
+        assert_eq!(p2_color, Color::Yellow);
+        assert_eq!(p3_color, Color::Blue);
+        assert_eq!(p4_color, Color::DarkGray);
+    }
+
+    #[test]
+    fn test_wrap_text_width_one() {
+        let wrapped = wrap_text("abc", 1);
+        // With width=1, long words get truncated to "..." (3 chars)
+        assert!(!wrapped.is_empty());
+        assert_eq!(wrapped[0], "...");
+    }
+
+    #[test]
+    fn test_wrap_text_preserves_spaces() {
+        let wrapped = wrap_text("a b c d", 5);
+        // Should preserve spaces and wrap appropriately
+        assert!(!wrapped.is_empty());
+        for line in wrapped {
+            assert!(line.len() <= 5);
+        }
+    }
+
+    #[test]
+    fn test_truncate_text_width_zero() {
+        let result = truncate_text("test", 0);
+        assert_eq!(result, "...");
+    }
+
+    #[test]
+    fn test_truncate_text_width_one() {
+        let result = truncate_text("test", 1);
+        assert_eq!(result, "...");
+    }
+
+    #[test]
+    fn test_truncate_text_unicode() {
+        let result = truncate_text("你好世界", 6);
+        // Should handle unicode correctly
+        assert!(result.len() <= 10); // Each char is 3 bytes, so 6 chars max would be "你好..." (9 bytes)
+    }
+
+    #[test]
+    fn test_render_card_very_long_id() {
+        let mut issue = create_test_issue();
+        issue.id = "VERY-LONG-PROJECT-IDENTIFIER-12345".to_string();
+        
+        let config = KanbanCardConfig::default();
+        let lines = render_kanban_card(&issue, &config, false);
+        
+        assert!(!lines.is_empty());
+        let line1_text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(line1_text.contains("VERY-LONG"));
+    }
+
+    #[test]
+    fn test_render_card_empty_title() {
+        let mut issue = create_test_issue();
+        issue.title = String::new();
+        
+        let config = KanbanCardConfig::default();
+        let lines = render_kanban_card(&issue, &config, false);
+        
+        // Should still render with empty title
+        assert!(!lines.is_empty());
+    }
+
+    #[test]
+    fn test_render_card_many_labels() {
+        let mut issue = create_test_issue();
+        issue.labels = vec![
+            "label1".to_string(),
+            "label2".to_string(),
+            "label3".to_string(),
+            "label4".to_string(),
+            "label5".to_string(),
+        ];
+        
+        let config = KanbanCardConfig::default();
+        let lines = render_kanban_card(&issue, &config, false);
+        
+        let line2_text: String = lines[1].spans.iter().map(|s| s.content.as_ref()).collect();
+        // Should show some labels and possibly a +N indicator
+        assert!(line2_text.contains('#'));
+    }
+
+    #[test]
+    fn test_render_card_max_width_variations() {
+        let issue = create_test_issue();
+        
+        for width in [10, 20, 30, 50, 100] {
+            let config = KanbanCardConfig::default().max_width(width);
+            let lines = render_kanban_card(&issue, &config, false);
+            
+            // All widths should render successfully
+            assert!(!lines.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_render_card_priority_colors_comparison() {
+        let issue = create_test_issue();
+        
+        let config_with = KanbanCardConfig::default();
+        let mut config_without = KanbanCardConfig::default();
+        config_without.priority_colors = false;
+        
+        let lines_with = render_kanban_card(&issue, &config_with, false);
+        let lines_without = render_kanban_card(&issue, &config_without, false);
+        
+        // Both should render
+        assert!(!lines_with.is_empty());
+        assert!(!lines_without.is_empty());
+        // Line counts should be the same
+        assert_eq!(lines_with.len(), lines_without.len());
+    }
+
+    #[test]
+    fn test_render_single_line_selected() {
+        let issue = create_test_issue();
+        let config = KanbanCardConfig::default().mode(CardMode::SingleLine);
+        let lines = render_kanban_card(&issue, &config, true);
+        
+        assert_eq!(lines.len(), 1);
+        // Should have padding for selected state
+        let line_text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(line_text.len() >= config.max_width as usize);
+    }
+
+    #[test]
+    fn test_render_two_line_very_long_title() {
+        let mut issue = create_test_issue();
+        issue.title = "This is a very long title that should wrap across multiple lines in two-line mode and test the wrapping functionality".to_string();
+        
+        let config = KanbanCardConfig::default()
+            .mode(CardMode::TwoLine)
+            .max_width(30);
+        let lines = render_kanban_card(&issue, &config, false);
+        
+        // Should have multiple lines for wrapped title plus metadata
+        assert!(lines.len() > 2);
+    }
+
+    #[test]
+    fn test_render_card_all_metadata_combinations() {
+        let base_issue = create_test_issue();
+        
+        // Test with assignee and labels
+        let mut issue1 = base_issue.clone();
+        issue1.assignee = Some("alice".to_string());
+        issue1.labels = vec!["bug".to_string()];
+        let config = KanbanCardConfig::default();
+        let lines1 = render_kanban_card(&issue1, &config, false);
+        let line2_1: String = lines1[1].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(line2_1.contains("@alice"));
+        assert!(line2_1.contains("#bug"));
+        
+        // Test with no assignee, with labels
+        let mut issue2 = base_issue.clone();
+        issue2.assignee = None;
+        issue2.labels = vec!["feature".to_string()];
+        let lines2 = render_kanban_card(&issue2, &config, false);
+        let line2_2: String = lines2[1].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(!line2_2.contains('@'));
+        assert!(line2_2.contains("#feature"));
+        
+        // Test with assignee, no labels
+        let mut issue3 = base_issue.clone();
+        issue3.assignee = Some("bob".to_string());
+        issue3.labels = vec![];
+        let lines3 = render_kanban_card(&issue3, &config, false);
+        let line2_3: String = lines3[1].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(line2_3.contains("@bob"));
+        assert!(!line2_3.contains('#'));
+        
+        // Test with no assignee, no labels
+        let mut issue4 = base_issue.clone();
+        issue4.assignee = None;
+        issue4.labels = vec![];
+        let lines4 = render_kanban_card(&issue4, &config, false);
+        let line2_4: String = lines4[1].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(!line2_4.contains('@'));
+        assert!(!line2_4.contains('#'));
+    }
+
+    #[test]
+    fn test_render_card_custom_styles() {
+        let issue = create_test_issue();
+        
+        let selected = Style::default().bg(Color::Magenta).fg(Color::White);
+        let mut config = KanbanCardConfig::default();
+        config.selected_style = selected;
+        config.normal_style = Style::default().bg(Color::DarkGray);
+        config.id_style = Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD);
+        config.title_style = Style::default().fg(Color::Green);
+        
+        let lines = render_kanban_card(&issue, &config, false);
+        
+        // Should render with custom styles
+        assert!(!lines.is_empty());
+    }
+
+    #[test]
+    fn test_wrap_text_trailing_spaces() {
+        let wrapped = wrap_text("test  ", 10);
+        // Should handle trailing spaces
+        assert!(!wrapped.is_empty());
+        assert!(wrapped[0].len() <= 10);
+    }
+
+    #[test]
+    fn test_wrap_text_leading_spaces() {
+        let wrapped = wrap_text("  test", 10);
+        // Should handle leading spaces
+        assert!(!wrapped.is_empty());
+        assert!(wrapped[0].len() <= 10);
+    }
 }
