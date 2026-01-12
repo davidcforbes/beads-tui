@@ -22,6 +22,7 @@ pub enum NotificationType {
 pub struct NotificationMessage {
     pub message: String,
     pub notification_type: NotificationType,
+    pub created_at: std::time::Instant,
 }
 
 #[derive(Debug)]
@@ -202,6 +203,7 @@ impl AppState {
         self.notification = Some(NotificationMessage {
             message,
             notification_type,
+            created_at: std::time::Instant::now(),
         });
         self.mark_dirty();
     }
@@ -235,6 +237,26 @@ impl AppState {
     /// Clear error (alias for clear_notification for backward compatibility)
     pub fn clear_error(&mut self) {
         self.clear_notification();
+    }
+
+    /// Check and auto-dismiss old notifications
+    /// Info and Success notifications are auto-dismissed after 3 seconds
+    /// Error and Warning notifications require manual dismissal
+    pub fn check_notification_timeout(&mut self) {
+        if let Some(ref notification) = self.notification {
+            let should_auto_dismiss = matches!(
+                notification.notification_type,
+                NotificationType::Info | NotificationType::Success
+            );
+
+            if should_auto_dismiss {
+                const AUTO_DISMISS_DURATION: std::time::Duration =
+                    std::time::Duration::from_secs(3);
+                if notification.created_at.elapsed() >= AUTO_DISMISS_DURATION {
+                    self.clear_notification();
+                }
+            }
+        }
     }
 }
 

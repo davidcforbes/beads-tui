@@ -951,6 +951,9 @@ fn run_app<B: ratatui::backend::Backend>(
     app: &mut models::AppState,
 ) -> Result<()> {
     loop {
+        // Check for notification auto-dismiss
+        app.check_notification_timeout();
+
         // Only render if state has changed (dirty checking)
         if app.is_dirty() {
             let start = Instant::now();
@@ -958,6 +961,11 @@ fn run_app<B: ratatui::backend::Backend>(
             let render_time = start.elapsed();
             app.perf_stats.record_render(render_time);
             app.clear_dirty();
+        }
+
+        // Poll for events with timeout to enable periodic notification checks
+        if !event::poll(std::time::Duration::from_millis(100))? {
+            continue;
         }
 
         match event::read()? {
