@@ -472,4 +472,228 @@ mod tests {
         state.insert_char('i');
         assert_eq!(state.query(), "hi");
     }
+
+    #[test]
+    fn test_search_input_state_default() {
+        let state = SearchInputState::default();
+        assert_eq!(state.query(), "");
+        assert_eq!(state.cursor_position(), 0);
+        assert!(!state.is_focused());
+    }
+
+    #[test]
+    fn test_set_query_into_string() {
+        let mut state = SearchInputState::new();
+        state.set_query(String::from("test"));
+        assert_eq!(state.query(), "test");
+        assert_eq!(state.cursor_position(), 4);
+    }
+
+    #[test]
+    fn test_delete_char_at_start() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.move_cursor_to_start();
+        state.delete_char();
+        assert_eq!(state.query(), "test"); // No change
+        assert_eq!(state.cursor_position(), 0);
+    }
+
+    #[test]
+    fn test_delete_char_forward_at_end() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.delete_char_forward();
+        assert_eq!(state.query(), "test"); // No change
+        assert_eq!(state.cursor_position(), 4);
+    }
+
+    #[test]
+    fn test_move_cursor_left_at_start() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.move_cursor_to_start();
+        state.move_cursor_left();
+        assert_eq!(state.cursor_position(), 0); // No change
+    }
+
+    #[test]
+    fn test_move_cursor_right_at_end() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.move_cursor_right();
+        assert_eq!(state.cursor_position(), 4); // No change
+    }
+
+    #[test]
+    fn test_insert_char_in_middle() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.move_cursor_to_start();
+        state.move_cursor_right();
+        state.move_cursor_right();
+        state.insert_char('X');
+        assert_eq!(state.query(), "teXst");
+        assert_eq!(state.cursor_position(), 3);
+    }
+
+    #[test]
+    fn test_delete_char_in_middle() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.move_cursor_to_start();
+        state.move_cursor_right();
+        state.move_cursor_right();
+        state.delete_char();
+        assert_eq!(state.query(), "tst");
+        assert_eq!(state.cursor_position(), 1);
+    }
+
+    #[test]
+    fn test_delete_char_forward_in_middle() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.move_cursor_to_start();
+        state.move_cursor_right();
+        state.delete_char_forward();
+        assert_eq!(state.query(), "tst");
+        assert_eq!(state.cursor_position(), 1);
+    }
+
+    #[test]
+    fn test_set_focused() {
+        let mut state = SearchInputState::new();
+        assert!(!state.is_focused());
+        state.set_focused(true);
+        assert!(state.is_focused());
+        state.set_focused(false);
+        assert!(!state.is_focused());
+    }
+
+    #[test]
+    fn test_add_to_history_empty_query() {
+        let mut state = SearchInputState::new();
+        state.set_query("");
+        state.add_to_history();
+        assert_eq!(state.history().len(), 0); // Empty queries not added
+    }
+
+    #[test]
+    fn test_add_to_history_whitespace_query() {
+        let mut state = SearchInputState::new();
+        state.set_query("   ");
+        state.add_to_history();
+        assert_eq!(state.history().len(), 0); // Whitespace-only queries not added
+    }
+
+    #[test]
+    fn test_history_previous_empty_history() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.history_previous();
+        assert_eq!(state.query(), "test"); // No change with empty history
+    }
+
+    #[test]
+    fn test_history_next_empty_history() {
+        let mut state = SearchInputState::new();
+        state.set_query("test");
+        state.history_next();
+        assert_eq!(state.query(), "test"); // No change with empty history
+    }
+
+    #[test]
+    fn test_clear_history() {
+        let mut state = SearchInputState::new();
+        state.set_query("first");
+        state.add_to_history();
+        state.set_query("second");
+        state.add_to_history();
+        assert_eq!(state.history().len(), 2);
+
+        state.clear_history();
+        assert_eq!(state.history().len(), 0);
+    }
+
+    #[test]
+    fn test_unicode_set_query() {
+        // Test that set_query works with Unicode (insert_char has a bug with multi-byte chars)
+        let mut state = SearchInputState::new();
+        state.set_query("日本語");
+        assert_eq!(state.query(), "日本語");
+        assert_eq!(state.cursor_position(), 9); // Cursor at end (9 bytes for 3 chars)
+    }
+
+    #[test]
+    fn test_cursor_position_after_set_query() {
+        let mut state = SearchInputState::new();
+        state.set_query("hello");
+        assert_eq!(state.cursor_position(), 5); // Cursor moves to end
+        state.move_cursor_to_start();
+        assert_eq!(state.cursor_position(), 0);
+        state.set_query("world");
+        assert_eq!(state.cursor_position(), 5); // Cursor resets to end
+    }
+
+    #[test]
+    fn test_search_input_new() {
+        let input = SearchInput::new();
+        assert_eq!(input.placeholder, Some("Search..."));
+        assert!(input.show_icon);
+        assert!(input.block.is_some());
+    }
+
+    #[test]
+    fn test_search_input_default() {
+        let input = SearchInput::default();
+        assert_eq!(input.placeholder, Some("Search..."));
+        assert!(input.show_icon);
+        assert!(input.block.is_some());
+    }
+
+    #[test]
+    fn test_search_input_placeholder() {
+        let input = SearchInput::new().placeholder("Find...");
+        assert_eq!(input.placeholder, Some("Find..."));
+    }
+
+    #[test]
+    fn test_search_input_style() {
+        let style = Style::default().fg(Color::Green);
+        let input = SearchInput::new().style(style);
+        assert_eq!(input.style.fg, Some(Color::Green));
+    }
+
+    #[test]
+    fn test_search_input_focused_style() {
+        let style = Style::default().fg(Color::Yellow);
+        let input = SearchInput::new().focused_style(style);
+        assert_eq!(input.focused_style.fg, Some(Color::Yellow));
+    }
+
+    #[test]
+    fn test_search_input_block() {
+        let block = Block::default().title("Custom");
+        let input = SearchInput::new().block(block);
+        assert!(input.block.is_some());
+    }
+
+    #[test]
+    fn test_search_input_builder_chain() {
+        let block = Block::default().title("Find");
+        let style = Style::default().fg(Color::Red);
+        let focused_style = Style::default().fg(Color::Blue);
+
+        let input = SearchInput::new()
+            .placeholder("Type here...")
+            .style(style)
+            .focused_style(focused_style)
+            .block(block)
+            .show_icon(false);
+
+        assert_eq!(input.placeholder, Some("Type here..."));
+        assert_eq!(input.style.fg, Some(Color::Red));
+        assert_eq!(input.focused_style.fg, Some(Color::Blue));
+        assert!(!input.show_icon);
+    }
 }
