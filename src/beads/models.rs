@@ -438,4 +438,232 @@ mod tests {
         assert_eq!(stats.closed, 40);
         assert_eq!(stats.avg_lead_time_hours, 48.5);
     }
+
+    // Clone trait tests
+    #[test]
+    fn test_issue_status_clone() {
+        let status = IssueStatus::InProgress;
+        let cloned = status.clone();
+        assert_eq!(status, cloned);
+    }
+
+    #[test]
+    fn test_issue_status_copy() {
+        let status = IssueStatus::Blocked;
+        let copied = status;
+        assert_eq!(status, copied);
+    }
+
+    #[test]
+    fn test_priority_clone() {
+        let priority = Priority::P2;
+        let cloned = priority.clone();
+        assert_eq!(priority, cloned);
+    }
+
+    #[test]
+    fn test_priority_copy() {
+        let priority = Priority::P3;
+        let copied = priority;
+        assert_eq!(priority, copied);
+    }
+
+    #[test]
+    fn test_issue_type_clone() {
+        let issue_type = IssueType::Feature;
+        let cloned = issue_type.clone();
+        assert_eq!(issue_type, cloned);
+    }
+
+    #[test]
+    fn test_issue_type_copy() {
+        let issue_type = IssueType::Bug;
+        let copied = issue_type;
+        assert_eq!(issue_type, copied);
+    }
+
+    #[test]
+    fn test_dependency_type_clone() {
+        let dep_type = DependencyType::DependsOn;
+        let cloned = dep_type.clone();
+        assert_eq!(dep_type, cloned);
+    }
+
+    #[test]
+    fn test_dependency_type_copy() {
+        let dep_type = DependencyType::Blocks;
+        let copied = dep_type;
+        assert_eq!(dep_type, copied);
+    }
+
+    #[test]
+    fn test_note_clone() {
+        let note = Note {
+            timestamp: Utc::now(),
+            author: "test_author".to_string(),
+            content: "test content".to_string(),
+        };
+        let cloned = note.clone();
+        assert_eq!(note.author, cloned.author);
+        assert_eq!(note.content, cloned.content);
+    }
+
+    #[test]
+    fn test_label_clone() {
+        let label = Label {
+            name: "urgent".to_string(),
+            count: 10,
+        };
+        let cloned = label.clone();
+        assert_eq!(label.name, cloned.name);
+        assert_eq!(label.count, cloned.count);
+    }
+
+    #[test]
+    fn test_dependency_clone() {
+        let dep = Dependency {
+            from: "beads-001".to_string(),
+            to: "beads-002".to_string(),
+            dependency_type: DependencyType::Blocks,
+        };
+        let cloned = dep.clone();
+        assert_eq!(dep.from, cloned.from);
+        assert_eq!(dep.to, cloned.to);
+        assert_eq!(dep.dependency_type, cloned.dependency_type);
+    }
+
+    #[test]
+    fn test_issue_stats_clone() {
+        let stats = IssueStats {
+            total_issues: 50,
+            open: 15,
+            in_progress: 10,
+            blocked: 5,
+            closed: 20,
+            ready_to_work: 8,
+            avg_lead_time_hours: 36.7,
+        };
+        let cloned = stats.clone();
+        assert_eq!(stats.total_issues, cloned.total_issues);
+        assert_eq!(stats.avg_lead_time_hours, cloned.avg_lead_time_hours);
+    }
+
+    #[test]
+    fn test_create_issue_params_clone() {
+        let params = CreateIssueParams::new("Test", IssueType::Task, Priority::P2);
+        let cloned = params.clone();
+        assert_eq!(params.title, cloned.title);
+        assert_eq!(params.issue_type, cloned.issue_type);
+        assert_eq!(params.priority, cloned.priority);
+    }
+
+    // Additional Priority tests
+    #[test]
+    fn test_priority_deserialization() {
+        let priority: Priority = serde_json::from_str("\"P0\"").unwrap();
+        assert_eq!(priority, Priority::P0);
+
+        let priority: Priority = serde_json::from_str("\"P4\"").unwrap();
+        assert_eq!(priority, Priority::P4);
+    }
+
+    // Full Issue roundtrip test
+    #[test]
+    fn test_issue_serialization_roundtrip() {
+        let now = Utc::now();
+        let issue = Issue {
+            id: "beads-test".to_string(),
+            title: "Test Issue".to_string(),
+            status: IssueStatus::InProgress,
+            priority: Priority::P1,
+            issue_type: IssueType::Feature,
+            description: Some("A test description".to_string()),
+            assignee: Some("developer".to_string()),
+            labels: vec!["frontend".to_string(), "urgent".to_string()],
+            dependencies: vec!["beads-001".to_string()],
+            blocks: vec!["beads-002".to_string()],
+            created: now,
+            updated: now,
+            closed: None,
+            notes: vec![],
+        };
+
+        let json = serde_json::to_string(&issue).unwrap();
+        let deserialized: Issue = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(issue.id, deserialized.id);
+        assert_eq!(issue.title, deserialized.title);
+        assert_eq!(issue.status, deserialized.status);
+        assert_eq!(issue.priority, deserialized.priority);
+        assert_eq!(issue.issue_type, deserialized.issue_type);
+        assert_eq!(issue.labels, deserialized.labels);
+        assert_eq!(issue.dependencies, deserialized.dependencies);
+        assert_eq!(issue.blocks, deserialized.blocks);
+    }
+
+    #[test]
+    fn test_create_issue_params_empty_labels() {
+        let empty_labels: Vec<String> = vec![];
+        let params = CreateIssueParams::new("Test", IssueType::Bug, Priority::P0)
+            .with_labels(&empty_labels);
+        assert!(params.labels.is_empty());
+    }
+
+    // All enum variants iteration tests
+    #[test]
+    fn test_all_issue_status_variants() {
+        let variants = vec![
+            IssueStatus::Open,
+            IssueStatus::InProgress,
+            IssueStatus::Blocked,
+            IssueStatus::Closed,
+        ];
+        for variant in variants {
+            let _display = variant.to_string();
+            let json = serde_json::to_string(&variant).unwrap();
+            let _deserialized: IssueStatus = serde_json::from_str(&json).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_all_priority_variants() {
+        let variants = vec![
+            Priority::P0,
+            Priority::P1,
+            Priority::P2,
+            Priority::P3,
+            Priority::P4,
+        ];
+        for variant in variants {
+            let _display = variant.to_string();
+            let json = serde_json::to_string(&variant).unwrap();
+            let _deserialized: Priority = serde_json::from_str(&json).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_all_issue_type_variants() {
+        let variants = vec![
+            IssueType::Epic,
+            IssueType::Feature,
+            IssueType::Task,
+            IssueType::Bug,
+            IssueType::Chore,
+        ];
+        for variant in variants {
+            let _display = variant.to_string();
+            let json = serde_json::to_string(&variant).unwrap();
+            let _deserialized: IssueType = serde_json::from_str(&json).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_all_dependency_type_variants() {
+        let variants = vec![DependencyType::Blocks, DependencyType::DependsOn];
+        for variant in variants {
+            let _display = variant.to_string();
+            let json = serde_json::to_string(&variant).unwrap();
+            let _deserialized: DependencyType = serde_json::from_str(&json).unwrap();
+        }
+    }
 }
