@@ -13,10 +13,12 @@ use std::collections::HashMap;
 
 /// Grouping mode for swim lanes
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum GroupingMode {
     /// No grouping - all issues in a single lane
     None,
     /// Group by issue status
+    #[default]
     Status,
     /// Group by issue priority
     Priority,
@@ -26,11 +28,6 @@ pub enum GroupingMode {
     Type,
 }
 
-impl Default for GroupingMode {
-    fn default() -> Self {
-        Self::Status
-    }
-}
 
 /// Configuration for Gantt chart rendering
 #[derive(Debug, Clone)]
