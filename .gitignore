@@ -51,3 +51,6 @@ Thumbs.db
 # bv (beads viewer) local config and caches
 .bv/
 nul
+
+# Temporary Claude working directories
+tmpclaude-*-cwd
