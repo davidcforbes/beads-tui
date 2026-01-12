@@ -629,4 +629,257 @@ mod tests {
         state.insert_char('i');
         assert_eq!(state.name(), "hi");
     }
+
+    #[test]
+    fn test_filter_save_dialog_state_default() {
+        let state = FilterSaveDialogState::default();
+        assert_eq!(state.name(), "");
+        assert_eq!(state.description(), "");
+        assert_eq!(state.hotkey(), None);
+        assert_eq!(state.focused_field(), FilterSaveField::Name);
+    }
+
+    #[test]
+    fn test_filter_save_field_equality() {
+        assert_eq!(FilterSaveField::Name, FilterSaveField::Name);
+        assert_eq!(FilterSaveField::Description, FilterSaveField::Description);
+        assert_eq!(FilterSaveField::Hotkey, FilterSaveField::Hotkey);
+        assert_ne!(FilterSaveField::Name, FilterSaveField::Description);
+    }
+
+    #[test]
+    fn test_filter_save_field_clone() {
+        let field = FilterSaveField::Name;
+        let cloned = field.clone();
+        assert_eq!(field, cloned);
+    }
+
+    #[test]
+    fn test_cursor_at_start_delete() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_name("test");
+        
+        // Move cursor to start
+        state.name_cursor = 0;
+        state.delete_char();
+        
+        // Should not delete anything when cursor at 0
+        assert_eq!(state.name(), "test");
+        assert_eq!(state.name_cursor, 0);
+    }
+
+    #[test]
+    fn test_cursor_at_start_move_left() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_name("test");
+        
+        state.name_cursor = 0;
+        state.move_cursor_left();
+        
+        // Should not move past 0
+        assert_eq!(state.name_cursor, 0);
+    }
+
+    #[test]
+    fn test_insert_char_in_middle() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_name("abcd");
+        
+        // Move cursor to middle
+        state.name_cursor = 2;
+        state.insert_char('X');
+        
+        assert_eq!(state.name(), "abXcd");
+        assert_eq!(state.name_cursor, 3);
+    }
+
+    #[test]
+    fn test_delete_char_in_middle() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_name("abXcd");
+        
+        // Move cursor after X
+        state.name_cursor = 3;
+        state.delete_char();
+        
+        assert_eq!(state.name(), "abcd");
+        assert_eq!(state.name_cursor, 2);
+    }
+
+    #[test]
+    fn test_description_cursor_operations() {
+        let mut state = FilterSaveDialogState::new();
+        state.focus_next(); // Focus description
+        
+        state.insert_char('h');
+        state.insert_char('i');
+        assert_eq!(state.description(), "hi");
+        assert_eq!(state.description_cursor, 2);
+        
+        state.move_cursor_left();
+        assert_eq!(state.description_cursor, 1);
+        
+        state.delete_char();
+        assert_eq!(state.description(), "i");
+        assert_eq!(state.description_cursor, 0);
+    }
+
+    #[test]
+    fn test_hotkey_insert_char_no_op() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_hotkey(Some("F1"));
+        state.focused_field = FilterSaveField::Hotkey;
+        
+        state.insert_char('X');
+        
+        // Hotkey field should not accept typed characters
+        assert_eq!(state.hotkey(), Some("F1"));
+    }
+
+    #[test]
+    fn test_hotkey_delete_clears() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_hotkey(Some("F1"));
+        state.focused_field = FilterSaveField::Hotkey;
+        
+        state.delete_char();
+        
+        assert_eq!(state.hotkey(), None);
+    }
+
+    #[test]
+    fn test_hotkey_cursor_movement_no_op() {
+        let mut state = FilterSaveDialogState::new();
+        state.focused_field = FilterSaveField::Hotkey;
+        
+        state.move_cursor_left();
+        state.move_cursor_right();
+        
+        // Hotkey field has no cursor movement
+        // Should not panic
+    }
+
+    #[test]
+    fn test_validate_whitespace_only_name() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_name("   ");
+        
+        assert!(state.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_exactly_50_chars() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_name("a".repeat(50));
+        
+        assert!(state.validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_exactly_200_chars_description() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_name("Valid");
+        state.set_description("a".repeat(200));
+        
+        assert!(state.validate().is_ok());
+    }
+
+    #[test]
+    fn test_set_name_updates_cursor() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_name("test");
+        
+        assert_eq!(state.name_cursor, 4);
+    }
+
+    #[test]
+    fn test_set_description_updates_cursor() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_description("hello world");
+        
+        assert_eq!(state.description_cursor, 11);
+    }
+
+    #[test]
+    fn test_focus_wraparound_forward() {
+        let mut state = FilterSaveDialogState::new();
+        
+        assert_eq!(state.focused_field(), FilterSaveField::Name);
+        state.focus_next();
+        assert_eq!(state.focused_field(), FilterSaveField::Description);
+        state.focus_next();
+        assert_eq!(state.focused_field(), FilterSaveField::Hotkey);
+        state.focus_next();
+        assert_eq!(state.focused_field(), FilterSaveField::Name);
+    }
+
+    #[test]
+    fn test_focus_wraparound_backward() {
+        let mut state = FilterSaveDialogState::new();
+        
+        assert_eq!(state.focused_field(), FilterSaveField::Name);
+        state.focus_previous();
+        assert_eq!(state.focused_field(), FilterSaveField::Hotkey);
+        state.focus_previous();
+        assert_eq!(state.focused_field(), FilterSaveField::Description);
+        state.focus_previous();
+        assert_eq!(state.focused_field(), FilterSaveField::Name);
+    }
+
+    #[test]
+    fn test_filter_save_dialog_new() {
+        let dialog = FilterSaveDialog::new();
+        assert_eq!(dialog.title, "Save Filter");
+        assert_eq!(dialog.show_hotkey, true);
+        assert_eq!(dialog.width, 60);
+        assert_eq!(dialog.height, 14);
+    }
+
+    #[test]
+    fn test_filter_save_dialog_default() {
+        let dialog = FilterSaveDialog::default();
+        assert_eq!(dialog.title, "Save Filter");
+        assert_eq!(dialog.show_hotkey, true);
+    }
+
+    #[test]
+    fn test_filter_save_dialog_builder_chain() {
+        let dialog = FilterSaveDialog::new()
+            .title("Custom Title")
+            .show_hotkey(false)
+            .width(80)
+            .height(20);
+        
+        assert_eq!(dialog.title, "Custom Title");
+        assert_eq!(dialog.show_hotkey, false);
+        assert_eq!(dialog.width, 80);
+        assert_eq!(dialog.height, 20);
+    }
+
+    #[test]
+    fn test_filter_save_dialog_style_setters() {
+        let style = Style::default().fg(Color::Red);
+        let focused_style = Style::default().fg(Color::Green);
+        
+        let dialog = FilterSaveDialog::new()
+            .style(style)
+            .focused_style(focused_style);
+        
+        assert_eq!(dialog.style.fg, Some(Color::Red));
+        assert_eq!(dialog.focused_style.fg, Some(Color::Green));
+    }
+
+    #[test]
+    fn test_has_data_with_only_name() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_name("Test");
+        assert!(state.has_data());
+    }
+
+    #[test]
+    fn test_has_data_with_only_description() {
+        let mut state = FilterSaveDialogState::new();
+        state.set_description("Test");
+        assert!(state.has_data());
+    }
 }
