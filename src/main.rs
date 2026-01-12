@@ -6,7 +6,7 @@ pub mod ui;
 use anyhow::Result;
 use crossterm::{
     event::{
-        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind,
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
         KeyModifiers,
     },
     execute,
@@ -73,9 +73,10 @@ fn main() -> Result<()> {
 // App struct moved to models::AppState
 
 /// Handle keyboard events for the Issues view
-fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
+fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
     use ui::views::IssuesViewMode;
 
+    let key_code = key.code;
     let issues_state = &mut app.issues_view_state;
     let view_mode = issues_state.view_mode();
 
@@ -442,36 +443,62 @@ fn handle_issues_view_event(key_code: KeyCode, app: &mut models::AppState) {
             if let Some(create_form_state) = issues_state.create_form_state_mut() {
                 let form = create_form_state.form_state_mut();
 
-                match key_code {
-                    // Field navigation
-                    KeyCode::Tab | KeyCode::Down => {
-                        form.focus_next();
+                // Check for Ctrl+L first (before generic Char handler)
+                if key_code == KeyCode::Char('l') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                    // Load from file (Ctrl+L)
+                    // Get the current field value as the file path
+                    if let Some(focused_field) = form.focused_field() {
+                        let file_path = focused_field.value.trim().to_string();
+                        
+                        if file_path.is_empty() {
+                            // Set error on focused field
+                            if let Some(field) = form.focused_field_mut() {
+                                field.error = Some("Enter a file path first, then press Ctrl+L to load it".to_string());
+                            }
+                        } else {
+                            // Try to load from file
+                            match form.load_from_file(&file_path) {
+                                Ok(()) => {
+                                    tracing::info!("Loaded content from file: {}", file_path);
+                                }
+                                Err(err) => {
+                                    tracing::error!("Failed to load file {}: {}", file_path, err);
+                                    // Error is already set in the field by load_from_file
+                                }
+                            }
+                        }
                     }
-                    KeyCode::BackTab | KeyCode::Up => {
-                        form.focus_previous();
-                    }
-                    // Text input
-                    KeyCode::Char(c) => {
-                        form.insert_char(c);
-                    }
-                    KeyCode::Backspace => {
-                        form.delete_char();
-                    }
-                    // Cursor movement
-                    KeyCode::Left => {
-                        form.move_cursor_left();
-                    }
-                    KeyCode::Right => {
-                        form.move_cursor_right();
-                    }
-                    KeyCode::Home => {
-                        form.move_cursor_to_start();
-                    }
-                    KeyCode::End => {
-                        form.move_cursor_to_end();
-                    }
-                    // Submit/Cancel
-                    KeyCode::Enter => {
+                } else {
+                    match key_code {
+                        // Field navigation
+                        KeyCode::Tab | KeyCode::Down => {
+                            form.focus_next();
+                        }
+                        KeyCode::BackTab | KeyCode::Up => {
+                            form.focus_previous();
+                        }
+                        // Text input
+                        KeyCode::Char(c) => {
+                            form.insert_char(c);
+                        }
+                        KeyCode::Backspace => {
+                            form.delete_char();
+                        }
+                        // Cursor movement
+                        KeyCode::Left => {
+                            form.move_cursor_left();
+                        }
+                        KeyCode::Right => {
+                            form.move_cursor_right();
+                        }
+                        KeyCode::Home => {
+                            form.move_cursor_to_start();
+                        }
+                        KeyCode::End => {
+                            form.move_cursor_to_end();
+                        }
+                        // Submit/Cancel
+                        KeyCode::Enter => {
                         // Validate and submit
                         if create_form_state.validate() {
                             if let Some(data) = app.issues_view_state.save_create() {
@@ -608,7 +635,7 @@ fn run_app<B: ratatui::backend::Backend>(
 
                 // Tab-specific key bindings
                 match app.selected_tab {
-                    0 => handle_issues_view_event(key.code, app),
+                    0 => handle_issues_view_event(key, app),
                     1 => handle_dependencies_view_event(key.code, app),
                     2 => handle_labels_view_event(key.code, app),
                     3 => handle_database_view_event(key.code, app),

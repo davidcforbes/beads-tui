@@ -61,6 +61,8 @@ pub struct FormField {
     pub options: Vec<String>,
     /// Validation rules for this field
     pub validation_rules: Vec<ValidationRule>,
+    /// File path if loaded from file
+    pub loaded_from_file: Option<String>,
 }
 
 impl FormField {
@@ -76,6 +78,7 @@ impl FormField {
             placeholder: None,
             options: Vec::new(),
             validation_rules: Vec::new(),
+            loaded_from_file: None,
         }
     }
 
@@ -91,6 +94,7 @@ impl FormField {
             placeholder: None,
             options: Vec::new(),
             validation_rules: Vec::new(),
+            loaded_from_file: None,
         }
     }
 
@@ -106,6 +110,7 @@ impl FormField {
             placeholder: None,
             options,
             validation_rules: Vec::new(),
+            loaded_from_file: None,
         }
     }
 
@@ -121,6 +126,7 @@ impl FormField {
             placeholder: None,
             options: Vec::new(),
             validation_rules: Vec::new(),
+            loaded_from_file: None,
         }
     }
 
@@ -458,6 +464,66 @@ impl FormState {
             field.error = None;
         }
     }
+
+    /// Load content from a file into the currently focused field
+    /// Returns Ok(()) on success, or Err with an error message
+    pub fn load_from_file(&mut self, file_path: &str) -> Result<(), String> {
+        use std::fs;
+        use std::path::Path;
+
+        // Validate focused field is a text area
+        let focused_idx = self.focused_index;
+        if focused_idx >= self.fields.len() {
+            return Err("No field focused".to_string());
+        }
+
+        let field = &self.fields[focused_idx];
+        if field.field_type != FieldType::TextArea {
+            return Err(format!("Cannot load file into {:?} field", field.field_type));
+        }
+
+        // Validate file exists
+        let path = Path::new(file_path);
+        if !path.exists() {
+            return Err(format!("File not found: {}", file_path));
+        }
+
+        if !path.is_file() {
+            return Err(format!("Path is not a file: {}", file_path));
+        }
+
+        // Read file content
+        let content = fs::read_to_string(path)
+            .map_err(|e| format!("Failed to read file: {}", e))?;
+
+        // Validate UTF-8 (already validated by read_to_string, but check for null bytes)
+        if content.contains('\0') {
+            return Err("File contains invalid UTF-8 characters".to_string());
+        }
+
+        // Update field value and track file path
+        let field = &mut self.fields[focused_idx];
+        field.value = content;
+        field.loaded_from_file = Some(file_path.to_string());
+        field.error = None;
+
+        // Reset cursor to end
+        self.cursor_position = field.value.len();
+
+        Ok(())
+    }
+
+    /// Clear the loaded file path for the focused field
+    pub fn clear_loaded_file(&mut self) {
+        if let Some(field) = self.focused_field_mut() {
+            field.loaded_from_file = None;
+        }
+    }
+
+    /// Get the file path if the focused field was loaded from a file
+    pub fn get_loaded_file_path(&self) -> Option<&String> {
+        self.focused_field()?.loaded_from_file.as_ref()
+    }
 }
 
 /// Multi-field form widget
@@ -579,11 +645,16 @@ impl<'a> StatefulWidget for Form<'a> {
             };
 
             // Build field title
-            let title = if field.required {
+            let mut title = if field.required {
                 format!("{} *", field.label)
             } else {
                 field.label.clone()
             };
+
+            // Show file path if loaded from file
+            if let Some(ref file_path) = field.loaded_from_file {
+                title = format!("{} [from: {}]", title, file_path);
+            }
 
             let title = if is_focused {
                 format!("{title} [editing]")
