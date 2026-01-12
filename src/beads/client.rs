@@ -279,6 +279,39 @@ impl BeadsClient {
         Ok(())
     }
 
+    /// Sync beads database with remote
+    pub async fn sync_database(&self) -> Result<String> {
+        let args = vec!["sync".to_string()];
+        self.execute_command(&args).await
+    }
+
+    /// Export issues to a file
+    pub async fn export_issues(&self, path: &str) -> Result<()> {
+        let args = vec!["export".to_string(), path.to_string()];
+        self.execute_command(&args).await?;
+        Ok(())
+    }
+
+    /// Import issues from a file
+    pub async fn import_issues(&self, path: &str) -> Result<()> {
+        let args = vec!["import".to_string(), path.to_string()];
+        self.execute_command(&args).await?;
+        Ok(())
+    }
+
+    /// Verify database integrity
+    pub async fn verify_database(&self) -> Result<String> {
+        let args = vec!["doctor".to_string()];
+        self.execute_command(&args).await
+    }
+
+    /// Compact database (remove history)
+    pub async fn compact_database(&self) -> Result<()> {
+        let args = vec!["compact".to_string()];
+        self.execute_command(&args).await?;
+        Ok(())
+    }
+
     /// Execute a bd command with timeout
     async fn execute_command(&self, args: &[String]) -> Result<String> {
         let mut cmd = TokioCommand::new(&self.bd_path);

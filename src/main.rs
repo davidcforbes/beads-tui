@@ -122,6 +122,23 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                     tracing::error!("Failed to delete issue: {:?}", e);
                                 }
                             }
+                        } else if action == "compact_database" {
+                            tracing::info!("Confirmed compact database");
+
+                            // Create a tokio runtime to execute the async call
+                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            let client = &app.beads_client;
+
+                            match rt.block_on(client.compact_database()) {
+                                Ok(()) => {
+                                    tracing::info!("Successfully compacted database");
+                                    app.reload_issues();
+                                }
+                                Err(e) => {
+                                    tracing::error!("Failed to compact database: {:?}", e);
+                                    app.set_error(format!("Failed to compact database: {e}"));
+                                }
+                            }
                         }
                     }
                 }
@@ -669,6 +686,9 @@ fn handle_labels_view_event(_key_code: KeyCode, _app: &mut models::AppState) {
 
 /// Handle keyboard events for the Database view
 fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let client = &app.beads_client;
+
     match key_code {
         KeyCode::Char('r') => {
             // Refresh database status
@@ -678,9 +698,6 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
         KeyCode::Char('d') => {
             // Toggle daemon (start/stop)
             tracing::info!("Toggling daemon");
-
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            let client = &app.beads_client;
 
             if app.daemon_running {
                 // Stop daemon
@@ -709,6 +726,79 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     }
                 }
             }
+        }
+        KeyCode::Char('s') => {
+            // Sync database with remote
+            tracing::info!("Syncing database with remote");
+
+            match rt.block_on(client.sync_database()) {
+                Ok(output) => {
+                    tracing::info!("Database synced successfully: {}", output);
+                    app.reload_issues();
+                }
+                Err(e) => {
+                    tracing::error!("Failed to sync database: {:?}", e);
+                    app.set_error(format!("Failed to sync database: {e}"));
+                }
+            }
+        }
+        KeyCode::Char('e') => {
+            // Export issues to file
+            tracing::info!("Exporting issues to beads_export.jsonl");
+
+            match rt.block_on(client.export_issues("beads_export.jsonl")) {
+                Ok(_) => {
+                    tracing::info!("Issues exported successfully");
+                    app.set_error("Issues exported to beads_export.jsonl".to_string());
+                }
+                Err(e) => {
+                    tracing::error!("Failed to export issues: {:?}", e);
+                    app.set_error(format!("Failed to export issues: {e}"));
+                }
+            }
+        }
+        KeyCode::Char('i') => {
+            // Import issues from file
+            tracing::info!("Importing issues from beads_import.jsonl");
+
+            match rt.block_on(client.import_issues("beads_import.jsonl")) {
+                Ok(_) => {
+                    tracing::info!("Issues imported successfully");
+                    app.reload_issues();
+                }
+                Err(e) => {
+                    tracing::error!("Failed to import issues: {:?}", e);
+                    app.set_error(format!("Failed to import issues: {e}"));
+                }
+            }
+        }
+        KeyCode::Char('v') => {
+            // Verify database integrity
+            tracing::info!("Verifying database integrity");
+
+            match rt.block_on(client.verify_database()) {
+                Ok(output) => {
+                    tracing::info!("Database verification result: {}", output);
+                    if output.contains("error") || output.contains("issue") {
+                        app.set_error(format!("Database check: {output}"));
+                    } else {
+                        app.set_error("Database verification completed successfully".to_string());
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Failed to verify database: {:?}", e);
+                    app.set_error(format!("Failed to verify database: {e}"));
+                }
+            }
+        }
+        KeyCode::Char('c') => {
+            // Compact database (requires confirmation)
+            tracing::info!("Compact database requested - showing confirmation dialog");
+
+            // Set up confirmation dialog for compact operation
+            app.dialog_state = Some(ui::widgets::DialogState::new());
+            app.pending_action = Some("compact_database".to_string());
+            app.mark_dirty();
         }
         _ => {}
     }
@@ -940,6 +1030,18 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             if let Some(issue_id) = action.strip_prefix("delete:") {
                 let message = format!("Are you sure you want to delete issue {issue_id}?");
                 let dialog = ui::widgets::Dialog::confirm("Confirm Delete", &message);
+
+                // Render dialog centered on screen
+                let area = f.size();
+                let dialog_area = centered_rect(60, 30, area);
+
+                // Clear and render dialog
+                f.render_widget(Clear, dialog_area);
+                dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
+            } else if action == "compact_database" {
+                let message = "WARNING: Compacting will remove issue history.\nThis operation cannot be undone.\n\nContinue?";
+                let dialog = ui::widgets::Dialog::confirm("Compact Database", message)
+                    .dialog_type(ui::widgets::DialogType::Warning);
 
                 // Render dialog centered on screen
                 let area = f.size();
