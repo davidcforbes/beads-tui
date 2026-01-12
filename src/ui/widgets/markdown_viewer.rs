@@ -877,4 +877,342 @@ mod tests {
         state.scroll_to_bottom();
         assert_eq!(state.scroll_offset(), 49);
     }
+
+    #[test]
+    fn test_markdown_viewer_state_debug_trait() {
+        let state = MarkdownViewerState::new("# Test".to_string());
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("MarkdownViewerState"));
+    }
+
+    #[test]
+    fn test_markdown_element_debug_trait() {
+        let heading = MarkdownElement::Heading(1, "Test".to_string());
+        let debug_str = format!("{:?}", heading);
+        assert!(debug_str.contains("Heading"));
+        
+        let paragraph = MarkdownElement::Paragraph("Text".to_string());
+        let debug_str = format!("{:?}", paragraph);
+        assert!(debug_str.contains("Paragraph"));
+        
+        let hr = MarkdownElement::HorizontalRule;
+        let debug_str = format!("{:?}", hr);
+        assert!(debug_str.contains("HorizontalRule"));
+    }
+
+    #[test]
+    fn test_markdown_viewer_builder_order_independence() {
+        let block = Block::default().title("Test");
+        let style = Style::default().fg(Color::Green);
+        
+        let viewer1 = MarkdownViewer::new()
+            .block(block.clone())
+            .wrap(false)
+            .style(style);
+        
+        let viewer2 = MarkdownViewer::new()
+            .style(style)
+            .wrap(false)
+            .block(block);
+        
+        assert!(viewer1.block.is_some());
+        assert!(viewer2.block.is_some());
+        assert_eq!(viewer1.wrap, viewer2.wrap);
+        assert_eq!(viewer1.style.fg, viewer2.style.fg);
+    }
+
+    #[test]
+    fn test_markdown_viewer_multiple_setter_applications() {
+        let viewer = MarkdownViewer::new()
+            .wrap(true)
+            .wrap(false)
+            .wrap(true);
+        
+        assert!(viewer.wrap);
+        
+        let style1 = Style::default().fg(Color::Red);
+        let style2 = Style::default().fg(Color::Blue);
+        
+        let viewer = MarkdownViewer::new()
+            .style(style1)
+            .style(style2);
+        
+        assert_eq!(viewer.style.fg, Some(Color::Blue));
+    }
+
+    #[test]
+    fn test_parse_very_long_heading() {
+        let long_text = "a".repeat(500);
+        let content = format!("# {}", long_text);
+        let elements = parse_markdown(&content);
+        
+        assert_eq!(elements.len(), 1);
+        if let MarkdownElement::Heading(level, text) = &elements[0] {
+            assert_eq!(*level, 1);
+            assert_eq!(text.len(), 500);
+        } else {
+            panic!("Expected heading");
+        }
+    }
+
+    #[test]
+    fn test_parse_very_long_list_item() {
+        let long_text = "item ".repeat(200);
+        let content = format!("- {}", long_text);
+        let elements = parse_markdown(&content);
+        
+        assert_eq!(elements.len(), 1);
+        assert!(matches!(elements[0], MarkdownElement::ListItem(_)));
+    }
+
+    #[test]
+    fn test_parse_code_block_with_special_characters() {
+        let content = "```\n<html>\n  &nbsp; &#123;\n  $var = 100;\n```";
+        let elements = parse_markdown(content);
+        
+        assert_eq!(elements.len(), 1);
+        if let MarkdownElement::CodeBlock(code) = &elements[0] {
+            assert!(code.contains("<html>"));
+            assert!(code.contains("&nbsp;"));
+            assert!(code.contains("$var"));
+        }
+    }
+
+    #[test]
+    fn test_parse_markdown_with_unicode() {
+        let content = "# 测试标题\n\n这是一段**中文**文本\n\n- 列表项 一\n- 列表项 二";
+        let elements = parse_markdown(content);
+        
+        assert!(elements.len() >= 4);
+        
+        if let MarkdownElement::Heading(_, text) = &elements[0] {
+            assert_eq!(text, "测试标题");
+        }
+    }
+
+    #[test]
+    fn test_scroll_with_very_large_content() {
+        let mut state = MarkdownViewerState::new("Test".to_string());
+        state.total_lines = 10000;
+        
+        state.scroll_down(5000);
+        assert_eq!(state.scroll_offset(), 5000);
+        
+        state.scroll_down(6000);
+        assert_eq!(state.scroll_offset(), 9999); // Clamped to total_lines - 1
+        
+        state.scroll_up(10000);
+        assert_eq!(state.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_scroll_single_line() {
+        let mut state = MarkdownViewerState::new("Test".to_string());
+        state.total_lines = 1;
+        
+        state.scroll_down(1);
+        assert_eq!(state.scroll_offset(), 0); // Can't scroll with only 1 line
+        
+        state.scroll_to_bottom();
+        assert_eq!(state.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_parse_complex_mixed_document() {
+        let content = "# Main Title\n\nThis is a paragraph with **bold** and *italic*.\n\n## Subsection\n\n- List item 1\n- List item 2\n\n```\ncode example\n```\n\n---\n\nFinal paragraph.";
+        let elements = parse_markdown(content);
+        
+        // Should have multiple element types
+        let has_heading = elements.iter().any(|e| matches!(e, MarkdownElement::Heading(_, _)));
+        let has_paragraph = elements.iter().any(|e| matches!(e, MarkdownElement::Paragraph(_)));
+        let has_list = elements.iter().any(|e| matches!(e, MarkdownElement::ListItem(_)));
+        let has_code = elements.iter().any(|e| matches!(e, MarkdownElement::CodeBlock(_)));
+        let has_hr = elements.iter().any(|e| matches!(e, MarkdownElement::HorizontalRule));
+        
+        assert!(has_heading);
+        assert!(has_paragraph);
+        assert!(has_list);
+        assert!(has_code);
+        assert!(has_hr);
+    }
+
+    #[test]
+    fn test_parse_inline_nested_formatting() {
+        let spans = parse_inline_formatting("**bold with *italic* inside**");
+        // The parser handles outer formatting first
+        assert!(spans.len() >= 1);
+    }
+
+    #[test]
+    fn test_parse_inline_multiple_bold_sections() {
+        let spans = parse_inline_formatting("**first** normal **second** text");
+        assert!(spans.len() >= 4);
+    }
+
+    #[test]
+    fn test_parse_inline_code_with_backticks() {
+        let spans = parse_inline_formatting("Use `var x = 10;` for assignment");
+        assert!(spans.len() >= 3);
+    }
+
+    #[test]
+    fn test_parse_inline_empty_string() {
+        let spans = parse_inline_formatting("");
+        assert_eq!(spans.len(), 1); // Should return default span
+        assert_eq!(spans[0].content, "");
+    }
+
+    #[test]
+    fn test_parse_inline_only_special_characters() {
+        let spans = parse_inline_formatting("*** ___ ```");
+        assert!(spans.len() >= 1);
+    }
+
+    #[test]
+    fn test_set_content_multiple_times() {
+        let mut state = MarkdownViewerState::new("First".to_string());
+        assert_eq!(state.content(), "First");
+        
+        state.set_content("Second".to_string());
+        assert_eq!(state.content(), "Second");
+        
+        state.set_content("Third".to_string());
+        assert_eq!(state.content(), "Third");
+    }
+
+    #[test]
+    fn test_scroll_preserves_total_lines() {
+        let mut state = MarkdownViewerState::new("Test".to_string());
+        state.total_lines = 100;
+        
+        let original_total = state.total_lines;
+        state.scroll_down(10);
+        assert_eq!(state.total_lines, original_total);
+        
+        state.scroll_up(5);
+        assert_eq!(state.total_lines, original_total);
+    }
+
+    #[test]
+    fn test_parse_heading_level_7_treated_as_paragraph() {
+        let content = "####### Too many hashes";
+        let elements = parse_markdown(content);
+        
+        // Level 7 heading should be treated as paragraph
+        assert_eq!(elements.len(), 1);
+        assert!(matches!(elements[0], MarkdownElement::Paragraph(_)));
+    }
+
+    #[test]
+    fn test_parse_list_item_with_no_space() {
+        let content = "-NoSpace\n*NoSpace\n+NoSpace";
+        let elements = parse_markdown(content);
+        
+        // Should be treated as paragraphs, not list items
+        for element in &elements {
+            assert!(matches!(element, MarkdownElement::Paragraph(_)));
+        }
+    }
+
+    #[test]
+    fn test_parse_numbered_list_with_letters() {
+        let content = "a. Not a numbered list\nb. Also not";
+        let elements = parse_markdown(content);
+        
+        // Should be paragraphs since prefix isn't all digits
+        assert_eq!(elements.len(), 2);
+        assert!(matches!(elements[0], MarkdownElement::Paragraph(_)));
+        assert!(matches!(elements[1], MarkdownElement::Paragraph(_)));
+    }
+
+    #[test]
+    fn test_parse_code_block_preserves_indentation() {
+        let content = "```\n    indented line\n  less indented\nno indent\n```";
+        let elements = parse_markdown(content);
+        
+        assert_eq!(elements.len(), 1);
+        if let MarkdownElement::CodeBlock(code) = &elements[0] {
+            assert!(code.contains("    indented"));
+            assert!(code.contains("  less indented"));
+        }
+    }
+
+    #[test]
+    fn test_markdown_viewer_state_with_very_long_content() {
+        let long_content = "# Title\n".repeat(1000);
+        let state = MarkdownViewerState::new(long_content.clone());
+        assert_eq!(state.content().len(), long_content.len());
+    }
+
+    #[test]
+    fn test_parse_inline_underscore_italic() {
+        let spans = parse_inline_formatting("This is _italic with underscore_");
+        assert!(spans.len() >= 2);
+        
+        // Check that a span has italic modifier
+        let has_italic = spans.iter().any(|s| s.style.add_modifier.contains(Modifier::ITALIC));
+        assert!(has_italic);
+    }
+
+    #[test]
+    fn test_parse_inline_mixed_delimiters() {
+        let spans = parse_inline_formatting("*asterisk* and _underscore_");
+        assert!(spans.len() >= 3);
+        
+        // Check that we have italic spans
+        let italic_count = spans.iter().filter(|s| s.style.add_modifier.contains(Modifier::ITALIC)).count();
+        assert_eq!(italic_count, 2); // Both should be italic
+    }
+
+    #[test]
+    fn test_scroll_amount_zero() {
+        let mut state = MarkdownViewerState::new("Test".to_string());
+        state.total_lines = 100;
+        
+        state.scroll_down(10);
+        let offset_before = state.scroll_offset();
+        
+        state.scroll_down(0);
+        assert_eq!(state.scroll_offset(), offset_before);
+        
+        state.scroll_up(0);
+        assert_eq!(state.scroll_offset(), offset_before);
+    }
+
+    #[test]
+    fn test_parse_whitespace_only_lines() {
+        let content = "   \n\t\n  \t  \n";
+        let elements = parse_markdown(content);
+        
+        // Whitespace-only lines should be skipped
+        assert_eq!(elements.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_mixed_whitespace_and_content() {
+        let content = "# Title\n   \nParagraph\n\t\n- List";
+        let elements = parse_markdown(content);
+        
+        // Should parse title, paragraph, and list (whitespace lines ignored)
+        assert_eq!(elements.len(), 3);
+    }
+
+    #[test]
+    fn test_markdown_element_all_variants_parsable() {
+        // Ensure all MarkdownElement variants can be parsed
+        let content = "# Heading\nParagraph\n- List\n```\nCode\n```\n---";
+        let elements = parse_markdown(content);
+        
+        let has_heading = elements.iter().any(|e| matches!(e, MarkdownElement::Heading(_, _)));
+        let has_paragraph = elements.iter().any(|e| matches!(e, MarkdownElement::Paragraph(_)));
+        let has_list = elements.iter().any(|e| matches!(e, MarkdownElement::ListItem(_)));
+        let has_code = elements.iter().any(|e| matches!(e, MarkdownElement::CodeBlock(_)));
+        let has_hr = elements.iter().any(|e| matches!(e, MarkdownElement::HorizontalRule));
+        
+        assert!(has_heading);
+        assert!(has_paragraph);
+        assert!(has_list);
+        assert!(has_code);
+        assert!(has_hr);
+    }
 }
