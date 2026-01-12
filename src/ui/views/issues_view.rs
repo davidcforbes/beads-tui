@@ -674,4 +674,369 @@ mod tests {
         state.enter_create_mode();
         assert!(state.create_form_state().is_some());
     }
+
+    #[test]
+    fn test_issues_view_mode_copy_trait() {
+        let mode1 = IssuesViewMode::Detail;
+        let mode2 = mode1;
+        assert_eq!(mode1, mode2);
+        // Both should still be usable after copy
+        assert_eq!(mode1, IssuesViewMode::Detail);
+        assert_eq!(mode2, IssuesViewMode::Detail);
+    }
+
+    #[test]
+    fn test_issues_view_mode_clone_trait() {
+        let mode1 = IssuesViewMode::Edit;
+        let mode2 = mode1.clone();
+        assert_eq!(mode1, mode2);
+    }
+
+    #[test]
+    fn test_save_edit_returns_none_when_no_editor_state() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        // Try to save without entering edit mode
+        let result = state.save_edit();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_save_edit_returns_none_when_no_selected_issue() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_edit_mode();
+        // Clear selected issue manually
+        state.selected_issue = None;
+
+        let result = state.save_edit();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_multiple_consecutive_edit_operations() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        // First edit
+        state.enter_edit_mode();
+        state.cancel_edit();
+
+        // Second edit
+        state.enter_edit_mode();
+        assert_eq!(state.view_mode(), IssuesViewMode::Edit);
+        state.cancel_edit();
+
+        // Third edit
+        state.enter_edit_mode();
+        assert!(state.editor_state().is_some());
+    }
+
+    #[test]
+    fn test_view_mode_after_save_edit() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_edit_mode();
+        if let Some(editor) = state.editor_state_mut() {
+            editor.form_state_mut().set_value("title", "Modified".to_string());
+        }
+
+        state.save_edit();
+        // View mode should remain Edit after save (not auto-return to list)
+        assert_eq!(state.view_mode(), IssuesViewMode::Edit);
+    }
+
+    #[test]
+    fn test_selected_issue_retained_in_edit_mode() {
+        let issues = vec![
+            create_test_issue("beads-abcd-0001", "Issue 1"),
+            create_test_issue("beads-efgh-0002", "Issue 2"),
+        ];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_edit_mode();
+        let selected_id = state.selected_issue().map(|i| i.id.clone());
+
+        if let Some(editor) = state.editor_state_mut() {
+            editor.form_state_mut().set_value("title", "Modified".to_string());
+        }
+
+        // Selected issue should remain the same
+        assert_eq!(state.selected_issue().map(|i| i.id.clone()), selected_id);
+    }
+
+    #[test]
+    fn test_editor_state_consistency_after_modifications() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_edit_mode();
+
+        if let Some(editor) = state.editor_state_mut() {
+            editor.form_state_mut().set_value("title", "First Modification".to_string());
+        }
+
+        if let Some(editor) = state.editor_state_mut() {
+            editor.form_state_mut().set_value("title", "Second Modification".to_string());
+        }
+
+        // Editor state should still be present
+        assert!(state.editor_state().is_some());
+    }
+
+    #[test]
+    fn test_create_form_state_consistency_after_modifications() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_create_mode();
+
+        if let Some(form) = state.create_form_state_mut() {
+            form.form_state_mut().set_value("title", "New Issue 1".to_string());
+        }
+
+        if let Some(form) = state.create_form_state_mut() {
+            form.form_state_mut().set_value("description", "Description 1".to_string());
+        }
+
+        // Create form state should still be present
+        assert!(state.create_form_state().is_some());
+    }
+
+    #[test]
+    fn test_empty_issue_list_initialization() {
+        let issues: Vec<Issue> = vec![];
+        let state = IssuesViewState::new(issues);
+
+        assert_eq!(state.view_mode(), IssuesViewMode::List);
+        assert!(state.selected_issue().is_none());
+        assert_eq!(state.search_state().result_count(), 0);
+    }
+
+    #[test]
+    fn test_large_number_of_issues() {
+        let mut issues = vec![];
+        for i in 0..100 {
+            issues.push(create_test_issue(&format!("beads-{:04}", i), &format!("Issue {}", i)));
+        }
+
+        let state = IssuesViewState::new(issues);
+        assert_eq!(state.search_state().result_count(), 100);
+    }
+
+    #[test]
+    fn test_transition_detail_to_edit_preserves_selection() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_detail_view();
+        let selected_in_detail = state.selected_issue().map(|i| i.id.clone());
+
+        // Transition to list then edit
+        state.return_to_list();
+        state.enter_edit_mode();
+        let selected_in_edit = state.selected_issue().map(|i| i.id.clone());
+
+        assert_eq!(selected_in_detail, selected_in_edit);
+    }
+
+    #[test]
+    fn test_help_visibility_across_mode_changes() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.toggle_help();
+        let help_visible = state.is_help_visible();
+
+        state.enter_detail_view();
+        assert_eq!(state.is_help_visible(), help_visible);
+
+        state.return_to_list();
+        assert_eq!(state.is_help_visible(), help_visible);
+    }
+
+    #[test]
+    fn test_return_to_list_from_create_mode() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_create_mode();
+        state.return_to_list();
+
+        assert_eq!(state.view_mode(), IssuesViewMode::List);
+        // Note: return_to_list doesn't clear create_form_state, only cancel_create does
+        assert!(state.create_form_state().is_some());
+    }
+
+    #[test]
+    fn test_set_issues_updates_search_state() {
+        let initial = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(initial);
+
+        let new_issues = vec![
+            create_test_issue("beads-efgh-0002", "Issue 2"),
+            create_test_issue("beads-ijkl-0003", "Issue 3"),
+            create_test_issue("beads-mnop-0004", "Issue 4"),
+        ];
+
+        state.set_issues(new_issues);
+        assert_eq!(state.search_state().result_count(), 3);
+    }
+
+    #[test]
+    fn test_all_view_modes_inequality() {
+        assert_ne!(IssuesViewMode::List, IssuesViewMode::Detail);
+        assert_ne!(IssuesViewMode::List, IssuesViewMode::Edit);
+        assert_ne!(IssuesViewMode::List, IssuesViewMode::Create);
+        assert_ne!(IssuesViewMode::Detail, IssuesViewMode::Edit);
+        assert_ne!(IssuesViewMode::Detail, IssuesViewMode::Create);
+        assert_ne!(IssuesViewMode::Edit, IssuesViewMode::Create);
+    }
+
+    #[test]
+    fn test_issues_view_default_equals_new() {
+        let default_view = IssuesView::default();
+        let new_view = IssuesView::new();
+
+        assert_eq!(default_view.block_style, new_view.block_style);
+    }
+
+    #[test]
+    fn test_editor_state_after_cancel() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_edit_mode();
+        if let Some(editor) = state.editor_state_mut() {
+            editor.form_state_mut().set_value("title", "Modified".to_string());
+        }
+
+        state.cancel_edit();
+        assert!(state.editor_state().is_none());
+    }
+
+    #[test]
+    fn test_create_form_state_after_cancel() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_create_mode();
+        if let Some(form) = state.create_form_state_mut() {
+            form.form_state_mut().set_value("title", "New Issue".to_string());
+        }
+
+        state.cancel_create();
+        assert!(state.create_form_state().is_none());
+    }
+
+    #[test]
+    fn test_selected_issue_after_return_to_list() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_detail_view();
+        assert!(state.selected_issue().is_some());
+
+        state.return_to_list();
+        assert!(state.selected_issue().is_none());
+    }
+
+    #[test]
+    fn test_enter_edit_mode_preserves_issue_id() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_edit_mode();
+
+        if let Some(editor) = state.editor_state() {
+            assert_eq!(editor.issue_id(), "beads-abcd-0001");
+        } else {
+            panic!("Editor state should be Some");
+        }
+    }
+
+    #[test]
+    fn test_multiple_set_issues_calls() {
+        let initial = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(initial);
+
+        let set1 = vec![create_test_issue("beads-efgh-0002", "Issue 2")];
+        state.set_issues(set1);
+        assert_eq!(state.search_state().result_count(), 1);
+
+        let set2 = vec![
+            create_test_issue("beads-ijkl-0003", "Issue 3"),
+            create_test_issue("beads-mnop-0004", "Issue 4"),
+        ];
+        state.set_issues(set2);
+        assert_eq!(state.search_state().result_count(), 2);
+
+        let set3: Vec<Issue> = vec![];
+        state.set_issues(set3);
+        assert_eq!(state.search_state().result_count(), 0);
+    }
+
+    #[test]
+    fn test_view_mode_initial_value() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let state = IssuesViewState::new(issues);
+
+        assert_eq!(state.view_mode(), IssuesViewMode::List);
+    }
+
+    #[test]
+    fn test_issues_view_builder_multiple_styles() {
+        let style1 = Style::default().fg(Color::Red);
+        let style2 = Style::default().fg(Color::Blue);
+
+        let view1 = IssuesView::new().block_style(style1);
+        assert_eq!(view1.block_style, style1);
+
+        let view2 = IssuesView::new().block_style(style2);
+        assert_eq!(view2.block_style, style2);
+
+        // Chaining should use last value
+        let view3 = IssuesView::new().block_style(style1).block_style(style2);
+        assert_eq!(view3.block_style, style2);
+    }
+
+    #[test]
+    fn test_save_edit_marks_editor_saved() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_edit_mode();
+        if let Some(editor) = state.editor_state_mut() {
+            editor.form_state_mut().set_value("title", "Modified Title".to_string());
+        }
+
+        state.save_edit();
+
+        // Editor state should still exist and be marked as saved
+        if let Some(editor) = state.editor_state() {
+            assert!(editor.is_saved());
+        } else {
+            panic!("Editor state should still exist after save");
+        }
+    }
+
+    #[test]
+    fn test_cancel_edit_marks_editor_cancelled() {
+        let issues = vec![create_test_issue("beads-abcd-0001", "Issue 1")];
+        let mut state = IssuesViewState::new(issues);
+
+        state.enter_edit_mode();
+        if let Some(editor) = state.editor_state_mut() {
+            editor.form_state_mut().set_value("title", "Modified Title".to_string());
+            assert!(!editor.is_cancelled());
+        }
+
+        state.cancel_edit();
+        // Editor state is cleared, so we can't check is_cancelled
+        // but we verify it was cleared
+        assert!(state.editor_state().is_none());
+    }
 }
