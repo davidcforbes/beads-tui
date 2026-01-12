@@ -953,4 +953,171 @@ mod tests {
         // The test passes if we reach here without panic
         // (The edge is skipped in render_edge when from_vx >= to_vx)
     }
+
+    #[test]
+    fn test_pert_chart_config_clone() {
+        let config = PertChartConfig::default();
+        let cloned = config.clone();
+        assert_eq!(cloned.offset_x, config.offset_x);
+        assert_eq!(cloned.zoom, config.zoom);
+        assert_eq!(cloned.show_critical_path, config.show_critical_path);
+    }
+
+    #[test]
+    fn test_pert_chart_config_offset_builder() {
+        let config = PertChartConfig::new().offset(15, 25);
+        assert_eq!(config.offset_x, 15);
+        assert_eq!(config.offset_y, 25);
+    }
+
+    #[test]
+    fn test_pert_chart_config_zoom_builder() {
+        let config = PertChartConfig::new().zoom(2.5);
+        assert_eq!(config.zoom, 2.5);
+    }
+
+    #[test]
+    fn test_pert_chart_config_zoom_clamp_high() {
+        let config = PertChartConfig::new().zoom(5.0);
+        assert_eq!(config.zoom, 3.0); // Clamped to max
+    }
+
+    #[test]
+    fn test_pert_chart_config_zoom_clamp_low() {
+        let config = PertChartConfig::new().zoom(0.1);
+        assert_eq!(config.zoom, 0.5); // Clamped to min
+    }
+
+    #[test]
+    fn test_pert_chart_config_select_node() {
+        let mut config = PertChartConfig::default();
+        config.select_node(Some("test-node".to_string()));
+        assert_eq!(config.selected_node, Some("test-node".to_string()));
+        
+        config.select_node(None);
+        assert!(config.selected_node.is_none());
+    }
+
+    #[test]
+    fn test_pert_chart_config_select_adjacent_empty_graph() {
+        let graph = PertGraph::new(&[], 1.0);
+        let mut config = PertChartConfig::default();
+        
+        config.select_adjacent(&graph, Direction::Right);
+        assert!(config.selected_node.is_none());
+    }
+
+    #[test]
+    fn test_pert_chart_config_select_adjacent_no_selection() {
+        let issue = create_test_issue("A", "Task A");
+        let graph = PertGraph::new(&[issue], 1.0);
+        let mut config = PertChartConfig::default();
+        
+        config.select_adjacent(&graph, Direction::Right);
+        // Should select first node when nothing selected
+        assert!(config.selected_node.is_some());
+    }
+
+    #[test]
+    fn test_pert_chart_builder_config() {
+        let issue = create_test_issue("A", "Task A");
+        let graph = PertGraph::new(&[issue], 1.0);
+        let config = PertChartConfig::new().zoom(2.0);
+        let chart = PertChart::new(&graph).config(config);
+        
+        assert_eq!(chart.config.zoom, 2.0);
+    }
+
+    #[test]
+    fn test_direction_equality() {
+        assert_eq!(Direction::Up, Direction::Up);
+        assert_eq!(Direction::Down, Direction::Down);
+        assert_eq!(Direction::Left, Direction::Left);
+        assert_eq!(Direction::Right, Direction::Right);
+        assert_ne!(Direction::Up, Direction::Down);
+    }
+
+    #[test]
+    fn test_direction_clone() {
+        let dir = Direction::Up;
+        let cloned = dir.clone();
+        assert_eq!(dir, cloned);
+    }
+
+    #[test]
+    fn test_truncate_string_exact_length() {
+        assert_eq!(truncate_string("exactly", 7), "exactly");
+    }
+
+    #[test]
+    fn test_truncate_string_one_char() {
+        assert_eq!(truncate_string("test", 1), "...");
+    }
+
+    #[test]
+    fn test_pert_chart_config_pan_multiple_times() {
+        let mut config = PertChartConfig::default();
+        config.pan(10, 20);
+        config.pan(-5, -10);
+        assert_eq!(config.offset_x, 5);
+        assert_eq!(config.offset_y, 10);
+    }
+
+    #[test]
+    fn test_pert_chart_config_adjust_zoom_multiple() {
+        let mut config = PertChartConfig::default();
+        config.adjust_zoom(2.0);
+        config.adjust_zoom(1.5);
+        assert_eq!(config.zoom, 3.0); // 1.0 * 2.0 * 1.5 = 3.0 (clamped)
+    }
+
+    #[test]
+    fn test_pert_chart_config_focus_depth_zero() {
+        let mut config = PertChartConfig::default();
+        config.set_focus_depth(0);
+        assert_eq!(config.focus_depth, 0);
+    }
+
+    #[test]
+    fn test_pert_chart_config_focus_direction_variations() {
+        let mut config = PertChartConfig::default();
+        
+        config.set_focus_direction("upstream");
+        assert_eq!(config.focus_direction, "upstream");
+        
+        config.set_focus_direction("downstream");
+        assert_eq!(config.focus_direction, "downstream");
+        
+        config.set_focus_direction("both");
+        assert_eq!(config.focus_direction, "both");
+    }
+
+    #[test]
+    fn test_pert_chart_config_exit_focus_mode() {
+        let mut config = PertChartConfig::default();
+        config.focus_mode = true;
+        
+        config.exit_focus_mode();
+        assert!(!config.focus_mode);
+    }
+
+    #[test]
+    fn test_pert_chart_with_cycle_detection() {
+        let mut issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+        
+        // Create circular dependency
+        issue1.dependencies = vec!["B".to_string()];
+        issue2.dependencies = vec!["A".to_string()];
+        
+        let graph = PertGraph::new(&[issue1, issue2], 1.0);
+        let chart = PertChart::new(&graph);
+        
+        // Should detect cycle
+        assert!(graph.cycle_detection.has_cycle);
+        
+        // Rendering should not panic even with cycles
+        let mut buf = Buffer::empty(Rect::new(0, 0, 80, 24));
+        ratatui::widgets::Widget::render(chart, Rect::new(0, 0, 80, 24), &mut buf);
+    }
 }
