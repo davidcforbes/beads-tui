@@ -776,4 +776,331 @@ mod tests {
         assert!(!BulkAction::Delete.requires_input());
         assert!(!BulkAction::Cancel.requires_input());
     }
+
+    // === Additional Comprehensive Tests ===
+
+    #[test]
+    fn test_bulk_action_debug_trait() {
+        let action = BulkAction::Close;
+        let debug_str = format!("{:?}", action);
+        assert!(debug_str.contains("Close"));
+    }
+
+    #[test]
+    fn test_bulk_action_menu_state_debug_trait() {
+        let state = BulkActionMenuState::new(5);
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("BulkActionMenuState"));
+    }
+
+    #[test]
+    fn test_bulk_action_copy_trait() {
+        let action = BulkAction::SetPriority;
+        let copied = action;
+        assert_eq!(action, copied);
+        
+        // Can still use original after copy
+        assert_eq!(action.display_name(), "Change priority...");
+    }
+
+    #[test]
+    fn test_bulk_action_menu_builder_order_independence() {
+        let style1 = Style::default().fg(Color::Red);
+        let style2 = Style::default().bg(Color::Blue);
+        
+        let menu1 = BulkActionMenu::new()
+            .title("Custom")
+            .style(style1)
+            .selected_style(style2)
+            .show_icons(false)
+            .show_count(false);
+        
+        let menu2 = BulkActionMenu::new()
+            .show_count(false)
+            .show_icons(false)
+            .selected_style(style2)
+            .style(style1)
+            .title("Custom");
+        
+        // Both should have same configuration
+        assert_eq!(menu1.title, menu2.title);
+        assert_eq!(menu1.show_icons, menu2.show_icons);
+        assert_eq!(menu1.show_count, menu2.show_count);
+    }
+
+    #[test]
+    fn test_bulk_action_menu_multiple_setter_applications() {
+        let menu = BulkActionMenu::new()
+            .title("First")
+            .title("Second")
+            .title("Third");
+        
+        assert_eq!(menu.title, Some("Third"));
+    }
+
+    #[test]
+    fn test_bulk_action_menu_default() {
+        let menu = BulkActionMenu::default();
+        assert_eq!(menu.title, Some("Bulk Actions"));
+        assert!(menu.show_icons);
+        assert!(menu.show_count);
+    }
+
+    #[test]
+    fn test_all_bulk_action_variants_covered() {
+        let all = BulkAction::all();
+        
+        // Ensure all 12 variants are present
+        assert!(all.contains(&BulkAction::Close));
+        assert!(all.contains(&BulkAction::Reopen));
+        assert!(all.contains(&BulkAction::SetInProgress));
+        assert!(all.contains(&BulkAction::SetBlocked));
+        assert!(all.contains(&BulkAction::SetPriority));
+        assert!(all.contains(&BulkAction::AddLabels));
+        assert!(all.contains(&BulkAction::RemoveLabels));
+        assert!(all.contains(&BulkAction::SetAssignee));
+        assert!(all.contains(&BulkAction::ClearAssignee));
+        assert!(all.contains(&BulkAction::Delete));
+        assert!(all.contains(&BulkAction::Export));
+        assert!(all.contains(&BulkAction::Cancel));
+    }
+
+    #[test]
+    fn test_bulk_action_display_names_unique() {
+        let all = BulkAction::all();
+        let mut names = std::collections::HashSet::new();
+        
+        for action in all {
+            let name = action.display_name().to_string();
+            assert!(names.insert(name.clone()), "Duplicate display name: {}", name);
+        }
+    }
+
+    #[test]
+    fn test_bulk_action_icons_unique() {
+        let all = BulkAction::all();
+        let mut icons = std::collections::HashSet::new();
+        
+        for action in all {
+            let icon = action.icon().to_string();
+            assert!(icons.insert(icon.clone()), "Duplicate icon: {}", icon);
+        }
+    }
+
+    #[test]
+    fn test_state_navigation_sequence() {
+        let mut state = BulkActionMenuState::new(5);
+        
+        // Navigate through all actions
+        let action_count = state.actions().len();
+        for _ in 0..action_count {
+            assert!(state.highlighted_action().is_some());
+            state.select_next();
+        }
+        
+        // Should wrap back to first
+        assert_eq!(state.list_state.selected(), Some(0));
+    }
+
+    #[test]
+    fn test_state_navigation_backwards_sequence() {
+        let mut state = BulkActionMenuState::new(5);
+        
+        // Navigate backwards through all actions
+        let action_count = state.actions().len();
+        for _ in 0..action_count {
+            assert!(state.highlighted_action().is_some());
+            state.select_previous();
+        }
+        
+        // Should wrap back to first
+        assert_eq!(state.list_state.selected(), Some(0));
+    }
+
+    #[test]
+    fn test_confirm_different_actions() {
+        let mut state = BulkActionMenuState::new(5);
+        
+        state.list_state.select(Some(0));
+        let first = state.confirm_selection();
+        
+        state.select_next();
+        let second = state.confirm_selection();
+        
+        // Confirmed action should update to latest
+        assert_ne!(first, second);
+        assert_eq!(state.confirmed_action(), second);
+    }
+
+    #[test]
+    fn test_state_with_large_selected_count() {
+        let state = BulkActionMenuState::new(99999);
+        assert_eq!(state.selected_count(), 99999);
+    }
+
+    #[test]
+    fn test_custom_actions_preserves_order() {
+        let custom = vec![
+            BulkAction::Cancel,
+            BulkAction::Close,
+            BulkAction::Delete,
+        ];
+        
+        let state = BulkActionMenuState::with_actions(custom.clone(), 1);
+        let actions = state.actions();
+        
+        assert_eq!(actions[0], BulkAction::Cancel);
+        assert_eq!(actions[1], BulkAction::Close);
+        assert_eq!(actions[2], BulkAction::Delete);
+    }
+
+    #[test]
+    fn test_with_actions_empty_no_selection() {
+        let state = BulkActionMenuState::with_actions(Vec::new(), 0);
+        assert_eq!(state.list_state.selected(), None);
+    }
+
+    #[test]
+    fn test_with_actions_non_empty_selects_first() {
+        let actions = vec![BulkAction::Close];
+        let state = BulkActionMenuState::with_actions(actions, 1);
+        assert_eq!(state.list_state.selected(), Some(0));
+    }
+
+    #[test]
+    fn test_reset_clears_confirmed_but_keeps_selection() {
+        let mut state = BulkActionMenuState::new(5);
+        
+        state.select_next();
+        state.select_next();
+        state.confirm_selection();
+        
+        state.reset();
+        
+        // Selection should be at first item
+        assert_eq!(state.list_state.selected(), Some(0));
+        // But confirmed should be cleared
+        assert_eq!(state.confirmed_action(), None);
+    }
+
+    #[test]
+    fn test_all_action_colors_are_valid() {
+        // Just verify no panics when getting colors
+        for action in BulkAction::all() {
+            let color = action.color();
+            // Colors should be non-default (using specific colors)
+            assert!(matches!(
+                color,
+                Color::Green
+                    | Color::Cyan
+                    | Color::Yellow
+                    | Color::Red
+                    | Color::Magenta
+                    | Color::Blue
+                    | Color::Gray
+            ));
+        }
+    }
+
+    #[test]
+    fn test_destructive_actions_are_subset() {
+        let all = BulkAction::all();
+        let destructive_count = all.iter().filter(|a| a.is_destructive()).count();
+        
+        // Should have exactly 2 destructive actions
+        assert_eq!(destructive_count, 2);
+    }
+
+    #[test]
+    fn test_input_required_actions_are_subset() {
+        let all = BulkAction::all();
+        let requires_input_count = all.iter().filter(|a| a.requires_input()).count();
+        
+        // Should have exactly 5 actions requiring input
+        assert_eq!(requires_input_count, 5);
+    }
+
+    #[test]
+    fn test_state_clone_independence() {
+        let mut state = BulkActionMenuState::new(5);
+        state.select_next();
+        state.confirm_selection();
+        
+        let mut cloned = state.clone();
+        
+        // Modify clone
+        cloned.select_next();
+        cloned.clear_confirmed();
+        
+        // Original should be unchanged
+        assert_ne!(state.highlighted_action(), cloned.highlighted_action());
+        assert!(state.confirmed_action().is_some());
+        assert!(cloned.confirmed_action().is_none());
+    }
+
+    #[test]
+    fn test_highlighted_action_after_select_next() {
+        let mut state = BulkActionMenuState::new(5);
+        let first = state.highlighted_action();
+        
+        state.select_next();
+        let second = state.highlighted_action();
+        
+        assert!(first.is_some());
+        assert!(second.is_some());
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn test_navigation_with_two_actions() {
+        let actions = vec![BulkAction::Close, BulkAction::Cancel];
+        let mut state = BulkActionMenuState::with_actions(actions, 2);
+        
+        // Should start at first
+        assert_eq!(state.list_state.selected(), Some(0));
+        
+        // Next goes to second
+        state.select_next();
+        assert_eq!(state.list_state.selected(), Some(1));
+        
+        // Next wraps to first
+        state.select_next();
+        assert_eq!(state.list_state.selected(), Some(0));
+        
+        // Previous wraps to second
+        state.select_previous();
+        assert_eq!(state.list_state.selected(), Some(1));
+    }
+
+    #[test]
+    fn test_confirm_updates_confirmed_action() {
+        let mut state = BulkActionMenuState::new(5);
+        
+        assert_eq!(state.confirmed_action(), None);
+        
+        let action = state.confirm_selection();
+        
+        assert_eq!(state.confirmed_action(), action);
+        assert!(action.is_some());
+    }
+
+    #[test]
+    fn test_set_selected_count_updates_count() {
+        let mut state = BulkActionMenuState::new(0);
+        
+        for count in [1, 10, 100, 1000, 0] {
+            state.set_selected_count(count);
+            assert_eq!(state.selected_count(), count);
+        }
+    }
+
+    #[test]
+    fn test_actions_returns_reference_to_internal_vec() {
+        let custom = vec![BulkAction::Close, BulkAction::Cancel];
+        let state = BulkActionMenuState::with_actions(custom.clone(), 2);
+        
+        let actions_ref = state.actions();
+        assert_eq!(actions_ref.len(), custom.len());
+        assert_eq!(actions_ref, &custom);
+    }
 }
