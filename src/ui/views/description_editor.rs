@@ -491,4 +491,227 @@ mod tests {
         state.move_to_line_end();
         assert!(!state.is_modified());
     }
+
+    // EditorMode tests
+    #[test]
+    fn test_editor_mode_equality() {
+        assert_eq!(EditorMode::Normal, EditorMode::Normal);
+        assert_ne!(EditorMode::Normal, EditorMode::Insert);
+        assert_ne!(EditorMode::Insert, EditorMode::Command);
+    }
+
+    #[test]
+    fn test_editor_mode_clone() {
+        let mode = EditorMode::Insert;
+        let cloned = mode.clone();
+        assert_eq!(mode, cloned);
+    }
+
+    // DescriptionEditorState additional tests
+    #[test]
+    fn test_description_editor_state_clone() {
+        let state = DescriptionEditorState::new("Test".to_string(), "content".to_string());
+        let cloned = state.clone();
+        assert_eq!(cloned.title(), state.title());
+        assert_eq!(cloned.text(), state.text());
+        assert_eq!(cloned.mode(), state.mode());
+    }
+
+    #[test]
+    fn test_empty_initial_text() {
+        let state = DescriptionEditorState::new("Test".to_string(), String::new());
+        assert_eq!(state.text(), "");
+    }
+
+    #[test]
+    fn test_multiline_initial_text() {
+        let text = "Line 1\nLine 2\nLine 3";
+        let state = DescriptionEditorState::new("Test".to_string(), text.to_string());
+        assert_eq!(state.text(), text);
+    }
+
+    #[test]
+    fn test_set_modified_explicitly() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        assert!(!state.is_modified());
+
+        state.set_modified(true);
+        assert!(state.is_modified());
+
+        state.set_modified(false);
+        assert!(!state.is_modified());
+    }
+
+    #[test]
+    fn test_save_clears_modified_flag() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        state.insert_char('x');
+        assert!(state.is_modified());
+
+        state.save();
+        assert!(!state.is_modified());
+        assert!(state.is_saved());
+    }
+
+    #[test]
+    fn test_cancel_after_save() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        state.save();
+        state.cancel();
+        assert!(state.is_saved());
+        assert!(state.is_cancelled());
+    }
+
+    #[test]
+    fn test_multiple_saves() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        state.save();
+        assert!(state.is_saved());
+
+        state.insert_char('a');
+        assert!(state.is_modified());
+
+        state.save();
+        assert!(!state.is_modified());
+        assert!(state.is_saved());
+    }
+
+    #[test]
+    fn test_editor_state_access() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), "content".to_string());
+        
+        // Test immutable access
+        let editor_state = state.editor_state();
+        assert!(!editor_state.text().is_empty());
+
+        // Test mutable access
+        let editor_state_mut = state.editor_state_mut();
+        editor_state_mut.insert_char('x');
+    }
+
+    #[test]
+    fn test_all_editor_modes() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        
+        state.set_mode(EditorMode::Normal);
+        assert_eq!(state.mode(), EditorMode::Normal);
+
+        state.set_mode(EditorMode::Insert);
+        assert_eq!(state.mode(), EditorMode::Insert);
+
+        state.set_mode(EditorMode::Command);
+        assert_eq!(state.mode(), EditorMode::Command);
+    }
+
+    #[test]
+    fn test_title_getter() {
+        let state = DescriptionEditorState::new("My Test Title".to_string(), String::new());
+        assert_eq!(state.title(), "My Test Title");
+    }
+
+    #[test]
+    fn test_long_title() {
+        let long_title = "A".repeat(200);
+        let state = DescriptionEditorState::new(long_title.clone(), String::new());
+        assert_eq!(state.title(), &long_title);
+    }
+
+    #[test]
+    fn test_unicode_title() {
+        let title = "Fix 🐛 in 日本語 feature";
+        let state = DescriptionEditorState::new(title.to_string(), String::new());
+        assert_eq!(state.title(), title);
+    }
+
+    // DescriptionEditorView tests
+    #[test]
+    fn test_description_editor_view_new() {
+        let view = DescriptionEditorView::new();
+        assert!(view.show_help);
+        assert!(view.show_stats);
+    }
+
+    #[test]
+    fn test_description_editor_view_default() {
+        let view = DescriptionEditorView::default();
+        assert!(view.show_help);
+        assert!(view.show_stats);
+    }
+
+    #[test]
+    fn test_description_editor_view_show_help() {
+        let view = DescriptionEditorView::new().show_help(false);
+        assert!(!view.show_help);
+
+        let view = DescriptionEditorView::new().show_help(true);
+        assert!(view.show_help);
+    }
+
+    #[test]
+    fn test_description_editor_view_show_stats() {
+        let view = DescriptionEditorView::new().show_stats(false);
+        assert!(!view.show_stats);
+
+        let view = DescriptionEditorView::new().show_stats(true);
+        assert!(view.show_stats);
+    }
+
+    #[test]
+    fn test_description_editor_view_block_style() {
+        let style = Style::default().fg(Color::Red);
+        let view = DescriptionEditorView::new().block_style(style);
+        assert_eq!(view.block_style.fg, Some(Color::Red));
+    }
+
+    #[test]
+    fn test_description_editor_view_help_style() {
+        let style = Style::default().fg(Color::Yellow);
+        let view = DescriptionEditorView::new().help_style(style);
+        assert_eq!(view.help_style.fg, Some(Color::Yellow));
+    }
+
+    #[test]
+    fn test_description_editor_view_builder_chain() {
+        let view = DescriptionEditorView::new()
+            .show_help(false)
+            .show_stats(false)
+            .block_style(Style::default().fg(Color::Blue))
+            .help_style(Style::default().fg(Color::Green));
+
+        assert!(!view.show_help);
+        assert!(!view.show_stats);
+        assert_eq!(view.block_style.fg, Some(Color::Blue));
+        assert_eq!(view.help_style.fg, Some(Color::Green));
+    }
+
+    #[test]
+    fn test_insert_multiple_chars() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        state.insert_char('h');
+        state.insert_char('i');
+        assert!(state.text().contains('h'));
+        assert!(state.text().contains('i'));
+        assert!(state.is_modified());
+    }
+
+    #[test]
+    fn test_delete_from_empty() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        state.delete_char(); // Should not panic on empty text
+        assert_eq!(state.text(), "");
+    }
+
+    #[test]
+    fn test_insert_newline_marks_modified() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        state.insert_newline();
+        assert!(state.is_modified());
+        assert!(state.text().contains('\n'));
+    }
+
+    #[test]
+    fn test_initial_mode_is_insert() {
+        let state = DescriptionEditorState::new("Test".to_string(), String::new());
+        assert_eq!(state.mode(), EditorMode::Insert);
+    }
 }
