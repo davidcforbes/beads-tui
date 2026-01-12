@@ -562,4 +562,285 @@ mod tests {
 
         assert_eq!(state.input(), "hi");
     }
+
+    #[test]
+    fn test_autocomplete_state_default() {
+        let state = AutocompleteState::default();
+        assert_eq!(state.input(), "");
+        assert_eq!(state.selected_value(), None);
+        assert!(!state.is_focused());
+        assert!(!state.is_showing_suggestions());
+        assert_eq!(state.cursor_position(), 0);
+    }
+
+    #[test]
+    fn test_autocomplete_state_clone() {
+        let mut state = AutocompleteState::new();
+        state.insert_char('t');
+        state.insert_char('e');
+        state.insert_char('s');
+        state.insert_char('t');
+        state.set_focused(true);
+
+        let cloned = state.clone();
+        assert_eq!(cloned.input(), "test");
+        assert!(cloned.is_focused());
+        assert!(cloned.is_showing_suggestions());
+        assert_eq!(cloned.cursor_position(), 4);
+    }
+
+    #[test]
+    fn test_set_options_empty() {
+        let mut state = AutocompleteState::new();
+        state.set_options(vec![]);
+        assert_eq!(state.filtered_suggestions().len(), 0);
+    }
+
+    #[test]
+    fn test_set_options_single() {
+        let mut state = AutocompleteState::new();
+        state.set_options(vec!["single".to_string()]);
+        let suggestions = state.filtered_suggestions();
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0], "single");
+    }
+
+    #[test]
+    fn test_set_options_resets_selection() {
+        let mut state = AutocompleteState::new();
+        state.set_options(vec!["a".to_string(), "b".to_string(), "c".to_string()]);
+        state.select_next();
+        state.select_next();
+        assert_eq!(state.list_state.selected(), Some(2));
+
+        state.set_options(vec!["x".to_string(), "y".to_string()]);
+        assert_eq!(state.list_state.selected(), Some(0)); // Reset to 0
+    }
+
+    #[test]
+    fn test_delete_char_at_start() {
+        let mut state = AutocompleteState::new();
+        state.insert_char('a');
+        state.move_cursor_left();
+        assert_eq!(state.cursor_position(), 0);
+
+        state.delete_char();
+        assert_eq!(state.input(), "a"); // No change
+        assert_eq!(state.cursor_position(), 0);
+    }
+
+    #[test]
+    fn test_delete_char_empty_input() {
+        let mut state = AutocompleteState::new();
+        assert_eq!(state.input(), "");
+
+        state.delete_char();
+        assert_eq!(state.input(), ""); // Still empty
+        assert_eq!(state.cursor_position(), 0);
+    }
+
+    #[test]
+    fn test_delete_char_hides_suggestions_when_empty() {
+        let mut state = AutocompleteState::new();
+        state.insert_char('a');
+        assert!(state.is_showing_suggestions());
+
+        state.delete_char();
+        assert_eq!(state.input(), "");
+        assert!(!state.is_showing_suggestions());
+    }
+
+    #[test]
+    fn test_move_cursor_left_at_start() {
+        let mut state = AutocompleteState::new();
+        state.insert_char('a');
+        state.move_cursor_left();
+        assert_eq!(state.cursor_position(), 0);
+
+        state.move_cursor_left();
+        assert_eq!(state.cursor_position(), 0); // Can't go below 0
+    }
+
+    #[test]
+    fn test_insert_char_in_middle() {
+        let mut state = AutocompleteState::new();
+        state.insert_char('a');
+        state.insert_char('c');
+        state.move_cursor_left();
+        assert_eq!(state.cursor_position(), 1);
+
+        state.insert_char('b');
+        assert_eq!(state.input(), "abc");
+        assert_eq!(state.cursor_position(), 2);
+    }
+
+    #[test]
+    fn test_select_next_empty_suggestions() {
+        let mut state = AutocompleteState::new();
+        state.set_options(vec![]);
+        state.select_next();
+        // Should not panic with empty suggestions
+    }
+
+    #[test]
+    fn test_select_previous_empty_suggestions() {
+        let mut state = AutocompleteState::new();
+        state.set_options(vec![]);
+        state.select_previous();
+        // Should not panic with empty suggestions
+    }
+
+    #[test]
+    fn test_select_next_single_suggestion() {
+        let mut state = AutocompleteState::new();
+        state.set_options(vec!["only".to_string()]);
+        assert_eq!(state.list_state.selected(), Some(0));
+
+        state.select_next();
+        assert_eq!(state.list_state.selected(), Some(0)); // Wraps back to 0
+    }
+
+    #[test]
+    fn test_select_previous_single_suggestion() {
+        let mut state = AutocompleteState::new();
+        state.set_options(vec!["only".to_string()]);
+        assert_eq!(state.list_state.selected(), Some(0));
+
+        state.select_previous();
+        assert_eq!(state.list_state.selected(), Some(0)); // Wraps back to 0
+    }
+
+    #[test]
+    fn test_confirm_selection_no_suggestions() {
+        let mut state = AutocompleteState::new();
+        state.set_options(vec![]);
+        state.confirm_selection();
+        assert_eq!(state.selected_value(), None);
+    }
+
+    #[test]
+    fn test_confirm_selection_out_of_bounds() {
+        let mut state = AutocompleteState::new();
+        state.set_options(vec!["alice".to_string()]);
+        state.list_state.select(Some(10)); // Out of bounds
+        state.confirm_selection();
+        assert_eq!(state.selected_value(), None); // Should not set value
+    }
+
+    #[test]
+    fn test_set_selected_value_some() {
+        let mut state = AutocompleteState::new();
+        state.set_selected_value(Some("test_value"));
+        assert_eq!(state.selected_value(), Some("test_value"));
+        assert_eq!(state.input(), "test_value");
+        assert_eq!(state.cursor_position(), 10);
+    }
+
+    #[test]
+    fn test_set_selected_value_none() {
+        let mut state = AutocompleteState::new();
+        state.set_selected_value(Some("initial"));
+        assert_eq!(state.selected_value(), Some("initial"));
+
+        state.set_selected_value(None::<String>);
+        assert_eq!(state.selected_value(), None);
+    }
+
+    #[test]
+    fn test_set_show_suggestions() {
+        let mut state = AutocompleteState::new();
+        assert!(!state.is_showing_suggestions());
+
+        state.set_show_suggestions(true);
+        assert!(state.is_showing_suggestions());
+
+        state.set_show_suggestions(false);
+        assert!(!state.is_showing_suggestions());
+    }
+
+    #[test]
+    fn test_set_focused_with_empty_input() {
+        let mut state = AutocompleteState::new();
+        assert_eq!(state.input(), "");
+
+        state.set_focused(true);
+        assert!(state.is_focused());
+        assert!(!state.is_showing_suggestions()); // Empty input doesn't show suggestions
+    }
+
+    #[test]
+    fn test_autocomplete_new() {
+        let widget = Autocomplete::new();
+        assert_eq!(widget.placeholder, Some("Type to search..."));
+        assert_eq!(widget.max_suggestions, 5);
+    }
+
+    #[test]
+    fn test_autocomplete_default() {
+        let widget = Autocomplete::default();
+        assert_eq!(widget.placeholder, Some("Type to search..."));
+        assert_eq!(widget.max_suggestions, 5);
+    }
+
+    #[test]
+    fn test_autocomplete_placeholder() {
+        let widget = Autocomplete::new().placeholder("Enter name...");
+        assert_eq!(widget.placeholder, Some("Enter name..."));
+    }
+
+    #[test]
+    fn test_autocomplete_style() {
+        let style = Style::default().fg(Color::Red);
+        let widget = Autocomplete::new().style(style);
+        assert_eq!(widget.style.fg, Some(Color::Red));
+    }
+
+    #[test]
+    fn test_autocomplete_focused_style() {
+        let style = Style::default().fg(Color::Blue);
+        let widget = Autocomplete::new().focused_style(style);
+        assert_eq!(widget.focused_style.fg, Some(Color::Blue));
+    }
+
+    #[test]
+    fn test_autocomplete_selected_style() {
+        let style = Style::default().bg(Color::Yellow);
+        let widget = Autocomplete::new().selected_style(style);
+        assert_eq!(widget.selected_style.bg, Some(Color::Yellow));
+    }
+
+    #[test]
+    fn test_autocomplete_block() {
+        let block = Block::default().title("Custom");
+        let widget = Autocomplete::new().block(block);
+        assert!(widget.block.is_some());
+    }
+
+    #[test]
+    fn test_autocomplete_max_suggestions() {
+        let widget = Autocomplete::new().max_suggestions(10);
+        assert_eq!(widget.max_suggestions, 10);
+    }
+
+    #[test]
+    fn test_autocomplete_builder_chain() {
+        let block = Block::default().title("Test");
+        let style = Style::default().fg(Color::Green);
+        let focused_style = Style::default().fg(Color::Cyan);
+        let selected_style = Style::default().bg(Color::Blue);
+
+        let widget = Autocomplete::new()
+            .placeholder("Search...")
+            .style(style)
+            .focused_style(focused_style)
+            .selected_style(selected_style)
+            .block(block)
+            .max_suggestions(8);
+
+        assert_eq!(widget.placeholder, Some("Search..."));
+        assert_eq!(widget.style.fg, Some(Color::Green));
+        assert_eq!(widget.focused_style.fg, Some(Color::Cyan));
+        assert_eq!(widget.selected_style.bg, Some(Color::Blue));
+        assert_eq!(widget.max_suggestions, 8);
+    }
 }
