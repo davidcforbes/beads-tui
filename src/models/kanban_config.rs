@@ -637,4 +637,305 @@ mod tests {
         // Status columns should remain
         assert!(config.columns.iter().any(|c| c.id == ColumnId::StatusOpen));
     }
+
+    #[test]
+    fn test_grouping_mode_clone() {
+        let mode = GroupingMode::Status;
+        let cloned = mode.clone();
+        assert_eq!(mode, cloned);
+    }
+
+    #[test]
+    fn test_grouping_mode_equality() {
+        assert_eq!(GroupingMode::Status, GroupingMode::Status);
+        assert_eq!(GroupingMode::Assignee, GroupingMode::Assignee);
+        assert_ne!(GroupingMode::Status, GroupingMode::Priority);
+    }
+
+    #[test]
+    fn test_grouping_mode_display_names() {
+        assert_eq!(GroupingMode::Status.display_name(), "Status");
+        assert_eq!(GroupingMode::Assignee.display_name(), "Assignee");
+        assert_eq!(GroupingMode::Label.display_name(), "Label");
+        assert_eq!(GroupingMode::Priority.display_name(), "Priority");
+    }
+
+    #[test]
+    fn test_column_id_clone() {
+        let id = ColumnId::StatusOpen;
+        let cloned = id.clone();
+        assert_eq!(id, cloned);
+    }
+
+    #[test]
+    fn test_column_id_equality() {
+        assert_eq!(ColumnId::StatusOpen, ColumnId::StatusOpen);
+        assert_ne!(ColumnId::StatusOpen, ColumnId::StatusClosed);
+        assert_eq!(
+            ColumnId::Assignee("alice".to_string()),
+            ColumnId::Assignee("alice".to_string())
+        );
+    }
+
+    #[test]
+    fn test_column_id_default_labels() {
+        assert_eq!(ColumnId::StatusOpen.default_label(), "Open");
+        assert_eq!(ColumnId::StatusInProgress.default_label(), "In Progress");
+        assert_eq!(ColumnId::StatusBlocked.default_label(), "Blocked");
+        assert_eq!(ColumnId::StatusClosed.default_label(), "Closed");
+        assert_eq!(
+            ColumnId::Assignee("bob".to_string()).default_label(),
+            "bob"
+        );
+        assert_eq!(ColumnId::Label("bug".to_string()).default_label(), "bug");
+        assert_eq!(ColumnId::PriorityP0.default_label(), "P0 - Critical");
+        assert_eq!(ColumnId::PriorityP1.default_label(), "P1 - High");
+        assert_eq!(ColumnId::PriorityP2.default_label(), "P2 - Medium");
+        assert_eq!(ColumnId::PriorityP3.default_label(), "P3 - Low");
+        assert_eq!(ColumnId::PriorityP4.default_label(), "P4 - Backlog");
+        assert_eq!(ColumnId::Unassigned.default_label(), "Unassigned");
+    }
+
+    #[test]
+    fn test_width_constraints_clone() {
+        let constraints = WidthConstraints::new(10, Some(50), 30);
+        let cloned = constraints.clone();
+        assert_eq!(constraints.min, cloned.min);
+        assert_eq!(constraints.max, cloned.max);
+        assert_eq!(constraints.preferred, cloned.preferred);
+    }
+
+    #[test]
+    fn test_width_constraints_new_preferred_less_than_min() {
+        let constraints = WidthConstraints::new(20, Some(50), 10);
+        // Preferred should be clamped to min
+        assert_eq!(constraints.preferred, 20);
+    }
+
+    #[test]
+    fn test_width_constraints_clamp_no_max() {
+        let constraints = WidthConstraints::new(10, None, 30);
+        assert_eq!(constraints.clamp(5), 10); // Below min
+        assert_eq!(constraints.clamp(100), 100); // No max, so no upper limit
+    }
+
+    #[test]
+    fn test_width_constraints_default() {
+        let constraints = WidthConstraints::default();
+        assert_eq!(constraints.min, 15);
+        assert_eq!(constraints.max, Some(80));
+        assert_eq!(constraints.preferred, 30);
+    }
+
+    #[test]
+    fn test_card_sort_clone() {
+        let sort = CardSort::Priority;
+        let cloned = sort.clone();
+        assert_eq!(sort, cloned);
+    }
+
+    #[test]
+    fn test_card_sort_equality() {
+        assert_eq!(CardSort::Priority, CardSort::Priority);
+        assert_eq!(CardSort::Title, CardSort::Title);
+        assert_ne!(CardSort::Priority, CardSort::Created);
+    }
+
+    #[test]
+    fn test_card_sort_default() {
+        assert_eq!(CardSort::default(), CardSort::Priority);
+    }
+
+    #[test]
+    fn test_column_definition_clone() {
+        let col = ColumnDefinition::new(ColumnId::StatusOpen);
+        let cloned = col.clone();
+        assert_eq!(col.id, cloned.id);
+        assert_eq!(col.label, cloned.label);
+        assert_eq!(col.width, cloned.width);
+        assert_eq!(col.visible, cloned.visible);
+    }
+
+    #[test]
+    fn test_column_definition_new() {
+        let col = ColumnDefinition::new(ColumnId::PriorityP2);
+        assert_eq!(col.id, ColumnId::PriorityP2);
+        assert_eq!(col.label, "P2 - Medium");
+        assert!(col.visible);
+        assert_eq!(col.width, col.width_constraints.preferred);
+        assert_eq!(col.card_sort, CardSort::default());
+    }
+
+    #[test]
+    fn test_board_filters_clone() {
+        let filters = BoardFilters::default();
+        let cloned = filters.clone();
+        assert_eq!(filters.issue_types.len(), cloned.issue_types.len());
+        assert_eq!(filters.priorities.len(), cloned.priorities.len());
+        assert_eq!(filters.search_query, cloned.search_query);
+    }
+
+    #[test]
+    fn test_board_filters_default() {
+        let filters = BoardFilters::default();
+        assert!(filters.issue_types.is_empty());
+        assert!(filters.priorities.is_empty());
+        assert!(filters.search_query.is_none());
+    }
+
+    #[test]
+    fn test_kanban_config_new() {
+        let config = KanbanConfig::new();
+        assert_eq!(config.grouping_mode, GroupingMode::Status);
+        assert_eq!(config.columns.len(), 4);
+        assert_eq!(config.card_height, 3);
+        assert_eq!(config.version, 1);
+    }
+
+    #[test]
+    fn test_kanban_config_clone() {
+        let config = KanbanConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.grouping_mode, cloned.grouping_mode);
+        assert_eq!(config.columns.len(), cloned.columns.len());
+        assert_eq!(config.card_height, cloned.card_height);
+    }
+
+    #[test]
+    fn test_kanban_config_get_column_none() {
+        let config = KanbanConfig::default();
+        let col = config.get_column(&ColumnId::PriorityP0);
+        assert!(col.is_none());
+    }
+
+    #[test]
+    fn test_kanban_config_reorder_out_of_bounds() {
+        let mut config = KanbanConfig::default();
+        let original_order: Vec<_> = config.columns.iter().map(|c| c.id.clone()).collect();
+
+        // Attempt to reorder with out-of-bounds indices
+        config.reorder_column(10, 0);
+
+        // Order should be unchanged
+        let new_order: Vec<_> = config.columns.iter().map(|c| c.id.clone()).collect();
+        assert_eq!(original_order, new_order);
+    }
+
+    #[test]
+    fn test_default_columns_for_assignee_mode() {
+        let cols = KanbanConfig::default_columns(GroupingMode::Assignee);
+        assert_eq!(cols.len(), 1);
+        assert_eq!(cols[0].id, ColumnId::Unassigned);
+    }
+
+    #[test]
+    fn test_default_columns_for_label_mode() {
+        let cols = KanbanConfig::default_columns(GroupingMode::Label);
+        assert_eq!(cols.len(), 1);
+        assert_eq!(cols[0].id, ColumnId::Unassigned);
+    }
+
+    #[test]
+    fn test_default_columns_for_priority_mode() {
+        let cols = KanbanConfig::default_columns(GroupingMode::Priority);
+        assert_eq!(cols.len(), 5);
+        assert!(cols.iter().any(|c| c.id == ColumnId::PriorityP0));
+        assert!(cols.iter().any(|c| c.id == ColumnId::PriorityP4));
+    }
+
+    #[test]
+    fn test_validate_enforces_mandatory_visibility() {
+        let mut config = KanbanConfig {
+            grouping_mode: GroupingMode::Status,
+            columns: vec![ColumnDefinition {
+                id: ColumnId::StatusOpen,
+                label: "Open".to_string(),
+                width_constraints: WidthConstraints::default(),
+                width: 30,
+                visible: false, // Try to hide mandatory column
+                card_sort: CardSort::default(),
+            }],
+            card_height: 3,
+            filters: BoardFilters::default(),
+            version: 1,
+        };
+
+        config = config.validate_and_migrate();
+
+        // Mandatory column should be forced visible
+        let col = config
+            .columns
+            .iter()
+            .find(|c| c.id == ColumnId::StatusOpen)
+            .unwrap();
+        assert!(col.visible);
+    }
+
+    #[test]
+    fn test_validate_clamps_widths() {
+        let mut config = KanbanConfig {
+            grouping_mode: GroupingMode::Status,
+            columns: vec![ColumnDefinition {
+                id: ColumnId::StatusOpen,
+                label: "Open".to_string(),
+                width_constraints: WidthConstraints::new(10, Some(50), 30),
+                width: 200, // Way above max
+                visible: true,
+                card_sort: CardSort::default(),
+            }],
+            card_height: 3,
+            filters: BoardFilters::default(),
+            version: 1,
+        };
+
+        config = config.validate_and_migrate();
+
+        let col = &config.columns[0];
+        assert_eq!(col.width, 50); // Clamped to max
+    }
+
+    #[test]
+    fn test_is_valid_for_mode_priority() {
+        let config = KanbanConfig {
+            grouping_mode: GroupingMode::Priority,
+            columns: vec![],
+            card_height: 3,
+            filters: BoardFilters::default(),
+            version: 1,
+        };
+
+        assert!(config.is_valid_for_mode(&ColumnId::PriorityP0));
+        assert!(config.is_valid_for_mode(&ColumnId::PriorityP4));
+        assert!(!config.is_valid_for_mode(&ColumnId::StatusOpen));
+    }
+
+    #[test]
+    fn test_is_valid_for_mode_assignee() {
+        let config = KanbanConfig {
+            grouping_mode: GroupingMode::Assignee,
+            columns: vec![],
+            card_height: 3,
+            filters: BoardFilters::default(),
+            version: 1,
+        };
+
+        assert!(config.is_valid_for_mode(&ColumnId::Assignee("bob".to_string())));
+        assert!(config.is_valid_for_mode(&ColumnId::Unassigned));
+        assert!(!config.is_valid_for_mode(&ColumnId::StatusOpen));
+    }
+
+    #[test]
+    fn test_is_valid_for_mode_label() {
+        let config = KanbanConfig {
+            grouping_mode: GroupingMode::Label,
+            columns: vec![],
+            card_height: 3,
+            filters: BoardFilters::default(),
+            version: 1,
+        };
+
+        assert!(config.is_valid_for_mode(&ColumnId::Label("bug".to_string())));
+        assert!(config.is_valid_for_mode(&ColumnId::Unassigned));
+        assert!(!config.is_valid_for_mode(&ColumnId::PriorityP0));
+    }
 }
