@@ -629,4 +629,312 @@ mod tests {
         state.move_cursor_down();
         assert_eq!(state.cursor_position(), (2, 2)); // Keeps column position
     }
+
+    #[test]
+    fn test_text_editor_state_default() {
+        let state = TextEditorState::default();
+        assert_eq!(state.text(), "");
+        assert_eq!(state.cursor_position(), (0, 0));
+        assert!(!state.is_focused());
+        assert_eq!(state.line_count(), 1);
+        assert!(state.is_empty());
+        assert_eq!(state.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_text_editor_state_clone() {
+        let mut state = TextEditorState::new();
+        state.set_text("test content");
+        state.set_focused(true);
+        state.cursor_line = 0;
+        state.cursor_col = 4;
+
+        let cloned = state.clone();
+        assert_eq!(cloned.text(), "test content");
+        assert!(cloned.is_focused());
+        assert_eq!(cloned.cursor_position(), (0, 4));
+    }
+
+    #[test]
+    fn test_set_text_empty_string() {
+        let mut state = TextEditorState::new();
+        state.set_text("initial");
+        state.set_text("");
+
+        assert!(state.is_empty());
+        assert_eq!(state.line_count(), 1);
+        assert_eq!(state.cursor_position(), (0, 0));
+    }
+
+    #[test]
+    fn test_set_text_single_line() {
+        let mut state = TextEditorState::new();
+        state.set_text("single line without newline");
+
+        assert_eq!(state.line_count(), 1);
+        assert_eq!(state.text(), "single line without newline");
+    }
+
+    #[test]
+    fn test_insert_char_in_middle() {
+        let mut state = TextEditorState::new();
+        state.set_text("hello");
+        state.cursor_col = 2; // Position between 'e' and 'l'
+
+        state.insert_char('X');
+        assert_eq!(state.text(), "heXllo");
+        assert_eq!(state.cursor_position(), (0, 3));
+    }
+
+    #[test]
+    fn test_insert_char_at_start() {
+        let mut state = TextEditorState::new();
+        state.set_text("world");
+        state.cursor_col = 0;
+
+        state.insert_char('X');
+        assert_eq!(state.text(), "Xworld");
+        assert_eq!(state.cursor_position(), (0, 1));
+    }
+
+    #[test]
+    fn test_delete_char_at_start_of_text() {
+        let mut state = TextEditorState::new();
+        state.set_text("hello");
+        state.cursor_col = 0;
+        state.cursor_line = 0;
+
+        // Delete at start should do nothing
+        state.delete_char();
+        assert_eq!(state.text(), "hello");
+        assert_eq!(state.cursor_position(), (0, 0));
+    }
+
+    #[test]
+    fn test_delete_char_single_char() {
+        let mut state = TextEditorState::new();
+        state.set_text("a");
+        state.cursor_col = 1;
+
+        state.delete_char();
+        assert!(state.is_empty());
+        assert_eq!(state.cursor_position(), (0, 0));
+    }
+
+    #[test]
+    fn test_delete_char_forward_at_end_of_text() {
+        let mut state = TextEditorState::new();
+        state.set_text("hello");
+        state.move_cursor_to_end();
+
+        // Delete forward at end should do nothing
+        state.delete_char_forward();
+        assert_eq!(state.text(), "hello");
+    }
+
+    #[test]
+    fn test_delete_char_forward_on_empty_line() {
+        let mut state = TextEditorState::new();
+        state.set_text("");
+
+        // Delete forward on empty text should do nothing
+        state.delete_char_forward();
+        assert!(state.is_empty());
+    }
+
+    #[test]
+    fn test_move_cursor_left_at_start_boundary() {
+        let mut state = TextEditorState::new();
+        state.set_text("hello");
+        state.cursor_col = 0;
+        state.cursor_line = 0;
+
+        // Move left at start should do nothing
+        state.move_cursor_left();
+        assert_eq!(state.cursor_position(), (0, 0));
+    }
+
+    #[test]
+    fn test_move_cursor_right_at_end_boundary() {
+        let mut state = TextEditorState::new();
+        state.set_text("hello");
+        state.move_cursor_to_end();
+
+        // Move right at end should do nothing
+        state.move_cursor_right();
+        assert_eq!(state.cursor_position(), (0, 5));
+    }
+
+    #[test]
+    fn test_move_cursor_up_at_first_line() {
+        let mut state = TextEditorState::new();
+        state.set_text("line1\nline2");
+        state.cursor_line = 0;
+
+        // Move up at first line should do nothing
+        state.move_cursor_up();
+        assert_eq!(state.cursor_position(), (0, 0));
+    }
+
+    #[test]
+    fn test_move_cursor_down_at_last_line() {
+        let mut state = TextEditorState::new();
+        state.set_text("line1\nline2");
+        state.cursor_line = 1;
+
+        // Move down at last line should do nothing
+        state.move_cursor_down();
+        assert_eq!(state.cursor_position(), (1, 0));
+    }
+
+    #[test]
+    fn test_scroll_with_zero_visible_lines() {
+        let mut state = TextEditorState::new();
+        state.set_text("1\n2\n3\n4\n5");
+        state.cursor_line = 2;
+
+        state.update_scroll(0);
+        // With zero visible lines, scroll should be 0
+        assert_eq!(state.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_scroll_boundary_top() {
+        let mut state = TextEditorState::new();
+        state.set_text("1\n2\n3\n4\n5");
+        state.scroll_offset = 2;
+        state.cursor_line = 0;
+
+        state.update_scroll(3);
+        // Cursor at top should reset scroll to 0
+        assert_eq!(state.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_focus_state_toggle() {
+        let mut state = TextEditorState::new();
+        assert!(!state.is_focused());
+
+        state.set_focused(true);
+        assert!(state.is_focused());
+
+        state.set_focused(false);
+        assert!(!state.is_focused());
+    }
+
+    #[test]
+    fn test_max_lines_none() {
+        let mut state = TextEditorState::new();
+        state.set_max_lines(None);
+
+        // Should allow unlimited lines
+        for _ in 0..100 {
+            state.insert_char('a');
+            state.insert_char('\n');
+        }
+
+        assert!(state.line_count() > 10);
+    }
+
+    #[test]
+    fn test_line_count_empty() {
+        let state = TextEditorState::new();
+        assert_eq!(state.line_count(), 1); // Empty editor has 1 line
+    }
+
+    #[test]
+    fn test_is_empty_after_operations() {
+        let mut state = TextEditorState::new();
+        assert!(state.is_empty());
+
+        state.insert_char('a');
+        assert!(!state.is_empty());
+
+        state.delete_char();
+        assert!(state.is_empty());
+    }
+
+    #[test]
+    fn test_text_editor_new() {
+        let editor = TextEditor::new();
+        assert_eq!(editor.placeholder, Some("Enter text..."));
+        assert!(editor.block.is_some());
+        assert!(!editor.show_line_numbers);
+        assert!(editor.wrap);
+    }
+
+    #[test]
+    fn test_text_editor_default() {
+        let editor = TextEditor::default();
+        // Default calls new(), so should have same values
+        assert_eq!(editor.placeholder, Some("Enter text..."));
+        assert!(editor.block.is_some());
+    }
+
+    #[test]
+    fn test_text_editor_placeholder() {
+        let editor = TextEditor::new().placeholder("Enter text here");
+        assert_eq!(editor.placeholder, Some("Enter text here"));
+    }
+
+    #[test]
+    fn test_text_editor_block() {
+        let block = Block::default().title("Title");
+        let editor = TextEditor::new().block(block);
+        assert!(editor.block.is_some());
+    }
+
+    #[test]
+    fn test_text_editor_style() {
+        let style = Style::default().fg(Color::Blue);
+        let editor = TextEditor::new().style(style);
+        assert_eq!(editor.style.fg, Some(Color::Blue));
+    }
+
+    #[test]
+    fn test_text_editor_focused_style() {
+        let style = Style::default().fg(Color::Yellow);
+        let editor = TextEditor::new().focused_style(style);
+        assert_eq!(editor.focused_style.fg, Some(Color::Yellow));
+    }
+
+    #[test]
+    fn test_text_editor_show_line_numbers() {
+        let editor = TextEditor::new().show_line_numbers(true);
+        assert!(editor.show_line_numbers);
+
+        let editor = TextEditor::new().show_line_numbers(false);
+        assert!(!editor.show_line_numbers);
+    }
+
+    #[test]
+    fn test_text_editor_wrap() {
+        let editor = TextEditor::new().wrap(false);
+        assert!(!editor.wrap);
+
+        let editor = TextEditor::new().wrap(true);
+        assert!(editor.wrap);
+    }
+
+    #[test]
+    fn test_text_editor_builder_chain() {
+        let block = Block::default().title("Editor");
+        let style = Style::default().fg(Color::Green);
+        let focused_style = Style::default().fg(Color::Yellow);
+
+        let editor = TextEditor::new()
+            .placeholder("Type here")
+            .block(block)
+            .style(style)
+            .focused_style(focused_style)
+            .show_line_numbers(true)
+            .wrap(false);
+
+        assert_eq!(editor.placeholder, Some("Type here"));
+        assert!(editor.block.is_some());
+        assert_eq!(editor.style.fg, Some(Color::Green));
+        assert_eq!(editor.focused_style.fg, Some(Color::Yellow));
+        assert!(editor.show_line_numbers);
+        assert!(!editor.wrap);
+    }
 }
