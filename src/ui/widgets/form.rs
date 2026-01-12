@@ -1075,4 +1075,142 @@ mod tests {
         field.value = "100".to_string();
         assert!(field.validate());
     }
+
+    #[test]
+    fn test_validation_rule_clone() {
+        let rule1 = ValidationRule::Required;
+        let rule2 = rule1.clone();
+        assert_eq!(rule1, rule2);
+
+        let rule3 = ValidationRule::Enum(vec!["a".to_string(), "b".to_string()]);
+        let rule4 = rule3.clone();
+        assert_eq!(rule3, rule4);
+    }
+
+    #[test]
+    fn test_validation_rule_eq() {
+        assert_eq!(ValidationRule::Required, ValidationRule::Required);
+        assert_eq!(ValidationRule::PositiveInteger, ValidationRule::PositiveInteger);
+        assert_ne!(ValidationRule::Required, ValidationRule::PositiveInteger);
+        
+        let enum1 = ValidationRule::Enum(vec!["a".to_string()]);
+        let enum2 = ValidationRule::Enum(vec!["a".to_string()]);
+        let enum3 = ValidationRule::Enum(vec!["b".to_string()]);
+        assert_eq!(enum1, enum2);
+        assert_ne!(enum1, enum3);
+    }
+
+    #[test]
+    fn test_field_type_clone() {
+        let ft1 = FieldType::Text;
+        let ft2 = ft1.clone();
+        assert_eq!(ft1, ft2);
+    }
+
+    #[test]
+    fn test_field_type_eq() {
+        assert_eq!(FieldType::Text, FieldType::Text);
+        assert_eq!(FieldType::Password, FieldType::Password);
+        assert_eq!(FieldType::TextArea, FieldType::TextArea);
+        assert_eq!(FieldType::Selector, FieldType::Selector);
+        assert_eq!(FieldType::ReadOnly, FieldType::ReadOnly);
+        assert_ne!(FieldType::Text, FieldType::Password);
+    }
+
+    #[test]
+    fn test_form_field_text_area() {
+        let field = FormField::text_area("description", "Description");
+        assert_eq!(field.id, "description");
+        assert_eq!(field.label, "Description");
+        assert_eq!(field.field_type, FieldType::TextArea);
+        assert_eq!(field.value, "");
+    }
+
+    #[test]
+    fn test_form_field_selector() {
+        let options = vec!["open".to_string(), "closed".to_string()];
+        let field = FormField::selector("status", "Status", options.clone());
+        assert_eq!(field.id, "status");
+        assert_eq!(field.label, "Status");
+        assert_eq!(field.field_type, FieldType::Selector);
+        assert_eq!(field.options, options);
+    }
+
+    #[test]
+    fn test_form_field_read_only() {
+        let field = FormField::read_only("id", "ID", "beads-1234-5678");
+        assert_eq!(field.id, "id");
+        assert_eq!(field.label, "ID");
+        assert_eq!(field.field_type, FieldType::ReadOnly);
+        assert_eq!(field.value, "beads-1234-5678");
+    }
+
+    #[test]
+    fn test_form_field_placeholder() {
+        let field = FormField::text("title", "Title").placeholder("Enter title...");
+        assert_eq!(field.placeholder, Some("Enter title...".to_string()));
+    }
+
+    #[test]
+    fn test_form_field_value() {
+        let field = FormField::text("title", "Title").value("Initial Value");
+        assert_eq!(field.value, "Initial Value");
+    }
+
+    #[test]
+    fn test_form_field_clone() {
+        let field = FormField::text("title", "Title")
+            .required()
+            .placeholder("Enter title...")
+            .value("Test");
+        
+        let cloned = field.clone();
+        assert_eq!(cloned.id, field.id);
+        assert_eq!(cloned.label, field.label);
+        assert_eq!(cloned.field_type, field.field_type);
+        assert_eq!(cloned.value, field.value);
+        assert_eq!(cloned.required, field.required);
+        assert_eq!(cloned.placeholder, field.placeholder);
+    }
+
+    #[test]
+    fn test_form_field_builder_chain() {
+        let field = FormField::text("estimate", "Estimate")
+            .required()
+            .placeholder("Enter hours")
+            .value("10")
+            .with_validation(ValidationRule::PositiveInteger);
+        
+        assert!(field.required);
+        assert_eq!(field.placeholder, Some("Enter hours".to_string()));
+        assert_eq!(field.value, "10");
+        assert_eq!(field.validation_rules.len(), 1);
+    }
+
+    #[test]
+    fn test_form_state_empty_fields() {
+        let state = FormState::new(vec![]);
+        assert_eq!(state.fields.len(), 0);
+        assert_eq!(state.focused_index, 0);
+    }
+
+    #[test]
+    fn test_form_state_single_field() {
+        let fields = vec![FormField::text("title", "Title")];
+        let mut state = FormState::new(fields);
+        assert_eq!(state.focused_index(), 0);
+
+        state.focus_next();
+        assert_eq!(state.focused_index(), 0); // Can't go beyond last
+
+        state.focus_previous();
+        assert_eq!(state.focused_index(), 0); // Can't go below first
+    }
+
+    #[test]
+    fn test_form_state_get_value_nonexistent() {
+        let fields = vec![FormField::text("title", "Title")];
+        let state = FormState::new(fields);
+        assert_eq!(state.get_value("nonexistent"), None);
+    }
 }
