@@ -32,6 +32,8 @@ pub enum ValidationRule {
 pub enum FieldType {
     /// Single-line text input
     Text,
+    /// Password input (masked)
+    Password,
     /// Multi-line text area
     TextArea,
     /// Dropdown selector
@@ -72,6 +74,22 @@ impl FormField {
             id: id.into(),
             label: label.into(),
             field_type: FieldType::Text,
+            value: String::new(),
+            required: false,
+            error: None,
+            placeholder: None,
+            options: Vec::new(),
+            validation_rules: Vec::new(),
+            loaded_from_file: None,
+        }
+    }
+
+    /// Create a new password field (input is masked)
+    pub fn password<S: Into<String>>(id: S, label: S) -> Self {
+        Self {
+            id: id.into(),
+            label: label.into(),
+            field_type: FieldType::Password,
             value: String::new(),
             required: false,
             error: None,
@@ -687,6 +705,10 @@ impl<'a> StatefulWidget for Form<'a> {
                 } else {
                     vec![Line::from("")]
                 }
+            } else if field.field_type == FieldType::Password {
+                // Mask password fields with asterisks
+                let masked = "*".repeat(field.value.len());
+                vec![Line::from(masked)]
             } else {
                 field
                     .value
