@@ -732,4 +732,199 @@ mod tests {
         state.check_notification_timeout();
         assert!(state.notification.is_none());
     }
+
+    // === New comprehensive tests ===
+
+    #[test]
+    fn test_notification_type_debug() {
+        let nt = NotificationType::Error;
+        let debug = format!("{:?}", nt);
+        assert!(debug.contains("Error"));
+
+        let nt2 = NotificationType::Success;
+        let debug2 = format!("{:?}", nt2);
+        assert!(debug2.contains("Success"));
+    }
+
+    #[test]
+    fn test_notification_message_debug() {
+        let msg = NotificationMessage {
+            message: "Test".to_string(),
+            notification_type: NotificationType::Info,
+            created_at: std::time::Instant::now(),
+        };
+        let debug = format!("{:?}", msg);
+        assert!(debug.contains("NotificationMessage"));
+        assert!(debug.contains("Test"));
+    }
+
+    #[test]
+    fn test_app_state_debug() {
+        let state = create_test_app_state();
+        let debug = format!("{:?}", state);
+        assert!(debug.contains("AppState"));
+    }
+
+    #[test]
+    fn test_notification_created_at_timestamp() {
+        let mut state = create_test_app_state();
+        let before = std::time::Instant::now();
+
+        state.set_info("Test".to_string());
+
+        let after = std::time::Instant::now();
+        let notification = state.notification.as_ref().unwrap();
+        assert!(notification.created_at >= before);
+        assert!(notification.created_at <= after);
+    }
+
+    #[test]
+    fn test_check_notification_timeout_info_auto_dismiss() {
+        let mut state = create_test_app_state();
+        
+        // Create an info notification with a timestamp in the past
+        state.notification = Some(NotificationMessage {
+            message: "Old info".to_string(),
+            notification_type: NotificationType::Info,
+            created_at: std::time::Instant::now() - std::time::Duration::from_secs(4),
+        });
+
+        state.check_notification_timeout();
+        assert!(state.notification.is_none());
+    }
+
+    #[test]
+    fn test_check_notification_timeout_success_auto_dismiss() {
+        let mut state = create_test_app_state();
+        
+        // Create a success notification with a timestamp in the past
+        state.notification = Some(NotificationMessage {
+            message: "Old success".to_string(),
+            notification_type: NotificationType::Success,
+            created_at: std::time::Instant::now() - std::time::Duration::from_secs(4),
+        });
+
+        state.check_notification_timeout();
+        assert!(state.notification.is_none());
+    }
+
+    #[test]
+    fn test_check_notification_timeout_error_no_auto_dismiss() {
+        let mut state = create_test_app_state();
+        
+        // Create an error notification with a timestamp in the past
+        state.notification = Some(NotificationMessage {
+            message: "Old error".to_string(),
+            notification_type: NotificationType::Error,
+            created_at: std::time::Instant::now() - std::time::Duration::from_secs(10),
+        });
+
+        state.check_notification_timeout();
+        assert!(state.notification.is_some()); // Should not be auto-dismissed
+    }
+
+    #[test]
+    fn test_check_notification_timeout_warning_no_auto_dismiss() {
+        let mut state = create_test_app_state();
+        
+        // Create a warning notification with a timestamp in the past
+        state.notification = Some(NotificationMessage {
+            message: "Old warning".to_string(),
+            notification_type: NotificationType::Warning,
+            created_at: std::time::Instant::now() - std::time::Duration::from_secs(10),
+        });
+
+        state.check_notification_timeout();
+        assert!(state.notification.is_some()); // Should not be auto-dismissed
+    }
+
+    #[test]
+    fn test_check_notification_timeout_info_recent_not_dismissed() {
+        let mut state = create_test_app_state();
+        
+        // Create a recent info notification
+        state.notification = Some(NotificationMessage {
+            message: "Recent info".to_string(),
+            notification_type: NotificationType::Info,
+            created_at: std::time::Instant::now(),
+        });
+
+        state.check_notification_timeout();
+        assert!(state.notification.is_some()); // Should not be dismissed yet
+    }
+
+    #[test]
+    fn test_toggle_perf_stats_twice() {
+        let mut state = create_test_app_state();
+        
+        state.toggle_perf_stats();
+        assert!(state.show_perf_stats);
+        
+        state.toggle_perf_stats();
+        assert!(!state.show_perf_stats);
+    }
+
+    #[test]
+    fn test_tabs_count() {
+        let state = create_test_app_state();
+        assert_eq!(state.tabs.len(), 5);
+        assert_eq!(state.tabs[0], "Issues");
+        assert_eq!(state.tabs[1], "Dependencies");
+        assert_eq!(state.tabs[2], "Labels");
+        assert_eq!(state.tabs[3], "Database");
+        assert_eq!(state.tabs[4], "Help");
+    }
+
+    #[test]
+    fn test_initial_state_defaults() {
+        let state = create_test_app_state();
+        assert_eq!(state.should_quit, false);
+        assert_eq!(state.selected_tab, 0);
+        assert!(!state.is_dirty());
+        assert!(!state.show_perf_stats);
+        assert_eq!(state.help_section, HelpSection::Global);
+        assert!(state.dialog_state.is_none());
+        assert!(state.pending_action.is_none());
+        assert!(state.notification.is_none());
+        assert!(!state.daemon_running);
+    }
+
+    #[test]
+    fn test_mark_dirty_idempotent() {
+        let mut state = create_test_app_state();
+        state.dirty = false;
+        
+        state.mark_dirty();
+        assert!(state.is_dirty());
+        
+        state.mark_dirty();
+        assert!(state.is_dirty());
+    }
+
+    #[test]
+    fn test_clear_dirty_idempotent() {
+        let mut state = create_test_app_state();
+        state.dirty = true;
+        
+        state.clear_dirty();
+        assert!(!state.is_dirty());
+        
+        state.clear_dirty();
+        assert!(!state.is_dirty());
+    }
+
+    #[test]
+    fn test_notification_type_all_variants() {
+        let variants = vec![
+            NotificationType::Error,
+            NotificationType::Success,
+            NotificationType::Info,
+            NotificationType::Warning,
+        ];
+        
+        for variant in &variants {
+            let debug = format!("{:?}", variant);
+            assert!(!debug.is_empty());
+        }
+    }
 }
