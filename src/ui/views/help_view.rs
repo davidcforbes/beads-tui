@@ -588,4 +588,197 @@ mod tests {
             view.render_about().len()
         );
     }
+
+    #[test]
+    fn test_help_section_clone() {
+        let section = HelpSection::Issues;
+        let cloned = section.clone();
+        assert_eq!(section, cloned);
+    }
+
+    #[test]
+    fn test_help_section_copy() {
+        let section = HelpSection::Labels;
+        let copied = section;
+        assert_eq!(section, copied);
+    }
+
+    #[test]
+    fn test_help_section_all_clone() {
+        for section in HelpSection::all() {
+            let cloned = section.clone();
+            assert_eq!(section, cloned);
+        }
+    }
+
+    #[test]
+    fn test_help_section_display_name_all_sections() {
+        for section in HelpSection::all() {
+            let name = section.display_name();
+            assert!(!name.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_render_global_help_has_title() {
+        let view = HelpView::new();
+        let lines = view.render_global_help();
+        assert!(lines.len() >= 1);
+        // First line should be the title
+        let title_line = &lines[0];
+        assert!(title_line.spans.iter().any(|s| s.content.contains("Global")));
+    }
+
+    #[test]
+    fn test_render_issues_help_has_title() {
+        let view = HelpView::new();
+        let lines = view.render_issues_help();
+        assert!(lines.len() >= 1);
+        let title_line = &lines[0];
+        assert!(title_line.spans.iter().any(|s| s.content.contains("Issues")));
+    }
+
+    #[test]
+    fn test_render_dependencies_help_has_title() {
+        let view = HelpView::new();
+        let lines = view.render_dependencies_help();
+        assert!(lines.len() >= 1);
+        let title_line = &lines[0];
+        assert!(title_line.spans.iter().any(|s| s.content.contains("Dependencies")));
+    }
+
+    #[test]
+    fn test_render_labels_help_has_title() {
+        let view = HelpView::new();
+        let lines = view.render_labels_help();
+        assert!(lines.len() >= 1);
+        let title_line = &lines[0];
+        assert!(title_line.spans.iter().any(|s| s.content.contains("Labels")));
+    }
+
+    #[test]
+    fn test_render_database_help_has_title() {
+        let view = HelpView::new();
+        let lines = view.render_database_help();
+        assert!(lines.len() >= 1);
+        let title_line = &lines[0];
+        assert!(title_line.spans.iter().any(|s| s.content.contains("Database")));
+    }
+
+    #[test]
+    fn test_render_about_has_version() {
+        let view = HelpView::new();
+        let lines = view.render_about();
+        let content_str = lines
+            .iter()
+            .flat_map(|line| line.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<String>();
+        assert!(content_str.contains("Version"));
+    }
+
+    #[test]
+    fn test_render_about_has_description() {
+        let view = HelpView::new();
+        let lines = view.render_about();
+        let content_str = lines
+            .iter()
+            .flat_map(|line| line.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<String>();
+        assert!(content_str.contains("Description"));
+    }
+
+    #[test]
+    fn test_render_about_has_repository() {
+        let view = HelpView::new();
+        let lines = view.render_about();
+        let content_str = lines
+            .iter()
+            .flat_map(|line| line.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<String>();
+        assert!(content_str.contains("Repository"));
+    }
+
+    #[test]
+    fn test_render_about_has_license() {
+        let view = HelpView::new();
+        let lines = view.render_about();
+        let content_str = lines
+            .iter()
+            .flat_map(|line| line.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<String>();
+        assert!(content_str.contains("License"));
+    }
+
+    #[test]
+    fn test_render_about_has_author() {
+        let view = HelpView::new();
+        let lines = view.render_about();
+        let content_str = lines
+            .iter()
+            .flat_map(|line| line.spans.iter().map(|s| s.content.as_ref()))
+            .collect::<String>();
+        assert!(content_str.contains("Author"));
+    }
+
+    #[test]
+    fn test_help_view_builder_multiple_chains() {
+        let style1 = Style::default().fg(Color::Red);
+        let style2 = Style::default().fg(Color::Blue);
+
+        let view1 = HelpView::new()
+            .selected_section(HelpSection::Issues)
+            .block_style(style1);
+
+        let view2 = HelpView::new()
+            .block_style(style2)
+            .selected_section(HelpSection::About);
+
+        assert_eq!(view1.selected_section, HelpSection::Issues);
+        assert_eq!(view1.block_style, style1);
+
+        assert_eq!(view2.selected_section, HelpSection::About);
+        assert_eq!(view2.block_style, style2);
+    }
+
+    #[test]
+    fn test_help_view_default_block_style() {
+        let view = HelpView::new();
+        assert_eq!(view.block_style.fg, Some(Color::Cyan));
+    }
+
+    #[test]
+    fn test_help_section_all_no_duplicates() {
+        let sections = HelpSection::all();
+        for (i, section1) in sections.iter().enumerate() {
+            for (j, section2) in sections.iter().enumerate() {
+                if i != j {
+                    assert_ne!(section1, section2);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_get_section_content_all_sections_non_empty() {
+        let view = HelpView::new();
+        for section in HelpSection::all() {
+            let content = view.get_section_content(section);
+            assert!(!content.is_empty(), "Section {:?} should have content", section);
+        }
+    }
+
+    #[test]
+    fn test_help_section_copy_trait() {
+        fn takes_copy<T: Copy>(_: T) {}
+        takes_copy(HelpSection::Global);
+    }
+
+    #[test]
+    fn test_help_view_selected_section_changes() {
+        let view1 = HelpView::new();
+        assert_eq!(view1.selected_section, HelpSection::Global);
+
+        let view2 = view1.selected_section(HelpSection::Dependencies);
+        assert_eq!(view2.selected_section, HelpSection::Dependencies);
+    }
 }
