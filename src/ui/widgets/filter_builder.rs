@@ -624,4 +624,292 @@ mod tests {
         assert!(state.criteria().statuses.contains(&IssueStatus::Open));
         assert!(state.criteria().priorities.contains(&Priority::P1));
     }
+
+    #[test]
+    fn test_filter_builder_state_default() {
+        let state = FilterBuilderState::default();
+        assert_eq!(state.section(), FilterSection::Status);
+        assert_eq!(state.selected(), Some(0));
+    }
+
+    #[test]
+    fn test_filter_builder_state_criteria_mut() {
+        let mut state = FilterBuilderState::new();
+        
+        state.criteria_mut().add_status(IssueStatus::Open);
+        assert!(state.criteria().statuses.contains(&IssueStatus::Open));
+    }
+
+    #[test]
+    fn test_select_next_wraparound_priority_section() {
+        let mut state = FilterBuilderState::new();
+        state.set_section(FilterSection::Priority);
+        
+        // Priority has 5 items (P0-P4)
+        state.list_state.select(Some(4));
+        state.select_next();
+        assert_eq!(state.selected(), Some(0)); // Wraps to beginning
+    }
+
+    #[test]
+    fn test_select_next_wraparound_type_section() {
+        let mut state = FilterBuilderState::new();
+        state.set_section(FilterSection::Type);
+        
+        // Type has 5 items
+        state.list_state.select(Some(4));
+        state.select_next();
+        assert_eq!(state.selected(), Some(0)); // Wraps to beginning
+    }
+
+    #[test]
+    fn test_select_previous_wraparound_priority_section() {
+        let mut state = FilterBuilderState::new();
+        state.set_section(FilterSection::Priority);
+        
+        state.list_state.select(Some(0));
+        state.select_previous();
+        assert_eq!(state.selected(), Some(4)); // Wraps to end
+    }
+
+    #[test]
+    fn test_section_item_count_status() {
+        let state = FilterBuilderState::new();
+        assert_eq!(state.section_item_count(), 4);
+    }
+
+    #[test]
+    fn test_section_item_count_priority() {
+        let mut state = FilterBuilderState::new();
+        state.set_section(FilterSection::Priority);
+        assert_eq!(state.section_item_count(), 5);
+    }
+
+    #[test]
+    fn test_section_item_count_type() {
+        let mut state = FilterBuilderState::new();
+        state.set_section(FilterSection::Type);
+        assert_eq!(state.section_item_count(), 5);
+    }
+
+    #[test]
+    fn test_section_item_count_labels_empty() {
+        let mut state = FilterBuilderState::new();
+        state.set_section(FilterSection::Labels);
+        assert_eq!(state.section_item_count(), 0);
+    }
+
+    #[test]
+    fn test_section_item_count_labels_with_items() {
+        let mut state = FilterBuilderState::new();
+        state.criteria_mut().add_label("bug".to_string());
+        state.criteria_mut().add_label("urgent".to_string());
+        state.set_section(FilterSection::Labels);
+        assert_eq!(state.section_item_count(), 2);
+    }
+
+    #[test]
+    fn test_toggle_selected_labels_section_does_nothing() {
+        let mut state = FilterBuilderState::new();
+        state.set_section(FilterSection::Labels);
+        state.list_state.select(Some(0));
+        
+        let before_count = state.criteria().labels.len();
+        state.toggle_selected();
+        let after_count = state.criteria().labels.len();
+        
+        assert_eq!(before_count, after_count);
+    }
+
+    #[test]
+    fn test_toggle_selected_with_no_selection() {
+        let mut state = FilterBuilderState::new();
+        state.list_state.select(None);
+        
+        state.toggle_selected();
+        // Should not panic, just do nothing
+        assert!(state.criteria().statuses.is_empty());
+    }
+
+    #[test]
+    fn test_clear_section_priority() {
+        let mut state = FilterBuilderState::new();
+        state.criteria_mut().add_priority(Priority::P0);
+        state.criteria_mut().add_priority(Priority::P1);
+        state.criteria_mut().add_status(IssueStatus::Open);
+        
+        state.set_section(FilterSection::Priority);
+        state.clear_section();
+        
+        assert!(state.criteria().priorities.is_empty());
+        assert!(!state.criteria().statuses.is_empty()); // Other sections unchanged
+    }
+
+    #[test]
+    fn test_clear_section_type() {
+        let mut state = FilterBuilderState::new();
+        state.criteria_mut().add_type(IssueType::Bug);
+        state.criteria_mut().add_type(IssueType::Feature);
+        
+        state.set_section(FilterSection::Type);
+        state.clear_section();
+        
+        assert!(state.criteria().types.is_empty());
+    }
+
+    #[test]
+    fn test_clear_section_labels() {
+        let mut state = FilterBuilderState::new();
+        state.criteria_mut().add_label("bug".to_string());
+        state.criteria_mut().add_label("urgent".to_string());
+        
+        state.set_section(FilterSection::Labels);
+        state.clear_section();
+        
+        assert!(state.criteria().labels.is_empty());
+    }
+
+    #[test]
+    fn test_filter_builder_new() {
+        let builder = FilterBuilder::new();
+        assert_eq!(builder.title, "Filter Builder");
+        assert!(builder.show_help);
+    }
+
+    #[test]
+    fn test_filter_builder_default() {
+        let builder = FilterBuilder::default();
+        assert_eq!(builder.title, "Filter Builder");
+        assert!(builder.show_help);
+    }
+
+    #[test]
+    fn test_filter_builder_title() {
+        let builder = FilterBuilder::new().title("Custom Title");
+        assert_eq!(builder.title, "Custom Title");
+    }
+
+    #[test]
+    fn test_filter_builder_show_help() {
+        let builder = FilterBuilder::new().show_help(false);
+        assert!(!builder.show_help);
+    }
+
+    #[test]
+    fn test_filter_builder_style() {
+        let style = Style::default().fg(Color::Red);
+        let builder = FilterBuilder::new().style(style);
+        assert_eq!(builder.style.fg, Some(Color::Red));
+    }
+
+    #[test]
+    fn test_filter_builder_selected_style() {
+        let style = Style::default().bg(Color::Blue);
+        let builder = FilterBuilder::new().selected_style(style);
+        assert_eq!(builder.selected_style.bg, Some(Color::Blue));
+    }
+
+    #[test]
+    fn test_filter_builder_active_style() {
+        let style = Style::default().fg(Color::Yellow);
+        let builder = FilterBuilder::new().active_style(style);
+        assert_eq!(builder.active_style.fg, Some(Color::Yellow));
+    }
+
+    #[test]
+    fn test_filter_builder_builder_chain() {
+        let style = Style::default().fg(Color::Magenta);
+        let selected = Style::default().bg(Color::Green);
+        let active = Style::default().fg(Color::White);
+        
+        let builder = FilterBuilder::new()
+            .title("My Filters")
+            .show_help(false)
+            .style(style)
+            .selected_style(selected)
+            .active_style(active);
+        
+        assert_eq!(builder.title, "My Filters");
+        assert!(!builder.show_help);
+        assert_eq!(builder.style.fg, Some(Color::Magenta));
+        assert_eq!(builder.selected_style.bg, Some(Color::Green));
+        assert_eq!(builder.active_style.fg, Some(Color::White));
+    }
+
+    #[test]
+    fn test_status_color_all_statuses() {
+        assert_eq!(FilterBuilder::status_color(&IssueStatus::Open), Color::Green);
+        assert_eq!(FilterBuilder::status_color(&IssueStatus::InProgress), Color::Cyan);
+        assert_eq!(FilterBuilder::status_color(&IssueStatus::Blocked), Color::Red);
+        assert_eq!(FilterBuilder::status_color(&IssueStatus::Closed), Color::Gray);
+    }
+
+    #[test]
+    fn test_priority_color_all_priorities() {
+        assert_eq!(FilterBuilder::priority_color(&Priority::P0), Color::Red);
+        assert_eq!(FilterBuilder::priority_color(&Priority::P1), Color::LightRed);
+        assert_eq!(FilterBuilder::priority_color(&Priority::P2), Color::Yellow);
+        assert_eq!(FilterBuilder::priority_color(&Priority::P3), Color::Blue);
+        assert_eq!(FilterBuilder::priority_color(&Priority::P4), Color::Gray);
+    }
+
+    #[test]
+    fn test_type_symbol_all_types() {
+        assert_eq!(FilterBuilder::type_symbol(&IssueType::Bug), "🐛");
+        assert_eq!(FilterBuilder::type_symbol(&IssueType::Feature), "✨");
+        assert_eq!(FilterBuilder::type_symbol(&IssueType::Task), "📋");
+        assert_eq!(FilterBuilder::type_symbol(&IssueType::Epic), "🎯");
+        assert_eq!(FilterBuilder::type_symbol(&IssueType::Chore), "🔧");
+    }
+
+    #[test]
+    fn test_toggle_multiple_statuses() {
+        let mut state = FilterBuilderState::new();
+        state.set_section(FilterSection::Status);
+        
+        // Toggle Open (index 0)
+        state.list_state.select(Some(0));
+        state.toggle_selected();
+        assert!(state.criteria().statuses.contains(&IssueStatus::Open));
+        
+        // Toggle InProgress (index 1)
+        state.list_state.select(Some(1));
+        state.toggle_selected();
+        assert!(state.criteria().statuses.contains(&IssueStatus::InProgress));
+        
+        // Both should be active
+        assert_eq!(state.criteria().statuses.len(), 2);
+    }
+
+    #[test]
+    fn test_toggle_multiple_priorities() {
+        let mut state = FilterBuilderState::new();
+        state.set_section(FilterSection::Priority);
+        
+        state.list_state.select(Some(0)); // P0
+        state.toggle_selected();
+        
+        state.list_state.select(Some(2)); // P2
+        state.toggle_selected();
+        
+        assert_eq!(state.criteria().priorities.len(), 2);
+        assert!(state.criteria().priorities.contains(&Priority::P0));
+        assert!(state.criteria().priorities.contains(&Priority::P2));
+    }
+
+    #[test]
+    fn test_toggle_multiple_types() {
+        let mut state = FilterBuilderState::new();
+        state.set_section(FilterSection::Type);
+        
+        state.list_state.select(Some(0)); // Epic
+        state.toggle_selected();
+        
+        state.list_state.select(Some(3)); // Bug
+        state.toggle_selected();
+        
+        assert_eq!(state.criteria().types.len(), 2);
+        assert!(state.criteria().types.contains(&IssueType::Epic));
+        assert!(state.criteria().types.contains(&IssueType::Bug));
+    }
 }
