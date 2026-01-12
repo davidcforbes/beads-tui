@@ -1123,7 +1123,21 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             } else {
                 Style::default().fg(Color::White)
             };
-            ListItem::new(format!(" {} {} ", i + 1, name)).style(style)
+
+            // Add issue count for Issues tab (index 0)
+            let label = if i == 0 {
+                let filtered_count = app.issues_view_state.search_state().filtered_issues().len();
+                let total_count = app.database_stats.total_issues;
+                if filtered_count < total_count {
+                    format!(" {} {} ({}/{}) ", i + 1, name, filtered_count, total_count)
+                } else {
+                    format!(" {} {} ({}) ", i + 1, name, total_count)
+                }
+            } else {
+                format!(" {} {} ", i + 1, name)
+            };
+
+            ListItem::new(label).style(style)
         })
         .collect();
 
