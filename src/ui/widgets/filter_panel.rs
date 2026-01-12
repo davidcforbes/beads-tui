@@ -587,4 +587,233 @@ mod tests {
         criteria.is_blocked = None;
         assert!(!criteria.is_active());
     }
+
+    #[test]
+    fn test_filter_criteria_default() {
+        let criteria = FilterCriteria::default();
+        assert!(!criteria.is_active());
+        assert!(criteria.statuses.is_empty());
+        assert!(criteria.priorities.is_empty());
+        assert!(criteria.types.is_empty());
+        assert!(criteria.labels.is_empty());
+        assert!(criteria.assignee.is_none());
+        assert!(criteria.search_query.is_none());
+        assert!(criteria.has_dependencies.is_none());
+        assert!(criteria.is_blocked.is_none());
+    }
+
+    #[test]
+    fn test_filter_criteria_clone() {
+        let mut criteria = FilterCriteria::new();
+        criteria.add_status(IssueStatus::Open);
+        criteria.add_label("test");
+        
+        let cloned = criteria.clone();
+        assert_eq!(cloned.statuses, criteria.statuses);
+        assert_eq!(cloned.labels, criteria.labels);
+    }
+
+    #[test]
+    fn test_remove_status_from_empty() {
+        let mut criteria = FilterCriteria::new();
+        criteria.remove_status(&IssueStatus::Open);
+        assert!(criteria.statuses.is_empty());
+    }
+
+    #[test]
+    fn test_remove_priority_from_empty() {
+        let mut criteria = FilterCriteria::new();
+        criteria.remove_priority(&Priority::P0);
+        assert!(criteria.priorities.is_empty());
+    }
+
+    #[test]
+    fn test_remove_type_from_empty() {
+        let mut criteria = FilterCriteria::new();
+        criteria.remove_type(&IssueType::Bug);
+        assert!(criteria.types.is_empty());
+    }
+
+    #[test]
+    fn test_remove_label_from_empty() {
+        let mut criteria = FilterCriteria::new();
+        criteria.remove_label("nonexistent");
+        assert!(criteria.labels.is_empty());
+    }
+
+    #[test]
+    fn test_multiple_statuses() {
+        let mut criteria = FilterCriteria::new();
+        criteria.add_status(IssueStatus::Open);
+        criteria.add_status(IssueStatus::InProgress);
+        criteria.add_status(IssueStatus::Blocked);
+        
+        assert_eq!(criteria.statuses.len(), 3);
+        assert!(criteria.is_active());
+    }
+
+    #[test]
+    fn test_multiple_priorities() {
+        let mut criteria = FilterCriteria::new();
+        criteria.add_priority(Priority::P0);
+        criteria.add_priority(Priority::P1);
+        criteria.add_priority(Priority::P2);
+        
+        assert_eq!(criteria.priorities.len(), 3);
+        assert!(criteria.is_active());
+    }
+
+    #[test]
+    fn test_multiple_types() {
+        let mut criteria = FilterCriteria::new();
+        criteria.add_type(IssueType::Bug);
+        criteria.add_type(IssueType::Feature);
+        criteria.add_type(IssueType::Task);
+        
+        assert_eq!(criteria.types.len(), 3);
+        assert!(criteria.is_active());
+    }
+
+    #[test]
+    fn test_multiple_labels() {
+        let mut criteria = FilterCriteria::new();
+        criteria.add_label("bug");
+        criteria.add_label("urgent");
+        criteria.add_label("frontend");
+        
+        assert_eq!(criteria.labels.len(), 3);
+        assert!(criteria.is_active());
+    }
+
+    #[test]
+    fn test_is_active_with_only_search() {
+        let mut criteria = FilterCriteria::new();
+        criteria.set_search_query(Some("test"));
+        
+        assert!(criteria.is_active());
+    }
+
+    #[test]
+    fn test_is_active_with_only_assignee() {
+        let mut criteria = FilterCriteria::new();
+        criteria.set_assignee(Some("john"));
+        
+        assert!(criteria.is_active());
+    }
+
+    #[test]
+    fn test_is_active_with_has_dependencies_true() {
+        let mut criteria = FilterCriteria::new();
+        criteria.has_dependencies = Some(true);
+        
+        assert!(criteria.is_active());
+    }
+
+    #[test]
+    fn test_is_active_with_has_dependencies_false() {
+        let mut criteria = FilterCriteria::new();
+        criteria.has_dependencies = Some(false);
+        
+        assert!(criteria.is_active());
+    }
+
+    #[test]
+    fn test_is_active_with_is_blocked_true() {
+        let mut criteria = FilterCriteria::new();
+        criteria.is_blocked = Some(true);
+        
+        assert!(criteria.is_active());
+    }
+
+    #[test]
+    fn test_is_active_with_is_blocked_false() {
+        let mut criteria = FilterCriteria::new();
+        criteria.is_blocked = Some(false);
+        
+        assert!(criteria.is_active());
+    }
+
+    #[test]
+    fn test_filter_panel_new() {
+        let criteria = FilterCriteria::new();
+        let panel = FilterPanel::new(&criteria);
+        
+        assert!(panel.result_count.is_none());
+        assert!(panel.show_empty_message);
+    }
+
+    #[test]
+    fn test_filter_panel_result_count() {
+        let criteria = FilterCriteria::new();
+        let panel = FilterPanel::new(&criteria).result_count(Some(42));
+        
+        assert_eq!(panel.result_count, Some(42));
+    }
+
+    #[test]
+    fn test_filter_panel_show_empty_message() {
+        let criteria = FilterCriteria::new();
+        let panel = FilterPanel::new(&criteria).show_empty_message(false);
+        
+        assert!(!panel.show_empty_message);
+    }
+
+    #[test]
+    fn test_filter_panel_builder_chain() {
+        let criteria = FilterCriteria::new();
+        let style = Style::default().fg(Color::Red);
+        let active_style = Style::default().fg(Color::Green);
+        
+        let panel = FilterPanel::new(&criteria)
+            .result_count(Some(10))
+            .show_empty_message(false)
+            .style(style)
+            .active_style(active_style);
+        
+        assert_eq!(panel.result_count, Some(10));
+        assert!(!panel.show_empty_message);
+        assert_eq!(panel.style.fg, Some(Color::Red));
+        assert_eq!(panel.active_style.fg, Some(Color::Green));
+    }
+
+    #[test]
+    fn test_status_color_mapping() {
+        assert_eq!(FilterPanel::status_color(&IssueStatus::Open), Color::Green);
+        assert_eq!(FilterPanel::status_color(&IssueStatus::InProgress), Color::Cyan);
+        assert_eq!(FilterPanel::status_color(&IssueStatus::Blocked), Color::Red);
+        assert_eq!(FilterPanel::status_color(&IssueStatus::Closed), Color::Gray);
+    }
+
+    #[test]
+    fn test_priority_color_mapping() {
+        assert_eq!(FilterPanel::priority_color(&Priority::P0), Color::Red);
+        assert_eq!(FilterPanel::priority_color(&Priority::P1), Color::LightRed);
+        assert_eq!(FilterPanel::priority_color(&Priority::P2), Color::Yellow);
+        assert_eq!(FilterPanel::priority_color(&Priority::P3), Color::Blue);
+        assert_eq!(FilterPanel::priority_color(&Priority::P4), Color::Gray);
+    }
+
+    #[test]
+    fn test_type_symbol_mapping() {
+        assert_eq!(FilterPanel::type_symbol(&IssueType::Bug), "🐛");
+        assert_eq!(FilterPanel::type_symbol(&IssueType::Feature), "✨");
+        assert_eq!(FilterPanel::type_symbol(&IssueType::Task), "📋");
+        assert_eq!(FilterPanel::type_symbol(&IssueType::Epic), "🎯");
+        assert_eq!(FilterPanel::type_symbol(&IssueType::Chore), "🔧");
+    }
+
+    #[test]
+    fn test_clear_with_boolean_filters() {
+        let mut criteria = FilterCriteria::new();
+        
+        criteria.has_dependencies = Some(true);
+        criteria.is_blocked = Some(false);
+        assert!(criteria.is_active());
+        
+        criteria.clear();
+        
+        assert!(criteria.has_dependencies.is_none());
+        assert!(criteria.is_blocked.is_none());
+        assert!(!criteria.is_active());
+    }
 }
