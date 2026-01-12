@@ -178,4 +178,270 @@ mod tests {
         let crumbs = nav.breadcrumbs();
         assert_eq!(crumbs, vec!["Home", "Issues", "beads-001"]);
     }
+
+    #[test]
+    fn test_view_display_issues() {
+        let view = View::Issues;
+        assert_eq!(view.to_string(), "Issues");
+    }
+
+    #[test]
+    fn test_view_display_issue_detail() {
+        let view = View::IssueDetail("beads-123".to_string());
+        assert_eq!(view.to_string(), "Issue: beads-123");
+    }
+
+    #[test]
+    fn test_view_display_dependencies() {
+        let view = View::Dependencies;
+        assert_eq!(view.to_string(), "Dependencies");
+    }
+
+    #[test]
+    fn test_view_display_dependency_graph() {
+        let view = View::DependencyGraph("beads-456".to_string());
+        assert_eq!(view.to_string(), "Dependency Graph: beads-456");
+    }
+
+    #[test]
+    fn test_view_display_labels() {
+        let view = View::Labels;
+        assert_eq!(view.to_string(), "Labels");
+    }
+
+    #[test]
+    fn test_view_display_database() {
+        let view = View::Database;
+        assert_eq!(view.to_string(), "Database");
+    }
+
+    #[test]
+    fn test_view_display_help() {
+        let view = View::Help;
+        assert_eq!(view.to_string(), "Help");
+    }
+
+    #[test]
+    fn test_view_display_settings() {
+        let view = View::Settings;
+        assert_eq!(view.to_string(), "Settings");
+    }
+
+    #[test]
+    fn test_navigation_history_new() {
+        let nav = NavigationHistory::new(25);
+        assert_eq!(nav.current(), &View::Issues);
+        assert_eq!(nav.max_history, 25);
+        assert_eq!(nav.current_index, 0);
+    }
+
+    #[test]
+    fn test_navigation_history_default() {
+        let nav = NavigationHistory::default();
+        assert_eq!(nav.current(), &View::Issues);
+        assert_eq!(nav.max_history, 50);
+    }
+
+    #[test]
+    fn test_push_truncates_forward_history() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::Labels);
+        nav.push(View::Help);
+        nav.back();
+        nav.back();
+
+        // At View::Issues, forward history has Labels and Help
+        assert_eq!(nav.current(), &View::Issues);
+        assert!(nav.can_go_forward());
+
+        // Push new view, should truncate forward history
+        nav.push(View::Dependencies);
+        assert_eq!(nav.current(), &View::Dependencies);
+        assert!(!nav.can_go_forward());
+    }
+
+    #[test]
+    fn test_push_maintains_max_history() {
+        let mut nav = NavigationHistory::new(3);
+
+        nav.push(View::Labels);
+        nav.push(View::Help);
+        nav.push(View::Settings);
+
+        // History should be [Issues, Labels, Help, Settings] but max is 3
+        // So it should drop Issues from the front
+        assert_eq!(nav.history.len(), 3);
+
+        // Go back twice to get to first item
+        nav.back();
+        nav.back();
+
+        // First item should be Labels (Issues was dropped)
+        assert_eq!(nav.current(), &View::Labels);
+    }
+
+    #[test]
+    fn test_back_at_start() {
+        let mut nav = NavigationHistory::new(10);
+        assert!(!nav.back());
+        assert_eq!(nav.current(), &View::Issues);
+    }
+
+    #[test]
+    fn test_forward_at_end() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::Labels);
+
+        assert!(!nav.forward());
+        assert_eq!(nav.current(), &View::Labels);
+    }
+
+    #[test]
+    fn test_multiple_back_forward() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::Labels);
+        nav.push(View::Help);
+        nav.push(View::Settings);
+
+        nav.back();
+        nav.back();
+        assert_eq!(nav.current(), &View::Labels);
+
+        nav.forward();
+        assert_eq!(nav.current(), &View::Help);
+    }
+
+    #[test]
+    fn test_breadcrumbs_dependencies() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::Dependencies);
+
+        let crumbs = nav.breadcrumbs();
+        assert_eq!(crumbs, vec!["Home", "Dependencies"]);
+    }
+
+    #[test]
+    fn test_breadcrumbs_dependency_graph() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::DependencyGraph("beads-789".to_string()));
+
+        let crumbs = nav.breadcrumbs();
+        assert_eq!(crumbs, vec!["Home", "Dependencies", "Graph: beads-789"]);
+    }
+
+    #[test]
+    fn test_breadcrumbs_labels() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::Labels);
+
+        let crumbs = nav.breadcrumbs();
+        assert_eq!(crumbs, vec!["Home", "Labels"]);
+    }
+
+    #[test]
+    fn test_breadcrumbs_database() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::Database);
+
+        let crumbs = nav.breadcrumbs();
+        assert_eq!(crumbs, vec!["Home", "Database"]);
+    }
+
+    #[test]
+    fn test_breadcrumbs_help() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::Help);
+
+        let crumbs = nav.breadcrumbs();
+        assert_eq!(crumbs, vec!["Home", "Help"]);
+    }
+
+    #[test]
+    fn test_breadcrumbs_settings() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::Settings);
+
+        let crumbs = nav.breadcrumbs();
+        assert_eq!(crumbs, vec!["Home", "Settings"]);
+    }
+
+    #[test]
+    fn test_breadcrumbs_issues() {
+        let nav = NavigationHistory::new(10);
+
+        let crumbs = nav.breadcrumbs();
+        assert_eq!(crumbs, vec!["Home", "Issues"]);
+    }
+
+    #[test]
+    fn test_get_recent_history_with_small_count() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::Labels);
+        nav.push(View::Help);
+        nav.push(View::Settings);
+
+        let recent = nav.get_recent_history(2);
+        assert_eq!(recent.len(), 2);
+
+        // Should get last 2 items
+        assert_eq!(recent[0].1, &View::Help);
+        assert_eq!(recent[1].1, &View::Settings);
+    }
+
+    #[test]
+    fn test_get_recent_history_with_large_count() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::Labels);
+        nav.push(View::Help);
+
+        let recent = nav.get_recent_history(10);
+        assert_eq!(recent.len(), 3); // Issues, Labels, Help
+
+        assert_eq!(recent[0].1, &View::Issues);
+        assert_eq!(recent[1].1, &View::Labels);
+        assert_eq!(recent[2].1, &View::Help);
+    }
+
+    #[test]
+    fn test_get_recent_history_with_zero_count() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::Labels);
+
+        let recent = nav.get_recent_history(0);
+        assert_eq!(recent.len(), 0);
+    }
+
+    #[test]
+    fn test_get_recent_history_includes_indices() {
+        let mut nav = NavigationHistory::new(10);
+        nav.push(View::Labels);
+        nav.push(View::Help);
+
+        let recent = nav.get_recent_history(3);
+
+        // Check that indices are correct
+        assert_eq!(recent[0].0, 0);
+        assert_eq!(recent[1].0, 1);
+        assert_eq!(recent[2].0, 2);
+    }
+
+    #[test]
+    fn test_view_equality() {
+        let view1 = View::IssueDetail("beads-123".to_string());
+        let view2 = View::IssueDetail("beads-123".to_string());
+        let view3 = View::IssueDetail("beads-456".to_string());
+
+        assert_eq!(view1, view2);
+        assert_ne!(view1, view3);
+    }
+
+    #[test]
+    fn test_navigation_history_with_single_item() {
+        let nav = NavigationHistory::new(10);
+
+        assert_eq!(nav.history.len(), 1);
+        assert_eq!(nav.current(), &View::Issues);
+        assert!(!nav.can_go_back());
+        assert!(!nav.can_go_forward());
+    }
 }
