@@ -887,4 +887,426 @@ mod tests {
         assert_eq!(view.block_style.fg, Some(Color::Magenta));
         assert_eq!(view.help_style.fg, Some(Color::Green));
     }
+
+    #[test]
+    fn test_get_updated_issue_with_epic_type() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("type", "Epic".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.issue_type, IssueType::Epic);
+    }
+
+    #[test]
+    fn test_get_updated_issue_with_feature_type() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("type", "Feature".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.issue_type, IssueType::Feature);
+    }
+
+    #[test]
+    fn test_get_updated_issue_with_bug_type() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("type", "Bug".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.issue_type, IssueType::Bug);
+    }
+
+    #[test]
+    fn test_get_updated_issue_with_chore_type() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("type", "Chore".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.issue_type, IssueType::Chore);
+    }
+
+    #[test]
+    fn test_get_updated_issue_with_p0_priority() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("priority", "P0".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.priority, Priority::P0);
+    }
+
+    #[test]
+    fn test_get_updated_issue_with_p1_priority() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("priority", "P1".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.priority, Priority::P1);
+    }
+
+    #[test]
+    fn test_get_updated_issue_with_p3_priority() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("priority", "P3".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.priority, Priority::P3);
+    }
+
+    #[test]
+    fn test_get_updated_issue_with_p4_priority() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("priority", "P4".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.priority, Priority::P4);
+    }
+
+    #[test]
+    fn test_get_updated_issue_with_in_progress_status() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("status", "InProgress".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.status, IssueStatus::InProgress);
+    }
+
+    #[test]
+    fn test_get_updated_issue_with_blocked_status() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("status", "Blocked".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.status, IssueStatus::Blocked);
+    }
+
+    #[test]
+    fn test_issue_with_no_assignee_initially() {
+        let mut issue = create_test_issue();
+        issue.assignee = None;
+
+        let state = IssueEditorState::new(&issue);
+        assert_eq!(state.form_state().get_value("assignee"), Some(""));
+    }
+
+    #[test]
+    fn test_issue_with_no_labels_initially() {
+        let mut issue = create_test_issue();
+        issue.labels = vec![];
+
+        let state = IssueEditorState::new(&issue);
+        assert_eq!(state.form_state().get_value("labels"), Some(""));
+    }
+
+    #[test]
+    fn test_issue_with_no_description_initially() {
+        let mut issue = create_test_issue();
+        issue.description = None;
+
+        let state = IssueEditorState::new(&issue);
+        assert_eq!(state.form_state().get_value("description"), Some(""));
+    }
+
+    #[test]
+    fn test_labels_with_leading_trailing_whitespace() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("labels", "  bug  ,  urgent  ,  p0  ".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(
+            updated.labels,
+            vec!["bug".to_string(), "urgent".to_string(), "p0".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_labels_with_empty_string() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("labels", "".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.labels, Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_get_changed_fields_with_no_changes() {
+        let issue = create_test_issue();
+        let state = IssueEditorState::new(&issue);
+
+        let changes = state.get_changed_fields();
+        assert!(changes.is_empty());
+    }
+
+    #[test]
+    fn test_get_change_summary_with_no_changes() {
+        let issue = create_test_issue();
+        let state = IssueEditorState::new(&issue);
+
+        let summary = state.get_change_summary();
+        assert!(summary.is_empty());
+    }
+
+    #[test]
+    fn test_multiple_modifications_then_reset() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("title", "Modified Title".to_string());
+        state.form_state_mut().set_value("priority", "P0".to_string());
+        assert!(state.has_changes());
+
+        state.reset(&issue);
+        assert!(!state.has_changes());
+        assert_eq!(state.form_state().get_value("title"), Some("Test Issue"));
+        assert_eq!(state.form_state().get_value("priority"), Some("P2"));
+    }
+
+    #[test]
+    fn test_changing_status_from_open_to_in_progress() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("status", "InProgress".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.status, IssueStatus::InProgress);
+        assert!(updated.closed.is_none());
+    }
+
+    #[test]
+    fn test_changing_status_from_open_to_blocked() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("status", "Blocked".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.status, IssueStatus::Blocked);
+        assert!(updated.closed.is_none());
+    }
+
+    #[test]
+    fn test_multiple_fields_changed() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("title", "New Title".to_string());
+        state.form_state_mut().set_value("type", "Bug".to_string());
+        state.form_state_mut().set_value("priority", "P0".to_string());
+        state.form_state_mut().set_value("status", "InProgress".to_string());
+
+        let changes = state.get_changed_fields();
+        assert_eq!(changes.len(), 4);
+        assert!(changes.contains_key("title"));
+        assert!(changes.contains_key("type"));
+        assert!(changes.contains_key("priority"));
+        assert!(changes.contains_key("status"));
+    }
+
+    #[test]
+    fn test_form_state_const_access_does_not_mark_modified() {
+        let issue = create_test_issue();
+        let state = IssueEditorState::new(&issue);
+
+        let _form = state.form_state();
+        assert!(!state.is_modified());
+    }
+
+    #[test]
+    fn test_get_issue_update_with_title_change() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("title", "New Title".to_string());
+
+        let update = state.get_issue_update();
+        assert!(update.is_some());
+    }
+
+    #[test]
+    fn test_get_issue_update_with_type_change() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("type", "Bug".to_string());
+
+        let update = state.get_issue_update();
+        assert!(update.is_some());
+    }
+
+    #[test]
+    fn test_get_issue_update_with_status_change() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("status", "InProgress".to_string());
+
+        let update = state.get_issue_update();
+        assert!(update.is_some());
+    }
+
+    #[test]
+    fn test_get_issue_update_with_priority_change() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("priority", "P0".to_string());
+
+        let update = state.get_issue_update();
+        assert!(update.is_some());
+    }
+
+    #[test]
+    fn test_get_issue_update_with_assignee_change() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("assignee", "alice".to_string());
+
+        let update = state.get_issue_update();
+        assert!(update.is_some());
+    }
+
+    #[test]
+    fn test_get_issue_update_with_labels_change() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("labels", "bug, urgent".to_string());
+
+        let update = state.get_issue_update();
+        assert!(update.is_some());
+    }
+
+    #[test]
+    fn test_get_issue_update_with_description_change() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("description", "New description".to_string());
+
+        let update = state.get_issue_update();
+        assert!(update.is_some());
+    }
+
+    #[test]
+    fn test_changing_assignee_from_some_to_none() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("assignee", "".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.assignee, None);
+    }
+
+    #[test]
+    fn test_changing_description_from_some_to_none() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("description", "".to_string());
+
+        let updated = state.get_updated_issue(&issue).unwrap();
+        assert_eq!(updated.description, None);
+    }
+
+    #[test]
+    fn test_builder_method_chaining_order_independence() {
+        let style1 = Style::default().fg(Color::Red);
+        let style2 = Style::default().fg(Color::Blue);
+
+        let view1 = IssueEditorView::new()
+            .show_help(false)
+            .block_style(style1)
+            .help_style(style2);
+
+        let view2 = IssueEditorView::new()
+            .help_style(style2)
+            .block_style(style1)
+            .show_help(false);
+
+        assert_eq!(view1.show_help, view2.show_help);
+        assert_eq!(view1.block_style.fg, view2.block_style.fg);
+        assert_eq!(view1.help_style.fg, view2.help_style.fg);
+    }
+
+    #[test]
+    fn test_get_issue_update_with_invalid_type_returns_none() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("type", "InvalidType".to_string());
+
+        let update = state.get_issue_update();
+        assert!(update.is_none());
+    }
+
+    #[test]
+    fn test_get_issue_update_with_invalid_status_returns_none() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("status", "InvalidStatus".to_string());
+
+        let update = state.get_issue_update();
+        assert!(update.is_none());
+    }
+
+    #[test]
+    fn test_get_issue_update_with_invalid_priority_returns_none() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("priority", "P99".to_string());
+
+        let update = state.get_issue_update();
+        assert!(update.is_none());
+    }
+
+    #[test]
+    fn test_save_marks_not_modified() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("title", "Modified".to_string());
+        assert!(state.is_modified());
+
+        state.save();
+        assert!(!state.is_modified());
+    }
+
+    #[test]
+    fn test_get_change_summary_displays_empty_values() {
+        let issue = create_test_issue();
+        let mut state = IssueEditorState::new(&issue);
+
+        state.form_state_mut().set_value("description", "".to_string());
+
+        let summary = state.get_change_summary();
+        assert_eq!(summary.len(), 1);
+        assert!(summary[0].contains("<empty>"));
+    }
 }
