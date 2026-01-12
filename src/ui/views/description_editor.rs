@@ -714,4 +714,463 @@ mod tests {
         let state = DescriptionEditorState::new("Test".to_string(), String::new());
         assert_eq!(state.mode(), EditorMode::Insert);
     }
+
+    // Copy trait tests
+    #[test]
+    fn test_editor_mode_copy_trait() {
+        let mode1 = EditorMode::Normal;
+        let mode2 = mode1;
+        assert_eq!(mode1, mode2);
+        // Both should still be usable after copy
+        assert_eq!(mode1, EditorMode::Normal);
+        assert_eq!(mode2, EditorMode::Normal);
+    }
+
+    // Complex text editing scenarios
+    #[test]
+    fn test_complex_text_editing_sequence() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+
+        state.insert_char('H');
+        state.insert_char('e');
+        state.insert_char('l');
+        state.insert_char('l');
+        state.insert_char('o');
+        assert!(state.is_modified());
+
+        state.save();
+        assert!(!state.is_modified());
+
+        state.insert_newline();
+        state.insert_char('W');
+        state.insert_char('o');
+        state.insert_char('r');
+        state.insert_char('l');
+        state.insert_char('d');
+
+        assert!(state.is_modified());
+        assert!(state.text().contains("Hello"));
+        assert!(state.text().contains("World"));
+    }
+
+    #[test]
+    fn test_delete_line_on_empty_content() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        state.delete_line(); // Should not panic on empty content
+        assert_eq!(state.text(), "");
+        assert!(state.is_modified()); // delete_line marks as modified
+    }
+
+    #[test]
+    fn test_delete_line_with_content() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), "Line to delete".to_string());
+        state.set_modified(false);
+        state.delete_line();
+        assert!(state.is_modified());
+    }
+
+    #[test]
+    fn test_multiple_mode_switches() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+
+        state.set_mode(EditorMode::Normal);
+        assert_eq!(state.mode(), EditorMode::Normal);
+
+        state.set_mode(EditorMode::Command);
+        assert_eq!(state.mode(), EditorMode::Command);
+
+        state.set_mode(EditorMode::Insert);
+        assert_eq!(state.mode(), EditorMode::Insert);
+
+        state.set_mode(EditorMode::Normal);
+        assert_eq!(state.mode(), EditorMode::Normal);
+    }
+
+    // View builder pattern variations
+    #[test]
+    fn test_view_builder_chain_order_independence() {
+        let style1 = Style::default().fg(Color::Red);
+        let style2 = Style::default().fg(Color::Blue);
+
+        let view1 = DescriptionEditorView::new()
+            .show_help(false)
+            .block_style(style1)
+            .help_style(style2);
+
+        let view2 = DescriptionEditorView::new()
+            .block_style(style1)
+            .help_style(style2)
+            .show_help(false);
+
+        assert_eq!(view1.show_help, view2.show_help);
+        assert_eq!(view1.block_style.fg, view2.block_style.fg);
+        assert_eq!(view1.help_style.fg, view2.help_style.fg);
+    }
+
+    #[test]
+    fn test_view_multiple_style_applications() {
+        let style1 = Style::default().fg(Color::Red);
+        let style2 = Style::default().fg(Color::Green);
+        let style3 = Style::default().fg(Color::Blue);
+
+        let view = DescriptionEditorView::new()
+            .block_style(style1)
+            .block_style(style2)
+            .block_style(style3);
+
+        // Last style should win
+        assert_eq!(view.block_style.fg, Some(Color::Blue));
+    }
+
+    // Empty title edge case
+    #[test]
+    fn test_empty_title() {
+        let state = DescriptionEditorState::new("".to_string(), String::new());
+        assert_eq!(state.title(), "");
+    }
+
+    #[test]
+    fn test_title_with_special_characters() {
+        let title = "Fix: Handle edge case with 'quotes' & \"symbols\"";
+        let state = DescriptionEditorState::new(title.to_string(), String::new());
+        assert_eq!(state.title(), title);
+    }
+
+    #[test]
+    fn test_title_with_newlines() {
+        let title = "Title\nwith\nnewlines";
+        let state = DescriptionEditorState::new(title.to_string(), String::new());
+        assert_eq!(state.title(), title);
+    }
+
+    // Multiple help toggles
+    #[test]
+    fn test_multiple_help_toggles() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        assert!(state.is_help_visible());
+
+        for _ in 0..10 {
+            state.toggle_help();
+            state.toggle_help();
+        }
+
+        assert!(state.is_help_visible()); // Should be back to true after even number of toggles
+    }
+
+    // State after multiple operations
+    #[test]
+    fn test_state_after_multiple_edits_and_saves() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+
+        state.insert_char('a');
+        assert!(state.is_modified());
+
+        state.save();
+        assert!(state.is_saved());
+        assert!(!state.is_modified());
+
+        state.insert_char('b');
+        assert!(state.is_modified());
+
+        state.save();
+        assert!(state.is_saved());
+        assert!(!state.is_modified());
+    }
+
+    // Modified flag persistence across operations
+    #[test]
+    fn test_modified_flag_persistence() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+
+        state.insert_char('x');
+        assert!(state.is_modified());
+
+        state.move_cursor_left();
+        assert!(state.is_modified()); // Cursor movement should not clear modified flag
+
+        state.move_cursor_right();
+        assert!(state.is_modified());
+    }
+
+    // All EditorMode inequalities
+    #[test]
+    fn test_all_editor_mode_inequalities() {
+        assert_ne!(EditorMode::Normal, EditorMode::Insert);
+        assert_ne!(EditorMode::Normal, EditorMode::Command);
+        assert_ne!(EditorMode::Insert, EditorMode::Normal);
+        assert_ne!(EditorMode::Insert, EditorMode::Command);
+        assert_ne!(EditorMode::Command, EditorMode::Normal);
+        assert_ne!(EditorMode::Command, EditorMode::Insert);
+    }
+
+    // Cancel without save
+    #[test]
+    fn test_cancel_without_save() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        state.insert_char('x');
+        state.cancel();
+        assert!(state.is_cancelled());
+        assert!(state.is_modified()); // Cancel doesn't clear modified flag
+        assert!(!state.is_saved());
+    }
+
+    // Save without modifications
+    #[test]
+    fn test_save_without_modifications() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        assert!(!state.is_modified());
+
+        state.save();
+        assert!(state.is_saved());
+        assert!(!state.is_modified());
+    }
+
+    // Multiple cancels
+    #[test]
+    fn test_multiple_cancels() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        state.cancel();
+        assert!(state.is_cancelled());
+
+        state.cancel();
+        assert!(state.is_cancelled()); // Should remain cancelled
+    }
+
+    // Text with special characters
+    #[test]
+    fn test_initial_text_with_special_chars() {
+        let text = "Text with\ttabs\nand\nnewlines\rand special: 🎉";
+        let state = DescriptionEditorState::new("Test".to_string(), text.to_string());
+        assert_eq!(state.text(), text);
+    }
+
+    // Delete character marks modified
+    #[test]
+    fn test_delete_char_marks_modified() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), "abc".to_string());
+        state.set_modified(false);
+        state.delete_char();
+        assert!(state.is_modified());
+    }
+
+    // Insert newline on empty text
+    #[test]
+    fn test_insert_newline_on_empty() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        state.insert_newline();
+        assert!(state.is_modified());
+        assert_eq!(state.text(), "\n");
+    }
+
+    // View default equals new
+    #[test]
+    fn test_view_default_equals_new() {
+        let view1 = DescriptionEditorView::default();
+        let view2 = DescriptionEditorView::new();
+
+        assert_eq!(view1.show_help, view2.show_help);
+        assert_eq!(view1.show_stats, view2.show_stats);
+        assert_eq!(view1.block_style.fg, view2.block_style.fg);
+        assert_eq!(view1.help_style.fg, view2.help_style.fg);
+    }
+
+    // View with all options disabled
+    #[test]
+    fn test_view_all_options_disabled() {
+        let view = DescriptionEditorView::new()
+            .show_help(false)
+            .show_stats(false);
+
+        assert!(!view.show_help);
+        assert!(!view.show_stats);
+    }
+
+    // View with custom styles
+    #[test]
+    fn test_view_custom_styles() {
+        let block_style = Style::default().fg(Color::Magenta);
+        let help_style = Style::default().fg(Color::Cyan);
+
+        let view = DescriptionEditorView::new()
+            .block_style(block_style)
+            .help_style(help_style);
+
+        assert_eq!(view.block_style.fg, Some(Color::Magenta));
+        assert_eq!(view.help_style.fg, Some(Color::Cyan));
+    }
+
+    // Multiple text operations
+    #[test]
+    fn test_multiple_text_operations() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+
+        for c in "Hello".chars() {
+            state.insert_char(c);
+        }
+
+        assert!(state.text().contains("Hello"));
+        assert!(state.is_modified());
+    }
+
+    // Cursor movement on multiline text
+    #[test]
+    fn test_cursor_movement_multiline() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), "Line 1\nLine 2\nLine 3".to_string());
+
+        state.move_cursor_down();
+        state.move_cursor_down();
+        state.move_to_line_end();
+        state.move_to_line_start();
+
+        // Cursor movement should not mark as modified
+        assert!(!state.is_modified());
+    }
+
+    // Saved flag persistence
+    #[test]
+    fn test_saved_flag_persistence() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        state.save();
+        assert!(state.is_saved());
+
+        // Saved flag should persist even after other operations
+        state.cancel();
+        assert!(state.is_saved());
+    }
+
+    // Cancelled flag persistence
+    #[test]
+    fn test_cancelled_flag_persistence() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
+        state.cancel();
+        assert!(state.is_cancelled());
+
+        // Cancelled flag should persist
+        state.save();
+        assert!(state.is_cancelled());
+    }
+
+    // Long initial text
+    #[test]
+    fn test_long_initial_text() {
+        let long_text = "Line\n".repeat(100);
+        let state = DescriptionEditorState::new("Test".to_string(), long_text.clone());
+        // Check that the text contains the expected content
+        let result_text = state.text();
+        assert!(result_text.contains("Line"));
+        assert_eq!(result_text.matches("Line").count(), 100);
+    }
+
+    // View toggle both help and stats
+    #[test]
+    fn test_view_toggle_help_and_stats() {
+        let view1 = DescriptionEditorView::new()
+            .show_help(false)
+            .show_stats(false);
+
+        let view2 = DescriptionEditorView::new()
+            .show_help(true)
+            .show_stats(true);
+
+        assert!(!view1.show_help && !view1.show_stats);
+        assert!(view2.show_help && view2.show_stats);
+    }
+
+    // Multiple help style applications
+    #[test]
+    fn test_view_multiple_help_style_applications() {
+        let style1 = Style::default().fg(Color::Red);
+        let style2 = Style::default().fg(Color::Green);
+
+        let view = DescriptionEditorView::new()
+            .help_style(style1)
+            .help_style(style2);
+
+        // Last style should win
+        assert_eq!(view.help_style.fg, Some(Color::Green));
+    }
+
+    // State with all flags set
+    #[test]
+    fn test_state_with_all_flags_set() {
+        let mut state = DescriptionEditorState::new("Test".to_string(), "content".to_string());
+        state.set_modified(true);
+        state.save();
+        state.cancel();
+
+        assert!(!state.is_modified()); // save() clears modified
+        assert!(state.is_saved());
+        assert!(state.is_cancelled());
+    }
+
+    // Editor mode debug trait
+    #[test]
+    fn test_editor_mode_debug_trait() {
+        let mode = EditorMode::Insert;
+        let debug_str = format!("{:?}", mode);
+        assert!(debug_str.contains("Insert"));
+    }
+
+    // State debug trait
+    #[test]
+    fn test_state_debug_trait() {
+        let state = DescriptionEditorState::new("Test".to_string(), String::new());
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("DescriptionEditorState"));
+    }
+
+    // Clone preserves all fields
+    #[test]
+    fn test_clone_preserves_all_fields() {
+        let mut state = DescriptionEditorState::new("Test Title".to_string(), "content".to_string());
+        state.set_mode(EditorMode::Command);
+        state.toggle_help();
+        state.set_modified(true);
+        state.save();
+        state.cancel();
+
+        let cloned = state.clone();
+
+        assert_eq!(cloned.title(), state.title());
+        assert_eq!(cloned.mode(), state.mode());
+        assert_eq!(cloned.is_help_visible(), state.is_help_visible());
+        assert_eq!(cloned.is_modified(), state.is_modified());
+        assert_eq!(cloned.is_saved(), state.is_saved());
+        assert_eq!(cloned.is_cancelled(), state.is_cancelled());
+    }
+
+    // Whitespace in title
+    #[test]
+    fn test_title_with_leading_trailing_whitespace() {
+        let title = "  Title with spaces  ";
+        let state = DescriptionEditorState::new(title.to_string(), String::new());
+        assert_eq!(state.title(), title);
+    }
+
+    // View builder all combinations
+    #[test]
+    fn test_view_builder_all_combinations() {
+        let view = DescriptionEditorView::new()
+            .show_help(true)
+            .show_stats(false)
+            .block_style(Style::default().fg(Color::Red))
+            .help_style(Style::default().fg(Color::Blue));
+
+        assert!(view.show_help);
+        assert!(!view.show_stats);
+        assert_eq!(view.block_style.fg, Some(Color::Red));
+        assert_eq!(view.help_style.fg, Some(Color::Blue));
+    }
+
+    // Initial state defaults
+    #[test]
+    fn test_initial_state_defaults() {
+        let state = DescriptionEditorState::new("Test".to_string(), String::new());
+
+        assert_eq!(state.mode(), EditorMode::Insert);
+        assert!(state.is_help_visible());
+        assert!(!state.is_modified());
+        assert!(!state.is_saved());
+        assert!(!state.is_cancelled());
+    }
 }
