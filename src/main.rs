@@ -415,6 +415,36 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     KeyCode::Esc => {
                         issues_state.search_state_mut().clear_search();
                     }
+                    KeyCode::Left if key.modifiers.contains(KeyModifiers::ALT | KeyModifiers::SHIFT) => {
+                        // Alt+Shift+Left: Shrink focused column
+                        issues_state.search_state_mut().list_state_mut().shrink_focused_column();
+                        tracing::debug!("Shrinking focused column");
+                    }
+                    KeyCode::Right if key.modifiers.contains(KeyModifiers::ALT | KeyModifiers::SHIFT) => {
+                        // Alt+Shift+Right: Grow focused column
+                        issues_state.search_state_mut().list_state_mut().grow_focused_column();
+                        tracing::debug!("Growing focused column");
+                    }
+                    KeyCode::Left if key.modifiers.contains(KeyModifiers::ALT) => {
+                        // Alt+Left: Move focused column left
+                        issues_state.search_state_mut().list_state_mut().move_focused_column_left();
+                        tracing::debug!("Moving focused column left");
+                    }
+                    KeyCode::Right if key.modifiers.contains(KeyModifiers::ALT) => {
+                        // Alt+Right: Move focused column right
+                        issues_state.search_state_mut().list_state_mut().move_focused_column_right();
+                        tracing::debug!("Moving focused column right");
+                    }
+                    KeyCode::Tab if key.modifiers.contains(KeyModifiers::ALT) => {
+                        // Alt+Tab: Focus next column
+                        issues_state.search_state_mut().list_state_mut().focus_next_column();
+                        tracing::debug!("Focusing next column");
+                    }
+                    KeyCode::BackTab if key.modifiers.contains(KeyModifiers::ALT) => {
+                        // Alt+Shift+Tab: Focus previous column
+                        issues_state.search_state_mut().list_state_mut().focus_previous_column();
+                        tracing::debug!("Focusing previous column");
+                    }
                     _ => {}
                 }
             }

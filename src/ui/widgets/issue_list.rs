@@ -1,6 +1,7 @@
 //! Issue list widget with sorting and filtering
 
 use crate::beads::models::{Issue, IssueStatus, IssueType, Priority};
+use crate::models::table_config::{ColumnId, TableConfig};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
@@ -131,6 +132,10 @@ pub struct IssueListState {
     filters_enabled: bool,
     /// Column filters
     column_filters: ColumnFilters,
+    /// Table configuration (column widths, visibility, order)
+    table_config: TableConfig,
+    /// Focused column for resize/reorder operations (index in visible columns)
+    focused_column: Option<usize>,
 }
 
 impl Default for IssueListState {
@@ -150,6 +155,8 @@ impl IssueListState {
             editing: None,
             filters_enabled: false,
             column_filters: ColumnFilters::default(),
+            table_config: TableConfig::default(),
+            focused_column: None,
         }
     }
 
@@ -307,6 +314,126 @@ impl IssueListState {
     /// Finish editing and return the edited title
     pub fn finish_editing(&mut self) -> Option<String> {
         self.editing.take().map(|(_, buffer, _)| buffer)
+    }
+
+    /// Get the table configuration
+    pub fn table_config(&self) -> &TableConfig {
+        &self.table_config
+    }
+
+    /// Get mutable table configuration
+    pub fn table_config_mut(&mut self) -> &mut TableConfig {
+        &mut self.table_config
+    }
+
+    /// Get the focused column index
+    pub fn focused_column(&self) -> Option<usize> {
+        self.focused_column
+    }
+
+    /// Set the focused column index
+    pub fn set_focused_column(&mut self, index: Option<usize>) {
+        self.focused_column = index;
+    }
+
+    /// Focus next visible column
+    pub fn focus_next_column(&mut self) {
+        let visible_count = self.table_config.visible_columns().len();
+        if visible_count == 0 {
+            self.focused_column = None;
+            return;
+        }
+
+        self.focused_column = Some(match self.focused_column {
+            Some(idx) if idx + 1 < visible_count => idx + 1,
+            Some(_) => 0,
+            None => 0,
+        });
+    }
+
+    /// Focus previous visible column
+    pub fn focus_previous_column(&mut self) {
+        let visible_count = self.table_config.visible_columns().len();
+        if visible_count == 0 {
+            self.focused_column = None;
+            return;
+        }
+
+        self.focused_column = Some(match self.focused_column {
+            Some(idx) if idx > 0 => idx - 1,
+            Some(_) => visible_count - 1,
+            None => 0,
+        });
+    }
+
+    /// Move focused column left (reorder)
+    pub fn move_focused_column_left(&mut self) {
+        if let Some(focused_idx) = self.focused_column {
+            let visible_cols = self.table_config.visible_columns();
+            if focused_idx > 0 && focused_idx < visible_cols.len() {
+                // Get the actual column IDs
+                let current_col_id = visible_cols[focused_idx].id;
+                let prev_col_id = visible_cols[focused_idx - 1].id;
+
+                // Find their positions in the full column list
+                let current_pos = self.table_config.columns.iter().position(|c| c.id == current_col_id);
+                let prev_pos = self.table_config.columns.iter().position(|c| c.id == prev_col_id);
+
+                if let (Some(curr), Some(prev)) = (current_pos, prev_pos) {
+                    self.table_config.reorder_column(curr, prev);
+                    self.focused_column = Some(focused_idx - 1);
+                }
+            }
+        }
+    }
+
+    /// Move focused column right (reorder)
+    pub fn move_focused_column_right(&mut self) {
+        if let Some(focused_idx) = self.focused_column {
+            let visible_cols = self.table_config.visible_columns();
+            if focused_idx < visible_cols.len() - 1 {
+                // Get the actual column IDs
+                let current_col_id = visible_cols[focused_idx].id;
+                let next_col_id = visible_cols[focused_idx + 1].id;
+
+                // Find their positions in the full column list
+                let current_pos = self.table_config.columns.iter().position(|c| c.id == current_col_id);
+                let next_pos = self.table_config.columns.iter().position(|c| c.id == next_col_id);
+
+                if let (Some(curr), Some(next)) = (current_pos, next_pos) {
+                    self.table_config.reorder_column(curr, next);
+                    self.focused_column = Some(focused_idx + 1);
+                }
+            }
+        }
+    }
+
+    /// Decrease width of focused column
+    pub fn shrink_focused_column(&mut self) {
+        if let Some(focused_idx) = self.focused_column {
+            let visible_cols = self.table_config.visible_columns();
+            if focused_idx < visible_cols.len() {
+                let col_id = visible_cols[focused_idx].id;
+                if let Some(col) = self.table_config.get_column(col_id) {
+                    let new_width = col.width.saturating_sub(1);
+                    self.table_config.set_column_width(col_id, new_width);
+                }
+            }
+        }
+    }
+
+    /// Increase width of focused column
+    pub fn grow_focused_column(&mut self) {
+        if let Some(focused_idx) = self.focused_column {
+            let visible_cols = self.table_config.visible_columns();
+            if focused_idx < visible_cols.len() {
+                let col_id = visible_cols[focused_idx].id;
+                if let Some(col) = self.table_config.get_column(col_id) {
+                    let new_width = col.width.saturating_add(1);
+                    self.table_config.set_column_width(col_id, new_width);
+                }
+            }
+        }
     }
 }
 
