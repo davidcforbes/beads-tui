@@ -554,4 +554,326 @@ mod tests {
         assert!(config.viewport_start < start1);
         assert!(config.viewport_end > end2);
     }
+
+    #[test]
+    fn test_time_estimate_clone() {
+        let estimate = TimeEstimate::Days(5);
+        let cloned = estimate.clone();
+        assert_eq!(estimate, cloned);
+    }
+
+    #[test]
+    fn test_time_estimate_equality() {
+        assert_eq!(TimeEstimate::Hours(24), TimeEstimate::Hours(24));
+        assert_ne!(TimeEstimate::Hours(24), TimeEstimate::Days(1));
+        assert_eq!(TimeEstimate::Weeks(2), TimeEstimate::Weeks(2));
+    }
+
+    #[test]
+    fn test_time_estimate_zero_values() {
+        assert_eq!(TimeEstimate::Hours(0).to_hours(), 0);
+        assert_eq!(TimeEstimate::Days(0).to_hours(), 0);
+        assert_eq!(TimeEstimate::Weeks(0).to_hours(), 0);
+    }
+
+    #[test]
+    fn test_time_estimate_large_values() {
+        assert_eq!(TimeEstimate::Hours(1000).to_hours(), 1000);
+        assert_eq!(TimeEstimate::Days(100).to_hours(), 800); // 100 * 8
+        assert_eq!(TimeEstimate::Weeks(10).to_hours(), 400); // 10 * 40
+    }
+
+    #[test]
+    fn test_schedule_data_default() {
+        let data = ScheduleData::default();
+        assert!(data.defer_until.is_none());
+        assert!(data.due_at.is_none());
+        assert!(data.estimate.is_none());
+    }
+
+    #[test]
+    fn test_schedule_data_clone() {
+        let now = Utc::now();
+        let data = ScheduleData {
+            defer_until: Some(now),
+            due_at: Some(now + Duration::days(5)),
+            estimate: Some(TimeEstimate::Days(3)),
+        };
+
+        let cloned = data.clone();
+        assert_eq!(cloned.defer_until, data.defer_until);
+        assert_eq!(cloned.due_at, data.due_at);
+        assert_eq!(cloned.estimate, data.estimate);
+    }
+
+    #[test]
+    fn test_schedule_data_partial_fields() {
+        let now = Utc::now();
+        
+        // Only defer_until
+        let data1 = ScheduleData {
+            defer_until: Some(now),
+            due_at: None,
+            estimate: None,
+        };
+        assert!(data1.defer_until.is_some());
+        assert!(data1.due_at.is_none());
+
+        // Only due_at
+        let data2 = ScheduleData {
+            defer_until: None,
+            due_at: Some(now),
+            estimate: None,
+        };
+        assert!(data2.defer_until.is_none());
+        assert!(data2.due_at.is_some());
+
+        // Only estimate
+        let data3 = ScheduleData {
+            defer_until: None,
+            due_at: None,
+            estimate: Some(TimeEstimate::Hours(8)),
+        };
+        assert!(data3.estimate.is_some());
+    }
+
+    #[test]
+    fn test_issue_schedule_clone() {
+        let issue = create_test_issue("test-clone");
+        let schedule = IssueSchedule::from_issue(&issue, ScheduleData::default());
+
+        let cloned = schedule.clone();
+        assert_eq!(cloned.issue_id, schedule.issue_id);
+        assert_eq!(cloned.start, schedule.start);
+        assert_eq!(cloned.end, schedule.end);
+        assert_eq!(cloned.is_scheduled, schedule.is_scheduled);
+    }
+
+    #[test]
+    fn test_issue_schedule_duration_hours() {
+        let issue = create_test_issue("test-hours");
+        let start = Utc::now();
+        let end = start + Duration::hours(12);
+
+        let schedule_data = ScheduleData {
+            defer_until: Some(start),
+            due_at: Some(end),
+            estimate: None,
+        };
+
+        let schedule = IssueSchedule::from_issue(&issue, schedule_data);
+        assert_eq!(schedule.duration_hours(), Some(12));
+    }
+
+    #[test]
+    fn test_issue_schedule_duration_none_when_no_dates() {
+        let issue = create_test_issue("test-no-dates");
+        // Create schedule with no dates at all (should still fallback to created)
+        let schedule_data = ScheduleData::default();
+        let schedule = IssueSchedule::from_issue(&issue, schedule_data);
+
+        // Should have dates from fallback
+        assert!(schedule.duration_days().is_some());
+        assert!(schedule.duration_hours().is_some());
+    }
+
+    #[test]
+    fn test_issue_schedule_is_overdue_with_no_end() {
+        let issue = create_test_issue("test-no-end");
+        // Create a schedule with start but impossible to have no end due to fallback
+        // So test with schedule having end in the future
+        let future = Utc::now() + Duration::days(10);
+        let schedule_data = ScheduleData {
+            defer_until: Some(future),
+            due_at: Some(future + Duration::days(5)),
+            estimate: None,
+        };
+
+        let schedule = IssueSchedule::from_issue(&issue, schedule_data);
+        assert!(!schedule.is_overdue(Utc::now()));
+    }
+
+    #[test]
+    fn test_issue_schedule_is_upcoming_with_no_start() {
+        let issue = create_test_issue("test-no-start");
+        // With fallback, start will always be Some(created), test can't have None
+        let schedule_data = ScheduleData::default();
+        let schedule = IssueSchedule::from_issue(&issue, schedule_data);
+        
+        // Should not be upcoming (start is now/past)
+        assert!(!schedule.is_upcoming(Utc::now()));
+    }
+
+    #[test]
+    fn test_issue_schedule_is_in_progress_boundary() {
+        let issue = create_test_issue("test-boundary");
+        let now = Utc::now();
+        let start = now;
+        let end = now + Duration::hours(1);
+
+        let schedule_data = ScheduleData {
+            defer_until: Some(start),
+            due_at: Some(end),
+            estimate: None,
+        };
+
+        let schedule = IssueSchedule::from_issue(&issue, schedule_data);
+        // At exact start time, should be in progress
+        assert!(schedule.is_in_progress(now));
+    }
+
+    #[test]
+    fn test_zoom_level_clone() {
+        let level = ZoomLevel::Days;
+        let cloned = level.clone();
+        assert_eq!(level, cloned);
+    }
+
+    #[test]
+    fn test_zoom_level_default() {
+        let level = ZoomLevel::default();
+        assert_eq!(level, ZoomLevel::Days);
+    }
+
+    #[test]
+    fn test_zoom_level_equality() {
+        assert_eq!(ZoomLevel::Hours, ZoomLevel::Hours);
+        assert_ne!(ZoomLevel::Hours, ZoomLevel::Days);
+        assert_eq!(ZoomLevel::Weeks, ZoomLevel::Weeks);
+    }
+
+    #[test]
+    fn test_zoom_level_date_format() {
+        assert_eq!(ZoomLevel::Hours.date_format(), "%H:%M");
+        assert_eq!(ZoomLevel::Days.date_format(), "%b %d");
+        assert_eq!(ZoomLevel::Weeks.date_format(), "W%V %Y");
+        assert_eq!(ZoomLevel::Months.date_format(), "%b %Y");
+    }
+
+    #[test]
+    fn test_zoom_level_format_date() {
+        let date = Utc::now();
+        
+        // Just verify they don't panic and return strings
+        let hours_str = ZoomLevel::Hours.format_date(date);
+        let days_str = ZoomLevel::Days.format_date(date);
+        let weeks_str = ZoomLevel::Weeks.format_date(date);
+        let months_str = ZoomLevel::Months.format_date(date);
+
+        assert!(!hours_str.is_empty());
+        assert!(!days_str.is_empty());
+        assert!(!weeks_str.is_empty());
+        assert!(!months_str.is_empty());
+    }
+
+    #[test]
+    fn test_zoom_level_compute_span_zero_duration() {
+        let now = Utc::now();
+        
+        assert_eq!(ZoomLevel::Hours.compute_span(now, now), 0);
+        assert_eq!(ZoomLevel::Days.compute_span(now, now), 0);
+        assert_eq!(ZoomLevel::Weeks.compute_span(now, now), 0);
+        assert_eq!(ZoomLevel::Months.compute_span(now, now), 0);
+    }
+
+    #[test]
+    fn test_timeline_config_new() {
+        let start = Utc::now();
+        let end = start + Duration::days(30);
+        let config = TimelineConfig::new(start, end);
+
+        assert_eq!(config.zoom_level, ZoomLevel::Days);
+        assert_eq!(config.viewport_start, start);
+        assert_eq!(config.viewport_end, end);
+    }
+
+    #[test]
+    fn test_timeline_config_default() {
+        let config = TimelineConfig::default();
+        
+        assert_eq!(config.zoom_level, ZoomLevel::Days);
+        assert!(config.viewport_end > config.viewport_start);
+    }
+
+    #[test]
+    fn test_timeline_config_clone() {
+        let start = Utc::now();
+        let end = start + Duration::days(30);
+        let config = TimelineConfig::new(start, end);
+
+        let cloned = config.clone();
+        assert_eq!(cloned.zoom_level, config.zoom_level);
+        assert_eq!(cloned.viewport_start, config.viewport_start);
+        assert_eq!(cloned.viewport_end, config.viewport_end);
+    }
+
+    #[test]
+    fn test_timeline_config_visible_units() {
+        let start = Utc::now();
+        let end = start + Duration::days(10);
+        let mut config = TimelineConfig::new(start, end);
+
+        config.zoom_level = ZoomLevel::Days;
+        assert_eq!(config.visible_units(), 10);
+
+        config.zoom_level = ZoomLevel::Hours;
+        assert_eq!(config.visible_units(), 240); // 10 * 24
+    }
+
+    #[test]
+    fn test_timeline_config_fit_to_schedules_empty() {
+        let mut config = TimelineConfig::default();
+        let original_start = config.viewport_start;
+        let original_end = config.viewport_end;
+
+        config.fit_to_schedules(&[]);
+
+        // Should not change when empty
+        assert_eq!(config.viewport_start, original_start);
+        assert_eq!(config.viewport_end, original_end);
+    }
+
+    #[test]
+    fn test_timeline_config_fit_to_schedules_single() {
+        let issue = create_test_issue("test-single");
+        let start = Utc::now();
+        let end = start + Duration::days(10);
+
+        let schedule = IssueSchedule::from_issue(
+            &issue,
+            ScheduleData {
+                defer_until: Some(start),
+                due_at: Some(end),
+                estimate: None,
+            },
+        );
+
+        let mut config = TimelineConfig::default();
+        config.fit_to_schedules(&[schedule]);
+
+        // Should include the schedule with padding
+        assert!(config.viewport_start < start);
+        assert!(config.viewport_end > end);
+    }
+
+    #[test]
+    fn test_timeline_config_pan_multiple_times() {
+        let start = Utc::now();
+        let end = start + Duration::days(30);
+        let mut config = TimelineConfig::new(start, end);
+
+        let original_start = config.viewport_start;
+
+        config.pan_forward();
+        let after_first = config.viewport_start;
+        assert!(after_first > original_start);
+
+        config.pan_forward();
+        let after_second = config.viewport_start;
+        assert!(after_second > after_first);
+
+        config.pan_backward();
+        config.pan_backward();
+        assert_eq!(config.viewport_start, original_start);
+    }
 }
