@@ -250,7 +250,7 @@ impl SearchInterfaceState {
             ViewType::MyIssues => {
                 // MyIssues: assigned to current user
                 if let Some(ref user) = self.current_user {
-                    issue.assignee.as_ref().map_or(false, |a| a == user)
+                    issue.assignee.as_ref() == Some(user)
                 } else {
                     false
                 }
