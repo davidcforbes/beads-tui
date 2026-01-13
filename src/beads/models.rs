@@ -443,7 +443,7 @@ mod tests {
     #[test]
     fn test_issue_status_clone() {
         let status = IssueStatus::InProgress;
-        let cloned = status.clone();
+        let cloned = status; // Copy trait, not clone
         assert_eq!(status, cloned);
     }
 
@@ -457,7 +457,7 @@ mod tests {
     #[test]
     fn test_priority_clone() {
         let priority = Priority::P2;
-        let cloned = priority.clone();
+        let cloned = priority; // Copy trait, not clone
         assert_eq!(priority, cloned);
     }
 
@@ -471,7 +471,7 @@ mod tests {
     #[test]
     fn test_issue_type_clone() {
         let issue_type = IssueType::Feature;
-        let cloned = issue_type.clone();
+        let cloned = issue_type; // Copy trait, not clone
         assert_eq!(issue_type, cloned);
     }
 

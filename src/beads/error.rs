@@ -102,17 +102,16 @@ mod tests {
     fn test_result_type_ok() {
         let result: Result<i32> = Ok(42);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        assert_eq!(result.unwrap_or(0), 42);
     }
 
     #[test]
     fn test_result_type_err() {
         let result: Result<i32> = Err(BeadsError::BeadsNotFound);
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "Beads CLI not found in PATH"
-        );
+        if let Err(e) = result {
+            assert_eq!(e.to_string(), "Beads CLI not found in PATH");
+        }
     }
 
     #[test]
