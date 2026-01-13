@@ -38,6 +38,21 @@ impl SortDirection {
     }
 }
 
+/// Label matching mode for filtering
+#[derive(Debug, Clone, PartialEq)]
+pub enum LabelMatchMode {
+    /// Match issues that have ANY of the specified labels (OR logic)
+    Any,
+    /// Match issues that have ALL of the specified labels (AND logic)
+    All,
+}
+
+impl Default for LabelMatchMode {
+    fn default() -> Self {
+        Self::Any
+    }
+}
+
 /// Column filter
 #[derive(Debug, Clone, Default)]
 pub struct ColumnFilters {
@@ -48,6 +63,8 @@ pub struct ColumnFilters {
     pub type_filter: String,
     pub no_assignee: bool,
     pub no_labels: bool,
+    pub labels: Vec<String>,
+    pub label_match_mode: LabelMatchMode,
 }
 
 impl ColumnFilters {
@@ -59,6 +76,8 @@ impl ColumnFilters {
         self.type_filter.clear();
         self.no_assignee = false;
         self.no_labels = false;
+        self.labels.clear();
+        self.label_match_mode = LabelMatchMode::Any;
     }
 
     pub fn is_empty(&self) -> bool {
@@ -69,6 +88,7 @@ impl ColumnFilters {
             && self.type_filter.is_empty()
             && !self.no_assignee
             && !self.no_labels
+            && self.labels.is_empty()
     }
 
     /// Check if an issue matches the current filters
@@ -130,6 +150,32 @@ impl ColumnFilters {
         // Check no-labels filter
         if self.no_labels && !issue.labels.is_empty() {
             return false;
+        }
+
+        // Check specific labels filter (with AND/OR logic)
+        if !self.labels.is_empty() {
+            let matches = match self.label_match_mode {
+                LabelMatchMode::Any => {
+                    // OR logic: issue must have at least one of the specified labels
+                    self.labels.iter().any(|filter_label| {
+                        issue.labels.iter().any(|issue_label| {
+                            issue_label.to_lowercase().contains(&filter_label.to_lowercase())
+                        })
+                    })
+                }
+                LabelMatchMode::All => {
+                    // AND logic: issue must have all of the specified labels
+                    self.labels.iter().all(|filter_label| {
+                        issue.labels.iter().any(|issue_label| {
+                            issue_label.to_lowercase().contains(&filter_label.to_lowercase())
+                        })
+                    })
+                }
+            };
+
+            if !matches {
+                return false;
+            }
         }
 
         true
@@ -1392,5 +1438,173 @@ mod tests {
 
         // Should not match issue3 (status is not Open)
         assert!(!filters.matches(&issue3));
+    }
+
+    #[test]
+    fn test_label_filter_any_mode_single_match() {
+        let mut issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        issue.labels = vec!["bug".to_string(), "frontend".to_string(), "urgent".to_string()];
+
+        let mut filters = ColumnFilters::default();
+        filters.labels = vec!["bug".to_string()];
+        filters.label_match_mode = LabelMatchMode::Any;
+
+        // Should match because issue has the "bug" label
+        assert!(filters.matches(&issue));
+    }
+
+    #[test]
+    fn test_label_filter_any_mode_multiple_match() {
+        let mut issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        issue.labels = vec!["bug".to_string(), "frontend".to_string()];
+
+        let mut filters = ColumnFilters::default();
+        filters.labels = vec!["bug".to_string(), "backend".to_string()];
+        filters.label_match_mode = LabelMatchMode::Any;
+
+        // Should match because issue has at least one of the specified labels ("bug")
+        assert!(filters.matches(&issue));
+    }
+
+    #[test]
+    fn test_label_filter_any_mode_no_match() {
+        let mut issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        issue.labels = vec!["documentation".to_string(), "ui".to_string()];
+
+        let mut filters = ColumnFilters::default();
+        filters.labels = vec!["bug".to_string(), "backend".to_string()];
+        filters.label_match_mode = LabelMatchMode::Any;
+
+        // Should not match because issue doesn't have any of the specified labels
+        assert!(!filters.matches(&issue));
+    }
+
+    #[test]
+    fn test_label_filter_all_mode_all_match() {
+        let mut issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        issue.labels = vec!["bug".to_string(), "frontend".to_string(), "urgent".to_string()];
+
+        let mut filters = ColumnFilters::default();
+        filters.labels = vec!["bug".to_string(), "frontend".to_string()];
+        filters.label_match_mode = LabelMatchMode::All;
+
+        // Should match because issue has all of the specified labels
+        assert!(filters.matches(&issue));
+    }
+
+    #[test]
+    fn test_label_filter_all_mode_partial_match() {
+        let mut issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        issue.labels = vec!["bug".to_string(), "ui".to_string()];
+
+        let mut filters = ColumnFilters::default();
+        filters.labels = vec!["bug".to_string(), "frontend".to_string()];
+        filters.label_match_mode = LabelMatchMode::All;
+
+        // Should not match because issue doesn't have all of the specified labels (missing "frontend")
+        assert!(!filters.matches(&issue));
+    }
+
+    #[test]
+    fn test_label_filter_all_mode_no_match() {
+        let mut issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        issue.labels = vec!["documentation".to_string(), "ui".to_string()];
+
+        let mut filters = ColumnFilters::default();
+        filters.labels = vec!["bug".to_string(), "backend".to_string()];
+        filters.label_match_mode = LabelMatchMode::All;
+
+        // Should not match because issue doesn't have any of the specified labels
+        assert!(!filters.matches(&issue));
+    }
+
+    #[test]
+    fn test_label_filter_case_insensitive() {
+        let mut issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        issue.labels = vec!["BUG".to_string(), "Frontend".to_string()];
+
+        let mut filters = ColumnFilters::default();
+        filters.labels = vec!["bug".to_string(), "frontend".to_string()];
+        filters.label_match_mode = LabelMatchMode::All;
+
+        // Should match because label matching is case-insensitive
+        assert!(filters.matches(&issue));
+    }
+
+    #[test]
+    fn test_label_filter_substring_match() {
+        let mut issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        issue.labels = vec!["frontend-bug".to_string(), "ui-component".to_string()];
+
+        let mut filters = ColumnFilters::default();
+        filters.labels = vec!["bug".to_string()];
+        filters.label_match_mode = LabelMatchMode::Any;
+
+        // Should match because "bug" is a substring of "frontend-bug"
+        assert!(filters.matches(&issue));
+    }
+
+    #[test]
+    fn test_label_filter_combined_with_status() {
+        let mut issue1 = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        issue1.labels = vec!["bug".to_string(), "frontend".to_string()];
+
+        let mut issue2 = create_test_issue("beads-002", "Test", Priority::P2, IssueStatus::Closed);
+        issue2.labels = vec!["bug".to_string(), "frontend".to_string()];
+
+        let mut filters = ColumnFilters::default();
+        filters.labels = vec!["bug".to_string()];
+        filters.label_match_mode = LabelMatchMode::Any;
+        filters.status = "Open".to_string();
+
+        // Should match issue1 (has label AND status is Open)
+        assert!(filters.matches(&issue1));
+
+        // Should not match issue2 (has label BUT status is not Open)
+        assert!(!filters.matches(&issue2));
+    }
+
+    #[test]
+    fn test_label_filter_empty_matches_all() {
+        let mut issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
+        issue.labels = vec!["bug".to_string()];
+
+        let filters = ColumnFilters::default();
+
+        // Should match because labels filter is empty
+        assert!(filters.matches(&issue));
+    }
+
+    #[test]
+    fn test_label_match_mode_default() {
+        let filters = ColumnFilters::default();
+
+        // Default label_match_mode should be Any
+        assert_eq!(filters.label_match_mode, LabelMatchMode::Any);
+    }
+
+    #[test]
+    fn test_label_filter_clear_resets_labels_and_mode() {
+        let mut filters = ColumnFilters::default();
+        filters.labels = vec!["bug".to_string(), "frontend".to_string()];
+        filters.label_match_mode = LabelMatchMode::All;
+
+        filters.clear();
+
+        assert!(filters.labels.is_empty());
+        assert_eq!(filters.label_match_mode, LabelMatchMode::Any);
+    }
+
+    #[test]
+    fn test_label_filter_is_empty_with_labels() {
+        let mut filters = ColumnFilters::default();
+        assert!(filters.is_empty());
+
+        // Setting labels should make it non-empty
+        filters.labels = vec!["bug".to_string()];
+        assert!(!filters.is_empty());
+
+        filters.labels.clear();
+        assert!(filters.is_empty());
     }
 }
