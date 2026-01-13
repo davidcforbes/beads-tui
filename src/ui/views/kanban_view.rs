@@ -445,6 +445,237 @@ impl KanbanViewState {
         self.horizontal_scroll
     }
 
+    /// Move selected card to next column (right)
+    pub fn move_card_to_next_column(&mut self) -> Result<(), String> {
+        let visible_columns = self.visible_columns();
+        if self.selected_column >= visible_columns.len().saturating_sub(1) {
+            return Err("Already in last column".to_string());
+        }
+
+        let target_column_idx = self.selected_column + 1;
+        self.move_card_to_column(target_column_idx)
+    }
+
+    /// Move selected card to previous column (left)
+    pub fn move_card_to_previous_column(&mut self) -> Result<(), String> {
+        if self.selected_column == 0 {
+            return Err("Already in first column".to_string());
+        }
+
+        let target_column_idx = self.selected_column - 1;
+        self.move_card_to_column(target_column_idx)
+    }
+
+    /// Move selected card to a specific column by index
+    pub fn move_card_to_column(&mut self, target_column_idx: usize) -> Result<(), String> {
+        let visible_columns = self.visible_columns();
+        
+        // Get source and target columns
+        let source_column = visible_columns.get(self.selected_column)
+            .ok_or("Invalid source column")?;
+        let target_column = visible_columns.get(target_column_idx)
+            .ok_or("Invalid target column")?;
+
+        // Get the selected issue
+        let source_issues = self.get_column_issues(self.selected_column);
+        let issue = source_issues.get(self.selected_card)
+            .ok_or("No card selected")?;
+        let issue_id = issue.id.clone();
+
+        // Find the issue in our issues vector and update it
+        let issue_mut = self.issues.iter_mut()
+            .find(|i| i.id == issue_id)
+            .ok_or("Issue not found in state")?;
+
+        // Update issue based on grouping mode and target column
+        match self.config.grouping_mode {
+            GroupingMode::Status => {
+                let new_status = match &target_column.id {
+                    ColumnId::StatusOpen => IssueStatus::Open,
+                    ColumnId::StatusInProgress => IssueStatus::InProgress,
+                    ColumnId::StatusBlocked => IssueStatus::Blocked,
+                    ColumnId::StatusClosed => IssueStatus::Closed,
+                    _ => return Err("Invalid status column".to_string()),
+                };
+                issue_mut.status = new_status;
+            }
+            GroupingMode::Priority => {
+                let new_priority = match &target_column.id {
+                    ColumnId::PriorityP0 => Priority::P0,
+                    ColumnId::PriorityP1 => Priority::P1,
+                    ColumnId::PriorityP2 => Priority::P2,
+                    ColumnId::PriorityP3 => Priority::P3,
+                    ColumnId::PriorityP4 => Priority::P4,
+                    _ => return Err("Invalid priority column".to_string()),
+                };
+                issue_mut.priority = new_priority;
+            }
+            GroupingMode::Assignee => {
+                match &target_column.id {
+                    ColumnId::Assignee(name) => {
+                        issue_mut.assignee = Some(name.clone());
+                    }
+                    ColumnId::Unassigned => {
+                        issue_mut.assignee = None;
+                    }
+                    _ => return Err("Invalid assignee column".to_string()),
+                }
+            }
+            GroupingMode::Label => {
+                // For label mode, we need to handle adding/removing labels
+                match (&source_column.id, &target_column.id) {
+                    (ColumnId::Label(old_label), ColumnId::Label(new_label)) => {
+                        // Remove old label, add new label
+                        issue_mut.labels.retain(|l| l != old_label);
+                        if !issue_mut.labels.contains(new_label) {
+                            issue_mut.labels.push(new_label.clone());
+                        }
+                    }
+                    (ColumnId::Label(old_label), ColumnId::Unassigned) => {
+                        // Remove label
+                        issue_mut.labels.retain(|l| l != old_label);
+                    }
+                    (ColumnId::Unassigned, ColumnId::Label(new_label)) => {
+                        // Add label
+                        if !issue_mut.labels.contains(new_label) {
+                            issue_mut.labels.push(new_label.clone());
+                        }
+                    }
+                    _ => return Err("Invalid label column".to_string()),
+                }
+            }
+        }
+
+        // Update the selected column to target and reset card selection
+        self.selected_column = target_column_idx;
+        self.selected_card = 0;
+
+        Ok(())
+    }
+
+    /// Quick action: Update selected issue status
+    pub fn update_selected_issue_status(&mut self, status: IssueStatus) -> Result<(), String> {
+        let column_issues = self.get_column_issues(self.selected_column);
+        let issue = column_issues.get(self.selected_card)
+            .ok_or("No card selected")?;
+        let issue_id = issue.id.clone();
+
+        let issue_mut = self.issues.iter_mut()
+            .find(|i| i.id == issue_id)
+            .ok_or("Issue not found")?;
+        
+        issue_mut.status = status;
+        Ok(())
+    }
+
+    /// Quick action: Update selected issue priority
+    pub fn update_selected_issue_priority(&mut self, priority: Priority) -> Result<(), String> {
+        let column_issues = self.get_column_issues(self.selected_column);
+        let issue = column_issues.get(self.selected_card)
+            .ok_or("No card selected")?;
+        let issue_id = issue.id.clone();
+
+        let issue_mut = self.issues.iter_mut()
+            .find(|i| i.id == issue_id)
+            .ok_or("Issue not found")?;
+        
+        issue_mut.priority = priority;
+        Ok(())
+    }
+
+    /// Quick action: Update selected issue assignee
+    pub fn update_selected_issue_assignee(&mut self, assignee: Option<String>) -> Result<(), String> {
+        let column_issues = self.get_column_issues(self.selected_column);
+        let issue = column_issues.get(self.selected_card)
+            .ok_or("No card selected")?;
+        let issue_id = issue.id.clone();
+
+        let issue_mut = self.issues.iter_mut()
+            .find(|i| i.id == issue_id)
+            .ok_or("Issue not found")?;
+        
+        issue_mut.assignee = assignee;
+        Ok(())
+    }
+
+    /// Quick action: Add label to selected issue
+    pub fn add_label_to_selected_issue(&mut self, label: String) -> Result<(), String> {
+        let column_issues = self.get_column_issues(self.selected_column);
+        let issue = column_issues.get(self.selected_card)
+            .ok_or("No card selected")?;
+        let issue_id = issue.id.clone();
+
+        let issue_mut = self.issues.iter_mut()
+            .find(|i| i.id == issue_id)
+            .ok_or("Issue not found")?;
+        
+        if !issue_mut.labels.contains(&label) {
+            issue_mut.labels.push(label);
+        }
+        Ok(())
+    }
+
+    /// Quick action: Remove label from selected issue
+    pub fn remove_label_from_selected_issue(&mut self, label: &str) -> Result<(), String> {
+        let column_issues = self.get_column_issues(self.selected_column);
+        let issue = column_issues.get(self.selected_card)
+            .ok_or("No card selected")?;
+        let issue_id = issue.id.clone();
+
+        let issue_mut = self.issues.iter_mut()
+            .find(|i| i.id == issue_id)
+            .ok_or("Issue not found")?;
+        
+        issue_mut.labels.retain(|l| l != label);
+        Ok(())
+    }
+
+    /// Refresh issues from external source while preserving view state
+    pub fn refresh_issues(&mut self, new_issues: Vec<Issue>) {
+        // Preserve current state
+        let old_selected_column = self.selected_column;
+        let old_selected_card = self.selected_card;
+        let old_scroll = self.horizontal_scroll;
+
+        // Get currently selected issue ID if any
+        let selected_issue_id = self.selected_issue().map(|i| i.id.clone());
+
+        // Update issues
+        self.issues = new_issues;
+
+        // Restore scroll position
+        self.horizontal_scroll = old_scroll;
+
+        // Try to restore selection to same issue
+        if let Some(issue_id) = selected_issue_id {
+            // Try to find the issue in the new data
+            let visible_columns = self.visible_columns();
+            let mut found = false;
+
+            for (col_idx, _column) in visible_columns.iter().enumerate() {
+                let column_issues = self.get_column_issues(col_idx);
+                for (card_idx, issue) in column_issues.iter().enumerate() {
+                    if issue.id == issue_id {
+                        self.selected_column = col_idx;
+                        self.selected_card = card_idx;
+                        found = true;
+                        break;
+                    }
+                }
+                if found {
+                    break;
+                }
+            }
+
+            // If not found, try to keep same column/card position
+            if !found {
+                self.selected_column = old_selected_column.min(visible_columns.len().saturating_sub(1));
+                let column_issue_count = self.get_column_issues(self.selected_column).len();
+                self.selected_card = old_selected_card.min(column_issue_count.saturating_sub(1));
+            }
+        }
+    }
+
     /// Get visible columns
     fn visible_columns(&self) -> Vec<&ColumnDefinition> {
         self.config
