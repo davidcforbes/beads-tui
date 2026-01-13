@@ -178,6 +178,112 @@ impl ColumnFilters {
     }
 }
 
+/// Hierarchy information for an issue in the tree
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+struct HierarchyInfo {
+    /// Depth level in the hierarchy (0 = root)
+    depth: usize,
+    /// Tree prefix to display (e.g., "├── ", "└── ", "│   ")
+    prefix: String,
+    /// Whether this is the last child at its level
+    is_last: bool,
+}
+
+/// Build a map of issue IDs to their hierarchy information
+/// based on dependencies (blocks relationships)
+fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, HierarchyInfo> {
+    use std::collections::{HashMap, HashSet};
+    
+    // Build parent-child relationships
+    // If A blocks B, then A is parent of B
+    let mut children_map: HashMap<String, Vec<String>> = HashMap::new();
+    let mut has_parent: HashSet<String> = HashSet::new();
+    
+    for issue in issues {
+        // For each issue that this issue blocks, add it as a child
+        for blocked_id in &issue.blocks {
+            children_map
+                .entry(issue.id.clone())
+                .or_insert_with(Vec::new)
+                .push(blocked_id.clone());
+            has_parent.insert(blocked_id.clone());
+        }
+    }
+    
+    // Find root issues (those with no parents)
+    let roots: Vec<String> = issues
+        .iter()
+        .map(|i| i.id.clone())
+        .filter(|id| !has_parent.contains(id))
+        .collect();
+    
+    // Build hierarchy info via DFS
+    let mut hierarchy_map: HashMap<String, HierarchyInfo> = HashMap::new();
+    
+    fn build_tree(
+        issue_id: &str,
+        depth: usize,
+        parent_prefixes: &[bool],
+        is_last: bool,
+        children_map: &HashMap<String, Vec<String>>,
+        hierarchy_map: &mut HashMap<String, HierarchyInfo>,
+    ) {
+        // Build prefix for this node
+        let mut prefix = String::new();
+        
+        // Add parent prefixes
+        for (i, &has_sibling_below) in parent_prefixes.iter().enumerate() {
+            if i < parent_prefixes.len() {
+                prefix.push_str(if has_sibling_below { "│   " } else { "    " });
+            }
+        }
+        
+        // Add this node's connector
+        if depth > 0 {
+            prefix.push_str(if is_last { "└── " } else { "├── " });
+        }
+        
+        hierarchy_map.insert(
+            issue_id.to_string(),
+            HierarchyInfo {
+                depth,
+                prefix,
+                is_last,
+            },
+        );
+        
+        // Process children
+        if let Some(children) = children_map.get(issue_id) {
+            let child_count = children.len();
+            for (idx, child_id) in children.iter().enumerate() {
+                let child_is_last = idx == child_count - 1;
+                
+                // Build new parent prefixes for children
+                let mut new_prefixes = parent_prefixes.to_vec();
+                new_prefixes.push(!is_last);
+                
+                build_tree(
+                    child_id,
+                    depth + 1,
+                    &new_prefixes,
+                    child_is_last,
+                    children_map,
+                    hierarchy_map,
+                );
+            }
+        }
+    }
+    
+    // Build tree for each root
+    for (idx, root_id) in roots.iter().enumerate() {
+        let is_last_root = idx == roots.len() - 1;
+        build_tree(root_id, 0, &[], is_last_root, &children_map, &mut hierarchy_map);
+    }
+    
+    hierarchy_map
+}
+
 /// Issue list state
 #[derive(Debug)]
 pub struct IssueListState {
@@ -734,6 +840,7 @@ impl<'a> IssueList<'a> {
         row_idx: usize,
         wrap_width: usize,
         row_height: u16,
+        hierarchy_map: &std::collections::HashMap<String, HierarchyInfo>,
     ) -> Cell<'b> {
         use crate::models::table_config::ColumnId;
         
@@ -762,10 +869,17 @@ impl<'a> IssueList<'a> {
                     issue.title.clone()
                 };
 
+                // Add tree prefix if this issue is in the hierarchy
+                let title_with_tree = if let Some(hierarchy_info) = hierarchy_map.get(&issue.id) {
+                    format!("{}{}", hierarchy_info.prefix, title_text)
+                } else {
+                    title_text
+                };
+
                 // Handle title cell with wrapping support
                 if row_height > 1 {
                     // Multi-row mode: wrap text
-                    let wrapped_lines = Self::wrap_text(&title_text, wrap_width);
+                    let wrapped_lines = Self::wrap_text(&title_with_tree, wrap_width);
                     let lines: Vec<Line> = wrapped_lines
                         .iter()
                         .take(row_height as usize)
@@ -787,7 +901,7 @@ impl<'a> IssueList<'a> {
                     Cell::from(padded_lines)
                 } else {
                     // Single-row mode: truncate
-                    let truncated = Self::truncate_text(&title_text, wrap_width);
+                    let truncated = Self::truncate_text(&title_with_tree, wrap_width);
                     if let Some(ref query) = search_query {
                         Cell::from(Line::from(Self::highlight_text(&truncated, query)))
                     } else {
@@ -930,6 +1044,9 @@ impl<'a> StatefulWidget for IssueList<'a> {
             Self::sort_issues(&mut issues, state.sort_column, state.sort_direction);
         }
 
+        // Build hierarchy map for tree rendering
+        let hierarchy_map = build_hierarchy_map(&issues);
+
         // Build header from TableConfig
         let sort_indicator = match state.sort_direction {
             SortDirection::Ascending => "▲",
@@ -1027,6 +1144,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
                             row_idx,
                             wrap_width,
                             row_height_to_use,
+                            &hierarchy_map,
                         )
                     })
                     .collect();
@@ -1852,5 +1970,274 @@ mod tests {
             "Widget creation took {}ms, expected < 100ms",
             duration.as_millis()
         );
+    }
+
+    #[test]
+    fn test_build_hierarchy_map_simple() {
+        use chrono::Utc;
+        
+        // Create parent issue that blocks child
+        let parent = Issue {
+            id: "parent".to_string(),
+            title: "Parent Issue".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P1,
+            issue_type: IssueType::Epic,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec![],
+            blocks: vec!["child".to_string()],
+            created: Utc::now(),
+            updated: Utc::now(),
+            closed: None,
+            notes: vec![],
+        };
+        
+        let child = Issue {
+            id: "child".to_string(),
+            title: "Child Issue".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P2,
+            issue_type: IssueType::Task,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec!["parent".to_string()],
+            blocks: vec![],
+            created: Utc::now(),
+            updated: Utc::now(),
+            closed: None,
+            notes: vec![],
+        };
+        
+        let issues = vec![&parent, &child];
+        let hierarchy_map = build_hierarchy_map(&issues);
+        
+        // Check that both issues are in the map
+        assert!(hierarchy_map.contains_key("parent"));
+        assert!(hierarchy_map.contains_key("child"));
+        
+        // Parent should be at depth 0 (root)
+        let parent_info = hierarchy_map.get("parent").unwrap();
+        assert_eq!(parent_info.depth, 0);
+        assert_eq!(parent_info.prefix, ""); // Root has no prefix
+        
+        // Child should be at depth 1 with tree prefix
+        let child_info = hierarchy_map.get("child").unwrap();
+        assert_eq!(child_info.depth, 1);
+        assert!(child_info.prefix.contains("└──") || child_info.prefix.contains("├──"));
+    }
+
+    #[test]
+    fn test_build_hierarchy_map_multiple_children() {
+        use chrono::Utc;
+        
+        let parent = Issue {
+            id: "parent".to_string(),
+            title: "Parent".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P1,
+            issue_type: IssueType::Epic,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec![],
+            blocks: vec!["child1".to_string(), "child2".to_string(), "child3".to_string()],
+            created: Utc::now(),
+            updated: Utc::now(),
+            closed: None,
+            notes: vec![],
+        };
+        
+        let child1 = Issue {
+            id: "child1".to_string(),
+            title: "Child 1".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P2,
+            issue_type: IssueType::Task,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec!["parent".to_string()],
+            blocks: vec![],
+            created: Utc::now(),
+            updated: Utc::now(),
+            closed: None,
+            notes: vec![],
+        };
+        
+        let child2 = Issue {
+            id: "child2".to_string(),
+            title: "Child 2".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P2,
+            issue_type: IssueType::Task,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec!["parent".to_string()],
+            blocks: vec![],
+            created: Utc::now(),
+            updated: Utc::now(),
+            closed: None,
+            notes: vec![],
+        };
+        
+        let child3 = Issue {
+            id: "child3".to_string(),
+            title: "Child 3".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P2,
+            issue_type: IssueType::Task,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec!["parent".to_string()],
+            blocks: vec![],
+            created: Utc::now(),
+            updated: Utc::now(),
+            closed: None,
+            notes: vec![],
+        };
+        
+        let issues = vec![&parent, &child1, &child2, &child3];
+        let hierarchy_map = build_hierarchy_map(&issues);
+        
+        // All issues should be in the map
+        assert_eq!(hierarchy_map.len(), 4);
+        
+        // All children should be at depth 1
+        assert_eq!(hierarchy_map.get("child1").unwrap().depth, 1);
+        assert_eq!(hierarchy_map.get("child2").unwrap().depth, 1);
+        assert_eq!(hierarchy_map.get("child3").unwrap().depth, 1);
+        
+        // Last child should have └── prefix
+        let child3_prefix = &hierarchy_map.get("child3").unwrap().prefix;
+        assert!(child3_prefix.contains("└──"));
+        
+        // Other children should have ├── prefix
+        let child1_prefix = &hierarchy_map.get("child1").unwrap().prefix;
+        assert!(child1_prefix.contains("├──"));
+    }
+
+    #[test]
+    fn test_build_hierarchy_map_deep_tree() {
+        use chrono::Utc;
+        
+        // Create a 3-level deep tree: root -> level1 -> level2
+        let root = Issue {
+            id: "root".to_string(),
+            title: "Root".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P1,
+            issue_type: IssueType::Epic,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec![],
+            blocks: vec!["level1".to_string()],
+            created: Utc::now(),
+            updated: Utc::now(),
+            closed: None,
+            notes: vec![],
+        };
+        
+        let level1 = Issue {
+            id: "level1".to_string(),
+            title: "Level 1".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P2,
+            issue_type: IssueType::Feature,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec!["root".to_string()],
+            blocks: vec!["level2".to_string()],
+            created: Utc::now(),
+            updated: Utc::now(),
+            closed: None,
+            notes: vec![],
+        };
+        
+        let level2 = Issue {
+            id: "level2".to_string(),
+            title: "Level 2".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P2,
+            issue_type: IssueType::Task,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec!["level1".to_string()],
+            blocks: vec![],
+            created: Utc::now(),
+            updated: Utc::now(),
+            closed: None,
+            notes: vec![],
+        };
+        
+        let issues = vec![&root, &level1, &level2];
+        let hierarchy_map = build_hierarchy_map(&issues);
+        
+        // Check depths
+        assert_eq!(hierarchy_map.get("root").unwrap().depth, 0);
+        assert_eq!(hierarchy_map.get("level1").unwrap().depth, 1);
+        assert_eq!(hierarchy_map.get("level2").unwrap().depth, 2);
+        
+        // Check prefixes contain tree characters
+        let level2_prefix = &hierarchy_map.get("level2").unwrap().prefix;
+        assert!(level2_prefix.contains("└──") || level2_prefix.contains("├──"));
+        // Should have indentation from parent levels
+        assert!(level2_prefix.len() > 4);
+    }
+
+    #[test]
+    fn test_build_hierarchy_map_no_hierarchy() {
+        use chrono::Utc;
+        
+        // Create issues with no blocking relationships
+        let issue1 = Issue {
+            id: "issue1".to_string(),
+            title: "Issue 1".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P2,
+            issue_type: IssueType::Task,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec![],
+            blocks: vec![],
+            created: Utc::now(),
+            updated: Utc::now(),
+            closed: None,
+            notes: vec![],
+        };
+        
+        let issue2 = Issue {
+            id: "issue2".to_string(),
+            title: "Issue 2".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P2,
+            issue_type: IssueType::Task,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec![],
+            blocks: vec![],
+            created: Utc::now(),
+            updated: Utc::now(),
+            closed: None,
+            notes: vec![],
+        };
+        
+        let issues = vec![&issue1, &issue2];
+        let hierarchy_map = build_hierarchy_map(&issues);
+        
+        // All issues should be roots (depth 0, no prefix)
+        assert_eq!(hierarchy_map.get("issue1").unwrap().depth, 0);
+        assert_eq!(hierarchy_map.get("issue1").unwrap().prefix, "");
+        assert_eq!(hierarchy_map.get("issue2").unwrap().depth, 0);
+        assert_eq!(hierarchy_map.get("issue2").unwrap().prefix, "");
     }
 }
