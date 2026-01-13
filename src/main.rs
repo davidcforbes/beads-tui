@@ -822,6 +822,30 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             app.priority_selector_state.toggle();
                         }
                     }
+                    KeyCode::Char('L') => {
+                        // Open label picker for selected issue (Shift+L)
+                        if let Some(issue) = issues_state.selected_issue() {
+                            // Clone current issue's labels first (to release borrow)
+                            let current_labels = issue.labels.clone();
+
+                            // Collect all unique labels from all issues
+                            let all_labels: std::collections::HashSet<String> = app
+                                .issues_view_state
+                                .all_issues()
+                                .iter()
+                                .flat_map(|i| i.labels.iter().cloned())
+                                .collect();
+                            let mut available_labels: Vec<String> = all_labels.into_iter().collect();
+                            available_labels.sort();
+
+                            // Set available labels and current issue's labels as selected
+                            app.label_picker_state.set_available_labels(available_labels);
+                            app.label_picker_state.set_selected_labels(current_labels);
+
+                            // Open picker
+                            app.show_label_picker = true;
+                        }
+                    }
                     KeyCode::Char('/') => {
                         issues_state
                             .search_state_mut()
@@ -1731,6 +1755,81 @@ fn run_app<B: ratatui::backend::Backend>(
                     }
                 }
 
+                // Handle label picker events if open
+                if app.show_label_picker {
+                    match key.code {
+                        KeyCode::Esc => {
+                            // If filtering, stop filtering; otherwise close picker
+                            if app.label_picker_state.is_filtering() {
+                                app.label_picker_state.stop_filtering();
+                            } else {
+                                app.show_label_picker = false;
+                            }
+                            continue;
+                        }
+                        KeyCode::Char('/') if !app.label_picker_state.is_filtering() => {
+                            app.label_picker_state.start_filtering();
+                            continue;
+                        }
+                        KeyCode::Char(c) if app.label_picker_state.is_filtering() => {
+                            app.label_picker_state.insert_char(c);
+                            continue;
+                        }
+                        KeyCode::Backspace if app.label_picker_state.is_filtering() => {
+                            app.label_picker_state.delete_char();
+                            continue;
+                        }
+                        KeyCode::Up | KeyCode::Char('k') if !app.label_picker_state.is_filtering() => {
+                            app.label_picker_state.select_previous();
+                            continue;
+                        }
+                        KeyCode::Down | KeyCode::Char('j') if !app.label_picker_state.is_filtering() => {
+                            app.label_picker_state.select_next();
+                            continue;
+                        }
+                        KeyCode::Char(' ') if !app.label_picker_state.is_filtering() => {
+                            app.label_picker_state.toggle_selected();
+                            continue;
+                        }
+                        KeyCode::Enter => {
+                            // Apply selected labels to current issue
+                            if let Some(issue) = app.issues_view_state.selected_issue() {
+                                let issue_id = issue.id.clone();
+                                let new_labels = app.label_picker_state.selected_labels().to_vec();
+
+                                // Update labels via beads client
+                                use crate::beads::client::IssueUpdate;
+                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                let client = &app.beads_client;
+                                let update = IssueUpdate::new().labels(new_labels.clone());
+
+                                match rt.block_on(client.update_issue(&issue_id, update)) {
+                                    Ok(()) => {
+                                        app.set_success(format!(
+                                            "Updated labels for issue {} ({})",
+                                            issue_id,
+                                            if new_labels.is_empty() {
+                                                "removed all".to_string()
+                                            } else {
+                                                format!("{} labels", new_labels.len())
+                                            }
+                                        ));
+                                        app.reload_issues();
+                                    }
+                                    Err(e) => {
+                                        app.set_error(format!("Failed to update labels: {}", e));
+                                    }
+                                }
+                            }
+                            app.show_label_picker = false;
+                            continue;
+                        }
+                        _ => {
+                            continue;
+                        }
+                    }
+                }
+
                 // Global key bindings
                 match key.code {
                     KeyCode::Char('q') => {
@@ -2085,6 +2184,21 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         f.render_widget(Clear, selector_area);
         let selector = PrioritySelector::new(current_priority);
         f.render_stateful_widget(selector, selector_area, &mut app.priority_selector_state);
+    }
+
+    // Render label picker if open
+    if app.show_label_picker {
+        use ratatui::widgets::Clear;
+        use ui::widgets::LabelPicker;
+
+        // Create a centered rect for the picker
+        let area = f.size();
+        let picker_area = centered_rect(60, 70, area);
+
+        // Clear and render picker
+        f.render_widget(Clear, picker_area);
+        let picker = LabelPicker::new();
+        f.render_stateful_widget(picker, picker_area, &mut app.label_picker_state);
     }
 
     // Render keyboard shortcut help overlay if visible

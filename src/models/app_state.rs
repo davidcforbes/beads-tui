@@ -80,8 +80,12 @@ pub struct AppState {
     pub show_issue_history: bool,
     /// Issue history panel state
     pub issue_history_state: crate::ui::widgets::IssueHistoryState,
+    /// Whether to show label picker
+    pub show_label_picker: bool,
     /// Priority selector state for batch priority updates
     pub priority_selector_state: crate::ui::widgets::SelectorState,
+    /// Label picker state for batch label operations
+    pub label_picker_state: crate::ui::widgets::LabelPickerState,
     /// Whether beads daemon is currently running
     pub daemon_running: bool,
     /// Application configuration
@@ -211,7 +215,9 @@ impl AppState {
             notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
             show_issue_history: false,
             issue_history_state: crate::ui::widgets::IssueHistoryState::new(),
+            show_label_picker: false,
             priority_selector_state: crate::ui::widgets::SelectorState::new(),
+            label_picker_state: crate::ui::widgets::LabelPickerState::new(vec![]),
             daemon_running,
             config,
             filter_save_dialog_state: None,
@@ -756,7 +762,9 @@ mod tests {
             notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
             show_issue_history: false,
             issue_history_state: crate::ui::widgets::IssueHistoryState::new(),
+            show_label_picker: false,
             priority_selector_state: crate::ui::widgets::SelectorState::new(),
+            label_picker_state: crate::ui::widgets::LabelPickerState::new(vec![]),
         }
     }
 
