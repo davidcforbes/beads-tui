@@ -217,6 +217,41 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
     let issues_state = &mut app.issues_view_state;
     let view_mode = issues_state.view_mode();
 
+    // Handle filter menu events if open
+    if issues_state.search_state().is_filter_menu_open() {
+        match key_code {
+            KeyCode::Char('j') | KeyCode::Down => {
+                issues_state.search_state_mut().filter_menu_next();
+                return;
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                issues_state.search_state_mut().filter_menu_previous();
+                return;
+            }
+            KeyCode::Enter => {
+                issues_state.search_state_mut().filter_menu_confirm();
+                app.set_success("Filter applied".to_string());
+                return;
+            }
+            KeyCode::Char('d') | KeyCode::Delete => {
+                // Delete filter
+                if let Some(i) = issues_state.search_state().filter_menu_state().selected() {
+                    issues_state.search_state_mut().delete_saved_filter(i);
+                    app.set_success("Filter deleted".to_string());
+                    // Sync to config
+                    app.config.filters = issues_state.search_state().saved_filters().to_vec();
+                    let _ = app.config.save();
+                }
+                return;
+            }
+            KeyCode::Esc | KeyCode::Char('m') => {
+                issues_state.search_state_mut().toggle_filter_menu();
+                return;
+            }
+            _ => return, // Sink other keys
+        }
+    }
+
     match view_mode {
         IssuesViewMode::List => {
             let search_focused = issues_state.search_state().search_state().is_focused();
@@ -458,6 +493,38 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         issues_state.search_state_mut().update_filtered_issues();
                         let enabled = issues_state.search_state().list_state().filters_enabled();
                         tracing::info!("Quick filters toggled: {}", if enabled { "enabled" } else { "disabled" });
+                    }
+                    KeyCode::Char('v') => {
+                        // Cycle view
+                        issues_state.search_state_mut().next_view();
+                        tracing::debug!("Cycled to next view: {:?}", issues_state.search_state().current_view());
+                    }
+                    KeyCode::Char('s') => {
+                        // Cycle search scope
+                        issues_state.search_state_mut().next_search_scope();
+                        tracing::debug!("Cycled to next scope: {:?}", issues_state.search_state().search_scope());
+                    }
+                    KeyCode::Char('g') => {
+                        // Toggle regex
+                        issues_state.search_state_mut().toggle_regex();
+                        let enabled = issues_state.search_state().is_regex_enabled();
+                        app.set_info(format!("Regex search {}", if enabled { "enabled" } else { "disabled" }));
+                    }
+                    KeyCode::Char('z') => {
+                        // Toggle fuzzy
+                        issues_state.search_state_mut().toggle_fuzzy();
+                        let enabled = issues_state.search_state().is_fuzzy_enabled();
+                        app.set_info(format!("Fuzzy search {}", if enabled { "enabled" } else { "disabled" }));
+                    }
+                    KeyCode::Char('l') => {
+                        // Toggle label logic
+                        issues_state.search_state_mut().toggle_label_logic();
+                        let logic = issues_state.search_state().label_logic();
+                        app.set_info(format!("Label logic set to {:?}", logic));
+                    }
+                    KeyCode::Char('m') => {
+                        // Toggle filter quick select menu
+                        issues_state.search_state_mut().toggle_filter_menu();
                     }
                     KeyCode::Char('/') => {
                         issues_state
@@ -1393,6 +1460,21 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
             }
         }
+    }
+
+    // Render filter save dialog overlay if active
+    if let Some(ref dialog_state) = app.filter_save_dialog_state {
+        use ui::widgets::FilterSaveDialog;
+
+        let dialog = FilterSaveDialog::new();
+
+        // Render dialog centered on screen
+        let area = f.size();
+        let dialog_area = centered_rect(70, 40, area);
+
+        // Clear and render dialog
+        f.render_widget(Clear, dialog_area);
+        dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
     }
 
     // Render notification banner if present

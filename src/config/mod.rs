@@ -103,7 +103,7 @@ impl Config {
         Ok(())
     }
 
-    /// Get the path to the configuration file
+    /// Get path to the configuration file
     fn config_path() -> Result<PathBuf> {
         let config_dir = directories::ProjectDirs::from("com", "davidcforbes", "beads-tui")
             .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?;
@@ -496,6 +496,8 @@ filters:
       labels: []
       label_logic: And
       search_text: null
+      search_scope: "All"
+      view_type: "All"
       use_regex: false
       use_fuzzy: false
     hotkey: "1"

@@ -1,13 +1,14 @@
 /// Application state management
 use crate::beads::BeadsClient;
 use crate::config::Config;
+use crate::models::{IssueFilter, SavedFilter};
 use crate::ui::views::{
     compute_label_stats, BondingInterfaceState, DatabaseStats, DatabaseStatus, DatabaseViewState,
     DependenciesViewState, Formula, FormulaBrowserState, GanttViewState, HelpSection,
     HistoryOpsState, IssuesViewState, KanbanViewState, LabelStats, LabelsViewState, PertViewState,
     PourWizardState, WispManagerState,
 };
-use crate::ui::widgets::DialogState;
+use crate::ui::widgets::{DialogState, FilterSaveDialogState};
 
 use super::PerfStats;
 
@@ -70,6 +71,8 @@ pub struct AppState {
     pub daemon_running: bool,
     /// Application configuration
     pub config: Config,
+    /// Filter save dialog state
+    pub filter_save_dialog_state: Option<FilterSaveDialogState>,
 }
 
 impl AppState {
@@ -132,6 +135,9 @@ impl AppState {
             },
         ];
 
+        let mut issues_view_state = IssuesViewState::new(issues.clone());
+        issues_view_state.set_saved_filters(config.filters.clone());
+
         Self {
             should_quit: false,
             selected_tab: 0,
@@ -147,7 +153,7 @@ impl AppState {
                 "Help",
             ],
             beads_client,
-            issues_view_state: IssuesViewState::new(issues.clone()),
+            issues_view_state,
             dependencies_view_state: DependenciesViewState::new(),
             labels_view_state: LabelsViewState::new(),
             pert_view_state: PertViewState::new(issues.clone()),
@@ -174,6 +180,7 @@ impl AppState {
             notification: None,
             daemon_running,
             config,
+            filter_save_dialog_state: None,
         }
     }
 
@@ -342,6 +349,131 @@ impl AppState {
         }
     }
 
+    /// Show the filter save dialog
+    pub fn show_filter_save_dialog(&mut self) {
+        self.filter_save_dialog_state = Some(FilterSaveDialogState::new());
+        self.mark_dirty();
+    }
+
+    /// Hide the filter save dialog
+    pub fn hide_filter_save_dialog(&mut self) {
+        self.filter_save_dialog_state = None;
+        self.mark_dirty();
+    }
+
+    /// Check if filter save dialog is visible
+    pub fn is_filter_save_dialog_visible(&self) -> bool {
+        self.filter_save_dialog_state.is_some()
+    }
+
+    /// Save the current filter from the dialog
+    pub fn save_current_filter(&mut self) -> Result<(), String> {
+        // Get dialog state
+        let dialog_state = self
+            .filter_save_dialog_state
+            .as_ref()
+            .ok_or_else(|| "Filter save dialog is not open".to_string())?;
+
+        // Validate dialog input
+        dialog_state.validate()?;
+
+        // Get current filter state from search interface
+        let search_state = self.issues_view_state.search_state();
+        let column_filters = search_state.list_state().column_filters();
+
+        // Build IssueFilter from current state
+        let mut filter = IssueFilter::new();
+
+        // Set search text
+        let query = search_state.search_state().query();
+        if !query.is_empty() {
+            filter.search_text = Some(query.to_string());
+        }
+
+        // Set regex and fuzzy flags
+        filter.use_regex = search_state.is_regex_enabled();
+        filter.use_fuzzy = search_state.is_fuzzy_enabled();
+
+        // Parse status, priority, and type strings back to enums
+        if !column_filters.status.is_empty() {
+            filter.status = match column_filters.status.to_lowercase().as_str() {
+                "open" => Some(crate::beads::models::IssueStatus::Open),
+                "in_progress" => Some(crate::beads::models::IssueStatus::InProgress),
+                "blocked" => Some(crate::beads::models::IssueStatus::Blocked),
+                "closed" => Some(crate::beads::models::IssueStatus::Closed),
+                _ => None,
+            };
+        }
+
+        if !column_filters.priority.is_empty() {
+            filter.priority = match column_filters.priority.as_str() {
+                "P0" => Some(crate::beads::models::Priority::P0),
+                "P1" => Some(crate::beads::models::Priority::P1),
+                "P2" => Some(crate::beads::models::Priority::P2),
+                "P3" => Some(crate::beads::models::Priority::P3),
+                "P4" => Some(crate::beads::models::Priority::P4),
+                _ => None,
+            };
+        }
+
+        if !column_filters.type_filter.is_empty() {
+            filter.issue_type = match column_filters.type_filter.to_lowercase().as_str() {
+                "epic" => Some(crate::beads::models::IssueType::Epic),
+                "feature" => Some(crate::beads::models::IssueType::Feature),
+                "task" => Some(crate::beads::models::IssueType::Task),
+                "bug" => Some(crate::beads::models::IssueType::Bug),
+                "chore" => Some(crate::beads::models::IssueType::Chore),
+                _ => None,
+            };
+        }
+
+        // Set assignee filter (None if no_assignee is set)
+        if column_filters.no_assignee {
+            filter.assignee = None;
+        }
+
+        // Set label filters
+        if !column_filters.labels.is_empty() {
+            filter.labels = column_filters.labels.clone();
+            filter.label_logic = match column_filters.label_match_mode {
+                crate::ui::widgets::issue_list::LabelMatchMode::All => {
+                    crate::models::LogicOp::And
+                }
+                crate::ui::widgets::issue_list::LabelMatchMode::Any => {
+                    crate::models::LogicOp::Or
+                }
+            };
+        }
+
+        // Parse hotkey (convert from string to char)
+        let hotkey = dialog_state
+            .hotkey()
+            .and_then(|h| h.chars().next());
+
+        // Create SavedFilter
+        let saved_filter = SavedFilter {
+            name: dialog_state.name().to_string(),
+            filter,
+            hotkey,
+        };
+
+        // Add to config
+        self.config.add_filter(saved_filter.clone());
+
+        // Save config to disk
+        self.config.save().map_err(|e| {
+            format!("Failed to save config: {}", e)
+        })?;
+
+        // Show success notification
+        self.set_success(format!("Filter '{}' saved successfully", saved_filter.name));
+
+        // Hide dialog
+        self.hide_filter_save_dialog();
+
+        Ok(())
+    }
+
     /// Apply a saved filter to the issues view
     pub fn apply_saved_filter(&mut self, saved_filter: &crate::models::SavedFilter) {
         use crate::models::LogicOp;
@@ -376,34 +508,19 @@ impl AppState {
         let column_filters = list_state.column_filters_mut();
         column_filters.clear();
 
-        // Set status filter
+        // Convert enum values back to strings for column filters
         if let Some(ref status) = filter.status {
             column_filters.status = status.to_string();
         }
-
-        // Set priority filter
         if let Some(ref priority) = filter.priority {
             column_filters.priority = priority.to_string();
         }
-
-        // Set type filter
         if let Some(ref issue_type) = filter.issue_type {
             column_filters.type_filter = issue_type.to_string();
         }
 
-        // Set assignee filter (if None, set no_assignee flag)
-        match filter.assignee {
-            Some(ref assignee) if !assignee.is_empty() => {
-                // Note: ColumnFilters doesn't have an assignee field, it only has no_assignee
-                // We'll need to use the search text or set no_assignee for unassigned issues
-                // For now, if assignee is specified, we can't filter by it directly
-                // This might need enhancement in the future
-            }
-            None => {
-                column_filters.no_assignee = true;
-            }
-            _ => {}
-        }
+        // Set assignee filter
+        column_filters.no_assignee = filter.assignee.is_none();
 
         // Set label filters
         if !filter.labels.is_empty() {
@@ -415,16 +532,15 @@ impl AppState {
         }
 
         let filters_not_empty = !column_filters.is_empty();
-        
+
         // Drop the column_filters borrow before getting list_state again
-        drop(column_filters);
+        let _ = column_filters;
 
         // Enable filters if any are set
         if filters_not_empty && !filters_were_enabled {
             list_state.toggle_filters();
         }
 
-        // Trigger filter update
         search_state.update_filtered_issues();
     }
 }
@@ -490,6 +606,7 @@ mod tests {
             notification: None,
             daemon_running: false,
             config: Config::default(),
+            filter_save_dialog_state: None,
         }
     }
 

@@ -1,7 +1,10 @@
 //! Search interface view with search input and results
 
 use crate::beads::models::{Issue, IssueStatus};
-use crate::ui::widgets::{IssueList, IssueListState, SearchInput, SearchInputState};
+use crate::models::{filter::LogicOp, IssueFilter, SavedFilter};
+use crate::ui::widgets::{
+    issue_list::LabelMatchMode, IssueList, IssueListState, SearchInput, SearchInputState,
+};
 use chrono::{Duration, Utc};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use ratatui::{
@@ -9,7 +12,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, StatefulWidget, Widget},
 };
 use regex::Regex;
 
@@ -69,6 +72,10 @@ pub struct SearchInterfaceState {
     regex_enabled: bool,
     fuzzy_enabled: bool,
     fuzzy_matcher: SkimMatcherV2,
+    saved_filters: Vec<SavedFilter>,
+    label_logic: LogicOp,
+    filter_menu_open: bool,
+    filter_menu_state: ratatui::widgets::ListState,
 }
 
 impl std::fmt::Debug for SearchInterfaceState {
@@ -85,6 +92,8 @@ impl std::fmt::Debug for SearchInterfaceState {
             .field("regex_enabled", &self.regex_enabled)
             .field("fuzzy_enabled", &self.fuzzy_enabled)
             .field("fuzzy_matcher", &"<SkimMatcherV2>")
+            .field("saved_filters", &self.saved_filters)
+            .field("label_logic", &self.label_logic)
             .finish()
     }
 }
@@ -134,6 +143,10 @@ impl SearchInterfaceState {
             regex_enabled: false,
             fuzzy_enabled: false,
             fuzzy_matcher: SkimMatcherV2::default(),
+            saved_filters: Vec::new(),
+            label_logic: LogicOp::And,
+            filter_menu_open: false,
+            filter_menu_state: ratatui::widgets::ListState::default(),
         }
     }
 
@@ -234,6 +247,9 @@ impl SearchInterfaceState {
     /// Toggle regex search mode
     pub fn toggle_regex(&mut self) {
         self.regex_enabled = !self.regex_enabled;
+        if self.regex_enabled {
+            self.fuzzy_enabled = false;
+        }
         self.update_filtered_issues();
     }
 
@@ -245,12 +261,236 @@ impl SearchInterfaceState {
     /// Toggle fuzzy search mode
     pub fn toggle_fuzzy(&mut self) {
         self.fuzzy_enabled = !self.fuzzy_enabled;
+        if self.fuzzy_enabled {
+            self.regex_enabled = false;
+        }
         self.update_filtered_issues();
     }
 
     /// Check if fuzzy search is enabled
     pub fn is_fuzzy_enabled(&self) -> bool {
         self.fuzzy_enabled
+    }
+
+    /// Set saved filters
+    pub fn set_saved_filters(&mut self, filters: Vec<SavedFilter>) {
+        self.saved_filters = filters;
+    }
+
+    /// Get saved filters
+    pub fn saved_filters(&self) -> &[SavedFilter] {
+        &self.saved_filters
+    }
+
+    /// Toggle label logic (AND/OR)
+    pub fn toggle_label_logic(&mut self) {
+        self.label_logic = match self.label_logic {
+            LogicOp::And => LogicOp::Or,
+            LogicOp::Or => LogicOp::And,
+        };
+        
+        // Synchronize with list state
+        let mode = match self.label_logic {
+            LogicOp::And => LabelMatchMode::All,
+            LogicOp::Or => LabelMatchMode::Any,
+        };
+        self.list_state.column_filters_mut().label_match_mode = mode;
+        
+        self.update_filtered_issues();
+    }
+
+    /// Get current label logic
+    pub fn label_logic(&self) -> LogicOp {
+        self.label_logic
+    }
+
+    /// Create an IssueFilter from current state
+    pub fn get_current_filter(&self) -> IssueFilter {
+        let col_filters = self.list_state.column_filters();
+        IssueFilter {
+            status: match col_filters.status.to_lowercase().as_str() {
+                "open" => Some(crate::beads::models::IssueStatus::Open),
+                "in_progress" => Some(crate::beads::models::IssueStatus::InProgress),
+                "blocked" => Some(crate::beads::models::IssueStatus::Blocked),
+                "closed" => Some(crate::beads::models::IssueStatus::Closed),
+                _ => None,
+            },
+            priority: match col_filters.priority.as_str() {
+                "P0" => Some(crate::beads::models::Priority::P0),
+                "P1" => Some(crate::beads::models::Priority::P1),
+                "P2" => Some(crate::beads::models::Priority::P2),
+                "P3" => Some(crate::beads::models::Priority::P3),
+                "P4" => Some(crate::beads::models::Priority::P4),
+                _ => None,
+            },
+            issue_type: match col_filters.type_filter.to_lowercase().as_str() {
+                "epic" => Some(crate::beads::models::IssueType::Epic),
+                "feature" => Some(crate::beads::models::IssueType::Feature),
+                "task" => Some(crate::beads::models::IssueType::Task),
+                "bug" => Some(crate::beads::models::IssueType::Bug),
+                "chore" => Some(crate::beads::models::IssueType::Chore),
+                _ => None,
+            },
+            assignee: if col_filters.no_assignee {
+                None
+            } else {
+                None // We don't track specific assignee in column filters currently
+            },
+            labels: col_filters.labels.clone(),
+            label_logic: self.label_logic,
+            search_text: if self.search_state.query().is_empty() {
+                None
+            } else {
+                Some(self.search_state.query().to_string())
+            },
+            search_scope: format!("{:?}", self.search_scope),
+            view_type: format!("{:?}", self.current_view),
+            use_regex: self.regex_enabled,
+            use_fuzzy: self.fuzzy_enabled,
+        }
+    }
+
+    /// Apply an IssueFilter to current state
+    pub fn apply_filter(&mut self, filter: &IssueFilter) {
+        // Apply column filters
+        {
+            let col_filters = self.list_state.column_filters_mut();
+            col_filters.clear();
+
+            if let Some(ref status) = filter.status {
+                col_filters.status = status.to_string();
+            }
+            if let Some(ref priority) = filter.priority {
+                col_filters.priority = priority.to_string();
+            }
+            if let Some(ref issue_type) = filter.issue_type {
+                col_filters.type_filter = issue_type.to_string();
+            }
+            
+            // Handle assignee - if filter.assignee is None, set no_assignee
+            col_filters.no_assignee = filter.assignee.is_none();
+
+            col_filters.labels = filter.labels.clone();
+            col_filters.label_match_mode = match filter.label_logic {
+                LogicOp::And => LabelMatchMode::All,
+                LogicOp::Or => LabelMatchMode::Any,
+            };
+        }
+
+        // Apply global state
+        self.label_logic = filter.label_logic;
+        self.search_state
+            .set_query(filter.search_text.as_deref().unwrap_or(""));
+        self.regex_enabled = filter.use_regex;
+        self.fuzzy_enabled = filter.use_fuzzy;
+
+        // Parse scope and view from strings
+        self.search_scope = match filter.search_scope.as_str() {
+            "Title" => SearchScope::Title,
+            "Description" => SearchScope::Description,
+            "Notes" => SearchScope::Notes,
+            _ => SearchScope::All,
+        };
+
+        self.current_view = match filter.view_type.as_str() {
+            "Ready" => ViewType::Ready,
+            "Blocked" => ViewType::Blocked,
+            "MyIssues" => ViewType::MyIssues,
+            "Recently" => ViewType::Recently,
+            "Stale" => ViewType::Stale,
+            _ => ViewType::All,
+        };
+
+        self.update_filtered_issues();
+    }
+
+    /// Add a new saved filter
+    pub fn add_saved_filter(&mut self, name: String, hotkey: Option<char>) {
+        let filter = self.get_current_filter();
+        self.saved_filters.push(SavedFilter {
+            name,
+            filter,
+            hotkey,
+        });
+    }
+
+    /// Delete a saved filter by index
+    pub fn delete_saved_filter(&mut self, index: usize) {
+        if index < self.saved_filters.len() {
+            self.saved_filters.remove(index);
+        }
+    }
+
+    /// Apply a saved filter by index
+    pub fn apply_saved_filter(&mut self, index: usize) {
+        if let Some(saved) = self.saved_filters.get(index) {
+            let filter = saved.filter.clone();
+            self.apply_filter(&filter);
+        }
+    }
+
+    /// Toggle filter menu
+    pub fn toggle_filter_menu(&mut self) {
+        self.filter_menu_open = !self.filter_menu_open;
+        if self.filter_menu_open && !self.saved_filters.is_empty() {
+            self.filter_menu_state.select(Some(0));
+        }
+    }
+
+    /// Is filter menu open?
+    pub fn is_filter_menu_open(&self) -> bool {
+        self.filter_menu_open
+    }
+
+    /// Select next filter in menu
+    pub fn filter_menu_next(&mut self) {
+        let len = self.saved_filters.len();
+        if len == 0 {
+            return;
+        }
+        let i = match self.filter_menu_state.selected() {
+            Some(i) => {
+                if i >= len - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.filter_menu_state.select(Some(i));
+    }
+
+    /// Select previous filter in menu
+    pub fn filter_menu_previous(&mut self) {
+        let len = self.saved_filters.len();
+        if len == 0 {
+            return;
+        }
+        let i = match self.filter_menu_state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    len - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.filter_menu_state.select(Some(i));
+    }
+
+    /// Apply selected filter from menu and close it
+    pub fn filter_menu_confirm(&mut self) {
+        if let Some(i) = self.filter_menu_state.selected() {
+            self.apply_saved_filter(i);
+        }
+        self.filter_menu_open = false;
+    }
+
+    /// Get filter menu list state
+    pub fn filter_menu_state(&self) -> &ratatui::widgets::ListState {
+        &self.filter_menu_state
     }
 
     /// Set all issues
@@ -584,6 +824,47 @@ impl<'a> StatefulWidget for SearchInterfaceView<'a> {
         if state.is_help_visible() {
             self.render_help_bar(chunks[chunk_idx], buf);
         }
+
+        // Render filter menu overlay if open
+        if state.filter_menu_open {
+            self.render_filter_menu(area, buf, state);
+        }
+    }
+}
+
+impl<'a> SearchInterfaceView<'a> {
+    fn render_filter_menu(&self, area: Rect, buf: &mut Buffer, state: &mut SearchInterfaceState) {
+        let menu_area = crate::ui::layout::centered_rect(40, 50, area);
+        Clear.render(menu_area, buf);
+
+        let items: Vec<ListItem> = state
+            .saved_filters
+            .iter()
+            .map(|f| {
+                let hotkey_str = if let Some(h) = f.hotkey {
+                    format!(" [F{}]", h)
+                } else {
+                    "".to_string()
+                };
+                ListItem::new(format!("{}{}", f.name, hotkey_str))
+            })
+            .collect();
+
+        let list = List::new(items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Saved Filters")
+                    .style(self.block_style),
+            )
+            .highlight_style(
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .highlight_symbol("> ");
+
+        StatefulWidget::render(list, menu_area, buf, &mut state.filter_menu_state);
     }
 }
 

@@ -18,6 +18,8 @@ pub struct IssueFilter {
     pub labels: Vec<String>,
     pub label_logic: LogicOp,
     pub search_text: Option<String>,
+    pub search_scope: String,
+    pub view_type: String,
     pub use_regex: bool,
     pub use_fuzzy: bool,
 }
