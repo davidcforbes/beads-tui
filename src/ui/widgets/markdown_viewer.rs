@@ -128,36 +128,41 @@ fn parse_markdown(content: &str) -> Vec<MarkdownElement> {
         // Headings
         if trimmed.starts_with('#') {
             let level = trimmed.chars().take_while(|&c| c == '#').count();
-            if level <= 6 {
-                let text = trimmed[level..].trim().to_string();
-                if !text.is_empty() {
-                    elements.push(MarkdownElement::Heading(level, text));
-                    continue;
+            if level > 0 && level <= 6 {
+                // Safe: '#' is ASCII (1 byte per char), so level bytes = level chars
+                // Defensive: verify we have enough bytes before slicing
+                if level <= trimmed.len() {
+                    let text = trimmed[level..].trim().to_string();
+                    if !text.is_empty() {
+                        elements.push(MarkdownElement::Heading(level, text));
+                        continue;
+                    }
                 }
             }
         }
 
         // Task list items (must check before regular list items)
-        if trimmed.starts_with("- [ ] ") {
+        if trimmed.starts_with("- [ ] ") && trimmed.len() >= 6 {
             let text = trimmed[6..].trim().to_string();
             elements.push(MarkdownElement::TaskListItem(false, text));
             continue;
         }
-        if trimmed.starts_with("- [x] ") || trimmed.starts_with("- [X] ") {
+        if (trimmed.starts_with("- [x] ") || trimmed.starts_with("- [X] ")) && trimmed.len() >= 6 {
             let text = trimmed[6..].trim().to_string();
             elements.push(MarkdownElement::TaskListItem(true, text));
             continue;
         }
 
         // Blockquotes
-        if trimmed.starts_with("> ") {
+        if trimmed.starts_with("> ") && trimmed.len() >= 2 {
             let text = trimmed[2..].trim().to_string();
             elements.push(MarkdownElement::Blockquote(text));
             continue;
         }
 
         // List items
-        if trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ") {
+        if (trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ "))
+            && trimmed.len() >= 2 {
             let text = trimmed[2..].trim().to_string();
             elements.push(MarkdownElement::ListItem(text));
             continue;
@@ -166,10 +171,13 @@ fn parse_markdown(content: &str) -> Vec<MarkdownElement> {
         // Numbered lists
         if let Some(pos) = trimmed.find(". ") {
             let prefix = &trimmed[..pos];
-            if prefix.chars().all(|c| c.is_ascii_digit()) {
-                let text = trimmed[pos + 2..].trim().to_string();
-                elements.push(MarkdownElement::ListItem(format!("{prefix}. {text}")));
-                continue;
+            if prefix.chars().all(|c| c.is_ascii_digit()) && !prefix.is_empty() {
+                // Defensive: ensure we have enough bytes to skip ". " (pos + 2)
+                if pos + 2 <= trimmed.len() {
+                    let text = trimmed[pos + 2..].trim().to_string();
+                    elements.push(MarkdownElement::ListItem(format!("{prefix}. {text}")));
+                    continue;
+                }
             }
         }
 
@@ -1601,16 +1609,121 @@ mod tests {
     fn test_complex_markdown_with_new_features() {
         let content = "# Title\n\n> A quote\n\n- [ ] Todo\n- [x] Done\n\nParagraph with [link](url) and ~~strike~~";
         let elements = parse_markdown(content);
-        
+
         // Should have all element types
         let has_heading = elements.iter().any(|e| matches!(e, MarkdownElement::Heading(_, _)));
         let has_blockquote = elements.iter().any(|e| matches!(e, MarkdownElement::Blockquote(_)));
         let has_task = elements.iter().any(|e| matches!(e, MarkdownElement::TaskListItem(_, _)));
         let has_paragraph = elements.iter().any(|e| matches!(e, MarkdownElement::Paragraph(_)));
-        
+
         assert!(has_heading);
         assert!(has_blockquote);
         assert!(has_task);
         assert!(has_paragraph);
+    }
+
+    #[test]
+    fn test_extremely_long_input_no_crash() {
+        // Test with 50,000 character string to ensure no panic
+        let long_text = "a".repeat(50_000);
+        let content = format!("# {}\n\nParagraph: {}", long_text, long_text);
+        let elements = parse_markdown(&content);
+
+        // Should not crash and should parse elements
+        assert!(!elements.is_empty());
+    }
+
+    #[test]
+    fn test_deeply_nested_inline_formatting_no_crash() {
+        // Test deeply nested formatting to ensure no stack overflow
+        let mut nested = String::from("text");
+        for _ in 0..100 {
+            nested = format!("**{}**", nested);
+        }
+        let spans = parse_inline_formatting(&nested);
+
+        // Should not crash (though may not parse perfectly due to greedy matching)
+        assert!(!spans.is_empty());
+    }
+
+    #[test]
+    fn test_many_unclosed_delimiters_no_crash() {
+        // Test pathological input with many unclosed delimiters
+        let content = "**bold *italic `code [link ~~strike ".repeat(100);
+        let spans = parse_inline_formatting(&content);
+
+        // Should not crash and should return spans
+        assert!(!spans.is_empty());
+    }
+
+    #[test]
+    fn test_unicode_emoji_in_markdown_no_crash() {
+        // Test Unicode and emoji handling
+        let content = "# 😀 Heading\n\n> 你好 quote\n\n- [ ] Task 🎯\n- 😎 List item\n\nParagraph with **bold 中文** and *italic 日本語*";
+        let elements = parse_markdown(content);
+
+        // Should handle Unicode without crashing
+        assert!(!elements.is_empty());
+    }
+
+    #[test]
+    fn test_all_markdown_syntax_characters_no_crash() {
+        // Test input that's all markdown syntax with no actual content
+        let content = "######\n---\n- [ ]\n> \n```\n```\n[]()\n****\n____\n~~~~\n``";
+        let elements = parse_markdown(content);
+
+        // Should not crash even with edge case input
+        assert!(!elements.is_empty());
+    }
+
+    #[test]
+    fn test_mixed_line_endings_no_crash() {
+        // Test different line ending styles
+        let content = "# Heading\r\nParagraph\r\n\r\n- Item\n- Item\r\n";
+        let elements = parse_markdown(content);
+
+        // Should handle different line endings
+        assert!(!elements.is_empty());
+    }
+
+    #[test]
+    fn test_only_whitespace_no_crash() {
+        // Test input with only whitespace
+        let content = "   \n\t\t\n   \n";
+        let elements = parse_markdown(content);
+
+        // Should not crash, and returns paragraphs for whitespace-only lines
+        // The important thing is no panic occurred
+        let _ = elements; // Successfully parsed without crashing
+    }
+
+    #[test]
+    fn test_extremely_long_single_line_no_crash() {
+        // Test single line with 100,000 characters
+        let long_line = "word ".repeat(20_000);
+        let elements = parse_markdown(&long_line);
+
+        // Should not crash on extremely long single line
+        assert!(!elements.is_empty());
+    }
+
+    #[test]
+    fn test_numbered_list_edge_cases_no_crash() {
+        // Test edge cases in numbered list parsing
+        let content = "1. \n2. item\n999. item\n1.no space\n1 . space before dot\n.1 dot first";
+        let elements = parse_markdown(content);
+
+        // Should not crash on malformed numbered lists
+        assert!(!elements.is_empty());
+    }
+
+    #[test]
+    fn test_incomplete_task_list_syntax_no_crash() {
+        // Test incomplete task list syntax
+        let content = "- [ ]\n- []\n- [ x ]\n- [  ]\n- [X]\n- [ ] \n- [x]incomplete";
+        let elements = parse_markdown(content);
+
+        // Should not crash on malformed task lists
+        assert!(!elements.is_empty());
     }
 }
