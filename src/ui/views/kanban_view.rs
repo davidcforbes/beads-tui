@@ -468,19 +468,23 @@ impl KanbanViewState {
 
     /// Move selected card to a specific column by index
     pub fn move_card_to_column(&mut self, target_column_idx: usize) -> Result<(), String> {
-        let visible_columns = self.visible_columns();
-        
-        // Get source and target columns
-        let source_column = visible_columns.get(self.selected_column)
-            .ok_or("Invalid source column")?;
-        let target_column = visible_columns.get(target_column_idx)
-            .ok_or("Invalid target column")?;
+        // Extract column IDs before we start mutating
+        let (source_column_id, target_column_id, issue_id) = {
+            let visible_columns = self.visible_columns();
 
-        // Get the selected issue
-        let source_issues = self.get_column_issues(self.selected_column);
-        let issue = source_issues.get(self.selected_card)
-            .ok_or("No card selected")?;
-        let issue_id = issue.id.clone();
+            // Get source and target columns
+            let source_column = visible_columns.get(self.selected_column)
+                .ok_or("Invalid source column")?;
+            let target_column = visible_columns.get(target_column_idx)
+                .ok_or("Invalid target column")?;
+
+            // Get the selected issue
+            let source_issues = self.get_column_issues(self.selected_column);
+            let issue = source_issues.get(self.selected_card)
+                .ok_or("No card selected")?;
+
+            (source_column.id.clone(), target_column.id.clone(), issue.id.clone())
+        }; // visible_columns borrow ends here
 
         // Find the issue in our issues vector and update it
         let issue_mut = self.issues.iter_mut()
@@ -490,7 +494,7 @@ impl KanbanViewState {
         // Update issue based on grouping mode and target column
         match self.config.grouping_mode {
             GroupingMode::Status => {
-                let new_status = match &target_column.id {
+                let new_status = match &target_column_id {
                     ColumnId::StatusOpen => IssueStatus::Open,
                     ColumnId::StatusInProgress => IssueStatus::InProgress,
                     ColumnId::StatusBlocked => IssueStatus::Blocked,
@@ -500,7 +504,7 @@ impl KanbanViewState {
                 issue_mut.status = new_status;
             }
             GroupingMode::Priority => {
-                let new_priority = match &target_column.id {
+                let new_priority = match &target_column_id {
                     ColumnId::PriorityP0 => Priority::P0,
                     ColumnId::PriorityP1 => Priority::P1,
                     ColumnId::PriorityP2 => Priority::P2,
@@ -511,7 +515,7 @@ impl KanbanViewState {
                 issue_mut.priority = new_priority;
             }
             GroupingMode::Assignee => {
-                match &target_column.id {
+                match &target_column_id {
                     ColumnId::Assignee(name) => {
                         issue_mut.assignee = Some(name.clone());
                     }
@@ -523,7 +527,7 @@ impl KanbanViewState {
             }
             GroupingMode::Label => {
                 // For label mode, we need to handle adding/removing labels
-                match (&source_column.id, &target_column.id) {
+                match (&source_column_id, &target_column_id) {
                     (ColumnId::Label(old_label), ColumnId::Label(new_label)) => {
                         // Remove old label, add new label
                         issue_mut.labels.retain(|l| l != old_label);
@@ -649,10 +653,10 @@ impl KanbanViewState {
         // Try to restore selection to same issue
         if let Some(issue_id) = selected_issue_id {
             // Try to find the issue in the new data
-            let visible_columns = self.visible_columns();
+            let visible_column_count = self.visible_columns().len();
             let mut found = false;
 
-            for (col_idx, _column) in visible_columns.iter().enumerate() {
+            for col_idx in 0..visible_column_count {
                 let column_issues = self.get_column_issues(col_idx);
                 for (card_idx, issue) in column_issues.iter().enumerate() {
                     if issue.id == issue_id {
@@ -669,7 +673,7 @@ impl KanbanViewState {
 
             // If not found, try to keep same column/card position
             if !found {
-                self.selected_column = old_selected_column.min(visible_columns.len().saturating_sub(1));
+                self.selected_column = old_selected_column.min(visible_column_count.saturating_sub(1));
                 let column_issue_count = self.get_column_issues(self.selected_column).len();
                 self.selected_card = old_selected_card.min(column_issue_count.saturating_sub(1));
             }

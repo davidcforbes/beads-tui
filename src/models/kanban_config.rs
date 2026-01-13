@@ -886,6 +886,7 @@ mod tests {
                 width: 30,
                 visible: false, // Try to hide mandatory column
                 card_sort: CardSort::default(),
+                wip_limit: None,
             }],
             card_height: 3,
             filters: BoardFilters::default(),
@@ -914,6 +915,7 @@ mod tests {
                 width: 200, // Way above max
                 visible: true,
                 card_sort: CardSort::default(),
+                wip_limit: None,
             }],
             card_height: 3,
             filters: BoardFilters::default(),
