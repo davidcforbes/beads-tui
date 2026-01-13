@@ -347,7 +347,7 @@ impl GanttViewState {
         // Apply assignee filter
         if !self.filters.assignees.is_empty() {
             filtered.retain(|issue| {
-                issue.assignee.as_ref().map_or(false, |a| self.filters.assignees.contains(a))
+                issue.assignee.as_ref().is_some_and(|a| self.filters.assignees.contains(a))
             });
         }
 

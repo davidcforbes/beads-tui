@@ -118,7 +118,7 @@ impl IssueEditorState {
                 "closed".to_string(),
             ])
                 .required()
-                .value(&issue.status.to_string())
+                .value(issue.status.to_string())
                 .with_validation(ValidationRule::Enum(vec![
                     "open".to_string(),
                     "in_progress".to_string(),
@@ -137,7 +137,7 @@ impl IssueEditorState {
                 "P4".to_string(),
             ])
                 .required()
-                .value(&issue.priority.to_string())
+                .value(issue.priority.to_string())
                 .with_validation(ValidationRule::Enum(vec![
                     "P0".to_string(),
                     "P1".to_string(),
@@ -157,7 +157,7 @@ impl IssueEditorState {
                 "chore".to_string(),
             ])
                 .required()
-                .value(&issue.issue_type.to_string())
+                .value(issue.issue_type.to_string())
                 .with_validation(ValidationRule::Enum(vec![
                     "task".to_string(),
                     "bug".to_string(),
@@ -178,14 +178,14 @@ impl IssueEditorState {
         // Section: Relationships
         add_field(
             FormField::text_area("dependencies", "Dependencies")
-                .value(&issue.dependencies.join("\n"))
+                .value(issue.dependencies.join("\n"))
                 .placeholder("beads-xxxx-xxxx (one per line)"),
             Section::Relationships,
         );
 
         add_field(
             FormField::text_area("blocks", "Blocks")
-                .value(&issue.blocks.join("\n"))
+                .value(issue.blocks.join("\n"))
                 .placeholder("beads-xxxx-xxxx (one per line)"),
             Section::Relationships,
         );
@@ -193,7 +193,7 @@ impl IssueEditorState {
         // Section: Labels
         add_field(
             FormField::text_area("labels", "Labels")
-                .value(&issue.labels.join("\n"))
+                .value(issue.labels.join("\n"))
                 .placeholder("label-name (one per line)"),
             Section::Labels,
         );
