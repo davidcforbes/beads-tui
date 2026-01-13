@@ -846,6 +846,12 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             app.show_label_picker = true;
                         }
                     }
+                    KeyCode::Char('S') => {
+                        // Open status selector for selected issue (Shift+S)
+                        if issues_state.selected_issue().is_some() {
+                            app.status_selector_state.toggle();
+                        }
+                    }
                     KeyCode::Char('/') => {
                         issues_state
                             .search_state_mut()
@@ -1830,6 +1836,57 @@ fn run_app<B: ratatui::backend::Backend>(
                     }
                 }
 
+                // Handle status selector events if open
+                if app.status_selector_state.is_open() {
+                    match key.code {
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            app.status_selector_state.select_previous(3); // 3 status options: Open, InProgress, Closed
+                            continue;
+                        }
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            app.status_selector_state.select_next(3);
+                            continue;
+                        }
+                        KeyCode::Enter => {
+                            // Apply selected status to current issue
+                            if let Some(selected_idx) = app.status_selector_state.selected() {
+                                use crate::beads::models::IssueStatus;
+                                use crate::beads::client::IssueUpdate;
+                                let statuses = vec![IssueStatus::Open, IssueStatus::InProgress, IssueStatus::Closed];
+                                if let Some(&new_status) = statuses.get(selected_idx) {
+                                    if let Some(issue) = app.issues_view_state.selected_issue() {
+                                        let issue_id = issue.id.clone();
+
+                                        // Update status via beads client
+                                        let rt = tokio::runtime::Runtime::new().unwrap();
+                                        let client = &app.beads_client;
+                                        let update = IssueUpdate::new().status(new_status);
+
+                                        match rt.block_on(client.update_issue(&issue_id, update)) {
+                                            Ok(()) => {
+                                                app.set_success(format!("Updated status to {} for issue {}", new_status, issue_id));
+                                                app.reload_issues();
+                                            }
+                                            Err(e) => {
+                                                app.set_error(format!("Failed to update status: {}", e));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            app.status_selector_state.close();
+                            continue;
+                        }
+                        KeyCode::Esc => {
+                            app.status_selector_state.close();
+                            continue;
+                        }
+                        _ => {
+                            continue;
+                        }
+                    }
+                }
+
                 // Global key bindings
                 match key.code {
                     KeyCode::Char('q') => {
@@ -2199,6 +2256,28 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         f.render_widget(Clear, picker_area);
         let picker = LabelPicker::new();
         f.render_stateful_widget(picker, picker_area, &mut app.label_picker_state);
+    }
+
+    // Render status selector if open
+    if app.status_selector_state.is_open() {
+        use ratatui::widgets::Clear;
+        use ui::widgets::StatusSelector;
+
+        // Get current status of selected issue
+        let current_status = app
+            .issues_view_state
+            .selected_issue()
+            .map(|issue| issue.status)
+            .unwrap_or(beads::models::IssueStatus::Open);
+
+        // Create a centered rect for the selector
+        let area = f.size();
+        let selector_area = centered_rect(40, 30, area);
+
+        // Clear and render selector
+        f.render_widget(Clear, selector_area);
+        let selector = StatusSelector::new(current_status);
+        f.render_stateful_widget(selector, selector_area, &mut app.status_selector_state);
     }
 
     // Render keyboard shortcut help overlay if visible
