@@ -190,6 +190,25 @@ struct HierarchyInfo {
     is_last: bool,
 }
 
+/// Compute a hash of the issue list structure for caching
+/// Based on issue IDs and their blocks relationships
+fn compute_hierarchy_hash(issues: &[&Issue]) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+
+    for issue in issues {
+        issue.id.hash(&mut hasher);
+        // Hash blocks relationships to detect dependency changes
+        for blocked_id in &issue.blocks {
+            blocked_id.hash(&mut hasher);
+        }
+    }
+
+    hasher.finish()
+}
+
 /// Build a map of issue IDs to their hierarchy information
 /// based on dependencies (blocks relationships)
 fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, HierarchyInfo> {
@@ -300,6 +319,8 @@ pub struct IssueListState {
     table_config: TableConfig,
     /// Focused column for resize/reorder operations (index in visible columns)
     focused_column: Option<usize>,
+    /// Cached hierarchy map for rendering performance (issue_hash, hierarchy_map)
+    cached_hierarchy: Option<(u64, std::collections::HashMap<String, HierarchyInfo>)>,
 }
 
 impl Default for IssueListState {
@@ -321,6 +342,7 @@ impl IssueListState {
             column_filters: ColumnFilters::default(),
             table_config: TableConfig::default(),
             focused_column: None,
+            cached_hierarchy: None,
         }
     }
 
@@ -1053,8 +1075,24 @@ impl<'a> StatefulWidget for IssueList<'a> {
             Self::sort_issues(&mut issues, state.sort_column, state.sort_direction);
         }
 
-        // Build hierarchy map for tree rendering
-        let hierarchy_map = build_hierarchy_map(&issues);
+        // Build or retrieve cached hierarchy map for tree rendering
+        let current_hash = compute_hierarchy_hash(&issues);
+        let hierarchy_map = if let Some((cached_hash, ref cached_map)) = state.cached_hierarchy {
+            if cached_hash == current_hash {
+                // Reuse cached hierarchy
+                cached_map.clone()
+            } else {
+                // Hash changed, rebuild and cache
+                let new_map = build_hierarchy_map(&issues);
+                state.cached_hierarchy = Some((current_hash, new_map.clone()));
+                new_map
+            }
+        } else {
+            // No cache, build and cache
+            let new_map = build_hierarchy_map(&issues);
+            state.cached_hierarchy = Some((current_hash, new_map.clone()));
+            new_map
+        };
 
         // Build header from TableConfig
         let sort_indicator = match state.sort_direction {
