@@ -117,6 +117,8 @@ pub struct GanttChart<'a> {
     config: GanttChartConfig,
     /// Selected issue ID
     selected_id: Option<String>,
+    /// Show dependency lines
+    show_dependencies: bool,
 }
 
 impl<'a> GanttChart<'a> {
@@ -132,6 +134,7 @@ impl<'a> GanttChart<'a> {
             issues: issues_map,
             config: GanttChartConfig::default(),
             selected_id: None,
+            show_dependencies: false,
         }
     }
 
@@ -144,6 +147,12 @@ impl<'a> GanttChart<'a> {
     /// Set selected issue ID
     pub fn selected(mut self, id: Option<String>) -> Self {
         self.selected_id = id;
+        self
+    }
+
+    /// Set whether to show dependency lines
+    pub fn show_dependencies(mut self, show: bool) -> Self {
+        self.show_dependencies = show;
         self
     }
 
@@ -298,7 +307,9 @@ impl<'a> GanttChart<'a> {
     }
 
     /// Render swim lanes with issue bars
-    fn render_lanes(&self, area: Rect, buf: &mut Buffer, lanes: &[SwimLane]) {
+    /// Returns a map of issue_id to (center_x, bar_y) for dependency line rendering
+    fn render_lanes(&self, area: Rect, buf: &mut Buffer, lanes: &[SwimLane]) -> HashMap<String, (u16, u16)> {
+        let mut issue_positions: HashMap<String, (u16, u16)> = HashMap::new();
         let mut current_y = area.y + 2; // Start after time axis
 
         for lane in lanes {
@@ -384,11 +395,78 @@ impl<'a> GanttChart<'a> {
                                 }
                             }
                         }
+
+                        // Store issue position for dependency line rendering
+                        // Use center of bar for both x and y
+                        let center_x = start_x + (bar_width / 2);
+                        issue_positions.insert(schedule.issue_id.clone(), (center_x, bar_y));
                     }
                 }
             }
 
             current_y += self.config.lane_height;
+        }
+
+        issue_positions
+    }
+
+    /// Render dependency lines between issues
+    /// Draws arrows from depending issues to their dependencies
+    fn render_dependencies(&self, area: Rect, buf: &mut Buffer, positions: &HashMap<String, (u16, u16)>) {
+        if !self.show_dependencies {
+            return;
+        }
+
+        // Iterate through all issues and their dependencies
+        for (issue_id, (from_x, from_y)) in positions {
+            if let Some(issue) = self.issues.get(issue_id) {
+                // Draw lines to each dependency
+                for dep_id in &issue.dependencies {
+                    if let Some((to_x, to_y)) = positions.get(dep_id) {
+                        // Draw a simple line from this issue to its dependency
+                        // Use magenta color to make dependency lines distinct
+                        let line_style = Style::default().fg(Color::Magenta);
+
+                        // Draw a simple connecting line
+                        // If on same row, draw horizontal line
+                        if from_y == to_y {
+                            let start_x = from_x.min(to_x);
+                            let end_x = from_x.max(to_x);
+                            for x in *start_x..=*end_x {
+                                if x >= area.x + 20 && x < area.right() && *from_y < area.bottom() {
+                                    buf.get_mut(x, *from_y).set_symbol("─").set_style(line_style);
+                                }
+                            }
+                            // Draw arrow at dependency
+                            if *to_x >= area.x + 20 && *to_x < area.right() && *to_y < area.bottom() {
+                                buf.get_mut(*to_x, *to_y).set_symbol("→").set_style(line_style);
+                            }
+                        } else {
+                            // Different rows - draw L-shaped line
+                            // Vertical line from from_y to to_y at from_x
+                            let start_y = from_y.min(to_y);
+                            let end_y = from_y.max(to_y);
+                            for y in *start_y..=*end_y {
+                                if *from_x >= area.x + 20 && *from_x < area.right() && y < area.bottom() {
+                                    buf.get_mut(*from_x, y).set_symbol("│").set_style(line_style);
+                                }
+                            }
+                            // Horizontal line from from_x to to_x at to_y
+                            let start_x = from_x.min(to_x);
+                            let end_x = from_x.max(to_x);
+                            for x in *start_x..=*end_x {
+                                if x >= area.x + 20 && x < area.right() && *to_y < area.bottom() {
+                                    buf.get_mut(x, *to_y).set_symbol("─").set_style(line_style);
+                                }
+                            }
+                            // Draw arrow at dependency
+                            if *to_x >= area.x + 20 && *to_x < area.right() && *to_y < area.bottom() {
+                                buf.get_mut(*to_x, *to_y).set_symbol("→").set_style(line_style);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -401,8 +479,11 @@ impl<'a> Widget for GanttChart<'a> {
         // Render time axis
         self.render_time_axis(area, buf);
 
-        // Render swim lanes
-        self.render_lanes(area, buf, &lanes);
+        // Render swim lanes and capture issue positions
+        let positions = self.render_lanes(area, buf, &lanes);
+
+        // Render dependency lines if enabled
+        self.render_dependencies(area, buf, &positions);
     }
 }
 
@@ -1245,5 +1326,123 @@ mod tests {
 
         assert!(config.show_grid);
         assert!(config.show_today);
+    }
+
+    #[test]
+    fn test_show_dependencies_default() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue]);
+
+        assert!(!chart.show_dependencies);
+    }
+
+    #[test]
+    fn test_show_dependencies_enabled() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue])
+            .show_dependencies(true);
+
+        assert!(chart.show_dependencies);
+    }
+
+    #[test]
+    fn test_show_dependencies_disabled() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue])
+            .show_dependencies(false);
+
+        assert!(!chart.show_dependencies);
+    }
+
+    #[test]
+    fn test_show_dependencies_toggle() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue])
+            .show_dependencies(true)
+            .show_dependencies(false);
+
+        // Last value wins
+        assert!(!chart.show_dependencies);
+    }
+
+    #[test]
+    fn test_render_lanes_returns_positions() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let chart = GanttChart::new(vec![schedule], vec![&issue]);
+
+        let area = Rect::new(0, 0, 100, 20);
+        let mut buf = Buffer::empty(area);
+        let lanes = chart.group_into_lanes();
+
+        let positions = chart.render_lanes(area, &mut buf, &lanes);
+
+        // Should have one position entry for TEST-1
+        assert_eq!(positions.len(), 1);
+        assert!(positions.contains_key("TEST-1"));
+    }
+
+    #[test]
+    fn test_render_lanes_multiple_issues() {
+        let issue1 = create_test_issue("TEST-1", "Issue 1");
+        let issue2 = create_test_issue("TEST-2", "Issue 2");
+        let schedule1 = create_test_schedule("TEST-1", 0);
+        let schedule2 = create_test_schedule("TEST-2", 5);
+
+        let chart = GanttChart::new(vec![schedule1, schedule2], vec![&issue1, &issue2]);
+
+        let area = Rect::new(0, 0, 100, 20);
+        let mut buf = Buffer::empty(area);
+        let lanes = chart.group_into_lanes();
+
+        let positions = chart.render_lanes(area, &mut buf, &lanes);
+
+        // Should have position entries for both issues
+        assert_eq!(positions.len(), 2);
+        assert!(positions.contains_key("TEST-1"));
+        assert!(positions.contains_key("TEST-2"));
+    }
+
+    #[test]
+    fn test_render_dependencies_disabled() {
+        let issue1 = create_test_issue("TEST-1", "Issue 1");
+        let mut issue2 = create_test_issue("TEST-2", "Issue 2");
+        issue2.dependencies = vec!["TEST-1".to_string()];
+
+        let schedule1 = create_test_schedule("TEST-1", 0);
+        let schedule2 = create_test_schedule("TEST-2", 5);
+
+        let chart = GanttChart::new(vec![schedule1, schedule2], vec![&issue1, &issue2])
+            .show_dependencies(false);
+
+        let area = Rect::new(0, 0, 100, 20);
+        let mut buf = Buffer::empty(area);
+
+        // Create empty positions map for testing
+        let positions = HashMap::new();
+        chart.render_dependencies(area, &mut buf, &positions);
+
+        // With show_dependencies false, render_dependencies should return early
+        // This test just verifies it doesn't crash
+    }
+
+    #[test]
+    fn test_builder_chain_with_dependencies() {
+        let issue = create_test_issue("TEST-1", "Test");
+        let schedule = create_test_schedule("TEST-1", 0);
+        let config = GanttChartConfig::new().grouping(GroupingMode::Priority);
+
+        let chart = GanttChart::new(vec![schedule], vec![&issue])
+            .config(config.clone())
+            .selected(Some("TEST-1".to_string()))
+            .show_dependencies(true);
+
+        assert_eq!(chart.config.grouping, GroupingMode::Priority);
+        assert_eq!(chart.selected_id, Some("TEST-1".to_string()));
+        assert!(chart.show_dependencies);
     }
 }
