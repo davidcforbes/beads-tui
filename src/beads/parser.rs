@@ -29,10 +29,14 @@ pub fn parse_issue(json: &str) -> Result<Issue> {
 
 /// Parse create response to extract issue ID
 pub fn parse_create_response(output: &str) -> Result<String> {
-    // beads returns "Created beads-tui-xxxx: Title"
+    // beads returns "Created beads-tui-xxxx: Title" or "✓ Created issue: beads-tui-xxxx"
+    // In test environments, it may use temporary IDs like ".tmpXXXXXX-xxx"
     for line in output.lines() {
         if line.contains("Created") || line.contains("✓") {
-            if let Some(id_part) = line.split_whitespace().find(|s| s.starts_with("beads-")) {
+            // Look for an ID: either starts with "beads-" or ".tmp" (test environment)
+            if let Some(id_part) = line.split_whitespace().find(|s| {
+                s.starts_with("beads-") || s.starts_with(".tmp")
+            }) {
                 let id = id_part.trim_end_matches(':');
                 return Ok(id.to_string());
             }
@@ -40,7 +44,7 @@ pub fn parse_create_response(output: &str) -> Result<String> {
     }
 
     Err(BeadsError::CommandError(
-        "Failed to parse issue ID from create response".to_string(),
+        format!("Failed to parse issue ID from create response. Output:\n{}", output),
     ))
 }
 
