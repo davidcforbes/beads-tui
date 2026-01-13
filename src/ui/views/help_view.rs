@@ -169,6 +169,14 @@ impl<'a> HelpView<'a> {
                 Span::styled("r", Style::default().fg(Color::Green)),
                 Span::raw("         - Rename issue title (in-place edit)"),
             ]),
+            Line::from(vec![
+                Span::styled(">", Style::default().fg(Color::Green)),
+                Span::raw("         - Indent issue (make child of previous)"),
+            ]),
+            Line::from(vec![
+                Span::styled("<", Style::default().fg(Color::Green)),
+                Span::raw("         - Outdent issue (promote to parent level)"),
+            ]),
         ]
     }
 

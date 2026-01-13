@@ -892,6 +892,85 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             }
                         }
                     }
+                    KeyCode::Char('>') => {
+                        // Indent: Make selected issue a child of the previous issue
+                        if let Some(selected_issue) = issues_state.search_state().selected_issue() {
+                            let selected_id = selected_issue.id.clone();
+                            let selected_idx = issues_state.search_state().list_state().selected();
+
+                            // Get the previous issue in the filtered list
+                            if let Some(idx) = selected_idx {
+                                if idx > 0 {
+                                    let filtered_issues = issues_state.search_state().filtered_issues();
+                                    if let Some(prev_issue) = filtered_issues.get(idx - 1) {
+                                        let prev_id = prev_issue.id.clone();
+
+                                        tracing::info!("Indenting {} under {}", selected_id, prev_id);
+
+                                        // Create a tokio runtime to execute the async call
+                                        let rt = tokio::runtime::Runtime::new().unwrap();
+                                        let client = &app.beads_client;
+
+                                        // Add dependency: selected depends on previous (previous blocks selected)
+                                        match rt.block_on(client.add_dependency(&selected_id, &prev_id)) {
+                                            Ok(()) => {
+                                                tracing::info!("Successfully indented {} under {}", selected_id, prev_id);
+                                                app.set_success(format!("Indented issue under {}", prev_id));
+
+                                                // Reload issues list to reflect the hierarchy change
+                                                app.reload_issues();
+                                            }
+                                            Err(e) => {
+                                                tracing::error!("Failed to indent issue: {:?}", e);
+                                                app.set_error(format!("Failed to indent: {e}"));
+                                            }
+                                        }
+                                    } else {
+                                        app.set_error("No previous issue to indent under".to_string());
+                                    }
+                                } else {
+                                    app.set_error("Cannot indent first issue".to_string());
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Char('<') => {
+                        // Outdent: Remove selected issue from its parent
+                        if let Some(selected_issue) = issues_state.search_state().selected_issue() {
+                            let selected_id = selected_issue.id.clone();
+
+                            // Find the parent (issue that blocks the selected issue)
+                            let all_issues = issues_state.all_issues();
+                            let parent_id = all_issues.iter()
+                                .find(|issue| issue.blocks.contains(&selected_id))
+                                .map(|issue| issue.id.clone());
+
+                            if let Some(parent_id) = parent_id {
+                                tracing::info!("Outdenting {} from parent {}", selected_id, parent_id);
+
+                                // Create a tokio runtime to execute the async call
+                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                let client = &app.beads_client;
+
+                                // Remove dependency: selected no longer depends on parent
+                                match rt.block_on(client.remove_dependency(&selected_id, &parent_id)) {
+                                    Ok(()) => {
+                                        tracing::info!("Successfully outdented {} from {}", selected_id, parent_id);
+                                        app.set_success(format!("Outdented issue from {}", parent_id));
+
+                                        // Reload issues list to reflect the hierarchy change
+                                        app.reload_issues();
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Failed to outdent issue: {:?}", e);
+                                        app.set_error(format!("Failed to outdent: {e}"));
+                                    }
+                                }
+                            } else {
+                                app.set_error("Issue has no parent to outdent from".to_string());
+                            }
+                        }
+                    }
                     KeyCode::Char('f') => {
                         // Toggle quick filters
                         issues_state.search_state_mut().list_state_mut().toggle_filters();
