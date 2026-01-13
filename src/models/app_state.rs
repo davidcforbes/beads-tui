@@ -86,6 +86,8 @@ pub struct AppState {
     pub delete_dialog_state: Option<DialogState>,
     /// Whether keyboard shortcut help overlay is visible
     pub show_shortcut_help: bool,
+    /// Whether context-sensitive help overlay is visible
+    pub show_context_help: bool,
 }
 
 impl AppState {
@@ -200,6 +202,7 @@ impl AppState {
             delete_confirmation_filter: None,
             delete_dialog_state: None,
             show_shortcut_help: false,
+            show_context_help: false,
         }
     }
 
@@ -431,23 +434,6 @@ impl AppState {
         self.mark_dirty();
     }
 
-    /// Show the keyboard shortcut help overlay
-    pub fn show_shortcut_help(&mut self) {
-        self.show_shortcut_help = true;
-        self.mark_dirty();
-    }
-
-    /// Hide the keyboard shortcut help overlay
-    pub fn hide_shortcut_help(&mut self) {
-        self.show_shortcut_help = false;
-        self.mark_dirty();
-    }
-
-    /// Check if keyboard shortcut help overlay is visible
-    pub fn is_shortcut_help_visible(&self) -> bool {
-        self.show_shortcut_help
-    }
-
     /// Start editing a filter - opens save dialog with existing filter data
     pub fn start_edit_filter(&mut self, filter_name: &str) {
         if let Some(filter) = self.config.get_filter(filter_name).cloned() {
@@ -611,6 +597,40 @@ impl AppState {
     pub fn is_delete_confirmation_visible(&self) -> bool {
         self.delete_confirmation_filter.is_some()
     }
+
+    /// Show the keyboard shortcut help overlay
+    pub fn show_shortcut_help(&mut self) {
+        self.show_shortcut_help = true;
+        self.mark_dirty();
+    }
+
+    /// Hide the keyboard shortcut help overlay
+    pub fn hide_shortcut_help(&mut self) {
+        self.show_shortcut_help = false;
+        self.mark_dirty();
+    }
+
+    /// Check if keyboard shortcut help overlay is visible
+    pub fn is_shortcut_help_visible(&self) -> bool {
+        self.show_shortcut_help
+    }
+
+    /// Show the context-sensitive help overlay
+    pub fn show_context_help(&mut self) {
+        self.show_context_help = true;
+        self.mark_dirty();
+    }
+
+    /// Hide the context-sensitive help overlay
+    pub fn hide_context_help(&mut self) {
+        self.show_context_help = false;
+        self.mark_dirty();
+    }
+
+    /// Check if context-sensitive help overlay is visible
+    pub fn is_context_help_visible(&self) -> bool {
+        self.show_context_help
+    }
 }
 
 impl Default for AppState {
@@ -681,6 +701,7 @@ mod tests {
             delete_confirmation_filter: None,
             delete_dialog_state: None,
             show_shortcut_help: false,
+            show_context_help: false,
         }
     }
 

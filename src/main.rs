@@ -1590,10 +1590,24 @@ fn run_app<B: ratatui::backend::Backend>(
                     continue;
                 }
 
+                // Check for context-sensitive help (F1)
+                if key.code == KeyCode::F(1) {
+                    if app.is_context_help_visible() {
+                        app.hide_context_help();
+                    } else {
+                        app.show_context_help();
+                    }
+                    continue;
+                }
+
                 // Handle Esc key for dismissing overlays
                 if key.code == KeyCode::Esc {
                     if app.is_shortcut_help_visible() {
                         app.hide_shortcut_help();
+                        continue;
+                    }
+                    if app.is_context_help_visible() {
+                        app.hide_context_help();
                         continue;
                     }
                     // Fall through to other Esc handlers if shortcut help is not visible
@@ -1948,6 +1962,27 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
 
         f.render_widget(help, f.size());
     }
+
+    // Render context-sensitive help overlay if visible
+    if app.is_context_help_visible() {
+        use ui::widgets::{HelpOverlay, HelpOverlayPosition};
+
+        let (title, subtitle, bindings) = get_context_help_content(&app);
+        let subtitle_text = format!("{} | Press F1 or Esc to close", subtitle);
+
+        let mut help = HelpOverlay::new(&title)
+            .subtitle(&subtitle_text)
+            .position(HelpOverlayPosition::Center)
+            .width_percent(65)
+            .height_percent(75);
+
+        // Add all key bindings from the context
+        for (key, description) in bindings {
+            help = help.key_binding(key, description);
+        }
+
+        f.render_widget(help, f.size());
+    }
 }
 
 /// Generate context-sensitive action hints based on current application state
@@ -2032,6 +2067,235 @@ fn get_action_hints(app: &models::AppState) -> String {
         _ => {
             "Press 'q' to quit | Tab/Shift+Tab: Switch tabs | 1-9: Direct tab access | ?: Help".to_string()
         }
+    }
+}
+
+/// Generate context-sensitive help content based on current application state
+fn get_context_help_content(app: &models::AppState) -> (String, String, Vec<(&'static str, &'static str)>) {
+    // If dialog is visible, show dialog-specific help
+    if app.dialog_state.is_some() || app.delete_dialog_state.is_some() {
+        return (
+            "Dialog Help".to_string(),
+            "Confirmation Dialog".to_string(),
+            vec![
+                ("←/→", "Navigate between buttons"),
+                ("Enter", "Confirm current selection"),
+                ("Esc", "Cancel and close dialog"),
+                ("Tab", "Move to next button"),
+            ],
+        );
+    }
+
+    // If filter save dialog is visible
+    if app.is_filter_save_dialog_visible() {
+        return (
+            "Filter Save Dialog Help".to_string(),
+            "Save or Edit Filter".to_string(),
+            vec![
+                ("Type", "Enter filter name and hotkey"),
+                ("Tab", "Move to next field"),
+                ("Shift+Tab", "Move to previous field"),
+                ("Enter", "Save filter"),
+                ("Esc", "Cancel"),
+                ("F1-F11", "Available hotkey options"),
+            ],
+        );
+    }
+
+    // If filter quick-select is visible
+    if app.is_filter_quick_select_visible() {
+        return (
+            "Quick Filter Menu Help".to_string(),
+            "Apply, Edit, or Delete Filters".to_string(),
+            vec![
+                ("↑/↓", "Navigate through filters"),
+                ("Enter", "Apply selected filter"),
+                ("e", "Edit filter"),
+                ("d", "Delete filter"),
+                ("Esc", "Close menu"),
+            ],
+        );
+    }
+
+    // If dependency dialog is visible
+    if app.dependency_dialog_state.is_open() {
+        return (
+            "Dependency Dialog Help".to_string(),
+            "Manage Issue Dependencies".to_string(),
+            vec![
+                ("Tab", "Move to next field"),
+                ("↑/↓", "Navigate through issues"),
+                ("Space", "Select/deselect issue"),
+                ("Enter", "Add dependency"),
+                ("Esc", "Cancel"),
+            ],
+        );
+    }
+
+    // Tab-specific contextual help
+    match app.selected_tab {
+        0 => {
+            // Issues view - mode-specific help
+            let mode = app.issues_view_state.view_mode();
+            match mode {
+                ui::views::IssuesViewMode::List => (
+                    "Issues List View Help".to_string(),
+                    "Navigate and Manage Issues".to_string(),
+                    vec![
+                        ("↑/↓ or j/k", "Navigate through issues"),
+                        ("Enter", "View issue details"),
+                        ("c", "Create new issue"),
+                        ("e", "Edit selected issue"),
+                        ("d", "Delete selected issue"),
+                        ("Space", "Select/deselect issue"),
+                        ("a", "Select all issues"),
+                        ("x", "Clear selection"),
+                        ("/", "Search/filter issues"),
+                        ("f", "Open quick filter menu"),
+                        ("Ctrl+S", "Save current filter"),
+                        ("F1-F11", "Apply saved filter"),
+                        ("?", "Show all keyboard shortcuts"),
+                        ("Esc", "Clear search or go back"),
+                    ],
+                ),
+                ui::views::IssuesViewMode::Detail => (
+                    "Issue Detail View Help".to_string(),
+                    "View Issue Information".to_string(),
+                    vec![
+                        ("e", "Edit this issue"),
+                        ("d", "Delete this issue"),
+                        ("Esc", "Back to issues list"),
+                        ("?", "Show all keyboard shortcuts"),
+                    ],
+                ),
+                ui::views::IssuesViewMode::Edit => (
+                    "Issue Edit Mode Help".to_string(),
+                    "Edit Issue Fields".to_string(),
+                    vec![
+                        ("Tab", "Move to next field"),
+                        ("Shift+Tab", "Move to previous field"),
+                        ("Ctrl+S", "Save changes"),
+                        ("Esc", "Cancel editing"),
+                        ("?", "Show all keyboard shortcuts"),
+                    ],
+                ),
+                ui::views::IssuesViewMode::Create => (
+                    "Create Issue Help".to_string(),
+                    "Create New Issue".to_string(),
+                    vec![
+                        ("Tab", "Move to next field"),
+                        ("Shift+Tab", "Move to previous field"),
+                        ("Ctrl+S", "Create issue"),
+                        ("Esc", "Cancel creation"),
+                        ("?", "Show all keyboard shortcuts"),
+                    ],
+                ),
+            }
+        }
+        1 => (
+            "Dependencies View Help".to_string(),
+            "Manage Issue Dependencies".to_string(),
+            vec![
+                ("↑/↓ or j/k", "Navigate through dependencies"),
+                ("a", "Add new dependency"),
+                ("r", "Remove dependency"),
+                ("Enter", "View issue details"),
+                ("Esc", "Go back"),
+                ("?", "Show all keyboard shortcuts"),
+            ],
+        ),
+        2 => (
+            "Labels View Help".to_string(),
+            "Manage Issue Labels".to_string(),
+            vec![
+                ("↑/↓ or j/k", "Navigate through labels"),
+                ("Enter", "Select/apply label"),
+                ("a", "Add new label"),
+                ("d", "Delete label"),
+                ("Esc", "Go back"),
+                ("?", "Show all keyboard shortcuts"),
+            ],
+        ),
+        3 => (
+            "PERT Chart View Help".to_string(),
+            "Project Evaluation and Review Technique".to_string(),
+            vec![
+                ("↑/↓", "Navigate through nodes"),
+                ("+/-", "Zoom in/out"),
+                ("c", "Configure chart settings"),
+                ("Esc", "Go back"),
+                ("?", "Show all keyboard shortcuts"),
+            ],
+        ),
+        4 => (
+            "Gantt Chart View Help".to_string(),
+            "Timeline and Dependencies".to_string(),
+            vec![
+                ("↑/↓", "Navigate through tasks"),
+                ("+/-", "Zoom timeline"),
+                ("g", "Change grouping mode"),
+                ("c", "Configure chart settings"),
+                ("Esc", "Go back"),
+                ("?", "Show all keyboard shortcuts"),
+            ],
+        ),
+        5 => (
+            "Kanban Board View Help".to_string(),
+            "Drag and Drop Task Management".to_string(),
+            vec![
+                ("↑/↓/←/→", "Navigate between cards"),
+                ("Space", "Move card to different column"),
+                ("c", "Configure board"),
+                ("Esc", "Go back"),
+                ("?", "Show all keyboard shortcuts"),
+            ],
+        ),
+        6 => (
+            "Molecular View Help".to_string(),
+            "Advanced Issue Visualization".to_string(),
+            vec![
+                ("↑/↓", "Navigate through items"),
+                ("Tab", "Switch between molecular tabs"),
+                ("Enter", "Select item"),
+                ("Esc", "Go back"),
+                ("?", "Show all keyboard shortcuts"),
+            ],
+        ),
+        7 => (
+            "Database View Help".to_string(),
+            "Database Management".to_string(),
+            vec![
+                ("↑/↓", "Navigate through operations"),
+                ("r", "Refresh database"),
+                ("c", "Compact database"),
+                ("v", "Verify database integrity"),
+                ("Esc", "Go back"),
+                ("?", "Show all keyboard shortcuts"),
+            ],
+        ),
+        8 => (
+            "Help View".to_string(),
+            "Documentation and Guides".to_string(),
+            vec![
+                ("←/→ or h/l", "Navigate between sections"),
+                ("Esc", "Go back"),
+                ("?", "Quick keyboard reference"),
+                ("F1", "Context-sensitive help"),
+            ],
+        ),
+        _ => (
+            "General Help".to_string(),
+            "Global Navigation".to_string(),
+            vec![
+                ("q", "Quit application"),
+                ("Tab", "Next tab"),
+                ("Shift+Tab", "Previous tab"),
+                ("1-9", "Jump to tab by number"),
+                ("Ctrl+P or F12", "Toggle performance stats"),
+                ("?", "Show all keyboard shortcuts"),
+                ("F1", "Context-sensitive help"),
+            ],
+        ),
     }
 }
 
