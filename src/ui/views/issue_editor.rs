@@ -1,6 +1,5 @@
 use crate::beads::models::Issue;
 use crate::ui::widgets::form::{FormField, FormState, ValidationRule};
-use chrono::Utc;
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
@@ -9,6 +8,9 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, StatefulWidget, Widget, Wrap},
 };
 use std::collections::HashMap;
+
+#[cfg(test)]
+use chrono::Utc;
 
 /// Section grouping for organizing form fields
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
