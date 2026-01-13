@@ -444,6 +444,82 @@ impl IssueEditorState {
         Some(updated)
     }
 
+    /// Get an IssueUpdate with only changed fields
+    pub fn get_issue_update(&self) -> Option<crate::beads::client::IssueUpdate> {
+        use crate::beads::client::IssueUpdate;
+        use crate::beads::models::{IssueStatus, IssueType, Priority};
+
+        if self.has_errors() {
+            return None;
+        }
+
+        let changes = self.get_changes();
+        if changes.is_empty() {
+            return None;
+        }
+
+        let mut update = IssueUpdate::new();
+
+        for change in changes {
+            match change.field_id.as_str() {
+                "title" => {
+                    update = update.title(change.new_value);
+                }
+                "status" => {
+                    let status = match change.new_value.as_str() {
+                        "open" => IssueStatus::Open,
+                        "in_progress" => IssueStatus::InProgress,
+                        "blocked" => IssueStatus::Blocked,
+                        "closed" => IssueStatus::Closed,
+                        _ => continue,
+                    };
+                    update = update.status(status);
+                }
+                "priority" => {
+                    let priority = match change.new_value.as_str() {
+                        "P0" => Priority::P0,
+                        "P1" => Priority::P1,
+                        "P2" => Priority::P2,
+                        "P3" => Priority::P3,
+                        "P4" => Priority::P4,
+                        _ => continue,
+                    };
+                    update = update.priority(priority);
+                }
+                "type" => {
+                    let issue_type = match change.new_value.as_str() {
+                        "epic" => IssueType::Epic,
+                        "feature" => IssueType::Feature,
+                        "task" => IssueType::Task,
+                        "bug" => IssueType::Bug,
+                        "chore" => IssueType::Chore,
+                        _ => continue,
+                    };
+                    update = update.issue_type(issue_type);
+                }
+                "assignee" => {
+                    update = update.assignee(change.new_value);
+                }
+                "description" => {
+                    update = update.description(change.new_value);
+                }
+                "labels" => {
+                    let labels: Vec<String> = change.new_value
+                        .lines()
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    update = update.labels(labels);
+                }
+                _ => {
+                    // dependencies and blocks are not supported in IssueUpdate yet
+                }
+            }
+        }
+
+        Some(update)
+    }
+
     /// Mark the editor as saved
     pub fn save(&mut self) {
         self.is_saved = true;

@@ -22,7 +22,7 @@ use ratatui::{
 };
 use std::io;
 use std::time::Instant;
-use ui::views::{DatabaseView, DependenciesView, GanttView, GanttViewState, HelpView, IssuesView, KanbanView, KanbanViewState, LabelsView, PertView, PertViewState};
+use ui::views::{DatabaseView, DependenciesView, GanttView, HelpView, IssuesView, KanbanView, LabelsView, PertView};
 use clap::Parser;
 
 /// Interactive terminal UI for Beads issue management
@@ -539,14 +539,17 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         // Validate and save
                         if editor_state.validate() {
                             // Check if there are any changes
-                            if !editor_state.has_changes() {
+                            if !editor_state.is_dirty() {
                                 tracing::info!("No changes detected, returning to list");
                                 issues_state.return_to_list();
                             } else {
                                 // Get change summary for logging
-                                let change_summary = editor_state.get_change_summary();
-                                tracing::info!("Changes detected: {:?}", change_summary);
-                                
+                                let changes = editor_state.get_changes();
+                                tracing::info!("Changes detected: {} fields modified", changes.len());
+                                for change in &changes {
+                                    tracing::debug!("  {} changed from {:?} to {:?}", change.label, change.old_value, change.new_value);
+                                }
+
                                 // Get IssueUpdate with only changed fields
                                 if let Some(update) = editor_state.get_issue_update() {
                                     let issue_id = editor_state.issue_id().to_string();
