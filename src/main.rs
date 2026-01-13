@@ -189,14 +189,30 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 return;
             }
             KeyCode::Enter => {
-                // Save the filter
-                match app.save_current_filter() {
-                    Ok(()) => {
-                        tracing::info!("Filter saved successfully");
+                // Save or update the filter depending on mode
+                if app.is_editing_filter() {
+                    // Update existing filter
+                    match app.save_edited_filter() {
+                        Ok(()) => {
+                            tracing::info!("Filter updated successfully");
+                            app.set_success("Filter updated".to_string());
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to update filter: {}", e);
+                            app.set_error(e);
+                        }
                     }
-                    Err(e) => {
-                        tracing::error!("Failed to save filter: {}", e);
-                        app.set_error(e);
+                } else {
+                    // Save new filter
+                    match app.save_current_filter() {
+                        Ok(()) => {
+                            tracing::info!("Filter saved successfully");
+                            app.set_success("Filter saved".to_string());
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to save filter: {}", e);
+                            app.set_error(e);
+                        }
                     }
                 }
                 return;
@@ -210,6 +226,54 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
             _ => {
                 // Ignore other keys when dialog is active
                 return;
+            }
+        }
+    }
+
+    // Handle delete confirmation dialog events if active
+    if app.is_delete_confirmation_visible() {
+        if let Some(ref mut dialog_state) = app.delete_dialog_state {
+            match key_code {
+                KeyCode::Left | KeyCode::Char('h') => {
+                    dialog_state.select_previous(2); // 2 buttons: Yes, No
+                    return;
+                }
+                KeyCode::Right | KeyCode::Char('l') => {
+                    dialog_state.select_next(2); // 2 buttons: Yes, No
+                    return;
+                }
+                KeyCode::Enter => {
+                    // Confirm action based on selected button
+                    let selected = dialog_state.selected_button();
+                    if selected == 0 {
+                        // Yes button - confirm deletion
+                        match app.confirm_delete_filter() {
+                            Ok(()) => {
+                                tracing::info!("Filter deleted");
+                                app.set_success("Filter deleted".to_string());
+                            }
+                            Err(e) => {
+                                tracing::error!("Failed to delete filter: {}", e);
+                                app.set_error(e);
+                            }
+                        }
+                    } else {
+                        // No button - cancel
+                        tracing::debug!("Delete confirmation cancelled");
+                        app.cancel_delete_filter();
+                    }
+                    return;
+                }
+                KeyCode::Esc => {
+                    // Cancel deletion
+                    tracing::debug!("Delete confirmation cancelled");
+                    app.cancel_delete_filter();
+                    return;
+                }
+                _ => {
+                    // Ignore other keys when dialog is active
+                    return;
+                }
             }
         }
     }
@@ -259,6 +323,24 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
+            KeyCode::Char('e') => {
+                // Edit selected filter
+                if let Some(filter) = quick_select_state.selected_filter() {
+                    let filter_name = filter.name.clone();
+                    app.start_edit_filter(&filter_name);
+                    tracing::info!("Editing filter: {}", filter_name);
+                }
+                return;
+            }
+            KeyCode::Char('d') | KeyCode::Delete => {
+                // Delete selected filter (with confirmation)
+                if let Some(filter) = quick_select_state.selected_filter() {
+                    let filter_name = filter.name.clone();
+                    app.show_delete_filter_confirmation(&filter_name);
+                    tracing::info!("Showing delete confirmation for filter: {}", filter_name);
+                }
+                return;
+            }
             KeyCode::Esc | KeyCode::Char('f') => {
                 // Close quick-select menu
                 tracing::debug!("Filter quick-select menu closed");
@@ -295,10 +377,12 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 // Delete filter
                 if let Some(i) = issues_state.search_state().filter_menu_state().selected() {
                     issues_state.search_state_mut().delete_saved_filter(i);
-                    app.set_success("Filter deleted".to_string());
                     // Sync to config
-                    app.config.filters = issues_state.search_state().saved_filters().to_vec();
+                    let filters = issues_state.search_state().saved_filters().to_vec();
+                    let _ = issues_state; // Release borrow before using app
+                    app.config.filters = filters;
                     let _ = app.config.save();
+                    app.set_success("Filter deleted".to_string());
                 }
                 return;
             }
@@ -704,13 +788,13 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         // Validate and save
                         if editor_state.validate() {
                             // Check if there are any changes
-                            if !editor_state.has_changes() {
+                            if !editor_state.is_dirty() {
                                 tracing::info!("No changes detected, returning to list");
                                 issues_state.return_to_list();
                             } else {
                                 // Get change summary for logging
-                                let change_summary = editor_state.get_change_summary();
-                                tracing::info!("Changes detected: {:?}", change_summary);
+                                let changes = editor_state.get_changes();
+                                tracing::info!("Changes detected: {:?}", changes);
                                 
                                 // Get IssueUpdate with only changed fields
                                 if let Some(update) = editor_state.get_issue_update() {
@@ -1466,7 +1550,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 .status(app.database_status)
                 .stats(app.database_stats.clone())
                 .daemon_running(app.daemon_running);
-            f.render_widget(database_view, tabs_chunks[1]);
+            f.render_stateful_widget(database_view, tabs_chunks[1], &mut app.database_view_state);
         }
         _ => {
             // Help view (tab 4 and beyond)
@@ -1558,6 +1642,23 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         // Clear and render menu
         f.render_widget(Clear, menu_area);
         menu.render_with_state(menu_area, f.buffer_mut(), quick_select_state);
+    }
+
+    // Render delete filter confirmation dialog overlay if active
+    if let Some(ref filter_name) = app.delete_confirmation_filter {
+        if let Some(ref dialog_state) = app.delete_dialog_state {
+            let message = format!("Are you sure you want to delete the filter '{}'?\n\nThis action cannot be undone.", filter_name);
+            let dialog = ui::widgets::Dialog::confirm("Delete Filter", &message)
+                .dialog_type(ui::widgets::DialogType::Warning);
+
+            // Render dialog centered on screen
+            let area = f.size();
+            let dialog_area = centered_rect(60, 30, area);
+
+            // Clear and render dialog
+            f.render_widget(Clear, dialog_area);
+            dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
+        }
     }
 
     // Render notification banner if present

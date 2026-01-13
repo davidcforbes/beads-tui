@@ -185,6 +185,11 @@ impl IssuesViewState {
     pub fn set_issues(&mut self, issues: Vec<Issue>) {
         self.search_state.set_issues(issues);
     }
+
+    /// Set saved filters
+    pub fn set_saved_filters(&mut self, filters: Vec<crate::models::SavedFilter>) {
+        self.search_state.set_saved_filters(filters);
+    }
 }
 
 /// Issues view widget

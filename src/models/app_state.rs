@@ -75,6 +75,12 @@ pub struct AppState {
     pub filter_save_dialog_state: Option<FilterSaveDialogState>,
     /// Filter quick-select menu state
     pub filter_quick_select_state: Option<FilterQuickSelectState>,
+    /// Name of filter being edited (if any)
+    pub editing_filter_name: Option<String>,
+    /// Name of filter pending deletion confirmation
+    pub delete_confirmation_filter: Option<String>,
+    /// Delete confirmation dialog state
+    pub delete_dialog_state: Option<DialogState>,
 }
 
 impl AppState {
@@ -184,6 +190,9 @@ impl AppState {
             config,
             filter_save_dialog_state: None,
             filter_quick_select_state: None,
+            editing_filter_name: None,
+            delete_confirmation_filter: None,
+            delete_dialog_state: None,
         }
     }
 
@@ -405,6 +414,202 @@ impl AppState {
         self.hide_filter_quick_select();
 
         Ok(())
+    }
+
+    /// Start editing a filter - opens save dialog with existing filter data
+    pub fn start_edit_filter(&mut self, filter_name: &str) {
+        if let Some(filter) = self.config.get_filter(filter_name).cloned() {
+            // Store the name of the filter being edited
+            self.editing_filter_name = Some(filter_name.to_string());
+
+            // Create filter save dialog state and populate with existing data
+            let mut dialog_state = FilterSaveDialogState::new();
+            dialog_state.set_name(&filter.name);
+            // description field is not used in SavedFilter, so leave empty
+            if let Some(hotkey) = filter.hotkey {
+                dialog_state.set_hotkey(Some(hotkey.to_string()));
+            }
+
+            self.filter_save_dialog_state = Some(dialog_state);
+            self.hide_filter_quick_select();
+            self.mark_dirty();
+        }
+    }
+
+    /// Save edited filter - updates existing filter instead of creating new one
+    pub fn save_edited_filter(&mut self) -> Result<(), String> {
+        // Get the name of the filter being edited
+        let editing_name = self
+            .editing_filter_name
+            .as_ref()
+            .ok_or_else(|| "No filter is being edited".to_string())?
+            .clone();
+
+        // Get dialog state
+        let dialog_state = self
+            .filter_save_dialog_state
+            .as_ref()
+            .ok_or_else(|| "Filter save dialog is not open".to_string())?;
+
+        // Validate dialog input
+        dialog_state.validate()?;
+
+        // Get current filter state from search interface
+        let search_state = self.issues_view_state.search_state();
+        let column_filters = search_state.list_state().column_filters();
+
+        // Build IssueFilter from current state
+        let mut filter = IssueFilter::new();
+
+        // Set search text
+        let query = search_state.search_state().query();
+        if !query.is_empty() {
+            filter.search_text = Some(query.to_string());
+        }
+
+        // Set regex and fuzzy flags
+        filter.use_regex = search_state.is_regex_enabled();
+        filter.use_fuzzy = search_state.is_fuzzy_enabled();
+
+        // Parse status, priority, and type strings back to enums
+        if !column_filters.status.is_empty() {
+            filter.status = match column_filters.status.to_lowercase().as_str() {
+                "open" => Some(crate::beads::models::IssueStatus::Open),
+                "in_progress" => Some(crate::beads::models::IssueStatus::InProgress),
+                "blocked" => Some(crate::beads::models::IssueStatus::Blocked),
+                "closed" => Some(crate::beads::models::IssueStatus::Closed),
+                _ => None,
+            };
+        }
+
+        if !column_filters.priority.is_empty() {
+            filter.priority = match column_filters.priority.as_str() {
+                "P0" => Some(crate::beads::models::Priority::P0),
+                "P1" => Some(crate::beads::models::Priority::P1),
+                "P2" => Some(crate::beads::models::Priority::P2),
+                "P3" => Some(crate::beads::models::Priority::P3),
+                "P4" => Some(crate::beads::models::Priority::P4),
+                _ => None,
+            };
+        }
+
+        if !column_filters.type_filter.is_empty() {
+            filter.issue_type = match column_filters.type_filter.to_lowercase().as_str() {
+                "epic" => Some(crate::beads::models::IssueType::Epic),
+                "feature" => Some(crate::beads::models::IssueType::Feature),
+                "task" => Some(crate::beads::models::IssueType::Task),
+                "bug" => Some(crate::beads::models::IssueType::Bug),
+                "chore" => Some(crate::beads::models::IssueType::Chore),
+                _ => None,
+            };
+        }
+
+        // Set assignee filter (None if no_assignee is set)
+        if column_filters.no_assignee {
+            filter.assignee = None;
+        }
+
+        // Set label filters
+        if !column_filters.labels.is_empty() {
+            filter.labels = column_filters.labels.clone();
+            filter.label_logic = match column_filters.label_match_mode {
+                crate::ui::widgets::issue_list::LabelMatchMode::All => {
+                    crate::models::LogicOp::And
+                }
+                crate::ui::widgets::issue_list::LabelMatchMode::Any => {
+                    crate::models::LogicOp::Or
+                }
+            };
+        }
+
+        // Parse hotkey (convert from string to char)
+        let hotkey = dialog_state
+            .hotkey()
+            .and_then(|h| h.chars().next());
+
+        // Create SavedFilter
+        let saved_filter = SavedFilter {
+            name: dialog_state.name().to_string(),
+            filter,
+            hotkey,
+        };
+
+        // Update the filter in config
+        if !self.config.update_filter(&editing_name, saved_filter.clone()) {
+            return Err(format!("Filter '{}' not found", editing_name));
+        }
+
+        // Save config to disk
+        self.config.save().map_err(|e| {
+            format!("Failed to save config: {}", e)
+        })?;
+
+        // Show success notification
+        self.set_success(format!("Filter '{}' updated successfully", saved_filter.name));
+
+        // Clear edit state
+        self.editing_filter_name = None;
+
+        // Hide dialog
+        self.hide_filter_save_dialog();
+
+        Ok(())
+    }
+
+    /// Show delete confirmation dialog for a filter
+    pub fn show_delete_filter_confirmation(&mut self, filter_name: &str) {
+        self.delete_confirmation_filter = Some(filter_name.to_string());
+        self.delete_dialog_state = Some(DialogState::new());
+        self.hide_filter_quick_select();
+        self.mark_dirty();
+    }
+
+    /// Confirm and execute filter deletion
+    pub fn confirm_delete_filter(&mut self) -> Result<(), String> {
+        let filter_name = self
+            .delete_confirmation_filter
+            .as_ref()
+            .ok_or_else(|| "No filter pending deletion".to_string())?
+            .clone();
+
+        // Remove filter from config
+        if !self.config.remove_filter(&filter_name) {
+            return Err(format!("Filter '{}' not found", filter_name));
+        }
+
+        // Save config to disk
+        self.config.save().map_err(|e| {
+            format!("Failed to save config: {}", e)
+        })?;
+
+        // Update the saved filters in issues view state
+        self.issues_view_state
+            .set_saved_filters(self.config.filters.clone());
+
+        // Clear delete confirmation state
+        self.delete_confirmation_filter = None;
+        self.delete_dialog_state = None;
+
+        self.mark_dirty();
+
+        Ok(())
+    }
+
+    /// Cancel filter deletion
+    pub fn cancel_delete_filter(&mut self) {
+        self.delete_confirmation_filter = None;
+        self.delete_dialog_state = None;
+        self.mark_dirty();
+    }
+
+    /// Check if currently editing a filter
+    pub fn is_editing_filter(&self) -> bool {
+        self.editing_filter_name.is_some()
+    }
+
+    /// Check if delete confirmation dialog is visible
+    pub fn is_delete_confirmation_visible(&self) -> bool {
+        self.delete_confirmation_filter.is_some()
     }
 
     /// Save the current filter from the dialog
@@ -649,6 +854,9 @@ mod tests {
             config: Config::default(),
             filter_save_dialog_state: None,
             filter_quick_select_state: None,
+            editing_filter_name: None,
+            delete_confirmation_filter: None,
+            delete_dialog_state: None,
         }
     }
 

@@ -151,7 +151,7 @@ impl StatefulWidget for FilterQuickSelectMenu {
         // Split area into filter list and help text
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Min(3), Constraint::Length(3)])
+            .constraints([Constraint::Min(3), Constraint::Length(4)])
             .split(inner_area);
 
         // Create list items
@@ -235,7 +235,13 @@ impl StatefulWidget for FilterQuickSelectMenu {
                 Span::styled("1-9", Style::default().fg(Color::Yellow)),
                 Span::raw(": Quick select | "),
                 Span::styled("Enter", Style::default().fg(Color::Green)),
-                Span::raw(": Apply | "),
+                Span::raw(": Apply"),
+            ]),
+            Line::from(vec![
+                Span::styled("e", Style::default().fg(Color::Cyan)),
+                Span::raw(": Edit | "),
+                Span::styled("d", Style::default().fg(Color::Magenta)),
+                Span::raw(": Delete | "),
                 Span::styled("Esc", Style::default().fg(Color::Red)),
                 Span::raw(": Close"),
             ]),
