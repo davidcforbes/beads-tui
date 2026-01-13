@@ -14,6 +14,7 @@ pub mod filter_quick_select;
 pub mod filter_save_dialog;
 pub mod form;
 pub mod gantt_chart;
+pub mod help_overlay;
 pub mod inline_metadata;
 pub mod issue_list;
 pub mod kanban_card;
@@ -46,6 +47,7 @@ pub use filter_quick_select::{FilterQuickSelectMenu, FilterQuickSelectState};
 pub use filter_save_dialog::{FilterSaveDialog, FilterSaveDialogState, FilterSaveField};
 pub use form::{FieldType, Form, FormField, FormState, ValidationRule};
 pub use gantt_chart::{GanttChart, GanttChartConfig, GroupingMode};
+pub use help_overlay::{HelpOverlay, HelpOverlayPosition, KeyBinding};
 pub use inline_metadata::{
     build_metadata_spans, format_age, format_assignee, format_labels, MetadataDisplayConfig,
 };

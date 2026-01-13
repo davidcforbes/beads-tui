@@ -2409,6 +2409,195 @@ fn render_loading_state(frame: &mut Frame, area: Rect, start_time: Instant) {
 
 ---
 
+## Help & Information Widgets
+
+### HelpOverlay
+
+Popup overlay widget for displaying context-sensitive help and keyboard shortcuts.
+
+#### Purpose
+Show quick help information as a popup on top of the current view without taking over the full screen.
+
+#### Use Cases
+- Context-sensitive help popups
+- Keyboard shortcut reference overlays
+- Quick documentation displays
+- Modal information dialogs
+
+#### Key Types
+
+**HelpOverlayPosition:**
+```rust
+pub enum HelpOverlayPosition {
+    Center,
+    TopRight,
+    BottomRight,
+    TopLeft,
+    BottomLeft,
+}
+```
+
+**KeyBinding:**
+```rust
+pub struct KeyBinding {
+    pub key: String,
+    pub description: String,
+}
+
+impl KeyBinding {
+    pub fn new<K: Into<String>, D: Into<String>>(key: K, description: D) -> Self
+}
+```
+
+#### Key Methods
+
+```rust
+pub fn new(title: &'a str) -> Self
+pub fn subtitle(mut self, subtitle: &'a str) -> Self
+pub fn key_binding<K, D>(mut self, key: K, description: D) -> Self
+pub fn key_bindings(mut self, bindings: Vec<KeyBinding>) -> Self
+pub fn custom_content(mut self, lines: Vec<Line<'a>>) -> Self
+pub fn position(mut self, position: HelpOverlayPosition) -> Self
+pub fn width_percent(mut self, percent: u16) -> Self
+pub fn height_percent(mut self, percent: u16) -> Self
+pub fn border_style(mut self, style: Style) -> Self
+pub fn title_style(mut self, style: Style) -> Self
+pub fn key_style(mut self, style: Style) -> Self
+pub fn description_style(mut self, style: Style) -> Self
+pub fn dismiss_hint(mut self, hint: &'a str) -> Self
+pub fn hide_dismiss_hint(mut self) -> Self
+```
+
+#### Usage Examples
+
+**Basic Help Overlay:**
+```rust
+let overlay = HelpOverlay::new("Keyboard Shortcuts")
+    .key_binding("j/k", "Navigate list")
+    .key_binding("Enter", "Select item")
+    .key_binding("Esc", "Cancel");
+
+frame.render_widget(overlay, frame.size());
+```
+
+**Positioned Overlay:**
+```rust
+let overlay = HelpOverlay::new("Quick Help")
+    .subtitle("Issues View")
+    .key_binding("n", "New issue")
+    .key_binding("e", "Edit issue")
+    .key_binding("d", "Delete issue")
+    .position(HelpOverlayPosition::TopRight)
+    .width_percent(40)
+    .height_percent(50);
+
+frame.render_widget(overlay, frame.size());
+```
+
+**Custom Content:**
+```rust
+let content = vec![
+    Line::from(Span::styled("Welcome!", Style::default().fg(Color::Cyan))),
+    Line::from(""),
+    Line::from("This is a custom help overlay."),
+    Line::from("You can display any text content here."),
+];
+
+let overlay = HelpOverlay::new("Information")
+    .custom_content(content)
+    .position(HelpOverlayPosition::Center);
+
+frame.render_widget(overlay, frame.size());
+```
+
+**Styled Overlay:**
+```rust
+let overlay = HelpOverlay::new("Help")
+    .key_binding("?", "Toggle help")
+    .key_binding("q", "Quit")
+    .border_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+    .title_style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+    .key_style(Style::default().fg(Color::Magenta))
+    .description_style(Style::default().fg(Color::White))
+    .dismiss_hint("Press ? to close");
+
+frame.render_widget(overlay, frame.size());
+```
+
+**Context-Sensitive Help:**
+```rust
+// Show different help based on current focus
+fn render_contextual_help(frame: &mut Frame, view: CurrentView) {
+    let overlay = match view {
+        CurrentView::Issues => HelpOverlay::new("Issues View Help")
+            .subtitle("Managing Issues")
+            .key_binding("n", "Create new issue")
+            .key_binding("e", "Edit selected issue")
+            .key_binding("c", "Close issue")
+            .key_binding("/", "Search"),
+
+        CurrentView::Dependencies => HelpOverlay::new("Dependencies View Help")
+            .subtitle("Managing Dependencies")
+            .key_binding("a", "Add dependency")
+            .key_binding("d", "Remove dependency")
+            .key_binding("g", "Show graph"),
+
+        CurrentView::Labels => HelpOverlay::new("Labels View Help")
+            .subtitle("Managing Labels")
+            .key_binding("a", "Add label")
+            .key_binding("d", "Delete label")
+            .key_binding("e", "Edit label"),
+    };
+
+    frame.render_widget(overlay, frame.size());
+}
+```
+
+**Building KeyBindings List:**
+```rust
+let bindings = vec![
+    KeyBinding::new("j", "Move down"),
+    KeyBinding::new("k", "Move up"),
+    KeyBinding::new("g", "Go to top"),
+    KeyBinding::new("G", "Go to bottom"),
+    KeyBinding::new("Enter", "Select"),
+    KeyBinding::new("Esc", "Cancel"),
+];
+
+let overlay = HelpOverlay::new("Navigation")
+    .key_bindings(bindings);
+
+frame.render_widget(overlay, frame.size());
+```
+
+#### Styling/Configuration
+- **Position**: Five position options (Center, TopRight, BottomRight, TopLeft, BottomLeft)
+- **Size**: Width and height as percentages (10-100%, default: 50% x 60%)
+- **Minimum Size**: 30x10 characters
+- **Border Style**: Customizable border color and modifiers (default: Cyan + Bold)
+- **Title Style**: Customizable title appearance (default: Cyan + Bold)
+- **Key Style**: Keyboard shortcut styling (default: Green + Bold)
+- **Description Style**: Description text styling (default: White)
+- **Dismiss Hint**: Optional footer hint (default: "Press ? or Esc to close")
+- **Content Modes**: Either key bindings list or custom content lines
+
+#### Layout Structure
+The overlay renders in three sections:
+1. **Header** (3 lines): Title and optional subtitle with top/left/right borders
+2. **Content** (flexible): Key bindings list or custom content with left/right borders
+3. **Footer** (2 lines, optional): Dismiss hint with bottom/left/right borders
+
+#### Best Practices
+- Use `TopRight` or `BottomRight` for non-intrusive help that doesn't block main content
+- Use `Center` for important information that should get full attention
+- Keep key bindings concise (10-15 entries maximum for readability)
+- Use subtitle to provide context about which view/mode the help applies to
+- Format key combinations consistently ("Ctrl+C", "j/k", "Shift+Tab")
+- Consider hiding dismiss hint for experienced users with `.hide_dismiss_hint()`
+- Use custom content for longer explanatory text that doesn't fit key binding format
+
+---
+
 ## Conclusion
 
 This widget library provides a comprehensive set of components for building terminal user interfaces in Rust. All widgets follow consistent patterns for state management, styling, and user interaction, making them easy to learn and compose together.
