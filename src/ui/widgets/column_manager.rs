@@ -651,4 +651,243 @@ mod tests {
         state.move_up();
         assert!(state.is_modified()); // Still modified after reverting
     }
+
+    #[test]
+    fn test_column_manager_action_debug() {
+        let action = ColumnManagerAction::MoveUp;
+        let debug_str = format!("{:?}", action);
+        assert_eq!(debug_str, "MoveUp");
+
+        let action = ColumnManagerAction::ToggleVisibility;
+        let debug_str = format!("{:?}", action);
+        assert_eq!(debug_str, "ToggleVisibility");
+    }
+
+    #[test]
+    fn test_column_manager_action_clone() {
+        let action = ColumnManagerAction::Apply;
+        let cloned = action.clone();
+        assert_eq!(action, cloned);
+    }
+
+    #[test]
+    fn test_column_manager_action_copy() {
+        let action = ColumnManagerAction::Cancel;
+        let copied = action;
+        assert_eq!(action, copied);
+    }
+
+    #[test]
+    fn test_column_manager_state_debug() {
+        let cols = create_test_columns();
+        let state = ColumnManagerState::new(cols);
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("ColumnManagerState"));
+    }
+
+    #[test]
+    fn test_widget_rendering_with_help() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        let manager = ColumnManager::new().show_help(true);
+
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+
+        manager.render(area, &mut buffer, &mut state);
+
+        let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
+        assert!(has_content, "Widget should render content with help");
+    }
+
+    #[test]
+    fn test_widget_rendering_without_help() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        let manager = ColumnManager::new().show_help(false);
+
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+
+        manager.render(area, &mut buffer, &mut state);
+
+        let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
+        assert!(has_content, "Widget should render content without help");
+    }
+
+    #[test]
+    fn test_widget_rendering_modified_state() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        state.move_down(); // Modify state
+
+        let manager = ColumnManager::new();
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+
+        manager.render(area, &mut buffer, &mut state);
+
+        let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
+        assert!(has_content, "Widget should render modified state");
+        assert!(state.is_modified());
+    }
+
+    #[test]
+    fn test_widget_rendering_small_area() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        let manager = ColumnManager::new();
+
+        let area = Rect::new(0, 0, 20, 10);
+        let mut buffer = Buffer::empty(area);
+
+        manager.render(area, &mut buffer, &mut state);
+
+        let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
+        assert!(has_content, "Widget should render in small area");
+    }
+
+    #[test]
+    fn test_widget_rendering_custom_title() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+        let manager = ColumnManager::new().title("Custom Columns");
+
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+
+        manager.render(area, &mut buffer, &mut state);
+
+        let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
+        assert!(has_content, "Widget should render with custom title");
+    }
+
+    #[test]
+    fn test_select_previous_with_empty_list() {
+        let state = ColumnManagerState::new(vec![]);
+        let mut state_copy = state;
+
+        state_copy.select_previous();
+        // Should not panic with empty list and should wrap to 0 (saturating_sub)
+        assert_eq!(state_copy.selected(), 0);
+    }
+
+    #[test]
+    fn test_multiple_move_up_operations() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+
+        state.selected = 3; // Last column
+
+        state.move_up();
+        assert_eq!(state.selected(), 2);
+        assert_eq!(state.columns()[2].id, ColumnId::Priority);
+
+        state.move_up();
+        assert_eq!(state.selected(), 1);
+
+        state.move_up();
+        assert_eq!(state.selected(), 0);
+
+        // Should not move further
+        state.move_up();
+        assert_eq!(state.selected(), 0);
+    }
+
+    #[test]
+    fn test_multiple_move_down_operations() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+
+        state.selected = 0; // First column
+
+        state.move_down();
+        assert_eq!(state.selected(), 1);
+
+        state.move_down();
+        assert_eq!(state.selected(), 2);
+
+        state.move_down();
+        assert_eq!(state.selected(), 3);
+
+        // Should not move further
+        state.move_down();
+        assert_eq!(state.selected(), 3);
+    }
+
+    #[test]
+    fn test_all_action_variants_debug() {
+        let actions = [
+            ColumnManagerAction::MoveUp,
+            ColumnManagerAction::MoveDown,
+            ColumnManagerAction::ToggleVisibility,
+            ColumnManagerAction::Reset,
+            ColumnManagerAction::Apply,
+            ColumnManagerAction::Cancel,
+        ];
+
+        for action in &actions {
+            let debug_str = format!("{:?}", action);
+            assert!(!debug_str.is_empty(), "Debug format should not be empty");
+        }
+    }
+
+    #[test]
+    fn test_widget_rendering_empty_columns() {
+        let mut state = ColumnManagerState::new(vec![]);
+        let manager = ColumnManager::new();
+
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+
+        manager.render(area, &mut buffer, &mut state);
+
+        // Should not panic with empty columns
+        let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
+        assert!(has_content, "Widget should render with empty columns");
+    }
+
+    #[test]
+    fn test_reset_with_different_columns() {
+        let mut cols = create_test_columns();
+        cols[1].visible = false; // Hide Title
+        cols[2].visible = false; // Hide Status
+
+        let mut state = ColumnManagerState::new(cols);
+        assert!(!state.columns()[1].visible);
+        assert!(!state.columns()[2].visible);
+
+        state.selected = 3;
+        state.move_down(); // Try to trigger modified
+
+        // Reset with different defaults (all visible)
+        let defaults = create_test_columns();
+        state.reset(defaults);
+
+        assert!(state.columns()[1].visible);
+        assert!(state.columns()[2].visible);
+        assert_eq!(state.selected(), 0);
+        assert!(state.is_modified());
+    }
+
+    #[test]
+    fn test_toggle_visibility_multiple_columns() {
+        let cols = create_test_columns();
+        let mut state = ColumnManagerState::new(cols);
+
+        // Toggle Status (non-mandatory)
+        state.selected = 2;
+        state.toggle_visibility();
+        assert!(!state.columns()[2].visible);
+
+        // Toggle Priority (non-mandatory)
+        state.selected = 3;
+        state.toggle_visibility();
+        assert!(!state.columns()[3].visible);
+
+        // Both should be hidden
+        assert!(!state.columns()[2].visible);
+        assert!(!state.columns()[3].visible);
+        assert!(state.is_modified());
+    }
 }
