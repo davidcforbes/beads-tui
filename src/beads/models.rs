@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use serde::de::Visitor;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::fmt;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Issue {
@@ -47,6 +48,27 @@ impl std::fmt::Display for IssueStatus {
             IssueStatus::InProgress => write!(f, "in_progress"),
             IssueStatus::Blocked => write!(f, "blocked"),
             IssueStatus::Closed => write!(f, "closed"),
+        }
+    }
+}
+
+impl FromStr for IssueStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let normalized = s
+            .trim()
+            .to_lowercase()
+            .chars()
+            .filter(|c| !c.is_whitespace() && *c != '-' && *c != '_')
+            .collect::<String>();
+
+        match normalized.as_str() {
+            "open" => Ok(IssueStatus::Open),
+            "inprogress" => Ok(IssueStatus::InProgress),
+            "blocked" => Ok(IssueStatus::Blocked),
+            "closed" => Ok(IssueStatus::Closed),
+            _ => Err(format!("Invalid issue status: {s}")),
         }
     }
 }
@@ -119,6 +141,27 @@ impl std::fmt::Display for Priority {
     }
 }
 
+impl FromStr for Priority {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let trimmed = s.trim();
+        let normalized = trimmed
+            .strip_prefix('p')
+            .or_else(|| trimmed.strip_prefix('P'))
+            .unwrap_or(trimmed);
+
+        match normalized {
+            "0" => Ok(Priority::P0),
+            "1" => Ok(Priority::P1),
+            "2" => Ok(Priority::P2),
+            "3" => Ok(Priority::P3),
+            "4" => Ok(Priority::P4),
+            _ => Err(format!("Invalid priority: {s}")),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum IssueType {
@@ -141,6 +184,20 @@ impl std::fmt::Display for IssueType {
     }
 }
 
+impl FromStr for IssueType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "epic" => Ok(IssueType::Epic),
+            "feature" => Ok(IssueType::Feature),
+            "task" => Ok(IssueType::Task),
+            "bug" => Ok(IssueType::Bug),
+            "chore" => Ok(IssueType::Chore),
+            _ => Err(format!("Invalid issue type: {s}")),
+        }
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Note {
     pub timestamp: DateTime<Utc>,
