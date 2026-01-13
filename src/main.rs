@@ -4,7 +4,6 @@ pub mod models;
 pub mod ui;
 
 use anyhow::Result;
-use clap::Parser;
 use crossterm::{
     event::{
         self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
@@ -23,26 +22,9 @@ use ratatui::{
 };
 use std::io;
 use std::time::Instant;
-use ui::views::{
-    BondType, BondingInterface, DatabaseView, DependenciesView, FormulaBrowser, GanttView,
-    HelpView, HistoryOps, IssuesView, KanbanView, LabelsView, PertView, PourStep, PourWizard,
-    PourWizardState, WispManager,
-};
-use ui::widgets::TabBar;
-
-/// Interactive terminal UI for Beads issue management
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Cli {
-    /// Path to beads repository (defaults to current directory)
-    #[arg(short, long)]
-    path: Option<String>,
-}
+use ui::views::{DatabaseView, DependenciesView, HelpView, IssuesView, LabelsView};
 
 fn main() -> Result<()> {
-    // Parse CLI arguments (handles --version, --help automatically)
-    let _cli = Cli::parse();
-
     // Setup panic hook to restore terminal on panic
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -279,8 +261,8 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 tracing::info!("Saving title edit for {}: {}", issue_id, new_title);
 
                                 // Create IssueUpdate with only title
-                                let update =
-                                    crate::beads::client::IssueUpdate::new().title(new_title);
+                                let update = crate::beads::client::IssueUpdate::new()
+                                    .title(new_title);
 
                                 // Execute the update
                                 let rt = tokio::runtime::Runtime::new().unwrap();
@@ -288,10 +270,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 
                                 match rt.block_on(client.update_issue(&issue_id, update)) {
                                     Ok(()) => {
-                                        tracing::info!(
-                                            "Successfully updated title for: {}",
-                                            issue_id
-                                        );
+                                        tracing::info!("Successfully updated title for: {}", issue_id);
                                         app.reload_issues();
                                     }
                                     Err(e) => {
@@ -303,38 +282,23 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     }
                     KeyCode::Esc => {
                         // Cancel editing
-                        issues_state
-                            .search_state_mut()
-                            .list_state_mut()
-                            .cancel_editing();
+                        issues_state.search_state_mut().list_state_mut().cancel_editing();
                     }
                     KeyCode::Char(ch) => {
                         // Insert character
-                        issues_state
-                            .search_state_mut()
-                            .list_state_mut()
-                            .insert_char_at_cursor(ch);
+                        issues_state.search_state_mut().list_state_mut().insert_char_at_cursor(ch);
                     }
                     KeyCode::Backspace => {
                         // Delete character before cursor
-                        issues_state
-                            .search_state_mut()
-                            .list_state_mut()
-                            .delete_char_before_cursor();
+                        issues_state.search_state_mut().list_state_mut().delete_char_before_cursor();
                     }
                     KeyCode::Left => {
                         // Move cursor left
-                        issues_state
-                            .search_state_mut()
-                            .list_state_mut()
-                            .move_cursor_left();
+                        issues_state.search_state_mut().list_state_mut().move_cursor_left();
                     }
                     KeyCode::Right => {
                         // Move cursor right
-                        issues_state
-                            .search_state_mut()
-                            .list_state_mut()
-                            .move_cursor_right();
+                        issues_state.search_state_mut().list_state_mut().move_cursor_right();
                     }
                     _ => {}
                 }
@@ -369,15 +333,15 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if let Some(issue) = issues_state.search_state().selected_issue() {
                             let issue_id = issue.id.clone();
                             tracing::info!("Closing issue: {}", issue_id);
-
+                            
                             // Create a tokio runtime to execute the async call
                             let rt = tokio::runtime::Runtime::new().unwrap();
                             let client = &app.beads_client;
-
+                            
                             match rt.block_on(client.close_issue(&issue_id, None)) {
                                 Ok(()) => {
                                     tracing::info!("Successfully closed issue: {}", issue_id);
-
+                                    
                                     // Reload issues list
                                     app.reload_issues();
                                 }
@@ -392,15 +356,15 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if let Some(issue) = issues_state.search_state().selected_issue() {
                             let issue_id = issue.id.clone();
                             tracing::info!("Reopening issue: {}", issue_id);
-
+                            
                             // Create a tokio runtime to execute the async call
                             let rt = tokio::runtime::Runtime::new().unwrap();
                             let client = &app.beads_client;
-
+                            
                             match rt.block_on(client.reopen_issue(&issue_id)) {
                                 Ok(()) => {
                                     tracing::info!("Successfully reopened issue: {}", issue_id);
-
+                                    
                                     // Reload issues list
                                     app.reload_issues();
                                 }
@@ -429,33 +393,18 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         // Start in-place editing of title
                         if let Some(issue) = issues_state.search_state().selected_issue() {
                             let title = issue.title.clone();
-                            if let Some(selected_idx) =
-                                issues_state.search_state().list_state().selected()
-                            {
-                                tracing::info!(
-                                    "Starting in-place edit for {}: {}",
-                                    issue.id,
-                                    title
-                                );
-                                issues_state
-                                    .search_state_mut()
-                                    .list_state_mut()
-                                    .start_editing(selected_idx, title);
+                            if let Some(selected_idx) = issues_state.search_state().list_state().selected() {
+                                tracing::info!("Starting in-place edit for {}: {}", issue.id, title);
+                                issues_state.search_state_mut().list_state_mut().start_editing(selected_idx, title);
                             }
                         }
                     }
                     KeyCode::Char('f') => {
                         // Toggle quick filters
-                        issues_state
-                            .search_state_mut()
-                            .list_state_mut()
-                            .toggle_filters();
+                        issues_state.search_state_mut().list_state_mut().toggle_filters();
                         issues_state.search_state_mut().update_filtered_issues();
                         let enabled = issues_state.search_state().list_state().filters_enabled();
-                        tracing::info!(
-                            "Quick filters toggled: {}",
-                            if enabled { "enabled" } else { "disabled" }
-                        );
+                        tracing::info!("Quick filters toggled: {}", if enabled { "enabled" } else { "disabled" });
                     }
                     KeyCode::Char('/') => {
                         issues_state
@@ -463,69 +412,37 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             .search_state_mut()
                             .set_focused(true);
                     }
-                    KeyCode::Char('v') => {
-                        // Cycle to next view
-                        issues_state.search_state_mut().next_view();
-                        let view_name = issues_state.search_state().current_view().display_name();
-                        tracing::info!("Switched to view: {}", view_name);
-                    }
                     KeyCode::Esc => {
                         issues_state.search_state_mut().clear_search();
                     }
-                    KeyCode::Left
-                        if key
-                            .modifiers
-                            .contains(KeyModifiers::ALT | KeyModifiers::SHIFT) =>
-                    {
+                    KeyCode::Left if key.modifiers.contains(KeyModifiers::ALT | KeyModifiers::SHIFT) => {
                         // Alt+Shift+Left: Shrink focused column
-                        issues_state
-                            .search_state_mut()
-                            .list_state_mut()
-                            .shrink_focused_column();
+                        issues_state.search_state_mut().list_state_mut().shrink_focused_column();
                         tracing::debug!("Shrinking focused column");
                     }
-                    KeyCode::Right
-                        if key
-                            .modifiers
-                            .contains(KeyModifiers::ALT | KeyModifiers::SHIFT) =>
-                    {
+                    KeyCode::Right if key.modifiers.contains(KeyModifiers::ALT | KeyModifiers::SHIFT) => {
                         // Alt+Shift+Right: Grow focused column
-                        issues_state
-                            .search_state_mut()
-                            .list_state_mut()
-                            .grow_focused_column();
+                        issues_state.search_state_mut().list_state_mut().grow_focused_column();
                         tracing::debug!("Growing focused column");
                     }
                     KeyCode::Left if key.modifiers.contains(KeyModifiers::ALT) => {
                         // Alt+Left: Move focused column left
-                        issues_state
-                            .search_state_mut()
-                            .list_state_mut()
-                            .move_focused_column_left();
+                        issues_state.search_state_mut().list_state_mut().move_focused_column_left();
                         tracing::debug!("Moving focused column left");
                     }
                     KeyCode::Right if key.modifiers.contains(KeyModifiers::ALT) => {
                         // Alt+Right: Move focused column right
-                        issues_state
-                            .search_state_mut()
-                            .list_state_mut()
-                            .move_focused_column_right();
+                        issues_state.search_state_mut().list_state_mut().move_focused_column_right();
                         tracing::debug!("Moving focused column right");
                     }
                     KeyCode::Tab if key.modifiers.contains(KeyModifiers::ALT) => {
                         // Alt+Tab: Focus next column
-                        issues_state
-                            .search_state_mut()
-                            .list_state_mut()
-                            .focus_next_column();
+                        issues_state.search_state_mut().list_state_mut().focus_next_column();
                         tracing::debug!("Focusing next column");
                     }
                     KeyCode::BackTab if key.modifiers.contains(KeyModifiers::ALT) => {
                         // Alt+Shift+Tab: Focus previous column
-                        issues_state
-                            .search_state_mut()
-                            .list_state_mut()
-                            .focus_previous_column();
+                        issues_state.search_state_mut().list_state_mut().focus_previous_column();
                         tracing::debug!("Focusing previous column");
                     }
                     _ => {}
@@ -560,10 +477,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if file_path.is_empty() {
                             // Set error on focused field
                             if let Some(field) = form.focused_field_mut() {
-                                field.error = Some(
-                                    "Enter a file path first, then press Ctrl+L to load it"
-                                        .to_string(),
-                                );
+                                field.error = Some("Enter a file path first, then press Ctrl+L to load it".to_string());
                             }
                         } else {
                             // Try to load from file
@@ -609,53 +523,48 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         }
                         // Save/Cancel
                         KeyCode::Enter => {
-                            // Validate and save
-                            if editor_state.validate() {
-                                // Check if there are any changes
-                                let changes = editor_state.get_changes();
-                                if changes.is_empty() {
-                                    tracing::info!("No changes detected, returning to list");
+                        // Validate and save
+                        if editor_state.validate() {
+                            // Check if there are any changes
+                            if !editor_state.has_changes() {
+                                tracing::info!("No changes detected, returning to list");
+                                issues_state.return_to_list();
+                            } else {
+                                // Get change summary for logging
+                                let change_summary = editor_state.get_change_summary();
+                                tracing::info!("Changes detected: {:?}", change_summary);
+                                
+                                // Get IssueUpdate with only changed fields
+                                if let Some(update) = editor_state.get_issue_update() {
+                                    let issue_id = editor_state.issue_id().to_string();
+                                    
+                                    // Mark as saved and return to list before reloading
+                                    editor_state.save();
                                     issues_state.return_to_list();
-                                } else {
-                                    // Log changes
-                                    tracing::info!("Changes detected: {:?}", changes);
+                                    
+                                    // Create a tokio runtime to execute the async call
+                                    let rt = tokio::runtime::Runtime::new().unwrap();
+                                    let client = &app.beads_client;
+                                    
+                                    match rt.block_on(client.update_issue(&issue_id, update)) {
+                                        Ok(()) => {
+                                            tracing::info!("Successfully updated issue: {}", issue_id);
 
-                                    // Get IssueUpdate with only changed fields
-                                    if let Some(update) = editor_state.get_issue_update() {
-                                        let issue_id = editor_state.issue_id().to_string();
+                                            // Clear any previous errors
+                                            app.clear_error();
 
-                                        // Mark as saved and return to list before reloading
-                                        editor_state.save();
-                                        issues_state.return_to_list();
-
-                                        // Create a tokio runtime to execute the async call
-                                        let rt = tokio::runtime::Runtime::new().unwrap();
-                                        let client = &app.beads_client;
-
-                                        match rt.block_on(client.update_issue(&issue_id, update)) {
-                                            Ok(()) => {
-                                                tracing::info!(
-                                                    "Successfully updated issue: {}",
-                                                    issue_id
-                                                );
-
-                                                // Clear any previous errors
-                                                app.clear_error();
-
-                                                // Reload issues list
-                                                app.reload_issues();
-                                            }
-                                            Err(e) => {
-                                                tracing::error!("Failed to update issue: {:?}", e);
-                                                app.set_error(format!(
-                                                    "Failed to update issue: {e}"
-                                                ));
-                                                // Stay in edit mode so user can fix and retry
-                                            }
+                                            // Reload issues list
+                                            app.reload_issues();
+                                        }
+                                        Err(e) => {
+                                            tracing::error!("Failed to update issue: {:?}", e);
+                                            app.set_error(format!("Failed to update issue: {e}"));
+                                            // Stay in edit mode so user can fix and retry
                                         }
                                     }
                                 }
                             }
+                        }
                         }
                         KeyCode::Esc => {
                             issues_state.cancel_edit();
@@ -676,14 +585,11 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     // Get the current field value as the file path
                     if let Some(focused_field) = form.focused_field() {
                         let file_path = focused_field.value.trim().to_string();
-
+                        
                         if file_path.is_empty() {
                             // Set error on focused field
                             if let Some(field) = form.focused_field_mut() {
-                                field.error = Some(
-                                    "Enter a file path first, then press Ctrl+L to load it"
-                                        .to_string(),
-                                );
+                                field.error = Some("Enter a file path first, then press Ctrl+L to load it".to_string());
                             }
                         } else {
                             // Try to load from file
@@ -729,72 +635,63 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         }
                         // Submit/Cancel
                         KeyCode::Enter => {
-                            // Validate and submit
-                            if create_form_state.validate() {
-                                if let Some(data) = app.issues_view_state.save_create() {
-                                    // Create a tokio runtime to execute the async call
-                                    let rt = tokio::runtime::Runtime::new().unwrap();
-                                    let client = &app.beads_client;
+                        // Validate and submit
+                        if create_form_state.validate() {
+                            if let Some(data) = app.issues_view_state.save_create() {
+                                // Create a tokio runtime to execute the async call
+                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                let client = &app.beads_client;
 
-                                    // Build create params
-                                    let mut params = beads::models::CreateIssueParams::new(
-                                        &data.title,
-                                        data.issue_type,
-                                        data.priority,
-                                    );
-                                    params.status = Some(&data.status);
-                                    params.assignee = data.assignee.as_deref();
-                                    params.labels = &data.labels;
-                                    params.description = data.description.as_deref();
+                                // Build create params
+                                let mut params = beads::models::CreateIssueParams::new(
+                                    &data.title,
+                                    data.issue_type,
+                                    data.priority,
+                                );
+                                params.status = Some(&data.status);
+                                params.assignee = data.assignee.as_deref();
+                                params.labels = &data.labels;
+                                params.description = data.description.as_deref();
 
-                                    match rt.block_on(client.create_issue_full(params)) {
-                                        Ok(issue_id) => {
-                                            // Successfully created
-                                            tracing::info!(
-                                                "Successfully created issue: {}",
-                                                issue_id
-                                            );
+                                match rt.block_on(
+                                    client.create_issue_full(params)
+                                ) {
+                                    Ok(issue_id) => {
+                                        // Successfully created
+                                        tracing::info!("Successfully created issue: {}", issue_id);
 
-                                            // Clear any previous errors
-                                            app.clear_error();
+                                        // Clear any previous errors
+                                        app.clear_error();
 
-                                            // Reload issues list
-                                            app.reload_issues();
+                                        // Reload issues list
+                                        app.reload_issues();
 
-                                            // Return to list
-                                            app.issues_view_state.cancel_create();
+                                        // Return to list
+                                        app.issues_view_state.cancel_create();
 
-                                            // Select the newly created issue in the list
-                                            let created_issue = app
-                                                .issues_view_state
-                                                .search_state()
-                                                .filtered_issues()
-                                                .iter()
-                                                .find(|issue| issue.id == issue_id)
-                                                .cloned();
+                                        // Select the newly created issue in the list
+                                        let created_issue = app.issues_view_state
+                                            .search_state()
+                                            .filtered_issues()
+                                            .iter()
+                                            .find(|issue| issue.id == issue_id)
+                                            .cloned();
 
-                                            if let Some(issue) = created_issue {
-                                                app.issues_view_state
-                                                    .set_selected_issue(Some(issue));
-                                                tracing::debug!(
-                                                    "Selected newly created issue: {}",
-                                                    issue_id
-                                                );
-                                            } else {
-                                                tracing::warn!(
-                                                    "Could not find newly created issue {} in list",
-                                                    issue_id
-                                                );
-                                            }
+                                        if let Some(issue) = created_issue {
+                                            app.issues_view_state.set_selected_issue(Some(issue));
+                                            tracing::debug!("Selected newly created issue: {}", issue_id);
+                                        } else {
+                                            tracing::warn!("Could not find newly created issue {} in list", issue_id);
                                         }
-                                        Err(e) => {
-                                            tracing::error!("Failed to create issue: {:?}", e);
-                                            app.set_error(format!("Failed to create issue: {e}"));
-                                            // Stay in create mode so user can fix and retry
-                                        }
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Failed to create issue: {:?}", e);
+                                        app.set_error(format!("Failed to create issue: {e}"));
+                                        // Stay in create mode so user can fix and retry
                                     }
                                 }
                             }
+                        }
                         }
                         KeyCode::Esc => {
                             issues_state.cancel_create();
@@ -858,8 +755,7 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
             if let Some(issue) = selected_issue {
                 match app.dependencies_view_state.focus() {
                     ui::views::DependencyFocus::Dependencies => {
-                        if let Some(selected_idx) =
-                            app.dependencies_view_state.selected_dependency()
+                        if let Some(selected_idx) = app.dependencies_view_state.selected_dependency()
                         {
                             if selected_idx < issue.dependencies.len() {
                                 let dep_id = issue.dependencies[selected_idx].clone();
@@ -929,10 +825,7 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
             if let Some(selected_idx) = app.labels_view_state.selected() {
                 if selected_idx < app.label_stats.len() {
                     let label_name = app.label_stats[selected_idx].name.clone();
-                    app.set_info(format!(
-                        "Delete label '{}': Not yet implemented",
-                        label_name
-                    ));
+                    app.set_info(format!("Delete label '{}': Not yet implemented", label_name));
                     tracing::info!("Delete label requested: {}", label_name);
                 }
             }
@@ -953,9 +846,7 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
         }
         KeyCode::Char('/') => {
             // Search labels
-            app.set_info(
-                "Search labels: Not yet implemented (requires search input widget)".to_string(),
-            );
+            app.set_info("Search labels: Not yet implemented (requires search input widget)".to_string());
             tracing::info!("Search labels requested");
         }
         _ => {}
@@ -970,88 +861,18 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
         return;
     }
 
-    // Handle input mode
-    if app.database_view_state.is_input_focused {
-        match key_code {
-            KeyCode::Char(c) => {
-                app.database_view_state.input_value.push(c);
-                app.mark_dirty();
-            }
-            KeyCode::Backspace => {
-                app.database_view_state.input_value.pop();
-                app.mark_dirty();
-            }
-            KeyCode::Enter => {
-                let prompt = app.database_view_state.input_prompt.clone();
-                let filename = app.database_view_state.finish_input();
-
-                let rt = tokio::runtime::Runtime::new().unwrap();
-
-                if prompt.contains("Export") {
-                    app.database_view_state
-                        .add_sync_log(format!("Exporting to {}...", filename));
-                    app.database_view_state
-                        .start_operation("Exporting".to_string());
-                    app.mark_dirty();
-                    let client = &app.beads_client;
-                    match rt.block_on(client.export_issues(&filename)) {
-                        Ok(_) => app.set_success(format!("Exported to {}", filename)),
-                        Err(e) => app.set_error(format!("Export failed: {}", e)),
-                    }
-                } else if prompt.contains("Import") {
-                    app.database_view_state
-                        .add_sync_log(format!("Importing from {}...", filename));
-                    app.database_view_state
-                        .start_operation("Importing".to_string());
-                    app.mark_dirty();
-                    let client = &app.beads_client;
-                    match rt.block_on(client.import_issues(&filename)) {
-                        Ok(_) => app.set_success(format!("Imported from {}", filename)),
-                        Err(e) => app.set_error(format!("Import failed: {}", e)),
-                    }
-                }
-                app.database_view_state.finish_operation();
-                app.mark_dirty();
-            }
-            KeyCode::Esc => {
-                app.database_view_state.cancel_input();
-                app.mark_dirty();
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // Mode switching
-    if key_code == KeyCode::Char('/') {
-        use ui::views::DatabaseViewMode;
-        let modes = DatabaseViewMode::all();
-        let current_idx = modes
-            .iter()
-            .position(|m| *m == app.database_view_state.mode)
-            .unwrap_or(0);
-        let next_idx = (current_idx + 1) % modes.len();
-        app.database_view_state.set_mode(modes[next_idx]);
-        app.mark_dirty();
-        return;
-    }
-
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let client = app.beads_client.clone();
+    let client = &app.beads_client;
 
     match key_code {
         KeyCode::Char('r') => {
             // Refresh database status
             tracing::info!("Refreshing database status");
-            app.database_view_state
-                .add_sync_log("Refreshing status...".to_string());
             app.reload_issues();
         }
         KeyCode::Char('d') => {
             // Toggle daemon (start/stop)
             tracing::info!("Toggling daemon");
-            app.database_view_state
-                .add_daemon_log("Toggling daemon...".to_string());
 
             if app.daemon_running {
                 // Stop daemon
@@ -1059,14 +880,10 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     Ok(_) => {
                         tracing::info!("Daemon stopped successfully");
                         app.daemon_running = false;
-                        app.database_view_state
-                            .add_daemon_log("Daemon stopped.".to_string());
                         app.mark_dirty();
                     }
                     Err(e) => {
                         tracing::error!("Failed to stop daemon: {:?}", e);
-                        app.database_view_state
-                            .add_daemon_log(format!("Failed to stop: {}", e));
                         app.set_error(format!("Failed to stop daemon: {e}"));
                     }
                 }
@@ -1076,14 +893,10 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     Ok(_) => {
                         tracing::info!("Daemon started successfully");
                         app.daemon_running = true;
-                        app.database_view_state
-                            .add_daemon_log("Daemon started.".to_string());
                         app.mark_dirty();
                     }
                     Err(e) => {
                         tracing::error!("Failed to start daemon: {:?}", e);
-                        app.database_view_state
-                            .add_daemon_log(format!("Failed to start: {}", e));
                         app.set_error(format!("Failed to start daemon: {e}"));
                     }
                 }
@@ -1092,53 +905,55 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
         KeyCode::Char('s') => {
             // Sync database with remote
             tracing::info!("Syncing database with remote");
-            app.database_view_state
-                .add_sync_log("Starting sync...".to_string());
-            app.database_view_state
-                .start_operation("Syncing database".to_string());
-            app.mark_dirty();
 
             match rt.block_on(client.sync_database()) {
                 Ok(output) => {
                     tracing::info!("Database synced successfully: {}", output);
-                    app.database_view_state
-                        .add_sync_log(format!("Sync success: {output}"));
                     app.reload_issues();
                 }
                 Err(e) => {
                     tracing::error!("Failed to sync database: {:?}", e);
-                    app.database_view_state
-                        .add_sync_log(format!("Sync failed: {e}"));
                     app.set_error(format!("Failed to sync database: {e}"));
                 }
             }
-            app.database_view_state.finish_operation();
-            app.mark_dirty();
         }
         KeyCode::Char('e') => {
             // Export issues to file
-            app.database_view_state
-                .start_input("Export Filename".to_string(), "beads_export.jsonl".to_string());
-            app.mark_dirty();
+            tracing::info!("Exporting issues to beads_export.jsonl");
+
+            match rt.block_on(client.export_issues("beads_export.jsonl")) {
+                Ok(_) => {
+                    tracing::info!("Issues exported successfully");
+                    app.set_success("Issues exported to beads_export.jsonl".to_string());
+                }
+                Err(e) => {
+                    tracing::error!("Failed to export issues: {:?}", e);
+                    app.set_error(format!("Failed to export issues: {e}"));
+                }
+            }
         }
         KeyCode::Char('i') => {
             // Import issues from file
-            app.database_view_state
-                .start_input("Import Filename".to_string(), "beads_import.jsonl".to_string());
-            app.mark_dirty();
+            tracing::info!("Importing issues from beads_import.jsonl");
+
+            match rt.block_on(client.import_issues("beads_import.jsonl")) {
+                Ok(_) => {
+                    tracing::info!("Issues imported successfully");
+                    app.reload_issues();
+                }
+                Err(e) => {
+                    tracing::error!("Failed to import issues: {:?}", e);
+                    app.set_error(format!("Failed to import issues: {e}"));
+                }
+            }
         }
         KeyCode::Char('v') => {
             // Verify database integrity
             tracing::info!("Verifying database integrity");
-            app.database_view_state
-                .add_sync_log("Verifying integrity...".to_string());
 
             match rt.block_on(client.verify_database()) {
                 Ok(output) => {
                     tracing::info!("Database verification result: {}", output);
-                    app.database_view_state
-                        .add_sync_log(format!("Integrity check: {output}"));
-                    app.database_view_state.set_integrity_report(output.clone());
                     if output.contains("error") {
                         app.set_error(format!("Database check: {output}"));
                     } else if output.contains("issue") || output.contains("warning") {
@@ -1161,228 +976,6 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             app.dialog_state = Some(ui::widgets::DialogState::new());
             app.pending_action = Some("compact_database".to_string());
             app.mark_dirty();
-        }
-        KeyCode::Char('k') => {
-            // Kill all (force)
-            tracing::info!("Kill all beads processes requested");
-            app.database_view_state
-                .add_sync_log("Killing all beads processes...".to_string());
-            // No direct client method for killall, could use shell
-            app.set_warning("Killall not yet implemented via API".to_string());
-        }
-        _ => {}
-    }
-}
-
-/// Handle keyboard events for the Molecular view
-fn handle_molecular_view_event(key: KeyEvent, app: &mut models::AppState) {
-    let key_code = key.code;
-
-    // Handle notification dismissal with Esc
-    if app.notification.is_some() && key_code == KeyCode::Esc {
-        app.clear_notification();
-        return;
-    }
-
-    // 1. Handle Wizard Events if active
-    if let Some(ref mut wizard_state) = app.pour_wizard_state {
-        match key_code {
-            KeyCode::Enter => {
-                if wizard_state.step == PourStep::Execution {
-                    app.pour_wizard_state = None;
-                } else {
-                    wizard_state.next_step();
-                    if wizard_state.step == PourStep::Execution {
-                        // Trigger execution!
-                        tracing::info!("Pouring formula: {}", wizard_state.formula.name);
-                        // TODO: Implement actual issue creation via beads client
-                        wizard_state.result_message = Some(format!(
-                            "Success! Poured '{}' formula into database.",
-                            wizard_state.formula.name
-                        ));
-                    }
-                }
-                app.mark_dirty();
-            }
-            KeyCode::Backspace if key.modifiers.contains(KeyModifiers::SHIFT) => {
-                wizard_state.prev_step();
-                app.mark_dirty();
-            }
-            KeyCode::Backspace => {
-                wizard_state.form_state.delete_char();
-                app.mark_dirty();
-            }
-            KeyCode::Esc => {
-                app.pour_wizard_state = None;
-                app.mark_dirty();
-            }
-            // Form input handling for Variables step
-            KeyCode::Tab | KeyCode::Down => {
-                wizard_state.form_state.focus_next();
-                app.mark_dirty();
-            }
-            KeyCode::BackTab | KeyCode::Up => {
-                wizard_state.form_state.focus_previous();
-                app.mark_dirty();
-            }
-            KeyCode::Char(c) => {
-                wizard_state.form_state.insert_char(c);
-                app.mark_dirty();
-            }
-            KeyCode::Delete => {
-                wizard_state.form_state.delete_char();
-                app.mark_dirty();
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // 2. Handle Search input if searching in Browser
-    if app.formula_browser_state.is_searching() {
-        match key_code {
-            KeyCode::Char(c) => {
-                app.formula_browser_state.insert_char(c);
-                app.mark_dirty();
-            }
-            KeyCode::Backspace => {
-                app.formula_browser_state.backspace();
-                app.mark_dirty();
-            }
-            KeyCode::Enter | KeyCode::Esc => {
-                app.formula_browser_state.set_searching(false);
-                app.mark_dirty();
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // 3. Handle sub-tab navigation
-    match key_code {
-        KeyCode::Char('[') => {
-            if app.selected_molecular_tab > 0 {
-                app.selected_molecular_tab -= 1;
-            } else {
-                app.selected_molecular_tab = app.molecular_tabs.len() - 1;
-            }
-            app.mark_dirty();
-            return;
-        }
-        KeyCode::Char(']') => {
-            app.selected_molecular_tab =
-                (app.selected_molecular_tab + 1) % app.molecular_tabs.len();
-            app.mark_dirty();
-            return;
-        }
-        _ => {}
-    }
-
-    // 4. Sub-tab specific handling
-    match app.selected_molecular_tab {
-        0 => {
-            // Formula Browser
-            let formulas_len = app.formulas.len();
-            match key_code {
-                KeyCode::Char('j') | KeyCode::Down => {
-                    app.formula_browser_state.select_next(formulas_len);
-                    app.mark_dirty();
-                }
-                KeyCode::Char('k') | KeyCode::Up => {
-                    app.formula_browser_state.select_previous(formulas_len);
-                    app.mark_dirty();
-                }
-                KeyCode::Char('/') => {
-                    app.formula_browser_state.set_searching(true);
-                    app.mark_dirty();
-                }
-                KeyCode::Enter => {
-                    if let Some(idx) = app.formula_browser_state.selected() {
-                        if let Some(formula) = app.formulas.get(idx) {
-                            app.pour_wizard_state = Some(PourWizardState::new(formula.clone()));
-                            app.mark_dirty();
-                        }
-                    }
-                }
-                KeyCode::Esc => {
-                    app.formula_browser_state.clear_search();
-                    app.mark_dirty();
-                }
-                _ => {}
-            }
-        }
-        1 => {
-            // Wisp Manager
-            let wisps_len = app
-                .issues_view_state
-                .all_issues()
-                .iter()
-                .filter(|i| i.labels.contains(&"#wisp".to_string()))
-                .count();
-            match key_code {
-                KeyCode::Char('j') | KeyCode::Down => {
-                    app.wisp_manager_state.select_next(wisps_len);
-                    app.mark_dirty();
-                }
-                KeyCode::Char('k') | KeyCode::Up => {
-                    app.wisp_manager_state.select_previous(wisps_len);
-                    app.mark_dirty();
-                }
-                KeyCode::Char('n') => {
-                    // Create Wisp - Coming Soon (requires quick-entry dialog)
-                    app.set_info("Create Wisp: Not yet implemented".to_string());
-                }
-                KeyCode::Char('d') => {
-                    // Dissolve Wisp - Coming Soon
-                    app.set_info("Dissolve Wisp: Not yet implemented".to_string());
-                }
-                _ => {}
-            }
-        }
-        2 => {
-            // Bonding Interface
-            let issues_len = app.issues_view_state.all_issues().len();
-            match key_code {
-                KeyCode::Char('j') | KeyCode::Down => {
-                    app.bonding_interface_state.select_next(issues_len);
-                    app.mark_dirty();
-                }
-                KeyCode::Char('k') | KeyCode::Up => {
-                    app.bonding_interface_state.select_previous(issues_len);
-                    app.mark_dirty();
-                }
-                KeyCode::Tab => {
-                    app.bonding_interface_state.toggle_focus();
-                    app.mark_dirty();
-                }
-                KeyCode::Char('t') => {
-                    // Cycle bond type
-                    let next_type = match app.bonding_interface_state.bond_type {
-                        BondType::Sequential => BondType::Parallel,
-                        BondType::Parallel => BondType::Conditional,
-                        BondType::Conditional => BondType::Sequential,
-                    };
-                    app.bonding_interface_state.bond_type = next_type;
-                    app.mark_dirty();
-                }
-                KeyCode::Enter => {
-                    // Create Bond
-                    app.set_info("Create Bond: Not yet implemented".to_string());
-                }
-                _ => {}
-            }
-        }
-        3 => {
-            // Squash/Burn
-            match key_code {
-                KeyCode::Char('s') => {
-                    app.set_info("Squash History: Not yet implemented".to_string());
-                }
-                KeyCode::Char('b') => {
-                    app.set_info("Burn (Hard Delete): Not yet implemented".to_string());
-                }
-                _ => {}
-            }
         }
         _ => {}
     }
@@ -1438,6 +1031,32 @@ fn run_app<B: ratatui::backend::Backend>(
                     app.toggle_perf_stats();
                     continue;
                 }
+
+                // Check for saved filter hotkeys (F1-F11)
+                if let KeyCode::F(num) = key.code {
+                    if num >= 1 && num <= 11 {
+                        // Map F-key to hotkey char: F1='1', F2='2', ..., F9='9', F10='A', F11='B'
+                        let hotkey = if num <= 9 {
+                            char::from_digit(num as u32, 10).unwrap()
+                        } else if num == 10 {
+                            'A'
+                        } else {
+                            'B'
+                        };
+
+                        // Try to load and apply the filter
+                        if let Some(saved_filter) = app.config.get_filter_by_hotkey(hotkey) {
+                            // Apply filter to issues view (only if on Issues tab)
+                            if app.selected_tab == 0 {
+                                app.apply_saved_filter(saved_filter);
+                                app.set_success(format!("Applied filter: {}", saved_filter.name));
+                                app.mark_dirty();
+                            }
+                        }
+                        continue;
+                    }
+                }
+
                 // Global key bindings
                 match key.code {
                     KeyCode::Char('q') => {
@@ -1477,9 +1096,8 @@ fn run_app<B: ratatui::backend::Backend>(
                     0 => handle_issues_view_event(key, app),
                     1 => handle_dependencies_view_event(key.code, app),
                     2 => handle_labels_view_event(key.code, app),
-                    6 => handle_molecular_view_event(key, app),
-                    7 => handle_database_view_event(key.code, app),
-                    8 => handle_help_view_event(key.code, app),
+                    3 => handle_database_view_event(key.code, app),
+                    4 => handle_help_view_event(key.code, app),
                     _ => {}
                 }
 
@@ -1522,9 +1140,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     let daemon_status = if app.daemon_running {
         Span::styled(
             " [Daemon: Running]",
-            Style::default()
-                .fg(Color::Green)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
         )
     } else {
         Span::styled(
@@ -1534,7 +1150,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     };
     let title_line = Line::from(vec![
         Span::styled(
-            format!("Beads-TUI v{}", env!("CARGO_PKG_VERSION")),
+            "Beads-TUI v0.1.0",
             Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
@@ -1618,96 +1234,15 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             f.render_stateful_widget(labels_view, tabs_chunks[1], &mut app.labels_view_state);
         }
         3 => {
-            // PERT Chart view
-            PertView::render_with_state(tabs_chunks[1], f.buffer_mut(), &app.pert_view_state);
-        }
-        4 => {
-            // Gantt Chart view
-            GanttView::render_with_state(tabs_chunks[1], f.buffer_mut(), &app.gantt_view_state);
-        }
-        5 => {
-            // Kanban Board view
-            KanbanView::render_with_state(tabs_chunks[1], f.buffer_mut(), &app.kanban_view_state);
-        }
-        6 => {
-            // Molecular Chemistry view
-            if let Some(ref mut wizard_state) = app.pour_wizard_state {
-                let wizard = PourWizard::new();
-                f.render_stateful_widget(wizard, tabs_chunks[1], wizard_state);
-            } else {
-                // Render sub-tabs
-                let mol_chunks = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([Constraint::Length(3), Constraint::Min(0)])
-                    .split(tabs_chunks[1]);
-
-                let sub_tab_bar = TabBar::new(app.molecular_tabs.clone())
-                    .selected(app.selected_molecular_tab)
-                    .block(
-                        Block::default()
-                            .borders(Borders::ALL)
-                            .title("Molecular Operations"),
-                    );
-                sub_tab_bar.render(mol_chunks[0], f.buffer_mut());
-
-                match app.selected_molecular_tab {
-                    0 => {
-                        let formula_browser = FormulaBrowser::new().formulas(app.formulas.clone());
-                        f.render_stateful_widget(
-                            formula_browser,
-                            mol_chunks[1],
-                            &mut app.formula_browser_state,
-                        );
-                    }
-                    1 => {
-                        // Wisp Manager
-                        let wisps: Vec<&crate::beads::models::Issue> = app
-                            .issues_view_state
-                            .all_issues()
-                            .iter()
-                            .filter(|i| i.labels.contains(&"#wisp".to_string()))
-                            .collect();
-                        let wisp_manager = WispManager::new(wisps);
-                        f.render_stateful_widget(
-                            wisp_manager,
-                            mol_chunks[1],
-                            &mut app.wisp_manager_state,
-                        );
-                    }
-                    2 => {
-                        // Bonding Interface
-                        let all_issues: Vec<&crate::beads::models::Issue> =
-                            app.issues_view_state.all_issues().iter().collect();
-                        let bonding_interface = BondingInterface::new(all_issues);
-                        f.render_stateful_widget(
-                            bonding_interface,
-                            mol_chunks[1],
-                            &mut app.bonding_interface_state,
-                        );
-                    }
-                    3 => {
-                        // Squash/Burn
-                        let history_ops = HistoryOps::new();
-                        f.render_stateful_widget(
-                            history_ops,
-                            mol_chunks[1],
-                            &mut app.history_ops_state,
-                        );
-                    }
-                    _ => {}
-                }
-            }
-        }
-        7 => {
             // Database view
             let database_view = DatabaseView::new()
                 .status(app.database_status)
                 .stats(app.database_stats.clone())
                 .daemon_running(app.daemon_running);
-            f.render_stateful_widget(database_view, tabs_chunks[1], &mut app.database_view_state);
+            f.render_widget(database_view, tabs_chunks[1]);
         }
         _ => {
-            // Help view (tab 8 and beyond)
+            // Help view (tab 4 and beyond)
             let help_view = HelpView::new().selected_section(app.help_section);
             f.render_widget(help_view, tabs_chunks[1]);
         }
@@ -1796,13 +1331,11 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 .bg(bg_color)
                 .add_modifier(Modifier::BOLD),
         )
-        .block(
-            Block::default().borders(Borders::ALL).border_style(
-                Style::default()
-                    .fg(border_color)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        );
+        .block(Block::default().borders(Borders::ALL).border_style(
+            Style::default()
+                .fg(border_color)
+                .add_modifier(Modifier::BOLD),
+        ));
 
         f.render_widget(Clear, notification_area);
         f.render_widget(notification_text, notification_area);

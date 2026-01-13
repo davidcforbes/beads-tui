@@ -1,5 +1,6 @@
 /// Application state management
 use crate::beads::BeadsClient;
+use crate::config::Config;
 use crate::ui::views::{
     compute_label_stats, BondingInterfaceState, DatabaseStats, DatabaseStatus, DatabaseViewState,
     DependenciesViewState, Formula, FormulaBrowserState, GanttViewState, HelpSection,
@@ -67,6 +68,8 @@ pub struct AppState {
     pub notification: Option<NotificationMessage>,
     /// Whether beads daemon is currently running
     pub daemon_running: bool,
+    /// Application configuration
+    pub config: Config,
 }
 
 impl AppState {
@@ -91,6 +94,12 @@ impl AppState {
 
         // Check daemon status
         let daemon_running = Self::check_daemon_status_sync(&beads_client);
+
+        // Load configuration
+        let config = Config::load().unwrap_or_else(|e| {
+            tracing::warn!("Failed to load config: {:?}, using defaults", e);
+            Config::default()
+        });
 
         let formulas = vec![
             Formula {
@@ -164,6 +173,7 @@ impl AppState {
             pending_action: None,
             notification: None,
             daemon_running,
+            config,
         }
     }
 
@@ -331,6 +341,92 @@ impl AppState {
             }
         }
     }
+
+    /// Apply a saved filter to the issues view
+    pub fn apply_saved_filter(&mut self, saved_filter: &crate::models::SavedFilter) {
+        use crate::models::LogicOp;
+        use crate::ui::widgets::issue_list::LabelMatchMode;
+
+        let filter = &saved_filter.filter;
+        let search_state = self.issues_view_state.search_state_mut();
+
+        // Set search text
+        if let Some(ref text) = filter.search_text {
+            search_state.search_state_mut().set_query(text);
+        } else {
+            search_state.search_state_mut().set_query("");
+        }
+
+        // Set regex and fuzzy modes
+        if filter.use_regex && !search_state.is_regex_enabled() {
+            search_state.toggle_regex();
+        } else if !filter.use_regex && search_state.is_regex_enabled() {
+            search_state.toggle_regex();
+        }
+
+        if filter.use_fuzzy && !search_state.is_fuzzy_enabled() {
+            search_state.toggle_fuzzy();
+        } else if !filter.use_fuzzy && search_state.is_fuzzy_enabled() {
+            search_state.toggle_fuzzy();
+        }
+
+        // Apply column filters
+        let list_state = search_state.list_state_mut();
+        let filters_were_enabled = list_state.filters_enabled();
+        let column_filters = list_state.column_filters_mut();
+        column_filters.clear();
+
+        // Set status filter
+        if let Some(ref status) = filter.status {
+            column_filters.status = status.to_string();
+        }
+
+        // Set priority filter
+        if let Some(ref priority) = filter.priority {
+            column_filters.priority = priority.to_string();
+        }
+
+        // Set type filter
+        if let Some(ref issue_type) = filter.issue_type {
+            column_filters.type_filter = issue_type.to_string();
+        }
+
+        // Set assignee filter (if None, set no_assignee flag)
+        match filter.assignee {
+            Some(ref assignee) if !assignee.is_empty() => {
+                // Note: ColumnFilters doesn't have an assignee field, it only has no_assignee
+                // We'll need to use the search text or set no_assignee for unassigned issues
+                // For now, if assignee is specified, we can't filter by it directly
+                // This might need enhancement in the future
+            }
+            None => {
+                column_filters.no_assignee = true;
+            }
+            _ => {}
+        }
+
+        // Set label filters
+        if !filter.labels.is_empty() {
+            column_filters.labels = filter.labels.clone();
+            column_filters.label_match_mode = match filter.label_logic {
+                LogicOp::And => LabelMatchMode::All,
+                LogicOp::Or => LabelMatchMode::Any,
+            };
+        }
+
+        let filters_not_empty = !column_filters.is_empty();
+        
+        // Drop the column_filters borrow before getting list_state again
+        drop(column_filters);
+
+        // Enable filters if any are set
+        if filters_not_empty && !filters_were_enabled {
+            list_state.toggle_filters();
+        }
+
+        // Trigger filter update
+        search_state.update_filtered_issues();
+    }
 }
 
 impl Default for AppState {
@@ -393,6 +489,7 @@ mod tests {
             pending_action: None,
             notification: None,
             daemon_running: false,
+            config: Config::default(),
         }
     }
 
