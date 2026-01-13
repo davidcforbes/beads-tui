@@ -979,4 +979,221 @@ mod tests {
         let pane = Pane::new(5, area);
         assert!(!pane.is_focused);
     }
+
+    // ========== Additional comprehensive tests ==========
+
+    #[test]
+    fn test_split_orientation_debug() {
+        let horizontal = SplitOrientation::Horizontal;
+        let vertical = SplitOrientation::Vertical;
+
+        let h_debug = format!("{:?}", horizontal);
+        let v_debug = format!("{:?}", vertical);
+
+        assert!(h_debug.contains("Horizontal"));
+        assert!(v_debug.contains("Vertical"));
+    }
+
+    #[test]
+    fn test_pane_debug() {
+        let area = Rect::new(0, 0, 100, 40);
+        let pane = Pane::new(5, area);
+        let debug_str = format!("{:?}", pane);
+
+        assert!(debug_str.contains("Pane"));
+        assert!(debug_str.contains("id"));
+    }
+
+    #[test]
+    fn test_pane_split_debug() {
+        let area = Rect::new(0, 0, 100, 40);
+        let split = PaneSplit {
+            orientation: SplitOrientation::Horizontal,
+            ratio: 50,
+            first: Pane::new(1, area),
+            second: Pane::new(2, area),
+        };
+
+        let debug_str = format!("{:?}", split);
+        assert!(debug_str.contains("PaneSplit"));
+        assert!(debug_str.contains("orientation"));
+        assert!(debug_str.contains("ratio"));
+    }
+
+    #[test]
+    fn test_pane_split_orientation_field() {
+        let area = Rect::new(0, 0, 100, 40);
+        let split = PaneSplit {
+            orientation: SplitOrientation::Vertical,
+            ratio: 60,
+            first: Pane::new(1, area),
+            second: Pane::new(2, area),
+        };
+
+        assert_eq!(split.orientation, SplitOrientation::Vertical);
+    }
+
+    #[test]
+    fn test_pane_split_ratio_field() {
+        let area = Rect::new(0, 0, 100, 40);
+        let split = PaneSplit {
+            orientation: SplitOrientation::Horizontal,
+            ratio: 75,
+            first: Pane::new(1, area),
+            second: Pane::new(2, area),
+        };
+
+        assert_eq!(split.ratio, 75);
+    }
+
+    #[test]
+    fn test_pane_manager_fullscreen_with_three_panes() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        // Create 3 panes
+        manager.split_focused_horizontal(50);
+        let ids = manager.get_pane_ids();
+        manager.set_focused(ids[0]);
+        manager.split_focused_vertical(50);
+
+        let all_ids = manager.get_pane_ids();
+        assert_eq!(all_ids.len(), 3);
+
+        // Fullscreen the middle pane
+        manager.set_focused(all_ids[1]);
+        manager.toggle_fullscreen();
+
+        // Only middle pane should be visible
+        assert_eq!(manager.get_pane_area(all_ids[1], area), Some(area));
+        assert_eq!(manager.get_pane_area(all_ids[0], area), None);
+        assert_eq!(manager.get_pane_area(all_ids[2], area), None);
+    }
+
+    #[test]
+    fn test_pane_manager_resize_preserves_split_ratios() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        // Split with specific ratio
+        manager.split_focused_horizontal(30);
+
+        let new_area = Rect::new(0, 0, 200, 80);
+        manager.resize(new_area);
+
+        // Get areas and verify approximate ratio (30/70)
+        let ids = manager.get_pane_ids();
+        let area1 = manager.get_pane_area(ids[0], new_area).unwrap();
+        let area2 = manager.get_pane_area(ids[1], new_area).unwrap();
+
+        // First pane should be approximately 30% of width (60 out of 200)
+        assert!(area1.width > 0 && area1.width < area2.width);
+    }
+
+    #[test]
+    fn test_pane_deeply_nested_splits() {
+        let area = Rect::new(0, 0, 200, 100);
+        let mut pane = Pane::new(0, area);
+        let mut next_id = 1;
+
+        // Create deep nesting: split 4 levels deep
+        pane.split_horizontal(50, &mut next_id);
+
+        if let Some(ref mut split) = pane.split {
+            split.first.split_vertical(50, &mut next_id);
+
+            if let Some(ref mut nested_split) = split.first.split {
+                nested_split.first.split_horizontal(50, &mut next_id);
+
+                if let Some(ref mut deep_split) = nested_split.first.split {
+                    deep_split.first.split_vertical(50, &mut next_id);
+                }
+            }
+        }
+
+        let leaf_ids = pane.get_leaf_ids();
+        assert_eq!(leaf_ids.len(), 5); // 1 + 2 + 2 from successive splits
+    }
+
+    #[test]
+    fn test_pane_manager_focus_navigation_with_many_panes() {
+        let area = Rect::new(0, 0, 200, 100);
+        let mut manager = PaneManager::new(area);
+
+        // Create 4 panes
+        manager.split_focused_horizontal(50);
+        let ids = manager.get_pane_ids();
+        manager.set_focused(ids[0]);
+        manager.split_focused_vertical(50);
+
+        let ids = manager.get_pane_ids();
+        manager.set_focused(ids[2]);
+        manager.split_focused_horizontal(50);
+
+        let all_ids = manager.get_pane_ids();
+        assert_eq!(all_ids.len(), 4);
+
+        // Navigate forward through all
+        manager.set_focused(all_ids[0]);
+        for i in 1..4 {
+            manager.focus_next();
+            assert_eq!(manager.focused_id(), all_ids[i]);
+        }
+
+        // Wrap back to first
+        manager.focus_next();
+        assert_eq!(manager.focused_id(), all_ids[0]);
+    }
+
+    #[test]
+    fn test_pane_manager_get_pane_ids_consistency() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        manager.split_focused_horizontal(50);
+        let ids1 = manager.get_pane_ids();
+
+        // Calling multiple times should return same IDs
+        let ids2 = manager.get_pane_ids();
+        let ids3 = manager.get_pane_ids();
+
+        assert_eq!(ids1, ids2);
+        assert_eq!(ids2, ids3);
+    }
+
+    #[test]
+    fn test_pane_manager_split_ratio_1_percent() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        // Split with very small ratio
+        assert!(manager.split_focused_horizontal(1));
+
+        let ids = manager.get_pane_ids();
+        assert_eq!(ids.len(), 2);
+
+        // Both panes should have valid (though small for first) areas
+        for &id in &ids {
+            let pane_area = manager.get_pane_area(id, area);
+            assert!(pane_area.is_some());
+        }
+    }
+
+    #[test]
+    fn test_pane_manager_split_ratio_99_percent() {
+        let area = Rect::new(0, 0, 100, 40);
+        let mut manager = PaneManager::new(area);
+
+        // Split with very large ratio
+        assert!(manager.split_focused_vertical(99));
+
+        let ids = manager.get_pane_ids();
+        assert_eq!(ids.len(), 2);
+
+        // Both panes should have valid (though small for second) areas
+        for &id in &ids {
+            let pane_area = manager.get_pane_area(id, area);
+            assert!(pane_area.is_some());
+        }
+    }
 }
