@@ -26,6 +26,7 @@ pub mod selector;
 pub mod status_bar;
 pub mod tab_bar;
 pub mod text_editor;
+pub mod tree;
 
 pub use autocomplete::{Autocomplete, AutocompleteState};
 pub use bulk_action_menu::{BulkAction, BulkActionMenu, BulkActionMenuState};
@@ -57,6 +58,7 @@ pub use selector::{PrioritySelector, SelectorState, StatusSelector, TypeSelector
 pub use status_bar::StatusBar;
 pub use tab_bar::TabBar;
 pub use text_editor::{TextEditor, TextEditorState};
+pub use tree::{Tree, TreeNode, TreeState};
 
 // Future widgets:
 // - Issue list widget
