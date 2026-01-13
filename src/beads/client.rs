@@ -1,5 +1,6 @@
 /// Beads CLI client for executing commands and parsing results
 use super::{error::*, models::*, parser};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
 use tokio::process::Command as TokioCommand;
@@ -10,6 +11,7 @@ use tokio::time::timeout;
 pub struct BeadsClient {
     command_timeout: Duration,
     bd_path: String,
+    cwd: Option<PathBuf>,
 }
 
 impl Default for BeadsClient {
@@ -24,6 +26,7 @@ impl BeadsClient {
         Self {
             command_timeout: Duration::from_secs(30),
             bd_path: "bd".to_string(),
+            cwd: None,
         }
     }
 
@@ -32,12 +35,19 @@ impl BeadsClient {
         Self {
             command_timeout: timeout,
             bd_path: "bd".to_string(),
+            cwd: None,
         }
     }
 
     /// Set a custom path to the bd executable
     pub fn with_bd_path(mut self, path: String) -> Self {
         self.bd_path = path;
+        self
+    }
+
+    /// Set a custom working directory
+    pub fn with_cwd(mut self, path: PathBuf) -> Self {
+        self.cwd = Some(path);
         self
     }
 
@@ -316,6 +326,10 @@ impl BeadsClient {
     async fn execute_command(&self, args: &[String]) -> Result<String> {
         let mut cmd = TokioCommand::new(&self.bd_path);
         cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
+
+        if let Some(ref cwd) = self.cwd {
+            cmd.current_dir(cwd);
+        }
 
         let child = cmd.spawn().map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {

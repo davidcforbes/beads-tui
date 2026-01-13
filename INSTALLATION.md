@@ -204,29 +204,29 @@ beads-tui --dry-run
 
 beads-tui looks for configuration in:
 
-- **Linux/macOS**: `~/.config/beads-tui/config.toml`
-- **Windows**: `%APPDATA%\beads-tui\config.toml`
+- **Linux/macOS**: `~/.config/beads-tui/config.yaml`
+- **Windows**: `%APPDATA%\beads-tui\config.yaml`
 
 ### Sample Configuration
 
-Create a config file with your preferences:
+Create a config file with your preferences (YAML):
 
-```toml
-[ui]
-theme = "default"
-show_borders = true
-highlight_selected = true
+```yaml
+theme:
+  name: dark
 
-[colors]
-primary = "cyan"
-secondary = "yellow"
-accent = "green"
+behavior:
+  auto_refresh: true
+  refresh_interval_secs: 60
 
-[behavior]
-auto_refresh = true
-confirm_delete = true
-vim_mode = true
+table:
+  row_height: 1
+
+kanban:
+  grouping_mode: status
 ```
+
+For the full configuration schema and all options, see [CONFIGURATION.md](CONFIGURATION.md).
 
 ## Troubleshooting
 
@@ -278,13 +278,27 @@ If box characters don't render correctly:
 
 2. Use a terminal with better Unicode support (see Recommended Terminals)
 
+#### Configuration Issues
+
+If settings are not applying:
+1. Confirm `config.yaml` is valid YAML (no tabs, consistent indentation).
+2. Verify the file path matches your OS (see Config File Location).
+3. Remove the config directory to reset to defaults and restart beads-tui.
+
+#### Daemon Issues
+
+If daemon actions fail or appear stuck:
+1. Verify the Beads CLI works: `bd list`
+2. Toggle the daemon from the Database view (`d`) and retry.
+3. Restart the terminal to clear stale handles.
+
 ### Performance Issues
 
 If the TUI is slow:
 
 1. **Check terminal emulator**: Some emulators are faster than others
 2. **Reduce issue count**: Large issue databases (>10,000 issues) may be slow
-3. **Disable auto-refresh**: Set `auto_refresh = false` in config
+3. **Disable auto-refresh**: Set `behavior.auto_refresh: false` in `config.yaml`
 4. **Build in release mode**: Always use `--release` for better performance
 
 ## Uninstallation

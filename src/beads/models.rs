@@ -1,6 +1,8 @@
 /// Data models for beads issues and related structures
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::de::Visitor;
+use std::fmt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Issue {
@@ -19,7 +21,9 @@ pub struct Issue {
     pub dependencies: Vec<String>,
     #[serde(default)]
     pub blocks: Vec<String>,
+    #[serde(rename = "created_at")]
     pub created: DateTime<Utc>,
+    #[serde(rename = "updated_at")]
     pub updated: DateTime<Utc>,
     #[serde(default)]
     pub closed: Option<DateTime<Utc>>,
@@ -47,13 +51,60 @@ impl std::fmt::Display for IssueStatus {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub enum Priority {
     P0,
     P1,
     P2,
     P3,
     P4,
+}
+
+impl<'de> Deserialize<'de> for Priority {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct PriorityVisitor;
+
+        impl<'de> Visitor<'de> for PriorityVisitor {
+            type Value = Priority;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("an integer 0-4 or string P0-P4")
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Priority, E>
+            where
+                E: de::Error,
+            {
+                match value {
+                    0 => Ok(Priority::P0),
+                    1 => Ok(Priority::P1),
+                    2 => Ok(Priority::P2),
+                    3 => Ok(Priority::P3),
+                    4 => Ok(Priority::P4),
+                    _ => Err(E::custom(format!("Invalid priority integer: {}", value))),
+                }
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Priority, E>
+            where
+                E: de::Error,
+            {
+                match value {
+                    "P0" | "p0" => Ok(Priority::P0),
+                    "P1" | "p1" => Ok(Priority::P1),
+                    "P2" | "p2" => Ok(Priority::P2),
+                    "P3" | "p3" => Ok(Priority::P3),
+                    "P4" | "p4" => Ok(Priority::P4),
+                    _ => Err(E::custom(format!("Invalid priority string: {}", value))),
+                }
+            }
+        }
+
+        deserializer.deserialize_any(PriorityVisitor)
+    }
 }
 
 impl std::fmt::Display for Priority {

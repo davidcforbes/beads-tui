@@ -8,8 +8,8 @@ pub enum BeadsError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("JSON parsing error: {0}")]
-    Json(#[from] serde_json::Error),
+    #[error("JSON parsing error: {0} (Input: {1})")]
+    Json(serde_json::Error, String),
 
     #[error("Command execution error: {0}")]
     CommandError(String),
@@ -94,8 +94,9 @@ mod tests {
     fn test_json_error_conversion() {
         let json_str = "{invalid json";
         let json_err = serde_json::from_str::<serde_json::Value>(json_str).unwrap_err();
-        let beads_err: BeadsError = json_err.into();
+        let beads_err = BeadsError::Json(json_err, json_str.to_string());
         assert!(beads_err.to_string().contains("JSON parsing error"));
+        assert!(beads_err.to_string().contains("{invalid json"));
     }
 
     #[test]

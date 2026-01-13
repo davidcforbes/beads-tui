@@ -1,148 +1,144 @@
 # Keyboard Shortcuts Reference
 
-Complete reference for all keyboard shortcuts in beads-tui.
+This reference reflects the current key handling in `src/main.rs`.
 
 ## Global Shortcuts
 
-These shortcuts work from any view:
-
 | Key | Action |
-|-----|--------|
+| --- | --- |
 | `q` | Quit application |
 | `Tab` | Next tab |
 | `Shift+Tab` | Previous tab |
-| `1-8` | Jump to tab directly (1=Issues, 2=Dependencies, 3=Labels, 4=PERT, 5=Gantt, 6=Kanban, 7=Database, 8=Help) |
-| `?` | Toggle help |
-| `Ctrl+C` | Force quit |
+| `1-5` | Jump to tab (1 Issues, 2 Dependencies, 3 Labels, 4 Database, 5 Help) |
+| `Ctrl+P` / `F12` | Toggle performance stats |
+| `Esc` | Dismiss notification |
 
-## Issues View
-
-Navigation and search:
+## Issues View (List)
 
 | Key | Action |
-|-----|--------|
-| `/` | Focus search input |
-| `Tab` | Cycle search scope (when in search) |
-| `Esc` | Clear search / Cancel operation |
-| `j` or `↓` | Navigate down in list |
-| `k` or `↑` | Navigate up in list |
-| `Enter` | View issue details |
-
-Issue management:
-
-| Key | Action |
-|-----|--------|
-| `n` | Create new issue |
+| --- | --- |
+| `j` / `Down` | Move selection down |
+| `k` / `Up` | Move selection up |
+| `Enter` | Open issue details |
 | `e` | Edit selected issue |
-| `d` | Delete selected issue |
-| `c` | Close selected issue |
-| `r` | Reopen closed issue |
+| `c` | Create new issue |
+| `x` | Close selected issue |
+| `o` | Reopen selected issue |
+| `d` | Delete selected issue (confirmation dialog) |
+| `r` | Edit title inline |
+| `f` | Toggle quick filters |
+| `/` | Focus search input |
+| `v` | Cycle list view |
+| `Esc` | Clear search |
+| `Alt+Shift+Left` | Shrink focused column |
+| `Alt+Shift+Right` | Grow focused column |
+| `Alt+Left` | Move focused column left |
+| `Alt+Right` | Move focused column right |
+| `Alt+Tab` | Focus next column |
+| `Alt+Shift+Tab` | Focus previous column |
+
+## Issues View (Search Input Focused)
+
+| Key | Action |
+| --- | --- |
+| Type | Insert characters |
+| `Backspace` | Delete character before cursor |
+| `Delete` | Delete character at cursor |
+| `Left` / `Right` | Move cursor |
+| `Home` / `End` | Move to start/end |
+| `Up` / `Down` | Previous/next search history |
+| `Enter` | Apply search and exit search input |
+| `Esc` | Exit search input |
+
+## Issues View (Inline Title Edit)
+
+| Key | Action |
+| --- | --- |
+| Type | Insert characters |
+| `Backspace` | Delete character before cursor |
+| `Left` / `Right` | Move cursor |
+| `Enter` | Save title |
+| `Esc` | Cancel edit |
+
+## Issues View (Detail)
+
+| Key | Action |
+| --- | --- |
+| `Esc` / `q` | Return to list |
+| `e` | Edit issue |
+
+## Issues View (Create/Edit Form)
+
+| Key | Action |
+| --- | --- |
+| `Tab` / `Down` | Next field |
+| `Shift+Tab` / `Up` | Previous field |
+| Type | Insert characters |
+| `Backspace` | Delete character before cursor |
+| `Left` / `Right` | Move cursor |
+| `Home` / `End` | Move to start/end |
+| `Enter` | Submit (create) or save (edit) |
+| `Esc` | Cancel |
+| `Ctrl+L` | Load field content from file path in focused field |
 
 ## Dependencies View
 
-Navigation:
-
 | Key | Action |
-|-----|--------|
-| `j` or `↓` | Navigate down in tree |
-| `k` or `↑` | Navigate up in tree |
-| `Enter` | Expand/collapse node |
-
-Dependency management:
-
-| Key | Action |
-|-----|--------|
-| `a` | Add dependency |
-| `d` | Remove dependency |
-| `g` | Show dependency graph |
-| `c` | Check for cycles |
+| --- | --- |
+| `j` / `Down` | Move selection down |
+| `k` / `Up` | Move selection up |
+| `Tab` | Toggle focus (dependencies vs blocks) |
+| `a` | Add dependency (not yet implemented) |
+| `d` | Remove dependency/block (not yet implemented) |
+| `g` | Show dependency graph (not yet implemented) |
+| `c` | Check circular dependencies (not yet implemented) |
 
 ## Labels View
 
 | Key | Action |
-|-----|--------|
-| `j` or `↓` | Navigate down in label list |
-| `k` or `↑` | Navigate up in label list |
-| `a` | Add new label |
-| `d` | Delete label |
-| `e` | Edit label |
+| --- | --- |
+| `j` / `Down` | Move selection down |
+| `k` / `Up` | Move selection up |
+| `a` | Add label (not yet implemented) |
+| `d` | Delete label (not yet implemented) |
+| `e` | Edit label (not yet implemented) |
+| `s` | Show stats summary |
+| `/` | Search labels (not yet implemented) |
 
-## Database View
-
-| Key | Action |
-|-----|--------|
-| `r` | Refresh database statistics |
-| `s` | Sync with remote |
-| `i` | Import issues |
-| `x` | Export issues |
-
-## Form Editing
-
-When editing forms (new issue, edit issue, etc.):
+## Database View (Normal)
 
 | Key | Action |
-|-----|--------|
-| `Tab` | Next field |
-| `Shift+Tab` | Previous field |
-| `Enter` | Confirm / Next line (in text areas) |
-| `Esc` | Cancel editing |
-| `Ctrl+S` | Save changes |
+| --- | --- |
+| `/` | Cycle database view mode |
+| `r` | Refresh status |
+| `d` | Toggle daemon start/stop |
+| `s` | Sync database |
+| `e` | Export issues (prompts for filename) |
+| `i` | Import issues (prompts for filename) |
+| `v` | Verify database integrity |
+| `c` | Compact database (confirmation dialog) |
+| `k` | Kill all processes (not yet implemented) |
 
-## Text Input
-
-When in text input fields:
-
-| Key | Action |
-|-----|--------|
-| `Backspace` | Delete character before cursor |
-| `Delete` | Delete character at cursor |
-| `←` / `→` | Move cursor left/right |
-| `Home` / `Ctrl+A` | Move to start of line |
-| `End` / `Ctrl+E` | Move to end of line |
-| `Ctrl+U` | Clear line |
-| `Ctrl+W` | Delete word before cursor |
-
-## Dialog Shortcuts
-
-When dialogs are open:
+## Database View (Filename Prompt)
 
 | Key | Action |
-|-----|--------|
-| `Enter` | Confirm action |
-| `Esc` | Cancel / Close dialog |
-| `Tab` | Next button |
-| `y` | Yes (in confirmation dialogs) |
-| `n` | No (in confirmation dialogs) |
+| --- | --- |
+| Type | Enter filename |
+| `Backspace` | Delete character |
+| `Enter` | Confirm |
+| `Esc` | Cancel |
 
-## Tips
+## Help View
 
-- **Vim-style navigation**: Use `j`/`k` keys for up/down navigation in lists
-- **Quick access**: Number keys 1-5 provide instant tab switching
-- **Context help**: Press `?` at any time to see view-specific shortcuts
-- **Force quit**: `Ctrl+C` immediately exits without saving
-- **Search everywhere**: `/` activates search in most list views
+| Key | Action |
+| --- | --- |
+| `Right` / `Tab` / `l` | Next section |
+| `Left` / `h` | Previous section |
 
-## Advanced Features
+## Dialogs
 
-### Search Scopes
-
-In Issues view, after pressing `/`, use `Tab` to cycle through:
-- **All**: Search all issues
-- **Open**: Search only open issues
-- **Closed**: Search only closed issues
-- **Blocked**: Search only blocked issues
-
-### Multi-line Text Editing
-
-In description fields:
-- `Enter` creates a new line
-- `Ctrl+S` saves the complete text
-- `Esc` discards changes
-
-### Navigation Patterns
-
-Common navigation patterns across views:
-- `j`/`k` or arrow keys for vertical movement
-- `Enter` to select/expand/confirm
-- `Esc` to go back/cancel
-- `Tab` to move forward through options
+| Key | Action |
+| --- | --- |
+| `Left` / `Right` / `Tab` | Change selection |
+| `Enter` | Confirm |
+| `Esc` | Cancel |

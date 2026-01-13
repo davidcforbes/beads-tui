@@ -4,14 +4,15 @@ use serde_json::Value;
 
 /// Parse a list of issues from JSON output
 pub fn parse_issue_list(json: &str) -> Result<Vec<Issue>> {
-    let value: Value = serde_json::from_str(json)?;
+    let value: Value = serde_json::from_str(json)
+        .map_err(|e| BeadsError::Json(e, json.to_string()))?;
 
     if let Some(issues_array) = value.as_array() {
         issues_array
             .iter()
-            .map(|v| serde_json::from_value(v.clone()).map_err(BeadsError::Json))
+            .map(|v| serde_json::from_value(v.clone()).map_err(|e| BeadsError::Json(e, v.to_string())))
             .collect()
-    } else if let Ok(issue) = serde_json::from_value::<Issue>(value) {
+    } else if let Ok(issue) = serde_json::from_value::<Issue>(value.clone()) {
         // Single issue returned
         Ok(vec![issue])
     } else {
@@ -21,7 +22,7 @@ pub fn parse_issue_list(json: &str) -> Result<Vec<Issue>> {
 
 /// Parse a single issue from JSON output
 pub fn parse_issue(json: &str) -> Result<Issue> {
-    serde_json::from_str(json).map_err(BeadsError::Json)
+    serde_json::from_str(json).map_err(|e| BeadsError::Json(e, json.to_string()))
 }
 
 /// Parse create response to extract issue ID
@@ -43,17 +44,18 @@ pub fn parse_create_response(output: &str) -> Result<String> {
 
 /// Parse statistics from JSON output
 pub fn parse_stats(json: &str) -> Result<IssueStats> {
-    serde_json::from_str(json).map_err(BeadsError::Json)
+    serde_json::from_str(json).map_err(|e| BeadsError::Json(e, json.to_string()))
 }
 
 /// Parse labels from JSON output
 pub fn parse_labels(json: &str) -> Result<Vec<Label>> {
-    let value: Value = serde_json::from_str(json)?;
+    let value: Value = serde_json::from_str(json)
+        .map_err(|e| BeadsError::Json(e, json.to_string()))?;
 
     if let Some(labels_array) = value.as_array() {
         labels_array
             .iter()
-            .map(|v| serde_json::from_value(v.clone()).map_err(BeadsError::Json))
+            .map(|v| serde_json::from_value(v.clone()).map_err(|e| BeadsError::Json(e, v.to_string())))
             .collect()
     } else {
         Ok(vec![])

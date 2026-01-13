@@ -178,6 +178,8 @@ git push origin feature/bd-123-add-filter-ui
 
 ## Code Standards
 
+See [CODE_STYLE.md](CODE_STYLE.md) for the project style guide.
+
 ### Rust Style
 
 Follow Rust standard style:
