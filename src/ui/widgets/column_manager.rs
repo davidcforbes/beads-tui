@@ -666,7 +666,7 @@ mod tests {
     #[test]
     fn test_column_manager_action_clone() {
         let action = ColumnManagerAction::Apply;
-        let cloned = action.clone();
+        let cloned = action;
         assert_eq!(action, cloned);
     }
 

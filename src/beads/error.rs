@@ -102,7 +102,9 @@ mod tests {
     fn test_result_type_ok() {
         let result: Result<i32> = Ok(42);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap_or(0), 42);
+        if let Ok(val) = result {
+            assert_eq!(val, 42);
+        }
     }
 
     #[test]
@@ -124,11 +126,9 @@ mod tests {
 
     #[test]
     fn test_multiple_error_types() {
-        let errors = vec![
-            BeadsError::CommandError("test".to_string()),
+        let errors = [BeadsError::CommandError("test".to_string()),
             BeadsError::Timeout(100),
-            BeadsError::BeadsNotFound,
-        ];
+            BeadsError::BeadsNotFound];
 
         assert_eq!(errors.len(), 3);
         assert!(errors[0].to_string().contains("Command execution error"));

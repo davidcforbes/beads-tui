@@ -1040,7 +1040,7 @@ mod tests {
     fn test_parse_inline_nested_formatting() {
         let spans = parse_inline_formatting("**bold with *italic* inside**");
         // The parser handles outer formatting first
-        assert!(spans.len() >= 1);
+        assert!(!spans.is_empty());
     }
 
     #[test]
@@ -1065,7 +1065,7 @@ mod tests {
     #[test]
     fn test_parse_inline_only_special_characters() {
         let spans = parse_inline_formatting("*** ___ ```");
-        assert!(spans.len() >= 1);
+        assert!(!spans.is_empty());
     }
 
     #[test]

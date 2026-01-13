@@ -503,7 +503,7 @@ mod tests {
     #[test]
     fn test_editor_mode_clone() {
         let mode = EditorMode::Insert;
-        let cloned = mode.clone();
+        let cloned = mode;
         assert_eq!(mode, cloned);
     }
 

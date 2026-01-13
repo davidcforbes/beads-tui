@@ -568,7 +568,7 @@ mod tests {
     #[test]
     fn test_bulk_action_clone() {
         let action = BulkAction::Close;
-        let cloned = action.clone();
+        let cloned = action;
         assert_eq!(action, cloned);
     }
 

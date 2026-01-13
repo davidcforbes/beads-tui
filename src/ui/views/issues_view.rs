@@ -688,7 +688,7 @@ mod tests {
     #[test]
     fn test_issues_view_mode_clone_trait() {
         let mode1 = IssuesViewMode::Edit;
-        let mode2 = mode1.clone();
+        let mode2 = mode1;
         assert_eq!(mode1, mode2);
     }
 

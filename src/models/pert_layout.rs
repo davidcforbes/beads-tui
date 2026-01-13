@@ -918,7 +918,7 @@ mod tests {
         let graph = PertGraph::new(&[issue1, issue2, issue3, issue4], 1.0);
         
         assert!(graph.cycle_detection.has_cycle);
-        assert!(graph.cycle_detection.cycle_edges.len() >= 1);
+        assert!(!graph.cycle_detection.cycle_edges.is_empty());
     }
 
     #[test]
@@ -1072,7 +1072,7 @@ mod tests {
         assert_eq!(node_c.x, 0);
         
         // Different y positions to avoid overlap
-        let y_positions = vec![node_a.y, node_b.y, node_c.y];
+        let y_positions = [node_a.y, node_b.y, node_c.y];
         let unique_y: HashSet<_> = y_positions.iter().collect();
         assert_eq!(unique_y.len(), 3); // All different Y positions
     }
@@ -1337,7 +1337,7 @@ mod tests {
     fn test_deep_dependency_chain() {
         // Create a very deep chain: A -> B -> C -> D -> E -> F -> G -> H
         let mut issues = Vec::new();
-        let nodes = vec!["A", "B", "C", "D", "E", "F", "G", "H"];
+        let nodes = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
         for (i, &id) in nodes.iter().enumerate() {
             let mut issue = create_test_issue(id, &format!("Task {}", id));

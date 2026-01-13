@@ -678,8 +678,8 @@ mod tests {
         let backend = MockBeadsBackend::with_test_data();
         
         // Verify data exists
-        assert!(backend.list_issues(None, None).unwrap().len() > 0);
-        assert!(backend.list_labels().unwrap().len() > 0);
+        assert!(!backend.list_issues(None, None).unwrap().is_empty());
+        assert!(!backend.list_labels().unwrap().is_empty());
         
         // Clear all data
         backend.clear();

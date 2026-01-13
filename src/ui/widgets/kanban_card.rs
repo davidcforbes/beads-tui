@@ -526,7 +526,7 @@ mod tests {
     #[test]
     fn test_card_mode_clone() {
         let mode = CardMode::SingleLine;
-        let cloned = mode.clone();
+        let cloned = mode;
         assert_eq!(mode, cloned);
     }
 
@@ -692,8 +692,10 @@ mod tests {
     #[test]
     fn test_render_card_priority_colors_disabled() {
         let issue = create_test_issue();
-        let mut config = KanbanCardConfig::default();
-        config.priority_colors = false;
+        let config = KanbanCardConfig {
+            priority_colors: false,
+            ..Default::default()
+        };
 
         let lines = render_kanban_card(&issue, &config, false);
 
@@ -926,10 +928,12 @@ mod tests {
     #[test]
     fn test_render_card_priority_colors_comparison() {
         let issue = create_test_issue();
-        
+
         let config_with = KanbanCardConfig::default();
-        let mut config_without = KanbanCardConfig::default();
-        config_without.priority_colors = false;
+        let config_without = KanbanCardConfig {
+            priority_colors: false,
+            ..Default::default()
+        };
         
         let lines_with = render_kanban_card(&issue, &config_with, false);
         let lines_without = render_kanban_card(&issue, &config_without, false);
@@ -1012,13 +1016,15 @@ mod tests {
     #[test]
     fn test_render_card_custom_styles() {
         let issue = create_test_issue();
-        
+
         let selected = Style::default().bg(Color::Magenta).fg(Color::White);
-        let mut config = KanbanCardConfig::default();
-        config.selected_style = selected;
-        config.normal_style = Style::default().bg(Color::DarkGray);
-        config.id_style = Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD);
-        config.title_style = Style::default().fg(Color::Green);
+        let config = KanbanCardConfig {
+            selected_style: selected,
+            normal_style: Style::default().bg(Color::DarkGray),
+            id_style: Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            title_style: Style::default().fg(Color::Green),
+            ..Default::default()
+        };
         
         let lines = render_kanban_card(&issue, &config, false);
         

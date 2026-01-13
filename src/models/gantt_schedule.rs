@@ -558,7 +558,7 @@ mod tests {
     #[test]
     fn test_time_estimate_clone() {
         let estimate = TimeEstimate::Days(5);
-        let cloned = estimate.clone();
+        let cloned = estimate;
         assert_eq!(estimate, cloned);
     }
 
@@ -725,7 +725,7 @@ mod tests {
     #[test]
     fn test_zoom_level_clone() {
         let level = ZoomLevel::Days;
-        let cloned = level.clone();
+        let cloned = level;
         assert_eq!(level, cloned);
     }
 
@@ -1088,7 +1088,7 @@ mod tests {
             // Ensure all variants can be created and used
             let _ = variant.unit_duration();
             let _ = variant.date_format();
-            let _ = variant.clone();
+            let _ = variant;
         }
     }
 
@@ -1127,8 +1127,10 @@ mod tests {
     #[test]
     fn test_timeline_config_zoom_from_each_level() {
         // Start from Hours
-        let mut config = TimelineConfig::default();
-        config.zoom_level = ZoomLevel::Hours;
+        let mut config = TimelineConfig {
+            zoom_level: ZoomLevel::Hours,
+            ..Default::default()
+        };
         config.zoom_out();
         assert_eq!(config.zoom_level, ZoomLevel::Days);
         

@@ -1096,8 +1096,10 @@ mod tests {
 
     #[test]
     fn test_column_filters_matches_id_substring() {
-        let mut filters = ColumnFilters::default();
-        filters.id = "tui".to_string();
+        let filters = ColumnFilters {
+            id: "tui".to_string(),
+            ..Default::default()
+        };
         
         let issue = create_test_issue("beads-tui-123", "Test", Priority::P2, IssueStatus::Open);
         assert!(filters.matches(&issue));
@@ -1105,8 +1107,10 @@ mod tests {
 
     #[test]
     fn test_column_filters_matches_case_insensitive() {
-        let mut filters = ColumnFilters::default();
-        filters.id = "TUI".to_string();
+        let filters = ColumnFilters {
+            id: "TUI".to_string(),
+            ..Default::default()
+        };
         
         let issue = create_test_issue("beads-tui-123", "Test", Priority::P2, IssueStatus::Open);
         assert!(filters.matches(&issue));
@@ -1114,8 +1118,10 @@ mod tests {
 
     #[test]
     fn test_column_filters_no_match() {
-        let mut filters = ColumnFilters::default();
-        filters.id = "xyz".to_string();
+        let filters = ColumnFilters {
+            id: "xyz".to_string(),
+            ..Default::default()
+        };
         
         let issue = create_test_issue("beads-tui-123", "Test", Priority::P2, IssueStatus::Open);
         assert!(!filters.matches(&issue));
@@ -1123,9 +1129,11 @@ mod tests {
 
     #[test]
     fn test_column_filters_clear() {
-        let mut filters = ColumnFilters::default();
-        filters.id = "test".to_string();
-        filters.title = "example".to_string();
+        let mut filters = ColumnFilters {
+            id: "test".to_string(),
+            title: "example".to_string(),
+            ..Default::default()
+        };
         filters.clear();
         assert!(filters.is_empty());
     }
@@ -1220,7 +1228,7 @@ mod tests {
     fn test_issue_list_show_details() {
         let issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
         let list = IssueList::new(vec![&issue]).show_details(false);
-        assert_eq!(list.show_details, false);
+        assert!(!list.show_details);
     }
 
     #[test]

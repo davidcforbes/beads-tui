@@ -485,7 +485,7 @@ mod tests {
     #[test]
     fn test_dependency_type_clone() {
         let dep_type = DependencyType::DependsOn;
-        let cloned = dep_type.clone();
+        let cloned = dep_type;
         assert_eq!(dep_type, cloned);
     }
 

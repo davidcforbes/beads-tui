@@ -678,7 +678,7 @@ mod tests {
     #[test]
     fn test_split_orientation_clone() {
         let orientation = SplitOrientation::Horizontal;
-        let cloned = orientation.clone();
+        let cloned = orientation;
         assert_eq!(orientation, cloned);
     }
 
@@ -1135,9 +1135,9 @@ mod tests {
 
         // Navigate forward through all
         manager.set_focused(all_ids[0]);
-        for i in 1..4 {
+        for id in all_ids.iter().skip(1) {
             manager.focus_next();
-            assert_eq!(manager.focused_id(), all_ids[i]);
+            assert_eq!(manager.focused_id(), *id);
         }
 
         // Wrap back to first

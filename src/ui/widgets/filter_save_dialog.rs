@@ -650,7 +650,7 @@ mod tests {
     #[test]
     fn test_filter_save_field_clone() {
         let field = FilterSaveField::Name;
-        let cloned = field.clone();
+        let cloned = field;
         assert_eq!(field, cloned);
     }
 
@@ -830,7 +830,7 @@ mod tests {
     fn test_filter_save_dialog_new() {
         let dialog = FilterSaveDialog::new();
         assert_eq!(dialog.title, "Save Filter");
-        assert_eq!(dialog.show_hotkey, true);
+        assert!(dialog.show_hotkey);
         assert_eq!(dialog.width, 60);
         assert_eq!(dialog.height, 14);
     }
@@ -839,7 +839,7 @@ mod tests {
     fn test_filter_save_dialog_default() {
         let dialog = FilterSaveDialog::default();
         assert_eq!(dialog.title, "Save Filter");
-        assert_eq!(dialog.show_hotkey, true);
+        assert!(dialog.show_hotkey);
     }
 
     #[test]
@@ -851,7 +851,7 @@ mod tests {
             .height(20);
         
         assert_eq!(dialog.title, "Custom Title");
-        assert_eq!(dialog.show_hotkey, false);
+        assert!(!dialog.show_hotkey);
         assert_eq!(dialog.width, 80);
         assert_eq!(dialog.height, 20);
     }

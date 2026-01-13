@@ -641,7 +641,7 @@ mod tests {
     #[test]
     fn test_grouping_mode_clone() {
         let mode = GroupingMode::Status;
-        let cloned = mode.clone();
+        let cloned = mode;
         assert_eq!(mode, cloned);
     }
 
@@ -699,7 +699,7 @@ mod tests {
     #[test]
     fn test_width_constraints_clone() {
         let constraints = WidthConstraints::new(10, Some(50), 30);
-        let cloned = constraints.clone();
+        let cloned = constraints;
         assert_eq!(constraints.min, cloned.min);
         assert_eq!(constraints.max, cloned.max);
         assert_eq!(constraints.preferred, cloned.preferred);
@@ -730,7 +730,7 @@ mod tests {
     #[test]
     fn test_card_sort_clone() {
         let sort = CardSort::Priority;
-        let cloned = sort.clone();
+        let cloned = sort;
         assert_eq!(sort, cloned);
     }
 

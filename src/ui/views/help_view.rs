@@ -592,7 +592,7 @@ mod tests {
     #[test]
     fn test_help_section_clone() {
         let section = HelpSection::Issues;
-        let cloned = section.clone();
+        let cloned = section;
         assert_eq!(section, cloned);
     }
 
@@ -606,7 +606,7 @@ mod tests {
     #[test]
     fn test_help_section_all_clone() {
         for section in HelpSection::all() {
-            let cloned = section.clone();
+            let cloned = section;
             assert_eq!(section, cloned);
         }
     }
@@ -623,7 +623,7 @@ mod tests {
     fn test_render_global_help_has_title() {
         let view = HelpView::new();
         let lines = view.render_global_help();
-        assert!(lines.len() >= 1);
+        assert!(!lines.is_empty());
         // First line should be the title
         let title_line = &lines[0];
         assert!(title_line.spans.iter().any(|s| s.content.contains("Global")));
@@ -633,7 +633,7 @@ mod tests {
     fn test_render_issues_help_has_title() {
         let view = HelpView::new();
         let lines = view.render_issues_help();
-        assert!(lines.len() >= 1);
+        assert!(!lines.is_empty());
         let title_line = &lines[0];
         assert!(title_line.spans.iter().any(|s| s.content.contains("Issues")));
     }
@@ -642,7 +642,7 @@ mod tests {
     fn test_render_dependencies_help_has_title() {
         let view = HelpView::new();
         let lines = view.render_dependencies_help();
-        assert!(lines.len() >= 1);
+        assert!(!lines.is_empty());
         let title_line = &lines[0];
         assert!(title_line.spans.iter().any(|s| s.content.contains("Dependencies")));
     }
@@ -651,7 +651,7 @@ mod tests {
     fn test_render_labels_help_has_title() {
         let view = HelpView::new();
         let lines = view.render_labels_help();
-        assert!(lines.len() >= 1);
+        assert!(!lines.is_empty());
         let title_line = &lines[0];
         assert!(title_line.spans.iter().any(|s| s.content.contains("Labels")));
     }
@@ -660,7 +660,7 @@ mod tests {
     fn test_render_database_help_has_title() {
         let view = HelpView::new();
         let lines = view.render_database_help();
-        assert!(lines.len() >= 1);
+        assert!(!lines.is_empty());
         let title_line = &lines[0];
         assert!(title_line.spans.iter().any(|s| s.content.contains("Database")));
     }

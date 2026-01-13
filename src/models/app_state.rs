@@ -536,7 +536,7 @@ mod tests {
     #[test]
     fn test_notification_type_clone() {
         let nt = NotificationType::Error;
-        let cloned = nt.clone();
+        let cloned = nt;
         assert_eq!(nt, cloned);
     }
 
@@ -878,7 +878,7 @@ mod tests {
     #[test]
     fn test_initial_state_defaults() {
         let state = create_test_app_state();
-        assert_eq!(state.should_quit, false);
+        assert!(!state.should_quit);
         assert_eq!(state.selected_tab, 0);
         assert!(!state.is_dirty());
         assert!(!state.show_perf_stats);

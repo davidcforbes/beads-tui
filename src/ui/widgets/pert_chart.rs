@@ -1040,7 +1040,7 @@ mod tests {
     #[test]
     fn test_direction_clone() {
         let dir = Direction::Up;
-        let cloned = dir.clone();
+        let cloned = dir;
         assert_eq!(dir, cloned);
     }
 
@@ -1094,8 +1094,10 @@ mod tests {
 
     #[test]
     fn test_pert_chart_config_exit_focus_mode() {
-        let mut config = PertChartConfig::default();
-        config.focus_mode = true;
+        let mut config = PertChartConfig {
+            focus_mode: true,
+            ..Default::default()
+        };
         
         config.exit_focus_mode();
         assert!(!config.focus_mode);
@@ -1142,8 +1144,10 @@ mod tests {
     fn test_pert_chart_apply_zoom() {
         let issue = create_test_issue("A", "Task A");
         let graph = PertGraph::new(&[issue], 1.0);
-        let mut config = PertChartConfig::default();
-        config.zoom = 2.0;
+        let config = PertChartConfig {
+            zoom: 2.0,
+            ..Default::default()
+        };
         let chart = PertChart::new(&graph).config(config);
 
         assert_eq!(chart.apply_zoom(10), 20);
@@ -1154,9 +1158,11 @@ mod tests {
     fn test_pert_chart_transform_position() {
         let issue = create_test_issue("A", "Task A");
         let graph = PertGraph::new(&[issue], 1.0);
-        let mut config = PertChartConfig::default();
-        config.offset_x = 10;
-        config.offset_y = 5;
+        let config = PertChartConfig {
+            offset_x: 10,
+            offset_y: 5,
+            ..Default::default()
+        };
         let chart = PertChart::new(&graph).config(config);
 
         let (vx, vy) = chart.transform_position(20, 15);
@@ -1210,8 +1216,10 @@ mod tests {
             node.y = 20;
         }
 
-        let mut config = PertChartConfig::default();
-        config.selected_node = Some("A".to_string());
+        let config = PertChartConfig {
+            selected_node: Some("A".to_string()),
+            ..Default::default()
+        };
 
         // Test Right direction
         let mut test_config = config.clone();
@@ -1244,8 +1252,10 @@ mod tests {
 
     #[test]
     fn test_focus_on_node_none() {
-        let mut config = PertChartConfig::default();
-        config.focus_mode = true;
+        let mut config = PertChartConfig {
+            focus_mode: true,
+            ..Default::default()
+        };
 
         config.focus_on_node(None);
         assert!(config.focus_node.is_none());

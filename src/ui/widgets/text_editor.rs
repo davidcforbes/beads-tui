@@ -1334,7 +1334,7 @@ mod tests {
         for i in 0..100 {
             lines.push(format!("Line {}", i));
         }
-        state.set_text(&lines.join("\n"));
+        state.set_text(lines.join("\n"));
         
         // Move cursor to middle of document
         state.cursor_line = 50;

@@ -606,7 +606,7 @@ mod tests {
     #[test]
     fn test_date_range_preset_clone() {
         let preset = DateRangePreset::Today;
-        let cloned = preset.clone();
+        let cloned = preset;
         assert_eq!(preset, cloned);
     }
 

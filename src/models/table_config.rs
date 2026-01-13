@@ -825,7 +825,7 @@ mod tests {
 
     #[test]
     fn test_all_alignment_inequalities() {
-        let aligns = vec![Alignment::Left, Alignment::Center, Alignment::Right];
+        let aligns = [Alignment::Left, Alignment::Center, Alignment::Right];
         
         for (i, a1) in aligns.iter().enumerate() {
             for (j, a2) in aligns.iter().enumerate() {
@@ -847,11 +847,9 @@ mod tests {
 
     #[test]
     fn test_all_wrap_behavior_inequalities() {
-        let wraps = vec![
-            WrapBehavior::Truncate,
+        let wraps = [WrapBehavior::Truncate,
             WrapBehavior::Wrap,
-            WrapBehavior::WrapAnywhere,
-        ];
+            WrapBehavior::WrapAnywhere];
         
         for (i, w1) in wraps.iter().enumerate() {
             for (j, w2) in wraps.iter().enumerate() {

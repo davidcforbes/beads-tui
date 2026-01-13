@@ -552,7 +552,7 @@ mod tests {
     #[test]
     fn test_grouping_mode_clone() {
         let mode = GroupingMode::Priority;
-        let cloned = mode.clone();
+        let cloned = mode;
         assert_eq!(mode, cloned);
     }
 
@@ -563,7 +563,7 @@ mod tests {
         let _priority = GroupingMode::Priority;
         let _assignee = GroupingMode::Assignee;
         let _type = GroupingMode::Type;
-        assert!(true); // All variants compile and can be created
+        // All variants compile and can be created
     }
 
     #[test]
@@ -705,7 +705,7 @@ mod tests {
 
         let lanes = chart.group_into_lanes();
         // Should have "Open" and "Unknown" lanes
-        assert!(lanes.len() >= 1);
+        assert!(!lanes.is_empty());
     }
 
     #[test]
@@ -845,13 +845,11 @@ mod tests {
 
     #[test]
     fn test_all_grouping_mode_inequalities() {
-        let modes = vec![
-            GroupingMode::None,
+        let modes = [GroupingMode::None,
             GroupingMode::Status,
             GroupingMode::Priority,
             GroupingMode::Assignee,
-            GroupingMode::Type,
-        ];
+            GroupingMode::Type];
 
         for (i, mode1) in modes.iter().enumerate() {
             for (j, mode2) in modes.iter().enumerate() {
@@ -985,7 +983,7 @@ mod tests {
         let mut issues = Vec::new();
         let mut schedules = Vec::new();
 
-        let priorities = vec![Priority::P0, Priority::P1, Priority::P2, Priority::P3, Priority::P4];
+        let priorities = [Priority::P0, Priority::P1, Priority::P2, Priority::P3, Priority::P4];
 
         for (i, priority) in priorities.iter().enumerate() {
             let id = format!("TEST-{}", i);
@@ -1062,13 +1060,11 @@ mod tests {
         let mut issues = Vec::new();
         let mut schedules = Vec::new();
 
-        let types = vec![
-            IssueType::Bug,
+        let types = [IssueType::Bug,
             IssueType::Feature,
             IssueType::Task,
             IssueType::Epic,
-            IssueType::Chore,
-        ];
+            IssueType::Chore];
 
         for (i, issue_type) in types.iter().enumerate() {
             let id = format!("TEST-{}", i);
@@ -1091,12 +1087,10 @@ mod tests {
         let mut issues = Vec::new();
         let mut schedules = Vec::new();
 
-        let statuses = vec![
-            IssueStatus::Open,
+        let statuses = [IssueStatus::Open,
             IssueStatus::InProgress,
             IssueStatus::Blocked,
-            IssueStatus::Closed,
-        ];
+            IssueStatus::Closed];
 
         for (i, status) in statuses.iter().enumerate() {
             let id = format!("TEST-{}", i);

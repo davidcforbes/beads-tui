@@ -676,7 +676,7 @@ mod tests {
     #[test]
     fn test_dependency_focus_clone_trait() {
         let focus1 = DependencyFocus::Blocks;
-        let focus2 = focus1.clone();
+        let focus2 = focus1;
         assert_eq!(focus1, focus2);
         assert_eq!(focus1, DependencyFocus::Blocks);
         assert_eq!(focus2, DependencyFocus::Blocks);
@@ -1120,7 +1120,7 @@ mod tests {
     #[test]
     fn test_dependency_focus_clone() {
         let focus = DependencyFocus::Dependencies;
-        let cloned = focus.clone();
+        let cloned = focus;
         assert_eq!(focus, cloned);
     }
 

@@ -615,11 +615,11 @@ mod tests {
     #[test]
     fn test_search_scope_clone() {
         let scope = SearchScope::Title;
-        let cloned = scope.clone();
+        let cloned = scope;
         assert_eq!(scope, cloned);
 
         let scope = SearchScope::All;
-        let cloned = scope.clone();
+        let cloned = scope;
         assert_eq!(scope, cloned);
     }
 

@@ -488,7 +488,7 @@ mod tests {
     #[test]
     fn test_dialog_type_clone() {
         let dialog_type = DialogType::Error;
-        let cloned = dialog_type.clone();
+        let cloned = dialog_type;
         assert_eq!(dialog_type, cloned);
     }
 
@@ -499,7 +499,7 @@ mod tests {
         let _error = DialogType::Error;
         let _success = DialogType::Success;
         let _confirm = DialogType::Confirm;
-        assert!(true); // All variants compile and can be created
+        // All variants compile and can be created
     }
 
     #[test]
@@ -712,13 +712,11 @@ mod tests {
 
     #[test]
     fn test_all_dialog_type_inequalities() {
-        let types = vec![
-            DialogType::Info,
+        let types = [DialogType::Info,
             DialogType::Warning,
             DialogType::Error,
             DialogType::Success,
-            DialogType::Confirm,
-        ];
+            DialogType::Confirm];
         
         for (i, type1) in types.iter().enumerate() {
             for (j, type2) in types.iter().enumerate() {
@@ -812,7 +810,7 @@ mod tests {
         let _error_color = DialogType::Error.color();
         let _success_color = DialogType::Success.color();
         let _confirm_color = DialogType::Confirm.color();
-        assert!(true); // All variants have colors
+        // All variants have colors
     }
 
     #[test]
