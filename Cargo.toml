@@ -87,3 +87,7 @@ opt-level = 2
 [[bench]]
 name = "common_operations"
 harness = false
+
+[[bench]]
+name = "search_performance"
+harness = false
