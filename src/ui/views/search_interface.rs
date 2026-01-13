@@ -76,6 +76,8 @@ pub struct SearchInterfaceState {
     label_logic: LogicOp,
     filter_menu_open: bool,
     filter_menu_state: ratatui::widgets::ListState,
+    /// Cached lowercase query for faster substring matching
+    lowercase_query_cache: Option<String>,
 }
 
 impl std::fmt::Debug for SearchInterfaceState {
@@ -147,6 +149,7 @@ impl SearchInterfaceState {
             label_logic: LogicOp::And,
             filter_menu_open: false,
             filter_menu_state: ratatui::widgets::ListState::default(),
+            lowercase_query_cache: None,
         }
     }
 
@@ -530,9 +533,16 @@ impl SearchInterfaceState {
     pub fn update_filtered_issues(&mut self) {
         // Don't lowercase query when regex is enabled (regex handles case-insensitivity)
         let query = if self.regex_enabled {
+            self.lowercase_query_cache = None;
             self.search_state.query().to_string()
-        } else {
+        } else if self.fuzzy_enabled {
+            self.lowercase_query_cache = None;
             self.search_state.query().to_lowercase()
+        } else {
+            // Cache the lowercase query for substring matching performance
+            let lowercase_query = self.search_state.query().to_lowercase();
+            self.lowercase_query_cache = Some(lowercase_query.clone());
+            lowercase_query
         };
         let column_filters = self.list_state.column_filters();
         let filters_enabled = self.list_state.filters_enabled();
@@ -662,11 +672,21 @@ impl SearchInterfaceState {
             // Returns None if regex is unsafe or invalid, then fallback to substring
             safe_regex_match(query, text, true).unwrap_or_else(|| {
                 // Fallback to substring matching if regex is unsafe or invalid
-                text.to_lowercase().contains(&query.to_lowercase())
+                let lowercase_text = text.to_lowercase();
+                if let Some(ref cached_query) = self.lowercase_query_cache {
+                    lowercase_text.contains(cached_query)
+                } else {
+                    lowercase_text.contains(&query.to_lowercase())
+                }
             })
         } else {
-            // Use substring matching
-            text.to_lowercase().contains(&query.to_lowercase())
+            // Use substring matching with cached lowercase query for performance
+            let lowercase_text = text.to_lowercase();
+            if let Some(ref cached_query) = self.lowercase_query_cache {
+                lowercase_text.contains(cached_query)
+            } else {
+                lowercase_text.contains(&query.to_lowercase())
+            }
         }
     }
 
