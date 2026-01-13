@@ -646,4 +646,121 @@ mod tests {
         // Should not include labels section (empty)
         assert!(!spans.iter().any(|s| s.content.contains('#')));
     }
+
+    // ========== Additional comprehensive tests ==========
+
+    #[test]
+    fn test_metadata_display_config_debug() {
+        let config = MetadataDisplayConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("MetadataDisplayConfig"));
+        assert!(debug_str.contains("show_labels"));
+    }
+
+    #[test]
+    fn test_metadata_display_config_builder_label_style_only() {
+        let custom_style = Style::default().fg(Color::Red).add_modifier(Modifier::BOLD);
+        let config = MetadataDisplayConfig::new().label_style(custom_style);
+        assert_eq!(config.label_style.fg, Some(Color::Red));
+        assert!(config.label_style.add_modifier.contains(Modifier::BOLD));
+    }
+
+    #[test]
+    fn test_metadata_display_config_builder_assignee_style_only() {
+        let custom_style = Style::default().fg(Color::Green).add_modifier(Modifier::ITALIC);
+        let config = MetadataDisplayConfig::new().assignee_style(custom_style);
+        assert_eq!(config.assignee_style.fg, Some(Color::Green));
+        assert!(config.assignee_style.add_modifier.contains(Modifier::ITALIC));
+    }
+
+    #[test]
+    fn test_metadata_display_config_builder_age_style_only() {
+        let custom_style = Style::default().fg(Color::Blue).add_modifier(Modifier::UNDERLINED);
+        let config = MetadataDisplayConfig::new().age_style(custom_style);
+        assert_eq!(config.age_style.fg, Some(Color::Blue));
+        assert!(config.age_style.add_modifier.contains(Modifier::UNDERLINED));
+    }
+
+    #[test]
+    fn test_build_metadata_spans_empty_separator() {
+        let labels = vec!["bug".to_string()];
+        let assignee = Some("alice");
+        let created = Utc::now() - chrono::Duration::hours(2);
+        let config = MetadataDisplayConfig::default().separator("");
+
+        let spans = build_metadata_spans(&labels, assignee, created, None, &config);
+
+        // Should still build spans with empty separators
+        assert!(spans.len() >= 3);
+
+        // Check for empty separator spans
+        let empty_count = spans.iter().filter(|s| s.content.is_empty()).count();
+        assert!(empty_count >= 2); // At least 2 separators between 3 elements
+    }
+
+    #[test]
+    fn test_build_metadata_spans_only_labels() {
+        let labels = vec!["bug".to_string(), "urgent".to_string()];
+        let created = Utc::now() - chrono::Duration::hours(2);
+        let config = MetadataDisplayConfig::default()
+            .show_assignee(false)
+            .show_age(false)
+            .show_updated(false);
+
+        let spans = build_metadata_spans(&labels, None, created, None, &config);
+
+        // Should have only labels, no separators
+        assert_eq!(spans.len(), 1);
+        assert!(spans[0].content.contains("#bug"));
+    }
+
+    #[test]
+    fn test_build_metadata_spans_only_assignee() {
+        let labels: Vec<String> = Vec::new();
+        let assignee = Some("alice");
+        let created = Utc::now() - chrono::Duration::hours(2);
+        let config = MetadataDisplayConfig::default()
+            .show_labels(false)
+            .show_age(false)
+            .show_updated(false);
+
+        let spans = build_metadata_spans(&labels, assignee, created, None, &config);
+
+        // Should have only assignee, no separators
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].content, "@alice");
+    }
+
+    #[test]
+    fn test_format_labels_very_large_count() {
+        let labels: Vec<String> = (0..100).map(|i| format!("label{}", i)).collect();
+        let result = format_labels(&labels, 5);
+
+        // Should show first 5 and +95
+        assert!(result.contains("#label0"));
+        assert!(result.contains("#label4"));
+        assert!(result.contains("+95"));
+        assert!(!result.contains("#label5")); // 6th should not be shown
+    }
+
+    #[test]
+    fn test_format_age_edge_case_1_second() {
+        let now = Utc::now();
+        let timestamp = now - chrono::Duration::seconds(1);
+        assert_eq!(format_age(timestamp), "just now");
+    }
+
+    #[test]
+    fn test_build_metadata_spans_separator_appears_between_elements() {
+        let labels = vec!["bug".to_string()];
+        let assignee = Some("alice");
+        let created = Utc::now() - chrono::Duration::hours(2);
+        let config = MetadataDisplayConfig::default().separator(" | ");
+
+        let spans = build_metadata_spans(&labels, assignee, created, None, &config);
+
+        // Count separator occurrences
+        let separator_count = spans.iter().filter(|s| s.content == " | ").count();
+        assert_eq!(separator_count, 2); // Between labels-assignee and assignee-age
+    }
 }
