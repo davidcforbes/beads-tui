@@ -150,7 +150,7 @@ impl<'a> HelpView<'a> {
                 Span::raw("         - Edit selected issue"),
             ]),
             Line::from(vec![
-                Span::styled("n", Style::default().fg(Color::Green)),
+                Span::styled("c", Style::default().fg(Color::Green)),
                 Span::raw("         - Create new issue"),
             ]),
             Line::from(vec![
@@ -158,12 +158,16 @@ impl<'a> HelpView<'a> {
                 Span::raw("         - Delete selected issue"),
             ]),
             Line::from(vec![
-                Span::styled("c", Style::default().fg(Color::Green)),
+                Span::styled("x", Style::default().fg(Color::Green)),
                 Span::raw("         - Close selected issue"),
             ]),
             Line::from(vec![
-                Span::styled("r", Style::default().fg(Color::Green)),
+                Span::styled("o", Style::default().fg(Color::Green)),
                 Span::raw("         - Reopen closed issue"),
+            ]),
+            Line::from(vec![
+                Span::styled("r", Style::default().fg(Color::Green)),
+                Span::raw("         - Rename issue title (in-place edit)"),
             ]),
         ]
     }
