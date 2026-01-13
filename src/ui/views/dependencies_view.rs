@@ -1096,4 +1096,218 @@ mod tests {
         assert_eq!(state.selected_dependency(), Some(2)); // Dependencies unchanged
         assert_eq!(state.selected_block(), Some(3));
     }
+
+    // Debug trait tests
+    #[test]
+    fn test_dependency_focus_debug() {
+        let focus = DependencyFocus::Dependencies;
+        let debug_str = format!("{:?}", focus);
+        assert_eq!(debug_str, "Dependencies");
+
+        let focus = DependencyFocus::Blocks;
+        let debug_str = format!("{:?}", focus);
+        assert_eq!(debug_str, "Blocks");
+    }
+
+    #[test]
+    fn test_dependencies_view_state_debug() {
+        let state = DependenciesViewState::new();
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("DependenciesViewState"));
+    }
+
+    // Clone and Copy trait tests
+    #[test]
+    fn test_dependency_focus_clone() {
+        let focus = DependencyFocus::Dependencies;
+        let cloned = focus.clone();
+        assert_eq!(focus, cloned);
+    }
+
+    #[test]
+    fn test_dependency_focus_copy() {
+        let focus = DependencyFocus::Blocks;
+        let copied = focus;
+        assert_eq!(focus, copied);
+    }
+
+    // Widget rendering tests
+    #[test]
+    fn test_render_no_selection_widget() {
+        let issues = vec![];
+        let view = DependenciesView::new(issues);
+        let mut state = DependenciesViewState::new();
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+
+        view.render(area, &mut buffer, &mut state);
+
+        // Buffer should be modified
+        let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
+        assert!(has_content, "Widget should render content for no selection");
+    }
+
+    #[test]
+    fn test_render_with_issue() {
+        let issue1 = create_test_issue("beads-001", "Issue 1");
+        let issue2 = create_test_issue("beads-002", "Issue 2");
+        let issues = vec![&issue1, &issue2];
+
+        let view = DependenciesView::new(issues).issue(&issue1);
+        let mut state = DependenciesViewState::new();
+        let area = Rect::new(0, 0, 100, 30);
+        let mut buffer = Buffer::empty(area);
+
+        view.render(area, &mut buffer, &mut state);
+
+        // Buffer should be modified
+        let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
+        assert!(has_content, "Widget should render content with issue");
+    }
+
+    #[test]
+    fn test_render_small_area() {
+        let issue = create_test_issue("beads-001", "Issue 1");
+        let issues = vec![&issue];
+        let view = DependenciesView::new(issues).issue(&issue);
+        let mut state = DependenciesViewState::new();
+        let area = Rect::new(0, 0, 20, 10);
+        let mut buffer = Buffer::empty(area);
+
+        // Should handle small areas gracefully
+        view.render(area, &mut buffer, &mut state);
+
+        // Should not panic
+    }
+
+    #[test]
+    fn test_render_with_custom_style() {
+        let issue = create_test_issue("beads-001", "Issue 1");
+        let issues = vec![&issue];
+        let style = Style::default().fg(Color::Yellow);
+        let view = DependenciesView::new(issues)
+            .issue(&issue)
+            .block_style(style);
+        let mut state = DependenciesViewState::new();
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+
+        view.render(area, &mut buffer, &mut state);
+
+        // Should render without panic
+        let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
+        assert!(has_content);
+    }
+
+    // Builder pattern tests
+    #[test]
+    fn test_builder_chaining() {
+        let issue = create_test_issue("beads-001", "Issue 1");
+        let issues = vec![&issue];
+        let style = Style::default().fg(Color::Magenta);
+
+        let view = DependenciesView::new(issues)
+            .issue(&issue)
+            .block_style(style);
+
+        assert!(view.issue.is_some());
+        assert_eq!(view.block_style, style);
+    }
+
+    // All status colors test
+    #[test]
+    fn test_all_status_colors() {
+        let statuses = vec![
+            (IssueStatus::Open, Color::Green),
+            (IssueStatus::InProgress, Color::Cyan),
+            (IssueStatus::Blocked, Color::Red),
+            (IssueStatus::Closed, Color::Gray),
+        ];
+
+        for (status, expected_color) in statuses {
+            assert_eq!(status_color(&status), expected_color);
+        }
+    }
+
+    // State initialization tests
+    #[test]
+    fn test_new_state_has_both_lists_initialized() {
+        let state = DependenciesViewState::new();
+
+        // Both lists should have selection initialized
+        assert!(state.selected_dependency().is_some());
+        assert!(state.selected_block().is_some());
+    }
+
+    // Edge case: navigation with length 1
+    #[test]
+    fn test_select_next_with_single_item() {
+        let mut state = DependenciesViewState::new();
+
+        // With only one item, next should stay at 0
+        state.select_next(1);
+        assert_eq!(state.selected_dependency(), Some(0));
+
+        state.select_next(1);
+        assert_eq!(state.selected_dependency(), Some(0));
+    }
+
+    #[test]
+    fn test_select_previous_with_single_item() {
+        let mut state = DependenciesViewState::new();
+
+        // With only one item, previous should stay at 0
+        state.select_previous(1);
+        assert_eq!(state.selected_dependency(), Some(0));
+
+        state.select_previous(1);
+        assert_eq!(state.selected_dependency(), Some(0));
+    }
+
+    // Navigation in blocks list
+    #[test]
+    fn test_blocks_navigation() {
+        let mut state = DependenciesViewState::new();
+
+        // Switch to blocks
+        state.toggle_focus();
+        assert_eq!(state.focus(), DependencyFocus::Blocks);
+
+        // Navigate in blocks
+        state.select_next(5);
+        assert_eq!(state.selected_block(), Some(1));
+
+        state.select_next(5);
+        assert_eq!(state.selected_block(), Some(2));
+
+        state.select_previous(5);
+        assert_eq!(state.selected_block(), Some(1));
+
+        // Dependencies should be unchanged
+        assert_eq!(state.selected_dependency(), Some(0));
+    }
+
+    // View with empty issues list
+    #[test]
+    fn test_view_with_empty_issues_list() {
+        let issues = vec![];
+        let view = DependenciesView::new(issues);
+
+        assert!(view.issue.is_none());
+        assert!(view.all_issues.is_empty());
+    }
+
+    // Multiple calls to block_style
+    #[test]
+    fn test_block_style_can_be_changed() {
+        let issues = vec![];
+        let style1 = Style::default().fg(Color::Red);
+        let style2 = Style::default().fg(Color::Blue);
+
+        let view = DependenciesView::new(issues)
+            .block_style(style1)
+            .block_style(style2);
+
+        assert_eq!(view.block_style, style2);
+    }
 }
