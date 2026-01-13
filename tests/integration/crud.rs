@@ -281,7 +281,7 @@ async fn test_crud_list_with_filters() {
     let root = harness.root.path();
 
     // Create issues with different statuses
-    let mut create_issue = |title: &str, issue_type: &str, status: &str| {
+    let create_issue = |title: &str, issue_type: &str, status: &str| {
         let output = Command::new("bd")
             .args([
                 "create",

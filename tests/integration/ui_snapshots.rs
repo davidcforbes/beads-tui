@@ -145,16 +145,28 @@ fn test_help_view_snapshot_120x40() {
 #[test]
 #[serial]
 fn test_database_view_snapshot_80x24() {
-    let mut app = AppState::new();
+    use beads_tui::ui::views::{DatabaseStats, DatabaseStatus, DatabaseViewState};
+
+    let mut database_view_state = DatabaseViewState::default();
+    let database_stats = DatabaseStats {
+        total_issues: 50,
+        open_issues: 0,
+        closed_issues: 0,
+        blocked_issues: 0,
+        database_size: 0,
+        last_sync: None,
+    };
+    let database_status = DatabaseStatus::Ready;
+    let daemon_running = true;
 
     snapshot_view("database_view_80x24", 80, 24, |terminal| {
         terminal
             .draw(|f| {
                 let database_view = DatabaseView::new()
-                    .status(app.database_status)
-                    .stats(app.database_stats.clone())
-                    .daemon_running(app.daemon_running);
-                f.render_stateful_widget(database_view, f.size(), &mut app.database_view_state);
+                    .status(database_status)
+                    .stats(database_stats.clone())
+                    .daemon_running(daemon_running);
+                f.render_stateful_widget(database_view, f.size(), &mut database_view_state);
             })
             .unwrap();
     });
@@ -163,16 +175,28 @@ fn test_database_view_snapshot_80x24() {
 #[test]
 #[serial]
 fn test_database_view_snapshot_120x40() {
-    let mut app = AppState::new();
+    use beads_tui::ui::views::{DatabaseStats, DatabaseStatus, DatabaseViewState};
+
+    let mut database_view_state = DatabaseViewState::default();
+    let database_stats = DatabaseStats {
+        total_issues: 50,
+        open_issues: 0,
+        closed_issues: 0,
+        blocked_issues: 0,
+        database_size: 0,
+        last_sync: None,
+    };
+    let database_status = DatabaseStatus::Ready;
+    let daemon_running = true;
 
     snapshot_view("database_view_120x40", 120, 40, |terminal| {
         terminal
             .draw(|f| {
                 let database_view = DatabaseView::new()
-                    .status(app.database_status)
-                    .stats(app.database_stats.clone())
-                    .daemon_running(app.daemon_running);
-                f.render_stateful_widget(database_view, f.size(), &mut app.database_view_state);
+                    .status(database_status)
+                    .stats(database_stats.clone())
+                    .daemon_running(daemon_running);
+                f.render_stateful_widget(database_view, f.size(), &mut database_view_state);
             })
             .unwrap();
     });
