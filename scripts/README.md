@@ -20,7 +20,7 @@ Cross-platform test runners for beads-tui that wrap `cargo test` with support fo
 .\scripts\test.ps1 snapshot -UpdateSnapshots
 
 # Use test fixture
-.\scripts\test.ps1 -Fixture test-data-1
+.\scripts\test.ps1 -Fixture test-small
 
 # Verbose output
 .\scripts\test.ps1 unit -ShowVerbose -NoCapture
@@ -45,7 +45,7 @@ chmod +x scripts/test.sh
 ./scripts/test.sh snapshot --update-snapshots
 
 # Use test fixture
-./scripts/test.sh --fixture test-data-1
+./scripts/test.sh --fixture test-small
 
 # Verbose output
 ./scripts/test.sh unit --verbose --nocapture
@@ -107,10 +107,10 @@ Use `--fixture` (bash) or `-Fixture` (PowerShell) to set a specific test databas
 
 ```bash
 # Bash
-./scripts/test.sh --fixture test-data-1
+./scripts/test.sh --fixture test-small
 
 # PowerShell
-.\scripts\test.ps1 -Fixture test-data-1
+.\scripts\test.ps1 -Fixture test-small
 ```
 
 This sets the `BD_DB` environment variable, which the beads CLI uses to determine which database to use.
@@ -177,6 +177,18 @@ The test scripts manage these environment variables:
 
 These are automatically cleaned up after tests complete.
 
+## Validating Fixtures
+
+Validate fixture layout and metadata before running integration tests:
+
+```bash
+./scripts/validate-fixtures.sh
+```
+
+```powershell
+.\scripts\validate-fixtures.ps1
+```
+
 ## Examples
 
 ### Quick feedback during development
@@ -203,7 +215,7 @@ These are automatically cleaned up after tests complete.
 ### Testing with different data
 ```bash
 # Test with multiple fixtures
-for fixture in test-data-1 test-data-2 test-data-3; do
+for fixture in test-small test-medium test-large; do
     echo "Testing with $fixture"
     ./scripts/test.sh --fixture $fixture
 done

@@ -9,11 +9,11 @@
 
 | Fixture | Size | Focus |
 | --- | --- | --- |
-| `beads-mini` | 10-20 issues | Smoke tests and fast unit runs |
-| `beads-small` | 200 issues | Daily integration tests |
-| `beads-large` | 5,000+ issues | Performance and stress testing |
-| `beads-deps` | 60 issues | Complex dependency graphs and cycles |
-| `beads-invalid` | 25 issues | Invalid fields and error handling |
+| `test-small` | 10-15 issues | Smoke tests and fast unit runs |
+| `test-medium` | 50-75 issues | Daily integration tests |
+| `test-large` | 300-500 issues | Performance and stress testing |
+| `test-deps` | 40-60 issues | Complex dependency graphs and cycles |
+| `test-edge` | 20-30 issues | Invalid fields and error handling |
 
 ## Fixture Contents
 Each fixture should cover:

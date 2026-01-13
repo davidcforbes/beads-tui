@@ -1,0 +1,9 @@
+{
+  "fixtures": [
+    {
+      "name": "test-small",
+      "path": "tests/fixtures/test-small",
+      "description": "Small dataset for smoke tests and basic functionality validation"
+    }
+  ]
+}

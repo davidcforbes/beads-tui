@@ -15,7 +15,7 @@ environment variables.
 - `scripts/test.sh` (macOS and Linux)
 
 Suggested flags:
-- `--suite unit|integration|ui|property|all`
+- `--suite unit|integration|snapshot|property|all`
 - `--fixture beads-mini|beads-small|beads-large`
 - `--update-snapshots`
 - `--profile` (optional performance timing)
