@@ -1181,7 +1181,7 @@ mod tests {
 
     #[test]
     fn test_select_adjacent_all_directions() {
-        let mut issue1 = create_test_issue("A", "Task A");
+        let issue1 = create_test_issue("A", "Task A");
         let mut issue2 = create_test_issue("B", "Task B");
         let mut issue3 = create_test_issue("C", "Task C");
         let mut issue4 = create_test_issue("D", "Task D");

@@ -794,7 +794,7 @@ mod tests {
     #[test]
     fn test_checkbox_list_builder_order_independence() {
         let formatter = |s: &String| s.clone();
-        let block = Block::default().borders(Borders::ALL);
+        let _block = Block::default().borders(Borders::ALL);
         let style = Style::default().fg(Color::Green);
         let selected_style = Style::default().bg(Color::Cyan);
         let checkbox_style = Style::default().fg(Color::Magenta);

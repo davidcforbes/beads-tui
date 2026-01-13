@@ -802,7 +802,7 @@ mod tests {
     #[test]
     fn test_preset_last_month() {
         let preset = DateRangePreset::LastMonth;
-        let (start, end) = preset.date_range().unwrap();
+        let (start, _end) = preset.date_range().unwrap();
 
         // Start should be first day of last month
         assert_eq!(start.day(), 1);
@@ -984,7 +984,7 @@ mod tests {
     fn test_date_range_clone_independence() {
         let start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
         let end = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
-        let mut range = DateRange::from_dates(start, end);
+        let range = DateRange::from_dates(start, end);
         
         let mut cloned = range.clone();
         

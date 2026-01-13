@@ -1400,13 +1400,13 @@ mod tests {
         let graph = PertGraph::new(&[issue1, issue2, issue3, issue4, issue5], 1.0);
 
         // Focus on B with upstream depth 2
-        let (nodes, edges) = graph.compute_subgraph("B", 2, "upstream");
+        let (nodes, _edges) = graph.compute_subgraph("B", 2, "upstream");
         assert_eq!(nodes.len(), 2); // A and B
         assert!(nodes.contains("A"));
         assert!(nodes.contains("B"));
 
         // Focus on D with both directions depth 2
-        let (nodes, edges) = graph.compute_subgraph("D", 2, "both");
+        let (nodes, _edges) = graph.compute_subgraph("D", 2, "both");
         assert!(nodes.contains("A"));
         assert!(nodes.contains("B"));
         assert!(nodes.contains("D"));
