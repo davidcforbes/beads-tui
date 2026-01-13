@@ -410,10 +410,21 @@ impl AppState {
             .ok_or_else(|| "No filter selected".to_string())?
             .clone();
 
-        self.apply_saved_filter(&selected_filter);
+        // Apply the filter to the issues view search state
+        self.issues_view_state
+            .search_state_mut()
+            .apply_filter(&selected_filter.filter);
         self.hide_filter_quick_select();
 
         Ok(())
+    }
+
+    /// Apply a saved filter to the issues view search state
+    pub fn apply_saved_filter(&mut self, saved_filter: &SavedFilter) {
+        self.issues_view_state
+            .search_state_mut()
+            .apply_filter(&saved_filter.filter);
+        self.mark_dirty();
     }
 
     /// Start editing a filter - opens save dialog with existing filter data
@@ -556,63 +567,7 @@ impl AppState {
         Ok(())
     }
 
-    /// Show delete confirmation dialog for a filter
-    pub fn show_delete_filter_confirmation(&mut self, filter_name: &str) {
-        self.delete_confirmation_filter = Some(filter_name.to_string());
-        self.delete_dialog_state = Some(DialogState::new());
-        self.hide_filter_quick_select();
-        self.mark_dirty();
-    }
-
-    /// Confirm and execute filter deletion
-    pub fn confirm_delete_filter(&mut self) -> Result<(), String> {
-        let filter_name = self
-            .delete_confirmation_filter
-            .as_ref()
-            .ok_or_else(|| "No filter pending deletion".to_string())?
-            .clone();
-
-        // Remove filter from config
-        if !self.config.remove_filter(&filter_name) {
-            return Err(format!("Filter '{}' not found", filter_name));
-        }
-
-        // Save config to disk
-        self.config.save().map_err(|e| {
-            format!("Failed to save config: {}", e)
-        })?;
-
-        // Update the saved filters in issues view state
-        self.issues_view_state
-            .set_saved_filters(self.config.filters.clone());
-
-        // Clear delete confirmation state
-        self.delete_confirmation_filter = None;
-        self.delete_dialog_state = None;
-
-        self.mark_dirty();
-
-        Ok(())
-    }
-
-    /// Cancel filter deletion
-    pub fn cancel_delete_filter(&mut self) {
-        self.delete_confirmation_filter = None;
-        self.delete_dialog_state = None;
-        self.mark_dirty();
-    }
-
-    /// Check if currently editing a filter
-    pub fn is_editing_filter(&self) -> bool {
-        self.editing_filter_name.is_some()
-    }
-
-    /// Check if delete confirmation dialog is visible
-    pub fn is_delete_confirmation_visible(&self) -> bool {
-        self.delete_confirmation_filter.is_some()
-    }
-
-    /// Save the current filter from the dialog
+    /// Save current filter as a new saved filter
     pub fn save_current_filter(&mut self) -> Result<(), String> {
         // Get dialog state
         let dialog_state = self
@@ -703,13 +658,16 @@ impl AppState {
             hotkey,
         };
 
-        // Add to config
+        // Add the filter to config
         self.config.add_filter(saved_filter.clone());
 
         // Save config to disk
         self.config.save().map_err(|e| {
             format!("Failed to save config: {}", e)
         })?;
+
+        // Update the issues view state with new filters list
+        self.issues_view_state.set_saved_filters(self.config.filters.clone());
 
         // Show success notification
         self.set_success(format!("Filter '{}' saved successfully", saved_filter.name));
@@ -720,74 +678,60 @@ impl AppState {
         Ok(())
     }
 
-    /// Apply a saved filter to the issues view
-    pub fn apply_saved_filter(&mut self, saved_filter: &crate::models::SavedFilter) {
-        use crate::models::LogicOp;
-        use crate::ui::widgets::issue_list::LabelMatchMode;
+    /// Show delete confirmation dialog for a filter
+    pub fn show_delete_filter_confirmation(&mut self, filter_name: &str) {
+        self.delete_confirmation_filter = Some(filter_name.to_string());
+        self.delete_dialog_state = Some(DialogState::new());
+        self.hide_filter_quick_select();
+        self.mark_dirty();
+    }
 
-        let filter = &saved_filter.filter;
-        let search_state = self.issues_view_state.search_state_mut();
+    /// Confirm and execute filter deletion
+    pub fn confirm_delete_filter(&mut self) -> Result<(), String> {
+        let filter_name = self
+            .delete_confirmation_filter
+            .as_ref()
+            .ok_or_else(|| "No filter pending deletion".to_string())?
+            .clone();
 
-        // Set search text
-        if let Some(ref text) = filter.search_text {
-            search_state.search_state_mut().set_query(text);
-        } else {
-            search_state.search_state_mut().set_query("");
+        // Remove filter from config
+        if !self.config.remove_filter(&filter_name) {
+            return Err(format!("Filter '{}' not found", filter_name));
         }
 
-        // Set regex and fuzzy modes
-        if filter.use_regex && !search_state.is_regex_enabled() {
-            search_state.toggle_regex();
-        } else if !filter.use_regex && search_state.is_regex_enabled() {
-            search_state.toggle_regex();
-        }
+        // Save config to disk
+        self.config.save().map_err(|e| {
+            format!("Failed to save config: {}", e)
+        })?;
 
-        if filter.use_fuzzy && !search_state.is_fuzzy_enabled() {
-            search_state.toggle_fuzzy();
-        } else if !filter.use_fuzzy && search_state.is_fuzzy_enabled() {
-            search_state.toggle_fuzzy();
-        }
+        // Update the saved filters in issues view state
+        self.issues_view_state
+            .set_saved_filters(self.config.filters.clone());
 
-        // Apply column filters
-        let list_state = search_state.list_state_mut();
-        let filters_were_enabled = list_state.filters_enabled();
-        let column_filters = list_state.column_filters_mut();
-        column_filters.clear();
+        // Clear delete confirmation state
+        self.delete_confirmation_filter = None;
+        self.delete_dialog_state = None;
 
-        // Convert enum values back to strings for column filters
-        if let Some(ref status) = filter.status {
-            column_filters.status = status.to_string();
-        }
-        if let Some(ref priority) = filter.priority {
-            column_filters.priority = priority.to_string();
-        }
-        if let Some(ref issue_type) = filter.issue_type {
-            column_filters.type_filter = issue_type.to_string();
-        }
+        self.mark_dirty();
 
-        // Set assignee filter
-        column_filters.no_assignee = filter.assignee.is_none();
+        Ok(())
+    }
 
-        // Set label filters
-        if !filter.labels.is_empty() {
-            column_filters.labels = filter.labels.clone();
-            column_filters.label_match_mode = match filter.label_logic {
-                LogicOp::And => LabelMatchMode::All,
-                LogicOp::Or => LabelMatchMode::Any,
-            };
-        }
+    /// Cancel filter deletion
+    pub fn cancel_delete_filter(&mut self) {
+        self.delete_confirmation_filter = None;
+        self.delete_dialog_state = None;
+        self.mark_dirty();
+    }
 
-        let filters_not_empty = !column_filters.is_empty();
+    /// Check if currently editing a filter
+    pub fn is_editing_filter(&self) -> bool {
+        self.editing_filter_name.is_some()
+    }
 
-        // Drop the column_filters borrow before getting list_state again
-        let _ = column_filters;
-
-        // Enable filters if any are set
-        if filters_not_empty && !filters_were_enabled {
-            list_state.toggle_filters();
-        }
-
-        search_state.update_filtered_issues();
+    /// Check if delete confirmation dialog is visible
+    pub fn is_delete_confirmation_visible(&self) -> bool {
+        self.delete_confirmation_filter.is_some()
     }
 }
 

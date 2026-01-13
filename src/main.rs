@@ -1339,7 +1339,9 @@ fn run_app<B: ratatui::backend::Backend>(
                         if let Some(saved_filter) = app.config.get_filter_by_hotkey(hotkey).cloned() {
                             // Apply filter to issues view (only if on Issues tab)
                             if app.selected_tab == 0 {
-                                app.apply_saved_filter(&saved_filter);
+                                app.issues_view_state
+                                    .search_state_mut()
+                                    .apply_filter(&saved_filter.filter);
                                 app.set_success(format!("Applied filter: {}", saved_filter.name));
                                 app.mark_dirty();
                             }

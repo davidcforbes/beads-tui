@@ -67,6 +67,13 @@ See TEST_DATA.md for fixture definitions, sizes, and generation notes.
 See TEST_HARNESS.md for runner scripts, harness modules, and environment
 variables. All suites should be runnable via a single entry point with flags.
 
+## Test Commands (Windows)
+Use the PowerShell runner for the full local suite.
+
+```powershell
+pwsh ./scripts/test.ps1 -Suite all
+```
+
 ## Gates and Metrics
 - Unit and integration tests pass on all supported OS targets.
 - Snapshot changes are reviewed and baselines updated intentionally.

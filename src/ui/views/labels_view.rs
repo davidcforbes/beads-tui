@@ -871,7 +871,10 @@ mod tests {
         let stats = compute_label_stats(&issues);
         assert_eq!(stats.len(), 1);
         assert_eq!(stats[0].count, 2);
-        assert!(stats[0].aliases.contains(&"bugfix".to_string()));
+        // When counts are equal, alphabetically later label becomes canonical
+        // "bugfix" > "bug-fix" alphabetically, so "bugfix" is canonical and "bug-fix" is alias
+        assert_eq!(stats[0].name, "bugfix");
+        assert!(stats[0].aliases.contains(&"bug-fix".to_string()));
     }
 
     #[test]
