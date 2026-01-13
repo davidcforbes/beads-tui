@@ -302,7 +302,7 @@ fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, H
         for blocked_id in &issue.blocks {
             children_map
                 .entry(issue.id.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(blocked_id.clone());
             has_parent.insert(blocked_id.clone());
         }
