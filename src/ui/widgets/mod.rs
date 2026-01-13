@@ -5,6 +5,7 @@ pub mod bulk_action_menu;
 pub mod checkbox_list;
 pub mod column_manager;
 pub mod date_picker;
+pub mod dependency_dialog;
 pub mod dialog;
 pub mod field_editor;
 pub mod filter_builder;
@@ -31,6 +32,9 @@ pub use bulk_action_menu::{BulkAction, BulkActionMenu, BulkActionMenuState};
 pub use checkbox_list::{CheckboxList, CheckboxListState};
 pub use column_manager::{ColumnManager, ColumnManagerAction, ColumnManagerState};
 pub use date_picker::{DateRange, DateRangePicker, DateRangePickerState, DateRangePreset};
+pub use dependency_dialog::{
+    DependencyDialog, DependencyDialogFocus, DependencyDialogState, DependencyType,
+};
 pub use dialog::{Dialog, DialogButton, DialogState, DialogType};
 pub use field_editor::{EditorMode, FieldEditor, FieldEditorState};
 pub use filter_builder::{FilterBuilder, FilterBuilderState, FilterSection};
