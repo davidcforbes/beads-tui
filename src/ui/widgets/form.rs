@@ -404,6 +404,8 @@ impl FormState {
                 return;
             }
             field.value.insert(cursor_pos, c);
+            // Validate immediately to provide real-time feedback
+            field.validate();
         }
         self.cursor_position += 1;
     }
@@ -417,6 +419,8 @@ impl FormState {
             }
             if cursor_pos > 0 && cursor_pos <= field.value.len() {
                 field.value.remove(cursor_pos - 1);
+                // Validate immediately to provide real-time feedback
+                field.validate();
             }
         }
         if self.cursor_position > 0 {
