@@ -1610,13 +1610,37 @@ fn run_app<B: ratatui::backend::Backend>(
                         app.hide_context_help();
                         continue;
                     }
+                    if app.show_notification_history {
+                        app.toggle_notification_history();
+                        continue;
+                    }
                     // Fall through to other Esc handlers if shortcut help is not visible
+                }
+
+                // Handle notification history panel events if visible
+                if app.show_notification_history {
+                    match key.code {
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            app.notification_history_state.select_previous();
+                            continue;
+                        }
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            let len = app.notification_history.len();
+                            app.notification_history_state.select_next(len);
+                            continue;
+                        }
+                        _ => {}
+                    }
                 }
 
                 // Global key bindings
                 match key.code {
                     KeyCode::Char('q') => {
                         app.should_quit = true;
+                        continue;
+                    }
+                    KeyCode::Char('N') => {
+                        app.toggle_notification_history();
                         continue;
                     }
                     KeyCode::Char('1') => {
@@ -1926,6 +1950,14 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         f.render_widget(toast_stack, f.size());
     }
 
+    // Render notification history panel if visible
+    if app.show_notification_history {
+        use ui::widgets::NotificationHistoryPanel;
+
+        let panel = NotificationHistoryPanel::new(&app.notification_history);
+        f.render_stateful_widget(panel, f.size(), &mut app.notification_history_state);
+    }
+
     // Render keyboard shortcut help overlay if visible
     if app.is_shortcut_help_visible() {
         use ui::widgets::{HelpOverlay, HelpOverlayPosition};
@@ -1942,6 +1974,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             .key_binding("Tab", "Next tab")
             .key_binding("Shift+Tab", "Previous tab")
             .key_binding("1-9", "Switch to tab by number")
+            .key_binding("Shift+N", "Notification history")
             .key_binding("Ctrl+P / F12", "Toggle performance stats")
             // Issues view shortcuts
             .key_binding("↑/↓ or j/k", "Navigate issues")

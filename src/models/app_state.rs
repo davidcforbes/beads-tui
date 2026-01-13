@@ -70,6 +70,12 @@ pub struct AppState {
     pub pending_action: Option<String>,
     /// Notification queue (FIFO - oldest notifications rendered first)
     pub notifications: Vec<NotificationMessage>,
+    /// Notification history (all past notifications, max 100)
+    pub notification_history: Vec<NotificationMessage>,
+    /// Whether notification history panel is visible
+    pub show_notification_history: bool,
+    /// Notification history panel state
+    pub notification_history_state: crate::ui::widgets::NotificationHistoryState,
     /// Whether beads daemon is currently running
     pub daemon_running: bool,
     /// Application configuration
@@ -194,6 +200,9 @@ impl AppState {
             dialog_state: None,
             pending_action: None,
             notifications: Vec::new(),
+            notification_history: Vec::new(),
+            show_notification_history: false,
+            notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
             daemon_running,
             config,
             filter_save_dialog_state: None,
@@ -312,11 +321,21 @@ impl AppState {
 
     /// Add a notification message to the queue
     pub fn set_notification(&mut self, message: String, notification_type: NotificationType) {
-        self.notifications.push(NotificationMessage {
+        let notification = NotificationMessage {
             message,
             notification_type,
             created_at: std::time::Instant::now(),
-        });
+        };
+
+        // Add to current notification queue
+        self.notifications.push(notification.clone());
+
+        // Add to history (limit to 100 most recent)
+        self.notification_history.push(notification);
+        if self.notification_history.len() > 100 {
+            self.notification_history.remove(0);
+        }
+
         self.mark_dirty();
     }
 
@@ -384,6 +403,12 @@ impl AppState {
         if !self.notifications.is_empty() {
             self.mark_dirty();
         }
+    }
+
+    /// Toggle notification history panel visibility
+    pub fn toggle_notification_history(&mut self) {
+        self.show_notification_history = !self.show_notification_history;
+        self.mark_dirty();
     }
 
     /// Show the filter save dialog
@@ -717,6 +742,9 @@ mod tests {
             delete_dialog_state: None,
             show_shortcut_help: false,
             show_context_help: false,
+            notification_history: Vec::new(),
+            show_notification_history: false,
+            notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
         }
     }
 

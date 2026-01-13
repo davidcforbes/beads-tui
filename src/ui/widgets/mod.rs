@@ -20,6 +20,7 @@ pub mod issue_list;
 pub mod kanban_card;
 pub mod label_picker;
 pub mod markdown_viewer;
+pub mod notification_history;
 pub mod pert_chart;
 pub mod progress;
 pub mod search_input;
@@ -55,6 +56,7 @@ pub use issue_list::{ColumnFilters, IssueList, IssueListState, SortColumn, SortD
 pub use kanban_card::{render_kanban_card, CardMode, KanbanCardConfig};
 pub use label_picker::{LabelPicker, LabelPickerState};
 pub use markdown_viewer::{MarkdownViewer, MarkdownViewerState};
+pub use notification_history::{NotificationHistoryPanel, NotificationHistoryState};
 pub use pert_chart::{Direction, PertChart, PertChartConfig};
 pub use progress::{LoadingIndicator, ProgressBar, Spinner};
 pub use search_input::{SearchInput, SearchInputState};
