@@ -1,207 +1,75 @@
-# Keyboard Shortcuts Reference
+# Keyboard Shortcuts
 
-This reference reflects the current key handling in `src/main.rs`.
+## Global
+- `1`-`9`: Switch to tab
+- `Tab`: Next tab
+- `Shift+Tab`: Previous tab
+- `q`: Quit
+- `?`: Toggle keyboard shortcuts help
+- `F1`: Toggle context-sensitive help
+- `F1`-`F11`: Apply saved filter (if on Issues tab)
+- `Ctrl+P` or `F12`: Toggle performance statistics
 
-## Global Shortcuts
+## Issues View
+- `j` / `Down`: Select next issue
+- `k` / `Up`: Select previous issue
+- `Enter`: View issue details
+- `c`: Create new issue
+- `e`: Edit selected issue
+- `d`: Delete selected issue
+- `x`: Close selected issue
+- `o`: Reopen selected issue
+- `r`: Quick edit title
+- `/`: Focus search bar
+- `Esc`: Clear search / focus
+- `Ctrl+S`: Save current filter
+- `m`: Open saved filters menu
+- `f`: Toggle column filters (Quick Filters)
+- `v`: Cycle view (All, Ready, My Issues, etc.)
+- `s`: Cycle search scope (All, Title, Description, etc.)
+- `g`: Toggle Regex search
+- `z`: Toggle Fuzzy search
+- `l`: Toggle Label Logic (AND/OR)
+- `Alt+Left`/`Right`: Move focused column
+- `Alt+Shift+Left`/`Right`: Resize focused column
+- `Alt+Tab`: Focus next column
 
-| Key | Action |
-| --- | --- |
-| `q` | Quit application |
-| `Tab` | Next tab |
-| `Shift+Tab` | Previous tab |
-| `1-5` | Jump to tab (1 Issues, 2 Dependencies, 3 Labels, 4 PERT, 5 Gantt) |
-| `Ctrl+P` / `F12` | Toggle performance stats |
-| `Esc` | Dismiss notification |
+## Issue Editor / Creator
+- `Tab`: Next field
+- `Shift+Tab`: Previous field
+- `Enter`: Save / Create
+- `Esc`: Cancel
+- `Ctrl+L`: Load description from file (enter path in field first)
 
-## Issues View (List)
-
-| Key | Action |
-| --- | --- |
-| `j` / `Down` | Move selection down |
-| `k` / `Up` | Move selection up |
-| `Enter` | Open issue details |
-| `e` | Edit selected issue |
-| `c` | Create new issue |
-| `x` | Close selected issue |
-| `o` | Reopen selected issue |
-| `d` | Delete selected issue (confirmation dialog) |
-| `r` | Edit title inline |
-| `f` | Toggle quick filters |
-| `/` | Focus search input |
-| `v` | Cycle issue view (All/Ready/Blocked/My Issues/Recently/Stale) |
-| `Esc` | Clear search |
-| `Alt+Shift+Left` | Shrink focused column |
-| `Alt+Shift+Right` | Grow focused column |
-| `Alt+Left` | Move focused column left |
-| `Alt+Right` | Move focused column right |
-| `Alt+Tab` | Focus next column |
-| `Alt+Shift+Tab` | Focus previous column |
-
-## Issues View (Search Input Focused)
-
-| Key | Action |
-| --- | --- |
-| Type | Insert characters |
-| `Backspace` | Delete character before cursor |
-| `Delete` | Delete character at cursor |
-| `Left` / `Right` | Move cursor |
-| `Home` / `End` | Move to start/end |
-| `Up` / `Down` | Previous/next search history |
-| `Enter` | Apply search and exit search input |
-| `Esc` | Exit search input |
-
-## Issues View (Inline Title Edit)
-
-| Key | Action |
-| --- | --- |
-| Type | Insert characters |
-| `Backspace` | Delete character before cursor |
-| `Left` / `Right` | Move cursor |
-| `Enter` | Save title |
-| `Esc` | Cancel edit |
-
-## Issues View (Detail)
-
-| Key | Action |
-| --- | --- |
-| `Esc` / `q` | Return to list |
-| `e` | Edit issue |
-
-## Issues View (Create/Edit Form)
-
-| Key | Action |
-| --- | --- |
-| `Tab` / `Down` | Next field |
-| `Shift+Tab` / `Up` | Previous field |
-| Type | Insert characters |
-| `Backspace` | Delete character before cursor |
-| `Left` / `Right` | Move cursor |
-| `Home` / `End` | Move to start/end |
-| `Enter` | Submit (create) or save (edit) |
-| `Esc` | Cancel |
-| `Ctrl+L` | Load field content from file path in focused field |
+## Filter Menu
+- `j` / `Down`: Next filter
+- `k` / `Up`: Previous filter
+- `Enter`: Apply filter
+- `d` / `Delete`: Delete filter
+- `Esc` / `m`: Close menu
 
 ## Dependencies View
-
-| Key | Action |
-| --- | --- |
-| `j` / `Down` | Move selection down |
-| `k` / `Up` | Move selection up |
-| `Tab` | Toggle focus (dependencies vs blocks) |
-| `a` | Add dependency (not yet implemented) |
-| `d` | Remove dependency/block (not yet implemented) |
-| `g` | Show dependency graph (not yet implemented) |
-| `c` | Check circular dependencies (not yet implemented) |
+- `j` / `Down`: Next item
+- `k` / `Up`: Previous item
+- `Tab`: Switch focus between Blocks/Blocked By lists
+- `a`: Add dependency
+- `r`: Remove dependency
+- `Enter`: View selected issue
 
 ## Labels View
+- `j` / `Down`: Next label
+- `k` / `Up`: Previous label
+- `Enter`: Filter issues by label (switches to Issues view)
+- `a`: Add new label
+- `d`: Delete label
 
-| Key | Action |
-| --- | --- |
-| `j` / `Down` | Move selection down |
-| `k` / `Up` | Move selection up |
-| `a` | Add label (not yet implemented) |
-| `d` | Delete label (not yet implemented) |
-| `e` | Edit label (not yet implemented) |
-| `s` | Show stats summary |
-| `/` | Search labels (not yet implemented) |
-
-## Molecular View (Global)
-
-| Key | Action |
-| --- | --- |
-| `[` | Previous molecular sub-tab |
-| `]` | Next molecular sub-tab |
-
-## Molecular View (Formula Browser)
-
-| Key | Action |
-| --- | --- |
-| `j` / `Down` | Move selection down |
-| `k` / `Up` | Move selection up |
-| `/` | Focus formula search |
-| `Enter` | Open pour wizard for selected formula |
-| `Esc` | Clear formula search |
-
-## Molecular View (Formula Search)
-
-| Key | Action |
-| --- | --- |
-| Type | Insert characters |
-| `Backspace` | Delete character |
-| `Enter` / `Esc` | Exit search |
-
-## Molecular View (Pour Wizard)
-
-| Key | Action |
-| --- | --- |
-| `Enter` | Advance step / finish |
-| `Shift+Backspace` | Previous step |
-| `Tab` / `Down` | Next field |
-| `Shift+Tab` / `Up` | Previous field |
-| Type | Insert characters |
-| `Backspace` / `Delete` | Delete character |
-| `Esc` | Cancel wizard |
-
-## Molecular View (Wisp Manager)
-
-| Key | Action |
-| --- | --- |
-| `j` / `Down` | Move selection down |
-| `k` / `Up` | Move selection up |
-| `n` | Create wisp (not yet implemented) |
-| `d` | Dissolve wisp (not yet implemented) |
-
-## Molecular View (Bonding Interface)
-
-| Key | Action |
-| --- | --- |
-| `j` / `Down` | Move selection down |
-| `k` / `Up` | Move selection up |
-| `Tab` | Toggle focus |
-| `t` | Cycle bond type |
-| `Enter` | Create bond (not yet implemented) |
-
-## Molecular View (Squash/Burn)
-
-| Key | Action |
-| --- | --- |
-| `s` | Squash history (not yet implemented) |
-| `b` | Burn history (not yet implemented) |
-
-## Database View (Normal)
-
-| Key | Action |
-| --- | --- |
-| `/` | Cycle database view mode |
-| `r` | Refresh status |
-| `d` | Toggle daemon start/stop |
-| `s` | Sync database |
-| `e` | Export issues (prompts for filename) |
-| `i` | Import issues (prompts for filename) |
-| `v` | Verify database integrity |
-| `c` | Compact database (confirmation dialog) |
-| `k` | Kill all processes (not yet implemented) |
-
-## Database View (Filename Prompt)
-
-| Key | Action |
-| --- | --- |
-| Type | Enter filename |
-| `Backspace` | Delete character |
-| `Enter` | Confirm |
-| `Esc` | Cancel |
+## Kanban View
+- `Left`/`Right`: Move selection between columns
+- `Up`/`Down`: Move selection within column
+- `Space`: Move card to next column
+- `c`: Configure board
+- `Enter`: View issue details
 
 ## Help View
-
-| Key | Action |
-| --- | --- |
-| `Right` / `Tab` / `l` | Next section |
-| `Left` / `h` | Previous section |
-
-## Dialogs
-
-| Key | Action |
-| --- | --- |
-| `Left` / `Right` / `Tab` | Change selection |
-| `Enter` | Confirm |
-| `Esc` | Cancel |
+- `Left`/`Right`: Change help section
+- `h`/`l`: Change help section

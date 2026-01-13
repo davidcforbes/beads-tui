@@ -530,82 +530,6 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         }
     }
 
-    // Handle filter quick-select menu events if menu is active
-    if let Some(ref mut quick_select_state) = app.filter_quick_select_state {
-        match key_code {
-            KeyCode::Down | KeyCode::Char('j') => {
-                quick_select_state.select_next();
-                return;
-            }
-            KeyCode::Up | KeyCode::Char('k') => {
-                quick_select_state.select_previous();
-                return;
-            }
-            KeyCode::Char(c @ '1'..='9') => {
-                // Quick select by number
-                let index = (c as usize) - ('1' as usize);
-                quick_select_state.select_by_index(index);
-                return;
-            }
-            KeyCode::Char(c) if quick_select_state.select_by_hotkey(c) => {
-                // If hotkey matched, apply the filter immediately
-                match app.apply_quick_selected_filter() {
-                    Ok(()) => {
-                        tracing::info!("Filter applied via hotkey");
-                        app.set_success("Filter applied".to_string());
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to apply filter: {}", e);
-                        app.set_error(e);
-                    }
-                }
-                return;
-            }
-            KeyCode::Enter => {
-                // Apply selected filter
-                match app.apply_quick_selected_filter() {
-                    Ok(()) => {
-                        tracing::info!("Filter applied");
-                        app.set_success("Filter applied".to_string());
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to apply filter: {}", e);
-                        app.set_error(e);
-                    }
-                }
-                return;
-            }
-            KeyCode::Char('e') => {
-                // Edit selected filter
-                if let Some(filter) = quick_select_state.selected_filter() {
-                    let filter_name = filter.name.clone();
-                    app.start_edit_filter(&filter_name);
-                    tracing::info!("Editing filter: {}", filter_name);
-                }
-                return;
-            }
-            KeyCode::Char('d') | KeyCode::Delete => {
-                // Delete selected filter (with confirmation)
-                if let Some(filter) = quick_select_state.selected_filter() {
-                    let filter_name = filter.name.clone();
-                    app.show_delete_filter_confirmation(&filter_name);
-                    tracing::info!("Showing delete confirmation for filter: {}", filter_name);
-                }
-                return;
-            }
-            KeyCode::Esc | KeyCode::Char('f') => {
-                // Close quick-select menu
-                tracing::debug!("Filter quick-select menu closed");
-                app.hide_filter_quick_select();
-                return;
-            }
-            _ => {
-                // Ignore other keys when menu is active
-                return;
-            }
-        }
-    }
-
     let issues_state = &mut app.issues_view_state;
     let view_mode = issues_state.view_mode();
 
@@ -1822,16 +1746,6 @@ fn run_app<B: ratatui::backend::Backend>(
                     continue;
                 }
 
-                // Check for filter quick-select shortcut ('f')
-                if key.code == KeyCode::Char('f') && key.modifiers.is_empty() {
-                    if app.selected_tab == 0 && !app.is_filter_save_dialog_visible() {
-                        // Show filter quick-select menu on Issues tab (only if save dialog is not open)
-                        app.show_filter_quick_select();
-                        app.mark_dirty();
-                    }
-                    continue;
-                }
-
                 // Check for keyboard shortcut help toggle ('?')
                 if key.code == KeyCode::Char('?') && key.modifiers.is_empty() {
                     if app.is_shortcut_help_visible() {
@@ -2578,7 +2492,7 @@ fn get_action_hints(app: &models::AppState) -> String {
     }
 
     // If filter quick-select is visible
-    if app.is_filter_quick_select_visible() {
+    if app.issues_view_state.search_state().is_filter_menu_open() {
         return "↑/↓: Navigate | Enter: Apply filter | e: Edit | d: Delete | Esc: Cancel".to_string();
     }
 
@@ -2683,7 +2597,7 @@ fn get_context_help_content(app: &models::AppState) -> (String, String, Vec<(&'s
     }
 
     // If filter quick-select is visible
-    if app.is_filter_quick_select_visible() {
+    if app.issues_view_state.search_state().is_filter_menu_open() {
         return (
             "Quick Filter Menu Help".to_string(),
             "Apply, Edit, or Delete Filters".to_string(),

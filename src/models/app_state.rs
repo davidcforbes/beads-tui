@@ -454,44 +454,6 @@ impl AppState {
         self.filter_save_dialog_state.is_some()
     }
 
-    /// Show the filter quick-select menu
-    pub fn show_filter_quick_select(&mut self) {
-        let filters = self.config.filters.clone();
-        self.filter_quick_select_state = Some(FilterQuickSelectState::new(filters));
-        self.mark_dirty();
-    }
-
-    /// Hide the filter quick-select menu
-    pub fn hide_filter_quick_select(&mut self) {
-        self.filter_quick_select_state = None;
-        self.mark_dirty();
-    }
-
-    /// Check if filter quick-select menu is visible
-    pub fn is_filter_quick_select_visible(&self) -> bool {
-        self.filter_quick_select_state.is_some()
-    }
-
-    /// Get the currently selected filter from the quick-select menu
-    pub fn get_quick_selected_filter(&self) -> Option<&SavedFilter> {
-        self.filter_quick_select_state
-            .as_ref()
-            .and_then(|state| state.selected_filter())
-    }
-
-    /// Apply the currently selected filter from the quick-select menu
-    pub fn apply_quick_selected_filter(&mut self) -> Result<(), String> {
-        let selected_filter = self
-            .get_quick_selected_filter()
-            .ok_or_else(|| "No filter selected".to_string())?
-            .clone();
-
-        self.apply_saved_filter(&selected_filter);
-        self.hide_filter_quick_select();
-
-        Ok(())
-    }
-
     /// Apply a saved filter to the issues view search state
     pub fn apply_saved_filter(&mut self, saved_filter: &SavedFilter) {
         self.issues_view_state
@@ -515,7 +477,6 @@ impl AppState {
             }
 
             self.filter_save_dialog_state = Some(dialog_state);
-            self.hide_filter_quick_select();
             self.mark_dirty();
         }
     }
@@ -611,7 +572,6 @@ impl AppState {
     pub fn show_delete_filter_confirmation(&mut self, filter_name: &str) {
         self.delete_confirmation_filter = Some(filter_name.to_string());
         self.delete_dialog_state = Some(DialogState::new());
-        self.hide_filter_quick_select();
         self.mark_dirty();
     }
 
