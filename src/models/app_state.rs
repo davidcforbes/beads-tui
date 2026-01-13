@@ -88,6 +88,8 @@ pub struct AppState {
     pub status_selector_state: crate::ui::widgets::SelectorState,
     /// Label picker state for batch label operations
     pub label_picker_state: crate::ui::widgets::LabelPickerState,
+    /// Column manager state (None when closed)
+    pub column_manager_state: Option<crate::ui::widgets::ColumnManagerState>,
     /// Whether beads daemon is currently running
     pub daemon_running: bool,
     /// Application configuration
@@ -170,6 +172,11 @@ impl AppState {
 
         let mut issues_view_state = IssuesViewState::new(issues.clone());
         issues_view_state.set_saved_filters(config.filters.clone());
+        // Load table configuration from config
+        issues_view_state
+            .search_state_mut()
+            .list_state_mut()
+            .set_table_config(config.table.clone());
 
         Self {
             should_quit: false,
@@ -221,6 +228,7 @@ impl AppState {
             priority_selector_state: crate::ui::widgets::SelectorState::new(),
             status_selector_state: crate::ui::widgets::SelectorState::new(),
             label_picker_state: crate::ui::widgets::LabelPickerState::new(vec![]),
+            column_manager_state: None,
             daemon_running,
             config,
             filter_save_dialog_state: None,
@@ -308,6 +316,12 @@ impl AppState {
         if self.show_perf_stats && !self.perf_stats.is_enabled() {
             self.perf_stats.set_enabled(true);
         }
+        self.mark_dirty();
+    }
+
+    /// Toggle notification history panel visibility
+    pub fn toggle_notification_history(&mut self) {
+        self.show_notification_history = !self.show_notification_history;
         self.mark_dirty();
     }
 
@@ -421,12 +435,6 @@ impl AppState {
         if !self.notifications.is_empty() {
             self.mark_dirty();
         }
-    }
-
-    /// Toggle notification history panel visibility
-    pub fn toggle_notification_history(&mut self) {
-        self.show_notification_history = !self.show_notification_history;
-        self.mark_dirty();
     }
 
     /// Show the filter save dialog
@@ -689,6 +697,24 @@ impl AppState {
     pub fn is_context_help_visible(&self) -> bool {
         self.show_context_help
     }
+
+    /// Save table configuration from issues view to config and persist to disk
+    pub fn save_table_config(&mut self) -> Result<(), String> {
+        // Copy table config from issues view state to app config
+        let table_config = self
+            .issues_view_state
+            .search_state()
+            .list_state()
+            .table_config()
+            .clone();
+        
+        self.config.table = table_config;
+
+        // Save config to disk
+        self.config.save().map_err(|e| {
+            format!("Failed to save table config: {}", e)
+        })
+    }
 }
 
 impl Default for AppState {
@@ -769,6 +795,7 @@ mod tests {
             priority_selector_state: crate::ui::widgets::SelectorState::new(),
             status_selector_state: crate::ui::widgets::SelectorState::new(),
             label_picker_state: crate::ui::widgets::LabelPickerState::new(vec![]),
+            column_manager_state: None,
         }
     }
 

@@ -384,6 +384,11 @@ impl IssueListState {
         &mut self.table_config
     }
 
+    /// Set the table configuration (for loading from config)
+    pub fn set_table_config(&mut self, config: TableConfig) {
+        self.table_config = config;
+    }
+
     /// Get the focused column index
     pub fn focused_column(&self) -> Option<usize> {
         self.focused_column
@@ -713,6 +718,145 @@ impl<'a> IssueList<'a> {
         }
     }
 
+    /// Format a date for display in table cells
+    fn format_date(date: &chrono::DateTime<chrono::Utc>) -> String {
+        use chrono::Local;
+        let local = date.with_timezone(&Local);
+        local.format("%Y-%m-%d %H:%M").to_string()
+    }
+
+    /// Get cell content for a given issue and column
+    fn get_cell_content<'b>(
+        issue: &'b Issue,
+        column_id: crate::models::table_config::ColumnId,
+        search_query: &Option<String>,
+        edit_state: Option<(usize, String, usize)>,
+        row_idx: usize,
+        wrap_width: usize,
+        row_height: u16,
+    ) -> Cell<'b> {
+        use crate::models::table_config::ColumnId;
+        
+        match column_id {
+            ColumnId::Type => Cell::from(Self::type_symbol(&issue.issue_type)),
+            
+            ColumnId::Id => {
+                if let Some(ref query) = search_query {
+                    Cell::from(Line::from(Self::highlight_text(&issue.id, query)))
+                } else {
+                    Cell::from(issue.id.clone())
+                }
+            }
+            
+            ColumnId::Title => {
+                // Check if this row is being edited
+                let title_text = if let Some((edit_idx, ref edit_buffer, cursor_pos)) = edit_state {
+                    if row_idx == edit_idx {
+                        let before_cursor = &edit_buffer[..cursor_pos];
+                        let after_cursor = &edit_buffer[cursor_pos..];
+                        format!("{before_cursor}|{after_cursor}")
+                    } else {
+                        issue.title.clone()
+                    }
+                } else {
+                    issue.title.clone()
+                };
+
+                // Handle title cell with wrapping support
+                if row_height > 1 {
+                    // Multi-row mode: wrap text
+                    let wrapped_lines = Self::wrap_text(&title_text, wrap_width);
+                    let lines: Vec<Line> = wrapped_lines
+                        .iter()
+                        .take(row_height as usize)
+                        .map(|line_text| {
+                            if let Some(ref query) = search_query {
+                                Line::from(Self::highlight_text(line_text, query))
+                            } else {
+                                Line::from(line_text.clone())
+                            }
+                        })
+                        .collect();
+
+                    // If wrapped text has fewer lines than row_height, pad with empty lines
+                    let mut padded_lines = lines;
+                    while padded_lines.len() < row_height as usize {
+                        padded_lines.push(Line::from(""));
+                    }
+
+                    Cell::from(padded_lines)
+                } else {
+                    // Single-row mode: truncate
+                    let truncated = Self::truncate_text(&title_text, wrap_width);
+                    if let Some(ref query) = search_query {
+                        Cell::from(Line::from(Self::highlight_text(&truncated, query)))
+                    } else {
+                        Cell::from(truncated)
+                    }
+                }
+            }
+            
+            ColumnId::Status => Cell::from(Span::styled(
+                format!("{:?}", issue.status),
+                Style::default().fg(Self::status_color(&issue.status)),
+            )),
+            
+            ColumnId::Priority => Cell::from(Span::styled(
+                format!("{:?}", issue.priority),
+                Style::default().fg(Self::priority_color(&issue.priority)),
+            )),
+            
+            ColumnId::Assignee => {
+                let text = issue.assignee.as_deref().unwrap_or("-");
+                if let Some(ref query) = search_query {
+                    Cell::from(Line::from(Self::highlight_text(text, query)))
+                } else {
+                    Cell::from(text.to_string())
+                }
+            }
+            
+            ColumnId::Labels => {
+                let text = if issue.labels.is_empty() {
+                    "-".to_string()
+                } else {
+                    issue.labels.join(", ")
+                };
+                
+                if row_height > 1 && text.len() > wrap_width {
+                    let wrapped_lines = Self::wrap_text(&text, wrap_width);
+                    let lines: Vec<Line> = wrapped_lines
+                        .iter()
+                        .take(row_height as usize)
+                        .map(|line_text| {
+                            if let Some(ref query) = search_query {
+                                Line::from(Self::highlight_text(line_text, query))
+                            } else {
+                                Line::from(line_text.clone())
+                            }
+                        })
+                        .collect();
+                    
+                    let mut padded_lines = lines;
+                    while padded_lines.len() < row_height as usize {
+                        padded_lines.push(Line::from(""));
+                    }
+                    Cell::from(padded_lines)
+                } else {
+                    let truncated = Self::truncate_text(&text, wrap_width);
+                    if let Some(ref query) = search_query {
+                        Cell::from(Line::from(Self::highlight_text(&truncated, query)))
+                    } else {
+                        Cell::from(truncated)
+                    }
+                }
+            }
+            
+            ColumnId::Updated => Cell::from(Self::format_date(&issue.updated)),
+            
+            ColumnId::Created => Cell::from(Self::format_date(&issue.created)),
+        }
+    }
+
     /// Render the filter row below the table
     fn render_filter_row(area: Rect, buf: &mut Buffer, state: &IssueListState) {
         use ratatui::widgets::Paragraph;
@@ -786,61 +930,57 @@ impl<'a> StatefulWidget for IssueList<'a> {
             Self::sort_issues(&mut issues, state.sort_column, state.sort_direction);
         }
 
-        // Build header
+        // Build header from TableConfig
         let sort_indicator = match state.sort_direction {
             SortDirection::Ascending => "▲",
             SortDirection::Descending => "▼",
         };
 
-        let header_cells = vec![
-            Cell::from(Span::styled(
-                if state.sort_column == SortColumn::Type {
-                    format!("Type {sort_indicator}")
+        // Get visible columns from table config
+        let visible_columns = state.table_config().visible_columns();
+        let focused_col_idx = state.focused_column();
+        
+        let header_cells: Vec<Cell> = visible_columns
+            .iter()
+            .enumerate()
+            .map(|(idx, col)| {
+                // Map ColumnId to SortColumn to check if this column is sorted
+                let is_sorted = match col.id {
+                    crate::models::table_config::ColumnId::Type => state.sort_column == SortColumn::Type,
+                    crate::models::table_config::ColumnId::Id => state.sort_column == SortColumn::Id,
+                    crate::models::table_config::ColumnId::Title => state.sort_column == SortColumn::Title,
+                    crate::models::table_config::ColumnId::Status => state.sort_column == SortColumn::Status,
+                    crate::models::table_config::ColumnId::Priority => state.sort_column == SortColumn::Priority,
+                    crate::models::table_config::ColumnId::Updated => state.sort_column == SortColumn::Updated,
+                    crate::models::table_config::ColumnId::Created => state.sort_column == SortColumn::Created,
+                    _ => false,
+                };
+
+                let label = if is_sorted {
+                    format!("{} {}", col.label, sort_indicator)
                 } else {
-                    "Type".to_string()
-                },
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-            Cell::from(Span::styled(
-                if state.sort_column == SortColumn::Id {
-                    format!("ID {sort_indicator}")
+                    col.label.clone()
+                };
+
+                // Highlight focused column
+                let style = if Some(idx) == focused_col_idx {
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(Color::Cyan)
                 } else {
-                    "ID".to_string()
-                },
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-            Cell::from(Span::styled(
-                if state.sort_column == SortColumn::Title {
-                    format!("Title {sort_indicator}")
-                } else {
-                    "Title".to_string()
-                },
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-            Cell::from(Span::styled(
-                if state.sort_column == SortColumn::Status {
-                    format!("Status {sort_indicator}")
-                } else {
-                    "Status".to_string()
-                },
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-            Cell::from(Span::styled(
-                if state.sort_column == SortColumn::Priority {
-                    format!("Priority {sort_indicator}")
-                } else {
-                    "Priority".to_string()
-                },
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-        ];
+                    Style::default().add_modifier(Modifier::BOLD)
+                };
+
+                Cell::from(Span::styled(label, style))
+            })
+            .collect();
 
         let header = Row::new(header_cells)
             .style(Style::default().fg(Color::Yellow))
             .height(1);
 
-        // Get editing state for rendering
-        let editing_state = state.editing_state();
+        // Get editing state for rendering (clone to avoid borrow conflicts)
+        let editing_state = state.editing_state().map(|(idx, buf, cursor)| (idx, buf.clone(), cursor));
 
         // Virtual scrolling: Calculate visible range to optimize rendering
         let total_issues = issues.len();
@@ -866,96 +1006,47 @@ impl<'a> StatefulWidget for IssueList<'a> {
             &[]
         };
 
-        // Build rows only for visible range
+        // Build rows only for visible range, using TableConfig columns
+        let row_height_to_use = state.table_config().row_height;
         let rows: Vec<Row> = visible_issues
             .iter()
             .enumerate()
             .map(|(visible_idx, issue)| {
-                let row_idx = start_idx + visible_idx; // Actual index in full list {
-                let type_cell = Cell::from(Self::type_symbol(&issue.issue_type));
+                let row_idx = start_idx + visible_idx; // Actual index in full list
+                
+                // Generate cells for all visible columns
+                let cells: Vec<Cell> = visible_columns
+                    .iter()
+                    .map(|col| {
+                        let wrap_width = col.width as usize;
+                        Self::get_cell_content(
+                            issue,
+                            col.id,
+                            &self.search_query,
+                            editing_state.clone(),
+                            row_idx,
+                            wrap_width,
+                            row_height_to_use,
+                        )
+                    })
+                    .collect();
 
-                // Apply highlighting if search query is present
-                let id_cell = if let Some(ref query) = self.search_query {
-                    Cell::from(Line::from(Self::highlight_text(&issue.id, query)))
-                } else {
-                    Cell::from(issue.id.clone())
-                };
-
-                // Check if this row is being edited
-                let title_text = if let Some((edit_idx, edit_buffer, cursor_pos)) = editing_state {
-                    if row_idx == edit_idx {
-                        // Show edit buffer with cursor
-                        let before_cursor = &edit_buffer[..cursor_pos];
-                        let after_cursor = &edit_buffer[cursor_pos..];
-                        format!("{before_cursor}|{after_cursor}")
-                    } else {
-                        issue.title.clone()
-                    }
-                } else {
-                    issue.title.clone()
-                };
-
-                // Handle title cell with wrapping support
-                let title_cell = if self.row_height > 1 {
-                    // Multi-row mode: wrap text
-                    let wrapped_lines = Self::wrap_text(&title_text, 30); // Use min constraint as width
-                    let lines: Vec<Line> = wrapped_lines
-                        .iter()
-                        .take(self.row_height as usize)
-                        .map(|line_text| {
-                            if let Some(ref query) = self.search_query {
-                                Line::from(Self::highlight_text(line_text, query))
-                            } else {
-                                Line::from(line_text.clone())
-                            }
-                        })
-                        .collect();
-
-                    // If wrapped text has fewer lines than row_height, pad with empty lines
-                    let mut padded_lines = lines;
-                    while padded_lines.len() < self.row_height as usize {
-                        padded_lines.push(Line::from(""));
-                    }
-
-                    Cell::from(padded_lines)
-                } else {
-                    // Single-row mode: truncate
-                    let truncated = Self::truncate_text(&title_text, 30);
-                    if let Some(ref query) = self.search_query {
-                        Cell::from(Line::from(Self::highlight_text(&truncated, query)))
-                    } else {
-                        Cell::from(truncated)
-                    }
-                };
-
-                let status_cell = Cell::from(Span::styled(
-                    format!("{:?}", issue.status),
-                    Style::default().fg(Self::status_color(&issue.status)),
-                ));
-                let priority_cell = Cell::from(Span::styled(
-                    format!("{:?}", issue.priority),
-                    Style::default().fg(Self::priority_color(&issue.priority)),
-                ));
-
-                Row::new(vec![
-                    type_cell,
-                    id_cell,
-                    title_cell,
-                    status_cell,
-                    priority_cell,
-                ])
-                .height(self.row_height)
+                Row::new(cells).height(row_height_to_use)
             })
             .collect();
 
-        // Build table
-        let widths = [
-            Constraint::Length(6),  // Type
-            Constraint::Length(15), // ID
-            Constraint::Min(30),    // Title
-            Constraint::Length(12), // Status
-            Constraint::Length(10), // Priority
-        ];
+        // Build table widths from TableConfig
+        let widths: Vec<Constraint> = visible_columns
+            .iter()
+            .map(|col| {
+                // Use column width as preferred, but allow Title to be flexible
+                if col.id == crate::models::table_config::ColumnId::Title {
+                    Constraint::Min(col.width_constraints.min)
+                } else {
+                    Constraint::Length(col.width)
+                }
+            })
+            .collect();
 
         let table = Table::new(rows, widths)
             .header(header)

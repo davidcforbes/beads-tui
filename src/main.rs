@@ -161,6 +161,81 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         }
     }
 
+    // Handle column manager events if active
+    if let Some(ref mut cm_state) = app.column_manager_state {
+        match key_code {
+            KeyCode::Up => {
+                cm_state.select_previous();
+                return;
+            }
+            KeyCode::Down => {
+                cm_state.select_next();
+                return;
+            }
+            KeyCode::Char(' ') => {
+                cm_state.toggle_visibility();
+                return;
+            }
+            KeyCode::Char('r') | KeyCode::Char('R') => {
+                // Reset to defaults
+                let defaults = crate::models::table_config::TableConfig::default().columns;
+                cm_state.reset(defaults);
+                return;
+            }
+            KeyCode::Enter => {
+                // Apply changes
+                if cm_state.is_modified() {
+                    // Get modified columns
+                    let new_columns = cm_state.columns().to_vec();
+
+                    // Update table config with new columns
+                    let mut table_config = app.issues_view_state
+                        .search_state()
+                        .list_state()
+                        .table_config()
+                        .clone();
+                    table_config.columns = new_columns;
+
+                    // Apply to state
+                    app.issues_view_state
+                        .search_state_mut()
+                        .list_state_mut()
+                        .set_table_config(table_config);
+
+                    // Save to disk
+                    if let Err(e) = app.save_table_config() {
+                        tracing::warn!("Failed to save table config: {}", e);
+                        app.set_warning(format!("Column changes applied but not saved: {}", e));
+                    } else {
+                        app.set_success("Column configuration saved".to_string());
+                    }
+                }
+                // Close column manager
+                app.column_manager_state = None;
+                return;
+            }
+            KeyCode::Esc => {
+                // Cancel without applying
+                app.column_manager_state = None;
+                return;
+            }
+            KeyCode::Left if key.modifiers.contains(KeyModifiers::ALT) => {
+                // Move selected column up
+                cm_state.move_up();
+                return;
+            }
+            KeyCode::Right if key.modifiers.contains(KeyModifiers::ALT) => {
+                // Move selected column down
+                cm_state.move_down();
+                return;
+            }
+            _ => {
+                // Ignore other keys when column manager is active
+                return;
+            }
+        }
+    }
+
     // Handle filter save dialog events if dialog is active
     if let Some(ref mut dialog_state) = app.filter_save_dialog_state {
         match key_code {
@@ -735,6 +810,17 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     KeyCode::Char('c') => {
                         issues_state.enter_create_mode();
                     }
+                    KeyCode::Char('C') => {
+                        // Open column manager
+                        let current_columns = issues_state
+                            .search_state()
+                            .list_state()
+                            .table_config()
+                            .columns
+                            .clone();
+                        app.column_manager_state = Some(crate::ui::widgets::ColumnManagerState::new(current_columns));
+                        tracing::debug!("Opened column manager");
+                    }
                     KeyCode::Char('x') => {
                         // Close selected issue
                         if let Some(issue) = issues_state.search_state().selected_issue() {
@@ -893,21 +979,37 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     KeyCode::Left if key.modifiers.contains(KeyModifiers::ALT | KeyModifiers::SHIFT) => {
                         // Alt+Shift+Left: Shrink focused column
                         issues_state.search_state_mut().list_state_mut().shrink_focused_column();
+                        let _ = issues_state; // Release borrow
+                        if let Err(e) = app.save_table_config() {
+                            tracing::warn!("Failed to save table config: {}", e);
+                        }
                         tracing::debug!("Shrinking focused column");
                     }
                     KeyCode::Right if key.modifiers.contains(KeyModifiers::ALT | KeyModifiers::SHIFT) => {
                         // Alt+Shift+Right: Grow focused column
                         issues_state.search_state_mut().list_state_mut().grow_focused_column();
+                        let _ = issues_state; // Release borrow
+                        if let Err(e) = app.save_table_config() {
+                            tracing::warn!("Failed to save table config: {}", e);
+                        }
                         tracing::debug!("Growing focused column");
                     }
                     KeyCode::Left if key.modifiers.contains(KeyModifiers::ALT) => {
                         // Alt+Left: Move focused column left
                         issues_state.search_state_mut().list_state_mut().move_focused_column_left();
+                        let _ = issues_state; // Release borrow
+                        if let Err(e) = app.save_table_config() {
+                            tracing::warn!("Failed to save table config: {}", e);
+                        }
                         tracing::debug!("Moving focused column left");
                     }
                     KeyCode::Right if key.modifiers.contains(KeyModifiers::ALT) => {
                         // Alt+Right: Move focused column right
                         issues_state.search_state_mut().list_state_mut().move_focused_column_right();
+                        let _ = issues_state; // Release borrow
+                        if let Err(e) = app.save_table_config() {
+                            tracing::warn!("Failed to save table config: {}", e);
+                        }
                         tracing::debug!("Moving focused column right");
                     }
                     KeyCode::Tab if key.modifiers.contains(KeyModifiers::ALT) => {
@@ -2307,6 +2409,21 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         f.render_widget(Clear, selector_area);
         let selector = StatusSelector::new(current_status);
         f.render_stateful_widget(selector, selector_area, &mut app.status_selector_state);
+    }
+
+    // Render column manager if open
+    if let Some(ref mut cm_state) = app.column_manager_state {
+        use ratatui::widgets::Clear;
+        use ui::widgets::ColumnManager;
+
+        // Create a centered rect for the column manager
+        let area = f.size();
+        let cm_area = centered_rect(60, 70, area);
+
+        // Clear and render column manager
+        f.render_widget(Clear, cm_area);
+        let column_manager = ColumnManager::new();
+        f.render_stateful_widget(column_manager, cm_area, cm_state);
     }
 
     // Render keyboard shortcut help overlay if visible

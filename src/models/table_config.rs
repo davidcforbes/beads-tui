@@ -351,6 +351,29 @@ impl TableConfig {
             col.set_visible(!col.visible);
         }
     }
+
+    /// Save table configuration to a file
+    pub fn save_to_file(&self, path: &std::path::Path) -> Result<(), std::io::Error> {
+        let json = serde_json::to_string_pretty(self)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        
+        // Create parent directory if it doesn't exist
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        
+        std::fs::write(path, json)
+    }
+
+    /// Load table configuration from a file
+    pub fn load_from_file(path: &std::path::Path) -> Result<Self, std::io::Error> {
+        let json = std::fs::read_to_string(path)?;
+        let config: TableConfig = serde_json::from_str(&json)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        
+        // Validate and migrate the loaded config
+        Ok(config.validate_and_migrate())
+    }
 }
 
 #[cfg(test)]
@@ -1327,5 +1350,91 @@ mod tests {
 
         col.label = "Identifier".to_string();
         assert_eq!(col.label, "Identifier");
+    }
+
+    #[test]
+    fn test_save_and_load_config() {
+        let temp_dir = std::env::temp_dir();
+        let config_path = temp_dir.join("beads_tui_test_config.json");
+
+        // Create a custom config
+        let mut config = TableConfig::default();
+        config.row_height = 3;
+        config.set_column_width(ColumnId::Title, 60);
+        config.toggle_column_visibility(ColumnId::Labels);
+
+        // Save
+        config.save_to_file(&config_path).unwrap();
+
+        // Load
+        let loaded = TableConfig::load_from_file(&config_path).unwrap();
+
+        // Verify
+        assert_eq!(loaded.row_height, 3);
+        assert_eq!(loaded.get_column(ColumnId::Title).unwrap().width, 60);
+        assert!(!loaded.get_column(ColumnId::Labels).unwrap().visible);
+
+        // Clean up
+        std::fs::remove_file(config_path).ok();
+    }
+
+    #[test]
+    fn test_load_config_creates_parent_dir() {
+        let temp_dir = std::env::temp_dir();
+        let nested_path = temp_dir.join("beads_tui_test").join("nested").join("config.json");
+
+        // Clean up first if it exists
+        if let Some(parent) = nested_path.parent() {
+            std::fs::remove_dir_all(parent).ok();
+        }
+
+        let config = TableConfig::default();
+        config.save_to_file(&nested_path).unwrap();
+
+        assert!(nested_path.exists());
+
+        // Clean up
+        if let Some(parent) = nested_path.parent() {
+            std::fs::remove_dir_all(parent.parent().unwrap()).ok();
+        }
+    }
+
+    #[test]
+    fn test_load_config_validates() {
+        let temp_dir = std::env::temp_dir();
+        let config_path = temp_dir.join("beads_tui_test_invalid_config.json");
+
+        // Create an invalid config (missing mandatory columns)
+        let invalid_config = TableConfig {
+            columns: vec![ColumnDefinition::new(ColumnId::Status)],
+            row_height: 0, // Invalid: should be at least 1
+            sort: SortConfig::default(),
+            filters: FilterConfig::default(),
+            version: 1,
+        };
+
+        // Save the invalid config
+        invalid_config.save_to_file(&config_path).unwrap();
+
+        // Load and validate
+        let loaded = TableConfig::load_from_file(&config_path).unwrap();
+
+        // Should have mandatory columns added
+        assert!(loaded.columns.iter().any(|c| c.id == ColumnId::Id));
+        assert!(loaded.columns.iter().any(|c| c.id == ColumnId::Title));
+        // Should have fixed row height
+        assert_eq!(loaded.row_height, 1);
+
+        // Clean up
+        std::fs::remove_file(config_path).ok();
+    }
+
+    #[test]
+    fn test_load_nonexistent_file() {
+        let temp_dir = std::env::temp_dir();
+        let config_path = temp_dir.join("nonexistent_beads_tui_config.json");
+
+        let result = TableConfig::load_from_file(&config_path);
+        assert!(result.is_err());
     }
 }
