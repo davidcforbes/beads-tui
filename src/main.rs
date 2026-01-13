@@ -1790,27 +1790,24 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         }
     }
 
-    // Status bar with optional performance stats
+    // Status bar with optional performance stats or action hints
     let status_text = if app.show_perf_stats {
         let perf_info = app.perf_stats.format_stats();
         let mut lines: Vec<Line> = perf_info
             .lines()
             .map(|l| Line::from(l.to_string()))
             .collect();
-        // Add help text at the end
+        // Add context-sensitive action hints at the end
         lines.push(Line::from(""));
-        lines.push(Line::from(
-            "Press Ctrl+P or F12 to toggle perf stats | 'q' to quit | Tab to switch",
-        ));
+        lines.push(Line::from(get_action_hints(app)));
         Paragraph::new(lines)
             .style(Style::default().fg(Color::Cyan))
             .block(Block::default().borders(Borders::ALL).title("Performance"))
     } else {
-        Paragraph::new(
-            "Press 'q' to quit | Tab/Shift+Tab to switch tabs | 1-5 for direct tab access | Ctrl+P/F12 for perf stats",
-        )
-        .style(Style::default().fg(Color::Gray))
-        .block(Block::default().borders(Borders::ALL))
+        // Show context-sensitive action hints
+        Paragraph::new(get_action_hints(app))
+            .style(Style::default().fg(Color::Gray))
+            .block(Block::default().borders(Borders::ALL).title("Actions"))
     };
     f.render_widget(status_text, chunks[2]);
 
@@ -1950,6 +1947,91 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             .key_binding("r", "Refresh data");
 
         f.render_widget(help, f.size());
+    }
+}
+
+/// Generate context-sensitive action hints based on current application state
+fn get_action_hints(app: &models::AppState) -> String {
+    // If dialog is visible, show dialog-specific hints
+    if app.dialog_state.is_some() || app.delete_dialog_state.is_some() {
+        return "←/→: Navigate | Enter: Confirm | Esc: Cancel".to_string();
+    }
+
+    // If filter save dialog is visible
+    if app.is_filter_save_dialog_visible() {
+        return "Type to edit | Tab: Next field | Enter: Save | Esc: Cancel".to_string();
+    }
+
+    // If filter quick-select is visible
+    if app.is_filter_quick_select_visible() {
+        return "↑/↓: Navigate | Enter: Apply filter | e: Edit | d: Delete | Esc: Cancel".to_string();
+    }
+
+    // If dependency dialog is visible
+    if app.dependency_dialog_state.is_open() {
+        return "Tab: Next field | ↑/↓: Navigate | Space: Select | Enter: Add | Esc: Cancel".to_string();
+    }
+
+    // If keyboard shortcut help is visible
+    if app.is_shortcut_help_visible() {
+        return "Esc or ?: Close help".to_string();
+    }
+
+    // Tab-specific action hints
+    match app.selected_tab {
+        0 => {
+            // Issues view
+            let mode = app.issues_view_state.view_mode();
+            match mode {
+                ui::views::IssuesViewMode::List => {
+                    "↑/↓/j/k: Navigate | Enter: View | c: Create | e: Edit | d: Delete | /: Search | f: Filter | Space: Select | ?: Help".to_string()
+                }
+                ui::views::IssuesViewMode::Create => {
+                    "Tab: Next field | Shift+Tab: Previous | Ctrl+S: Save | Esc: Cancel".to_string()
+                }
+                ui::views::IssuesViewMode::Edit => {
+                    "Tab: Next field | Shift+Tab: Previous | Ctrl+S: Save | Esc: Cancel".to_string()
+                }
+                ui::views::IssuesViewMode::Detail => {
+                    "e: Edit | d: Delete | Esc: Back to list".to_string()
+                }
+            }
+        }
+        1 => {
+            // Dependencies view
+            "↑/↓/j/k: Navigate | a: Add dependency | r: Remove | Enter: View | Esc: Back | ?: Help".to_string()
+        }
+        2 => {
+            // Labels view
+            "↑/↓/j/k: Navigate | Enter: Select | a: Add label | d: Delete | Esc: Back | ?: Help".to_string()
+        }
+        3 => {
+            // PERT view
+            "↑/↓: Navigate | +/-: Zoom | c: Configure | Esc: Back | ?: Help".to_string()
+        }
+        4 => {
+            // Gantt view
+            "↑/↓: Navigate | +/-: Zoom | g: Group by | c: Configure | Esc: Back | ?: Help".to_string()
+        }
+        5 => {
+            // Kanban view
+            "↑/↓/←/→: Navigate | Space: Move card | c: Configure | Esc: Back | ?: Help".to_string()
+        }
+        6 => {
+            // Molecular view
+            "↑/↓: Navigate | Tab: Switch molecular tab | Enter: Select | Esc: Back | ?: Help".to_string()
+        }
+        7 => {
+            // Database view
+            "↑/↓: Navigate | r: Refresh | c: Compact | v: Verify | Esc: Back | ?: Help".to_string()
+        }
+        8 => {
+            // Help view
+            "←/→/h/l: Navigate sections | Esc: Back | ?: Quick reference".to_string()
+        }
+        _ => {
+            "Press 'q' to quit | Tab/Shift+Tab: Switch tabs | 1-9: Direct tab access | ?: Help".to_string()
+        }
     }
 }
 
