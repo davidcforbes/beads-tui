@@ -1208,4 +1208,380 @@ mod tests {
         assert!(c_pos > a_pos);
         assert!(c_pos > b_pos);
     }
+
+    #[test]
+    fn test_pert_node_debug() {
+        let issue = create_test_issue("A", "Task A");
+        let graph = PertGraph::new(&[issue], 1.0);
+        let node = graph.nodes.get("A").unwrap();
+
+        let debug_str = format!("{:?}", node);
+        assert!(debug_str.contains("PertNode"));
+        assert!(debug_str.contains("Task A"));
+    }
+
+    #[test]
+    fn test_pert_edge_debug() {
+        let edge = PertEdge {
+            from: "A".to_string(),
+            to: "B".to_string(),
+        };
+
+        let debug_str = format!("{:?}", edge);
+        assert!(debug_str.contains("PertEdge"));
+    }
+
+    #[test]
+    fn test_cycle_detection_debug() {
+        let cycle = CycleDetection {
+            has_cycle: true,
+            cycle_edges: vec![],
+        };
+
+        let debug_str = format!("{:?}", cycle);
+        assert!(debug_str.contains("CycleDetection"));
+    }
+
+    #[test]
+    fn test_pert_graph_debug() {
+        let issue = create_test_issue("A", "Task A");
+        let graph = PertGraph::new(&[issue], 1.0);
+
+        let debug_str = format!("{:?}", graph);
+        assert!(debug_str.contains("PertGraph"));
+    }
+
+    #[test]
+    fn test_pert_node_clone() {
+        let issue = create_test_issue("A", "Task A");
+        let graph = PertGraph::new(&[issue], 1.0);
+        let node = graph.nodes.get("A").unwrap();
+
+        let cloned = node.clone();
+        assert_eq!(node.issue_id, cloned.issue_id);
+        assert_eq!(node.title, cloned.title);
+        assert_eq!(node.duration, cloned.duration);
+    }
+
+    #[test]
+    fn test_pert_edge_clone() {
+        let edge = PertEdge {
+            from: "A".to_string(),
+            to: "B".to_string(),
+        };
+
+        let cloned = edge.clone();
+        assert_eq!(edge, cloned);
+    }
+
+    #[test]
+    fn test_cycle_detection_clone() {
+        let edge = PertEdge {
+            from: "A".to_string(),
+            to: "B".to_string(),
+        };
+
+        let cycle = CycleDetection {
+            has_cycle: true,
+            cycle_edges: vec![edge.clone()],
+        };
+
+        let cloned = cycle.clone();
+        assert_eq!(cycle.has_cycle, cloned.has_cycle);
+        assert_eq!(cycle.cycle_edges.len(), cloned.cycle_edges.len());
+    }
+
+    #[test]
+    fn test_pert_graph_clone() {
+        let issue = create_test_issue("A", "Task A");
+        let graph = PertGraph::new(&[issue], 1.0);
+
+        let cloned = graph.clone();
+        assert_eq!(graph.nodes.len(), cloned.nodes.len());
+        assert_eq!(graph.edges.len(), cloned.edges.len());
+    }
+
+    #[test]
+    fn test_complex_dependency_graph() {
+        // Create a complex graph with multiple dependency levels
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+        let mut issue4 = create_test_issue("D", "Task D");
+        let mut issue5 = create_test_issue("E", "Task E");
+        let mut issue6 = create_test_issue("F", "Task F");
+
+        // Complex dependencies:
+        // A -> B, C
+        // B -> D
+        // C -> D, E
+        // D -> F
+        // E -> F
+        issue2.dependencies = vec!["A".to_string()];
+        issue3.dependencies = vec!["A".to_string()];
+        issue4.dependencies = vec!["B".to_string(), "C".to_string()];
+        issue5.dependencies = vec!["C".to_string()];
+        issue6.dependencies = vec!["D".to_string(), "E".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2, issue3, issue4, issue5, issue6], 1.0);
+
+        assert_eq!(graph.nodes.len(), 6);
+        assert_eq!(graph.topological_order.len(), 6);
+        assert!(!graph.cycle_detection.has_cycle);
+
+        // F should be last in topological order
+        assert_eq!(graph.topological_order.last().unwrap(), "F");
+    }
+
+    #[test]
+    fn test_deep_dependency_chain() {
+        // Create a very deep chain: A -> B -> C -> D -> E -> F -> G -> H
+        let mut issues = Vec::new();
+        let nodes = vec!["A", "B", "C", "D", "E", "F", "G", "H"];
+
+        for (i, &id) in nodes.iter().enumerate() {
+            let mut issue = create_test_issue(id, &format!("Task {}", id));
+            if i > 0 {
+                issue.dependencies = vec![nodes[i - 1].to_string()];
+            }
+            issues.push(issue);
+        }
+
+        let graph = PertGraph::new(&issues, 1.0);
+
+        assert_eq!(graph.nodes.len(), 8);
+        assert_eq!(graph.topological_order.len(), 8);
+
+        // Check timing for deep chain
+        let last_node = graph.nodes.get("H").unwrap();
+        assert_eq!(last_node.earliest_finish, 8.0); // 8 nodes * 1 hour each
+    }
+
+    #[test]
+    fn test_large_parallel_graph() {
+        // Create a large graph with many parallel tasks
+        let issue_a = create_test_issue("A", "Start");
+        let mut issues = vec![issue_a];
+
+        // Create 20 tasks that all depend on A
+        for i in 1..=20 {
+            let mut issue = create_test_issue(&format!("T{}", i), &format!("Task {}", i));
+            issue.dependencies = vec!["A".to_string()];
+            issues.push(issue);
+        }
+
+        let graph = PertGraph::new(&issues, 1.0);
+
+        assert_eq!(graph.nodes.len(), 21);
+        assert!(!graph.cycle_detection.has_cycle);
+
+        // All T* nodes should start after A finishes
+        for i in 1..=20 {
+            let node = graph.nodes.get(&format!("T{}", i)).unwrap();
+            assert_eq!(node.earliest_start, 1.0);
+        }
+    }
+
+    #[test]
+    fn test_subgraph_with_complex_structure() {
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+        let mut issue4 = create_test_issue("D", "Task D");
+        let mut issue5 = create_test_issue("E", "Task E");
+
+        // Structure: A -> B -> D
+        //            A -> C -> E
+        issue2.dependencies = vec!["A".to_string()];
+        issue3.dependencies = vec!["A".to_string()];
+        issue4.dependencies = vec!["B".to_string()];
+        issue5.dependencies = vec!["C".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2, issue3, issue4, issue5], 1.0);
+
+        // Focus on B with upstream depth 2
+        let (nodes, edges) = graph.compute_subgraph("B", 2, "upstream");
+        assert_eq!(nodes.len(), 2); // A and B
+        assert!(nodes.contains("A"));
+        assert!(nodes.contains("B"));
+
+        // Focus on D with both directions depth 2
+        let (nodes, edges) = graph.compute_subgraph("D", 2, "both");
+        assert!(nodes.contains("A"));
+        assert!(nodes.contains("B"));
+        assert!(nodes.contains("D"));
+        assert_eq!(nodes.len(), 3);
+    }
+
+    #[test]
+    fn test_filter_preserves_structure() {
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+
+        issue2.dependencies = vec!["A".to_string()];
+        issue3.dependencies = vec!["B".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2, issue3], 1.0);
+
+        let mut filter_nodes = HashSet::new();
+        filter_nodes.insert("A".to_string());
+        filter_nodes.insert("C".to_string());
+
+        let filtered = graph.filter_by_nodes(&filter_nodes);
+
+        assert_eq!(filtered.nodes.len(), 2);
+        assert_eq!(filtered.edges.len(), 0); // No edge between A and C directly
+        assert_eq!(filtered.topological_order.len(), 2);
+    }
+
+    #[test]
+    fn test_critical_path_with_equal_paths() {
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+        let mut issue4 = create_test_issue("D", "Task D");
+
+        // Two equal paths: A -> B -> D and A -> C -> D
+        issue2.dependencies = vec!["A".to_string()];
+        issue3.dependencies = vec!["A".to_string()];
+        issue4.dependencies = vec!["B".to_string(), "C".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2, issue3, issue4], 1.0);
+
+        // All nodes should be critical with equal durations
+        assert!(graph.nodes.get("A").unwrap().is_critical);
+        assert!(graph.nodes.get("B").unwrap().is_critical);
+        assert!(graph.nodes.get("C").unwrap().is_critical);
+        assert!(graph.nodes.get("D").unwrap().is_critical);
+    }
+
+    #[test]
+    fn test_layout_with_different_start_times() {
+        let issue1 = create_test_issue("A", "Task A");
+        let issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+
+        // A and B are independent, C depends on B
+        issue3.dependencies = vec!["B".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2, issue3], 5.0);
+
+        let node_a = graph.nodes.get("A").unwrap();
+        let node_b = graph.nodes.get("B").unwrap();
+        let node_c = graph.nodes.get("C").unwrap();
+
+        // A and B should be in same time bucket (both start at 0)
+        assert_eq!(node_a.x, node_b.x);
+
+        // C should be in a different time bucket (starts at 5.0)
+        assert!(node_c.x > node_a.x);
+    }
+
+    #[test]
+    fn test_adjacency_with_multiple_dependencies() {
+        let issue1 = create_test_issue("A", "Task A");
+        let issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+
+        // C depends on both A and B
+        issue3.dependencies = vec!["A".to_string(), "B".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2, issue3], 1.0);
+
+        // C should have 2 incoming edges
+        let c_reverse = graph.reverse_adjacency.get("C").unwrap();
+        assert_eq!(c_reverse.len(), 2);
+        assert!(c_reverse.contains(&"A".to_string()));
+        assert!(c_reverse.contains(&"B".to_string()));
+
+        // A and B should each have C in their adjacency
+        assert!(graph.adjacency.get("A").unwrap().contains(&"C".to_string()));
+        assert!(graph.adjacency.get("B").unwrap().contains(&"C".to_string()));
+    }
+
+    #[test]
+    fn test_cycle_in_partial_graph() {
+        // Create a graph where only part has a cycle
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+        let mut issue4 = create_test_issue("D", "Task D");
+
+        // A -> B (valid)
+        // C -> D -> C (cycle)
+        issue2.dependencies = vec!["A".to_string()];
+        issue4.dependencies = vec!["C".to_string()];
+        issue3.dependencies = vec!["D".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2, issue3, issue4], 1.0);
+
+        assert!(graph.cycle_detection.has_cycle);
+        assert!(!graph.cycle_detection.cycle_edges.is_empty());
+    }
+
+    #[test]
+    fn test_compute_subgraph_large_depth() {
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+        let mut issue3 = create_test_issue("C", "Task C");
+
+        issue2.dependencies = vec!["A".to_string()];
+        issue3.dependencies = vec!["B".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2, issue3], 1.0);
+
+        // Very large depth should include all reachable nodes
+        let (nodes, edges) = graph.compute_subgraph("A", 100, "downstream");
+        assert_eq!(nodes.len(), 3); // All nodes reachable
+        assert_eq!(edges.len(), 2); // All edges
+    }
+
+    #[test]
+    fn test_node_coordinates_assignment() {
+        let issue1 = create_test_issue("A", "Task A");
+        let mut issue2 = create_test_issue("B", "Task B");
+
+        issue2.dependencies = vec!["A".to_string()];
+
+        let graph = PertGraph::new(&[issue1, issue2], 10.0);
+
+        let node_a = graph.nodes.get("A").unwrap();
+        let node_b = graph.nodes.get("B").unwrap();
+
+        // All nodes should have coordinates assigned
+        assert!(node_a.x < u16::MAX);
+        assert!(node_a.y < u16::MAX);
+        assert!(node_b.x < u16::MAX);
+        assert!(node_b.y < u16::MAX);
+    }
+
+    #[test]
+    fn test_empty_graph_operations() {
+        let graph = PertGraph::new(&[], 1.0);
+
+        let ordered = graph.nodes_in_order();
+        let critical = graph.critical_path_nodes();
+        let (nodes, edges) = graph.compute_subgraph("A", 1, "both");
+
+        assert_eq!(ordered.len(), 0);
+        assert_eq!(critical.len(), 0);
+        assert_eq!(nodes.len(), 0);
+        assert_eq!(edges.len(), 0);
+    }
+
+    #[test]
+    fn test_filter_with_nonexistent_nodes() {
+        let issue = create_test_issue("A", "Task A");
+        let graph = PertGraph::new(&[issue], 1.0);
+
+        let mut filter_nodes = HashSet::new();
+        filter_nodes.insert("A".to_string());
+        filter_nodes.insert("NONEXISTENT".to_string());
+
+        let filtered = graph.filter_by_nodes(&filter_nodes);
+
+        assert_eq!(filtered.nodes.len(), 1); // Only A
+        assert!(filtered.nodes.contains_key("A"));
+    }
 }
