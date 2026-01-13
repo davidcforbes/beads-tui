@@ -1580,6 +1580,25 @@ fn run_app<B: ratatui::backend::Backend>(
                     continue;
                 }
 
+                // Check for keyboard shortcut help toggle ('?')
+                if key.code == KeyCode::Char('?') && key.modifiers.is_empty() {
+                    if app.is_shortcut_help_visible() {
+                        app.hide_shortcut_help();
+                    } else {
+                        app.show_shortcut_help();
+                    }
+                    continue;
+                }
+
+                // Handle Esc key for dismissing overlays
+                if key.code == KeyCode::Esc {
+                    if app.is_shortcut_help_visible() {
+                        app.hide_shortcut_help();
+                        continue;
+                    }
+                    // Fall through to other Esc handlers if shortcut help is not visible
+                }
+
                 // Global key bindings
                 match key.code {
                     KeyCode::Char('q') => {
@@ -1894,6 +1913,43 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     if let Some(ref notification) = app.notification {
         let toast = ui::widgets::Toast::new(notification);
         f.render_widget(toast, f.size());
+    }
+
+    // Render keyboard shortcut help overlay if visible
+    if app.is_shortcut_help_visible() {
+        use ui::widgets::{HelpOverlay, HelpOverlayPosition};
+
+        let help = HelpOverlay::new("Keyboard Shortcuts")
+            .subtitle("Press ? or Esc to close")
+            .position(HelpOverlayPosition::Center)
+            .width_percent(60)
+            .height_percent(70)
+            // Global shortcuts
+            .key_binding("?", "Toggle this help")
+            .key_binding("q", "Quit application")
+            .key_binding("Esc", "Dismiss overlays/dialogs")
+            .key_binding("Tab", "Next tab")
+            .key_binding("Shift+Tab", "Previous tab")
+            .key_binding("1-9", "Switch to tab by number")
+            .key_binding("Ctrl+P / F12", "Toggle performance stats")
+            // Issues view shortcuts
+            .key_binding("↑/↓ or j/k", "Navigate issues")
+            .key_binding("Enter", "View/edit issue")
+            .key_binding("c", "Create new issue")
+            .key_binding("e", "Edit selected issue")
+            .key_binding("d", "Delete selected issue")
+            .key_binding("Space", "Select/deselect issue")
+            .key_binding("a", "Select all issues")
+            .key_binding("x", "Clear selection")
+            .key_binding("/", "Search/filter issues")
+            .key_binding("f", "Quick filter menu")
+            .key_binding("Ctrl+S", "Save current filter")
+            .key_binding("F1-F11", "Apply saved filter")
+            // View shortcuts
+            .key_binding("h", "Show full help")
+            .key_binding("r", "Refresh data");
+
+        f.render_widget(help, f.size());
     }
 }
 

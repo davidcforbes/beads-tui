@@ -84,6 +84,8 @@ pub struct AppState {
     pub delete_confirmation_filter: Option<String>,
     /// Delete confirmation dialog state
     pub delete_dialog_state: Option<DialogState>,
+    /// Whether keyboard shortcut help overlay is visible
+    pub show_shortcut_help: bool,
 }
 
 impl AppState {
@@ -197,6 +199,7 @@ impl AppState {
             editing_filter_name: None,
             delete_confirmation_filter: None,
             delete_dialog_state: None,
+            show_shortcut_help: false,
         }
     }
 
@@ -426,6 +429,23 @@ impl AppState {
             .search_state_mut()
             .apply_filter(&saved_filter.filter);
         self.mark_dirty();
+    }
+
+    /// Show the keyboard shortcut help overlay
+    pub fn show_shortcut_help(&mut self) {
+        self.show_shortcut_help = true;
+        self.mark_dirty();
+    }
+
+    /// Hide the keyboard shortcut help overlay
+    pub fn hide_shortcut_help(&mut self) {
+        self.show_shortcut_help = false;
+        self.mark_dirty();
+    }
+
+    /// Check if keyboard shortcut help overlay is visible
+    pub fn is_shortcut_help_visible(&self) -> bool {
+        self.show_shortcut_help
     }
 
     /// Start editing a filter - opens save dialog with existing filter data
@@ -660,6 +680,7 @@ mod tests {
             editing_filter_name: None,
             delete_confirmation_filter: None,
             delete_dialog_state: None,
+            show_shortcut_help: false,
         }
     }
 
