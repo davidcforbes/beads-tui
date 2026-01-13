@@ -263,6 +263,30 @@ impl BeadsClient {
         Ok(())
     }
 
+    /// Create a bidirectional "relates to" link between two issues
+    pub async fn relate_issues(&self, issue1: &str, issue2: &str) -> Result<()> {
+        let args = vec![
+            "dep".to_string(),
+            "relate".to_string(),
+            issue1.to_string(),
+            issue2.to_string(),
+        ];
+        self.execute_command(&args).await?;
+        Ok(())
+    }
+
+    /// Remove a "relates to" link between two issues
+    pub async fn unrelate_issues(&self, issue1: &str, issue2: &str) -> Result<()> {
+        let args = vec![
+            "dep".to_string(),
+            "unrelate".to_string(),
+            issue1.to_string(),
+            issue2.to_string(),
+        ];
+        self.execute_command(&args).await?;
+        Ok(())
+    }
+
     /// Check if beads daemon is running
     pub async fn check_daemon_status(&self) -> Result<bool> {
         let args = vec!["daemon".to_string(), "--status".to_string()];

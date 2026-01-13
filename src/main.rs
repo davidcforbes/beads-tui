@@ -303,54 +303,83 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if let Some(current_issue) = app.issues_view_state.selected_issue() {
                             let current_id = current_issue.id.clone();
                             let dep_type = app.dependency_dialog_state.dependency_type();
-                            let (from_id, to_id) = match dep_type {
-                                ui::widgets::DependencyType::DependsOn => {
-                                    // Current depends on target (target blocks current)
-                                    (current_id.clone(), target_issue_id.clone())
-                                }
-                                ui::widgets::DependencyType::Blocks => {
-                                    // Current blocks target (target depends on current)
-                                    (target_issue_id.clone(), current_id.clone())
-                                }
-                            };
 
-                            // Check if this would create a cycle
-                            let all_issues: Vec<beads::Issue> = app
-                                .issues_view_state
-                                .search_state()
-                                .filtered_issues()
-                                .to_vec();
+                            match dep_type {
+                                ui::widgets::DependencyType::RelatesTo => {
+                                    // Bidirectional "see also" relationship - no cycle check needed
+                                    let rt = tokio::runtime::Runtime::new().unwrap();
+                                    match rt.block_on(app.beads_client.relate_issues(&current_id, &target_issue_id)) {
+                                        Ok(()) => {
+                                            tracing::info!(
+                                                "Created relates_to link: {} <-> {}",
+                                                current_id,
+                                                target_issue_id
+                                            );
+                                            app.set_success(format!(
+                                                "Linked issues: {} <-> {}",
+                                                current_id, target_issue_id
+                                            ));
+                                            app.reload_issues();
+                                        }
+                                        Err(e) => {
+                                            tracing::error!("Failed to create relates_to link: {}", e);
+                                            app.set_error(format!("Failed to link issues: {}", e));
+                                        }
+                                    }
+                                }
+                                ui::widgets::DependencyType::DependsOn | ui::widgets::DependencyType::Blocks => {
+                                    // Blocking dependency - check for cycles
+                                    let (from_id, to_id) = match dep_type {
+                                        ui::widgets::DependencyType::DependsOn => {
+                                            // Current depends on target (target blocks current)
+                                            (current_id.clone(), target_issue_id.clone())
+                                        }
+                                        ui::widgets::DependencyType::Blocks => {
+                                            // Current blocks target (target depends on current)
+                                            (target_issue_id.clone(), current_id.clone())
+                                        }
+                                        _ => unreachable!(),
+                                    };
 
-                            if models::PertGraph::would_create_cycle(&all_issues, &from_id, &to_id) {
-                                app.set_error(format!(
-                                    "Cannot add dependency: would create a cycle. {} → {} would form a circular dependency.",
-                                    from_id, to_id
-                                ));
-                                tracing::warn!(
-                                    "Prevented cycle: {} depends on {} would create cycle",
-                                    from_id,
-                                    to_id
-                                );
-                            } else {
-                                // Call CLI to add dependency synchronously
-                                let rt = tokio::runtime::Runtime::new().unwrap();
-                                match rt.block_on(app.beads_client.add_dependency(&from_id, &to_id)) {
-                                    Ok(()) => {
-                                        tracing::info!(
-                                            "Added dependency: {} depends on {}",
+                                    // Check if this would create a cycle
+                                    let all_issues: Vec<beads::Issue> = app
+                                        .issues_view_state
+                                        .search_state()
+                                        .filtered_issues()
+                                        .to_vec();
+
+                                    if models::PertGraph::would_create_cycle(&all_issues, &from_id, &to_id) {
+                                        app.set_error(format!(
+                                            "Cannot add dependency: would create a cycle. {} → {} would form a circular dependency.",
+                                            from_id, to_id
+                                        ));
+                                        tracing::warn!(
+                                            "Prevented cycle: {} depends on {} would create cycle",
                                             from_id,
                                             to_id
                                         );
-                                        app.set_success(format!(
-                                            "Added dependency: {} depends on {}",
-                                            from_id, to_id
-                                        ));
-                                        // Reload issues to reflect the change
-                                        app.reload_issues();
-                                    }
-                                    Err(e) => {
-                                        tracing::error!("Failed to add dependency: {}", e);
-                                        app.set_error(format!("Failed to add dependency: {}", e));
+                                    } else {
+                                        // Call CLI to add dependency synchronously
+                                        let rt = tokio::runtime::Runtime::new().unwrap();
+                                        match rt.block_on(app.beads_client.add_dependency(&from_id, &to_id)) {
+                                            Ok(()) => {
+                                                tracing::info!(
+                                                    "Added dependency: {} depends on {}",
+                                                    from_id,
+                                                    to_id
+                                                );
+                                                app.set_success(format!(
+                                                    "Added dependency: {} depends on {}",
+                                                    from_id, to_id
+                                                ));
+                                                // Reload issues to reflect the change
+                                                app.reload_issues();
+                                            }
+                                            Err(e) => {
+                                                tracing::error!("Failed to add dependency: {}", e);
+                                                app.set_error(format!("Failed to add dependency: {}", e));
+                                            }
+                                        }
                                     }
                                 }
                             }

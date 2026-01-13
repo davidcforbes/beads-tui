@@ -16,6 +16,8 @@ pub enum DependencyType {
     DependsOn,
     /// Current issue blocks selected issue (current blocks selected)
     Blocks,
+    /// Bidirectional "see also" relationship between issues
+    RelatesTo,
 }
 
 impl DependencyType {
@@ -24,6 +26,7 @@ impl DependencyType {
         match self {
             DependencyType::DependsOn => "Depends On",
             DependencyType::Blocks => "Blocks",
+            DependencyType::RelatesTo => "Relates To",
         }
     }
 
@@ -32,6 +35,7 @@ impl DependencyType {
         match self {
             DependencyType::DependsOn => "This issue depends on (is blocked by) the selected issue",
             DependencyType::Blocks => "This issue blocks the selected issue",
+            DependencyType::RelatesTo => "Bidirectional 'see also' relationship (both issues reference each other)",
         }
     }
 
@@ -39,7 +43,8 @@ impl DependencyType {
     pub fn toggle(&self) -> Self {
         match self {
             DependencyType::DependsOn => DependencyType::Blocks,
-            DependencyType::Blocks => DependencyType::DependsOn,
+            DependencyType::Blocks => DependencyType::RelatesTo,
+            DependencyType::RelatesTo => DependencyType::DependsOn,
         }
     }
 }
@@ -313,7 +318,7 @@ impl<'a> StatefulWidget for DependencyDialog<'a> {
                     Style::default().fg(Color::DarkGray)
                 },
             ),
-            Span::raw("      "),
+            Span::raw("    "),
             Span::styled(
                 if state.dependency_type == DependencyType::Blocks {
                     "▶ Blocks"
@@ -325,6 +330,23 @@ impl<'a> StatefulWidget for DependencyDialog<'a> {
                 } else if state.dependency_type == DependencyType::Blocks {
                     Style::default()
                         .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::DarkGray)
+                },
+            ),
+            Span::raw("    "),
+            Span::styled(
+                if state.dependency_type == DependencyType::RelatesTo {
+                    "▶ Relates To"
+                } else {
+                    "  Relates To"
+                },
+                if state.dependency_type == DependencyType::RelatesTo && type_focused {
+                    type_style
+                } else if state.dependency_type == DependencyType::RelatesTo {
+                    Style::default()
+                        .fg(Color::Magenta)
                         .add_modifier(Modifier::BOLD)
                 } else {
                     Style::default().fg(Color::DarkGray)
@@ -433,6 +455,7 @@ mod tests {
     fn test_dependency_type_as_str() {
         assert_eq!(DependencyType::DependsOn.as_str(), "Depends On");
         assert_eq!(DependencyType::Blocks.as_str(), "Blocks");
+        assert_eq!(DependencyType::RelatesTo.as_str(), "Relates To");
     }
 
     #[test]
@@ -443,6 +466,10 @@ mod tests {
         );
         assert_eq!(
             DependencyType::Blocks.toggle(),
+            DependencyType::RelatesTo
+        );
+        assert_eq!(
+            DependencyType::RelatesTo.toggle(),
             DependencyType::DependsOn
         );
     }
@@ -474,6 +501,9 @@ mod tests {
 
         state.toggle_type();
         assert_eq!(state.dependency_type(), DependencyType::Blocks);
+
+        state.toggle_type();
+        assert_eq!(state.dependency_type(), DependencyType::RelatesTo);
 
         state.toggle_type();
         assert_eq!(state.dependency_type(), DependencyType::DependsOn);
