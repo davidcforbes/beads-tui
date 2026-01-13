@@ -26,7 +26,7 @@ fn test_status_bar_snapshot() {
 
 #[test]
 fn test_dialog_snapshot() {
-    use beads_tui::ui::widgets::{Dialog, DialogState, DialogType};
+    use beads_tui::ui::widgets::{Dialog, DialogState};
     use ratatui::layout::Rect;
 
     let mut terminal = Terminal::new(TestBackend::new(80, 10)).unwrap();
