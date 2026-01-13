@@ -114,6 +114,81 @@ impl KanbanViewState {
         };
     }
 
+    /// Set search query filter
+    pub fn set_search_query(&mut self, query: Option<String>) {
+        self.config.filters.search_query = query;
+    }
+
+    /// Add label filter
+    pub fn add_label_filter(&mut self, label: String) {
+        if !self.config.filters.labels.contains(&label) {
+            self.config.filters.labels.push(label);
+        }
+    }
+
+    /// Remove label filter
+    pub fn remove_label_filter(&mut self, label: &str) {
+        self.config.filters.labels.retain(|l| l != label);
+    }
+
+    /// Add assignee filter
+    pub fn add_assignee_filter(&mut self, assignee: String) {
+        if !self.config.filters.assignees.contains(&assignee) {
+            self.config.filters.assignees.push(assignee);
+        }
+    }
+
+    /// Remove assignee filter
+    pub fn remove_assignee_filter(&mut self, assignee: &str) {
+        self.config.filters.assignees.retain(|a| a != assignee);
+    }
+
+    /// Add status filter
+    pub fn add_status_filter(&mut self, status: String) {
+        if !self.config.filters.statuses.contains(&status) {
+            self.config.filters.statuses.push(status);
+        }
+    }
+
+    /// Remove status filter
+    pub fn remove_status_filter(&mut self, status: &str) {
+        self.config.filters.statuses.retain(|s| s != status);
+    }
+
+    /// Clear all filters
+    pub fn clear_all_filters(&mut self) {
+        self.config.filters.clear();
+    }
+
+    /// Check if any filters are active
+    pub fn has_active_filters(&self) -> bool {
+        self.config.filters.is_active()
+    }
+
+    /// Set sort order for a specific column
+    pub fn set_column_sort(&mut self, column_index: usize, sort: CardSort) {
+        let visible_columns_count = self.config.visible_columns().len();
+        if column_index < visible_columns_count {
+            // Find the actual column in the config (accounting for hidden columns)
+            let mut visible_idx = 0;
+            for col in &mut self.config.columns {
+                if col.visible {
+                    if visible_idx == column_index {
+                        col.card_sort = sort;
+                        return;
+                    }
+                    visible_idx += 1;
+                }
+            }
+        }
+    }
+
+    /// Get sort order for a specific column
+    pub fn get_column_sort(&self, column_index: usize) -> Option<CardSort> {
+        let visible_columns = self.visible_columns();
+        visible_columns.get(column_index).map(|col| col.card_sort)
+    }
+
     /// Get visible columns
     fn visible_columns(&self) -> Vec<&ColumnDefinition> {
         self.config
@@ -127,10 +202,108 @@ impl KanbanViewState {
     fn get_column_issues(&self, column_index: usize) -> Vec<&Issue> {
         let visible_columns = self.visible_columns();
         if let Some(column) = visible_columns.get(column_index) {
-            self.filter_issues_for_column(column)
+            let mut issues = self.filter_issues_for_column(column);
+            
+            // Apply global filters
+            issues = self.apply_global_filters(issues);
+            
+            // Apply column-specific sorting
+            self.sort_issues(issues, column.card_sort)
         } else {
             Vec::new()
         }
+    }
+
+    /// Apply global filters to a list of issues
+    fn apply_global_filters<'a>(&'a self, issues: Vec<&'a Issue>) -> Vec<&'a Issue> {
+        let filters = &self.config.filters;
+        
+        issues
+            .into_iter()
+            .filter(|issue| {
+                // Search query filter
+                if let Some(query) = &filters.search_query {
+                    let query_lower = query.to_lowercase();
+                    let title_match = issue.title.to_lowercase().contains(&query_lower);
+                    let desc_match = issue
+                        .description
+                        .as_ref()
+                        .map(|d| d.to_lowercase().contains(&query_lower))
+                        .unwrap_or(false);
+                    if !title_match && !desc_match {
+                        return false;
+                    }
+                }
+
+                // Label filter
+                if !filters.labels.is_empty() {
+                    let has_matching_label = filters.labels.iter().any(|label| issue.labels.contains(label));
+                    if !has_matching_label {
+                        return false;
+                    }
+                }
+
+                // Assignee filter
+                if !filters.assignees.is_empty() {
+                    let matches_assignee = match &issue.assignee {
+                        Some(assignee) => filters.assignees.contains(assignee),
+                        None => filters.assignees.contains(&"unassigned".to_string()),
+                    };
+                    if !matches_assignee {
+                        return false;
+                    }
+                }
+
+                // Status filter
+                if !filters.statuses.is_empty() {
+                    let status_str = format!("{:?}", issue.status).to_lowercase();
+                    if !filters.statuses.iter().any(|s| s.to_lowercase() == status_str) {
+                        return false;
+                    }
+                }
+
+                true
+            })
+            .collect()
+    }
+
+    /// Sort issues based on the specified sort order
+    fn sort_issues<'a>(&self, mut issues: Vec<&'a Issue>, sort: CardSort) -> Vec<&'a Issue> {
+        use crate::beads::models::Priority;
+        
+        match sort {
+            CardSort::Priority => {
+                issues.sort_by(|a, b| {
+                    // P0 (0) first, P4 (4) last
+                    let a_val = match a.priority {
+                        Priority::P0 => 0,
+                        Priority::P1 => 1,
+                        Priority::P2 => 2,
+                        Priority::P3 => 3,
+                        Priority::P4 => 4,
+                    };
+                    let b_val = match b.priority {
+                        Priority::P0 => 0,
+                        Priority::P1 => 1,
+                        Priority::P2 => 2,
+                        Priority::P3 => 3,
+                        Priority::P4 => 4,
+                    };
+                    a_val.cmp(&b_val)
+                });
+            }
+            CardSort::Title => {
+                issues.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+            }
+            CardSort::Created => {
+                issues.sort_by(|a, b| b.created.cmp(&a.created)); // Newest first
+            }
+            CardSort::Updated => {
+                issues.sort_by(|a, b| b.updated.cmp(&a.updated)); // Most recent first
+            }
+        }
+        
+        issues
     }
 
     /// Filter issues for a specific column based on its configuration
@@ -272,6 +445,26 @@ impl KanbanView {
             return;
         }
 
+        // Split area into filter row and columns
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(if state.has_active_filters() { 2 } else { 0 }),
+                Constraint::Min(0),
+            ])
+            .split(area);
+
+        // Render filter row if filters are active
+        if state.has_active_filters() {
+            Self::render_filter_row(chunks[0], buf, state);
+        }
+
+        let columns_area = if state.has_active_filters() {
+            chunks[1]
+        } else {
+            area
+        };
+
         // Calculate column widths
         let constraints: Vec<Constraint> = visible_columns
             .iter()
@@ -281,7 +474,7 @@ impl KanbanView {
         let columns_layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(constraints)
-            .split(area);
+            .split(columns_area);
 
         // Render each column
         for (col_idx, (column, column_area)) in visible_columns
@@ -300,6 +493,50 @@ impl KanbanView {
         }
     }
 
+    /// Render the filter row showing active filters
+    fn render_filter_row(area: Rect, buf: &mut Buffer, state: &KanbanViewState) {
+        let filters = &state.config.filters;
+        let mut spans = vec![
+            Span::styled("Filters: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        ];
+
+        let mut filter_parts = Vec::new();
+
+        if let Some(query) = &filters.search_query {
+            filter_parts.push(format!("\"{}\"", query));
+        }
+
+        if !filters.labels.is_empty() {
+            filter_parts.push(format!("labels:{}", filters.labels.join(",")));
+        }
+
+        if !filters.assignees.is_empty() {
+            filter_parts.push(format!("assignees:{}", filters.assignees.join(",")));
+        }
+
+        if !filters.statuses.is_empty() {
+            filter_parts.push(format!("status:{}", filters.statuses.join(",")));
+        }
+
+        if filter_parts.is_empty() {
+            spans.push(Span::raw("(none)"));
+        } else {
+            for (i, part) in filter_parts.iter().enumerate() {
+                if i > 0 {
+                    spans.push(Span::raw(" | "));
+                }
+                spans.push(Span::styled(part, Style::default().fg(Color::Cyan)));
+            }
+        }
+
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled("(Press 'f' to edit, 'F' to clear)", Style::default().fg(Color::DarkGray)));
+
+        let line = Line::from(spans);
+        let paragraph = Paragraph::new(line);
+        paragraph.render(area, buf);
+    }
+
     /// Render a single column
     fn render_column(
         area: Rect,
@@ -315,7 +552,14 @@ impl KanbanView {
             Style::default().fg(Color::DarkGray)
         };
 
-        let title = format!(" {} ", column.label);
+        // Add sort indicator to title
+        let sort_indicator = match column.card_sort {
+            CardSort::Priority => " [↓P]",
+            CardSort::Title => " [↓A]",
+            CardSort::Created => " [↓C]",
+            CardSort::Updated => " [↓U]",
+        };
+        let title = format!(" {}{} ", column.label, sort_indicator);
         let block = Block::default()
             .title(title)
             .borders(Borders::ALL)
@@ -495,5 +739,169 @@ mod tests {
 
         let closed_issues = state.filter_issues_for_column(&closed_column);
         assert_eq!(closed_issues.len(), 0);
+    }
+
+    #[test]
+    fn test_set_search_query() {
+        let mut state = KanbanViewState::new(vec![]);
+        state.set_search_query(Some("test".to_string()));
+        assert_eq!(state.config.filters.search_query, Some("test".to_string()));
+        
+        state.set_search_query(None);
+        assert_eq!(state.config.filters.search_query, None);
+    }
+
+    #[test]
+    fn test_add_remove_label_filter() {
+        let mut state = KanbanViewState::new(vec![]);
+        
+        state.add_label_filter("bug".to_string());
+        assert_eq!(state.config.filters.labels.len(), 1);
+        assert!(state.config.filters.labels.contains(&"bug".to_string()));
+        
+        // Adding duplicate should not increase count
+        state.add_label_filter("bug".to_string());
+        assert_eq!(state.config.filters.labels.len(), 1);
+        
+        state.add_label_filter("feature".to_string());
+        assert_eq!(state.config.filters.labels.len(), 2);
+        
+        state.remove_label_filter("bug");
+        assert_eq!(state.config.filters.labels.len(), 1);
+        assert!(!state.config.filters.labels.contains(&"bug".to_string()));
+    }
+
+    #[test]
+    fn test_add_remove_assignee_filter() {
+        let mut state = KanbanViewState::new(vec![]);
+        
+        state.add_assignee_filter("alice".to_string());
+        assert_eq!(state.config.filters.assignees.len(), 1);
+        
+        state.remove_assignee_filter("alice");
+        assert_eq!(state.config.filters.assignees.len(), 0);
+    }
+
+    #[test]
+    fn test_add_remove_status_filter() {
+        let mut state = KanbanViewState::new(vec![]);
+        
+        state.add_status_filter("open".to_string());
+        assert_eq!(state.config.filters.statuses.len(), 1);
+        
+        state.remove_status_filter("open");
+        assert_eq!(state.config.filters.statuses.len(), 0);
+    }
+
+    #[test]
+    fn test_clear_all_filters() {
+        let mut state = KanbanViewState::new(vec![]);
+        
+        state.set_search_query(Some("test".to_string()));
+        state.add_label_filter("bug".to_string());
+        state.add_assignee_filter("alice".to_string());
+        state.add_status_filter("open".to_string());
+        
+        assert!(state.has_active_filters());
+        
+        state.clear_all_filters();
+        
+        assert!(!state.has_active_filters());
+        assert_eq!(state.config.filters.search_query, None);
+        assert!(state.config.filters.labels.is_empty());
+        assert!(state.config.filters.assignees.is_empty());
+        assert!(state.config.filters.statuses.is_empty());
+    }
+
+    #[test]
+    fn test_set_column_sort() {
+        let mut state = KanbanViewState::new(vec![]);
+        
+        // Set sort for first column
+        state.set_column_sort(0, CardSort::Title);
+        
+        let sort = state.get_column_sort(0);
+        assert_eq!(sort, Some(CardSort::Title));
+    }
+
+    #[test]
+    fn test_apply_global_filters_search() {
+        let issues = vec![
+            create_test_issue("TEST-1", "Fix login bug", IssueStatus::Open),
+            create_test_issue("TEST-2", "Add dashboard", IssueStatus::Open),
+        ];
+        let mut state = KanbanViewState::new(issues);
+        
+        state.set_search_query(Some("login".to_string()));
+        
+        let all_issues: Vec<&Issue> = state.issues.iter().collect();
+        let filtered = state.apply_global_filters(all_issues);
+        
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].id, "TEST-1");
+    }
+
+    #[test]
+    fn test_sort_issues_by_priority() {
+        use crate::beads::models::{IssueType, Priority};
+        use chrono::Utc;
+        
+        let issues = vec![
+            Issue {
+                id: "TEST-1".to_string(),
+                title: "P2 Task".to_string(),
+                status: IssueStatus::Open,
+                priority: Priority::P2,
+                issue_type: IssueType::Task,
+                assignee: None,
+                labels: vec![],
+                description: None,
+                created: Utc::now(),
+                updated: Utc::now(),
+                closed: None,
+                dependencies: vec![],
+                blocks: vec![],
+                notes: vec![],
+            },
+            Issue {
+                id: "TEST-2".to_string(),
+                title: "P0 Task".to_string(),
+                status: IssueStatus::Open,
+                priority: Priority::P0,
+                issue_type: IssueType::Task,
+                assignee: None,
+                labels: vec![],
+                description: None,
+                created: Utc::now(),
+                updated: Utc::now(),
+                closed: None,
+                dependencies: vec![],
+                blocks: vec![],
+                notes: vec![],
+            },
+        ];
+        
+        let state = KanbanViewState::new(issues.clone());
+        let issue_refs: Vec<&Issue> = issues.iter().collect();
+        let sorted = state.sort_issues(issue_refs, CardSort::Priority);
+        
+        // P0 should come first
+        assert_eq!(sorted[0].id, "TEST-2");
+        assert_eq!(sorted[1].id, "TEST-1");
+    }
+
+    #[test]
+    fn test_sort_issues_by_title() {
+        let issues = vec![
+            create_test_issue("TEST-1", "Zebra", IssueStatus::Open),
+            create_test_issue("TEST-2", "Alpha", IssueStatus::Open),
+        ];
+        
+        let state = KanbanViewState::new(issues.clone());
+        let issue_refs: Vec<&Issue> = issues.iter().collect();
+        let sorted = state.sort_issues(issue_refs, CardSort::Title);
+        
+        assert_eq!(sorted[0].title, "Alpha");
+        assert_eq!(sorted[1].title, "Zebra");
     }
 }

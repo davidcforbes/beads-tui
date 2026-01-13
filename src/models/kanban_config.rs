@@ -209,8 +209,36 @@ pub struct BoardFilters {
     pub issue_types: Vec<String>,
     /// Filter by priority
     pub priorities: Vec<String>,
+    /// Filter by labels
+    pub labels: Vec<String>,
+    /// Filter by assignees
+    pub assignees: Vec<String>,
+    /// Filter by status
+    pub statuses: Vec<String>,
     /// Search query for title/description
     pub search_query: Option<String>,
+}
+
+impl BoardFilters {
+    /// Check if any filters are active
+    pub fn is_active(&self) -> bool {
+        !self.issue_types.is_empty()
+            || !self.priorities.is_empty()
+            || !self.labels.is_empty()
+            || !self.assignees.is_empty()
+            || !self.statuses.is_empty()
+            || self.search_query.is_some()
+    }
+
+    /// Clear all filters
+    pub fn clear(&mut self) {
+        self.issue_types.clear();
+        self.priorities.clear();
+        self.labels.clear();
+        self.assignees.clear();
+        self.statuses.clear();
+        self.search_query = None;
+    }
 }
 
 /// Complete Kanban board configuration

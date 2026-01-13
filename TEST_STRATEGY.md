@@ -55,8 +55,8 @@ that bar.
 - Resource usage checks for memory growth during long sessions.
 
 ## Test Environments
-- OS: Windows, Linux.
-- Terminals: Windows Terminal, Powershell, wezterm, GNOME Terminal (or equivalents).
+- OS: Windows, Linux, MacOS.
+- Terminals: Windows Terminal, Powershell, wezterm, iTerm2, GNOME Terminal (or equivalents).
 - Terminal sizes: 80x24, 120x40, 160x50, 200x60.
 - Themes: default, high contrast, light.
 
