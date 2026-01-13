@@ -1,6 +1,7 @@
 //! Create issue form view with section navigator
 
 use crate::beads::models::{IssueType, Priority};
+use crate::models::{split_labels, validate_labels};
 use crate::ui::widgets::{Form, FormField, FormState, ValidationRule};
 use ratatui::{
     buffer::Buffer,
@@ -260,7 +261,20 @@ impl CreateIssueFormState {
 
     /// Validate the form
     pub fn validate(&mut self) -> bool {
-        self.form_state.validate()
+        let mut is_valid = self.form_state.validate();
+
+        if let Some(labels_field) = self.form_state.get_field_mut("labels") {
+            let labels = split_labels(&labels_field.value);
+            match validate_labels(&labels) {
+                Ok(()) => labels_field.error = None,
+                Err(error) => {
+                    labels_field.error = Some(error);
+                    is_valid = false;
+                }
+            }
+        }
+
+        is_valid
     }
 
     /// Get the form data as a tuple
@@ -283,11 +297,7 @@ impl CreateIssueFormState {
             .get_value("labels")
             .filter(|s| !s.is_empty())
             .unwrap_or("");
-        let labels: Vec<String> = labels_str
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
+        let labels = split_labels(labels_str);
         let description = self
             .form_state
             .get_value("description")
@@ -1021,6 +1031,27 @@ mod tests {
         assert_eq!(data.labels[0], "bug");
         assert_eq!(data.labels[1], "urgent");
         assert_eq!(data.labels[2], "high-priority");
+    }
+
+    #[test]
+    fn test_validate_rejects_invalid_labels() {
+        let mut state = CreateIssueFormState::new();
+        state
+            .form_state_mut()
+            .set_value("title", "Test".to_string());
+        state
+            .form_state_mut()
+            .set_value("labels", "bug fix, ok".to_string());
+
+        assert!(!state.validate());
+        assert!(state.get_data().is_none());
+
+        let error = state
+            .form_state()
+            .get_field("labels")
+            .and_then(|field| field.error.clone())
+            .unwrap_or_default();
+        assert!(error.contains("spaces"));
     }
 
     #[test]

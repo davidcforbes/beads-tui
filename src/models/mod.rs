@@ -6,6 +6,7 @@ pub mod app_state;
 pub mod filter;
 pub mod gantt_schedule;
 pub mod kanban_config;
+pub mod labels;
 pub mod navigation;
 pub mod perf;
 pub mod pert_layout;
@@ -13,6 +14,7 @@ pub mod table_config;
 
 pub use app_state::*;
 pub use filter::*;
+pub use labels::*;
 pub use navigation::*;
 pub use perf::PerfStats;
 

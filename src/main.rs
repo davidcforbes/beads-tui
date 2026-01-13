@@ -161,6 +161,59 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         }
     }
 
+    // Handle filter save dialog events if dialog is active
+    if let Some(ref mut dialog_state) = app.filter_save_dialog_state {
+        match key_code {
+            KeyCode::Tab => {
+                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                    dialog_state.focus_previous();
+                } else {
+                    dialog_state.focus_next();
+                }
+                return;
+            }
+            KeyCode::Left => {
+                dialog_state.move_cursor_left();
+                return;
+            }
+            KeyCode::Right => {
+                dialog_state.move_cursor_right();
+                return;
+            }
+            KeyCode::Backspace => {
+                dialog_state.delete_char();
+                return;
+            }
+            KeyCode::Char(c) => {
+                dialog_state.insert_char(c);
+                return;
+            }
+            KeyCode::Enter => {
+                // Save the filter
+                match app.save_current_filter() {
+                    Ok(()) => {
+                        tracing::info!("Filter saved successfully");
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to save filter: {}", e);
+                        app.set_error(e);
+                    }
+                }
+                return;
+            }
+            KeyCode::Esc => {
+                // Cancel dialog
+                tracing::debug!("Filter save dialog cancelled");
+                app.hide_filter_save_dialog();
+                return;
+            }
+            _ => {
+                // Ignore other keys when dialog is active
+                return;
+            }
+        }
+    }
+
     let issues_state = &mut app.issues_view_state;
     let view_mode = issues_state.view_mode();
 
@@ -804,7 +857,31 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
         return;
     }
 
-    let labels_len = app.label_stats.len();
+    let filtered_labels = app
+        .labels_view_state
+        .filtered_labels(&app.label_stats);
+    let labels_len = filtered_labels.len();
+
+    if app.labels_view_state.is_searching() {
+        match key_code {
+            KeyCode::Esc => {
+                app.labels_view_state.stop_search();
+                app.labels_view_state.clear_search();
+            }
+            KeyCode::Enter => {
+                app.labels_view_state.stop_search();
+            }
+            KeyCode::Backspace => {
+                app.labels_view_state.delete_search_char();
+            }
+            KeyCode::Char(c) => {
+                app.labels_view_state.insert_search_char(c);
+            }
+            _ => {}
+        }
+        app.mark_dirty();
+        return;
+    }
 
     match key_code {
         KeyCode::Char('j') | KeyCode::Down => {
@@ -823,8 +900,8 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
         KeyCode::Char('d') => {
             // Delete selected label
             if let Some(selected_idx) = app.labels_view_state.selected() {
-                if selected_idx < app.label_stats.len() {
-                    let label_name = app.label_stats[selected_idx].name.clone();
+                if let Some(label_stat) = filtered_labels.get(selected_idx) {
+                    let label_name = label_stat.name.clone();
                     app.set_info(format!("Delete label '{}': Not yet implemented", label_name));
                     tracing::info!("Delete label requested: {}", label_name);
                 }
@@ -833,8 +910,8 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
         KeyCode::Char('e') => {
             // Edit selected label
             if let Some(selected_idx) = app.labels_view_state.selected() {
-                if selected_idx < app.label_stats.len() {
-                    let label_name = app.label_stats[selected_idx].name.clone();
+                if let Some(label_stat) = filtered_labels.get(selected_idx) {
+                    let label_name = label_stat.name.clone();
                     app.set_info(format!("Edit label '{}': Not yet implemented", label_name));
                     tracing::info!("Edit label requested: {}", label_name);
                 }
@@ -846,8 +923,13 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
         }
         KeyCode::Char('/') => {
             // Search labels
-            app.set_info("Search labels: Not yet implemented (requires search input widget)".to_string());
-            tracing::info!("Search labels requested");
+            app.labels_view_state.start_search();
+            tracing::info!("Search labels started");
+        }
+        KeyCode::Esc => {
+            if !app.labels_view_state.search_query().is_empty() {
+                app.labels_view_state.clear_search();
+            }
         }
         _ => {}
     }
@@ -1055,6 +1137,16 @@ fn run_app<B: ratatui::backend::Backend>(
                         }
                         continue;
                     }
+                }
+
+                // Check for filter save shortcut (Ctrl+S)
+                if key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                    if app.selected_tab == 0 {
+                        // Show filter save dialog on Issues tab
+                        app.show_filter_save_dialog();
+                        app.mark_dirty();
+                    }
+                    continue;
                 }
 
                 // Global key bindings

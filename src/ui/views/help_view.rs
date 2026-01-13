@@ -237,6 +237,14 @@ impl<'a> HelpView<'a> {
                 Span::styled("/", Style::default().fg(Color::Green)),
                 Span::raw("         - Search labels"),
             ]),
+            Line::from(vec![
+                Span::styled("Enter", Style::default().fg(Color::Green)),
+                Span::raw("     - Apply search filter"),
+            ]),
+            Line::from(vec![
+                Span::styled("Esc", Style::default().fg(Color::Green)),
+                Span::raw("       - Clear search filter"),
+            ]),
         ]
     }
 

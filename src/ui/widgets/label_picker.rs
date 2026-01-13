@@ -7,6 +7,8 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, StatefulWidget, Widget},
 };
+use crate::models::normalize_label_key;
+use std::collections::HashMap;
 
 /// Label picker state
 #[derive(Debug, Clone)]
@@ -17,6 +19,7 @@ pub struct LabelPickerState {
     filter_cursor: usize,
     list_state: ListState,
     is_filtering: bool,
+    label_weights: HashMap<String, usize>,
 }
 
 impl LabelPickerState {
@@ -32,6 +35,7 @@ impl LabelPickerState {
             filter_cursor: 0,
             list_state,
             is_filtering: false,
+            label_weights: HashMap::new(),
         }
     }
 
@@ -54,6 +58,11 @@ impl LabelPickerState {
     pub fn set_available_labels(&mut self, labels: Vec<String>) {
         self.available_labels = labels;
         self.list_state.select(Some(0));
+    }
+
+    /// Set label usage weights for ranking suggestions
+    pub fn set_label_weights(&mut self, weights: HashMap<String, usize>) {
+        self.label_weights = weights;
     }
 
     /// Get filter query
@@ -101,14 +110,34 @@ impl LabelPickerState {
     /// Get filtered labels based on current query
     pub fn filtered_labels(&self) -> Vec<&str> {
         if self.filter_query.is_empty() {
-            self.available_labels.iter().map(|s| s.as_str()).collect()
+            let mut labels: Vec<&String> = self.available_labels.iter().collect();
+            labels.sort_by(|a, b| {
+                let weight_a = self.label_weights.get(*a).cloned().unwrap_or(0);
+                let weight_b = self.label_weights.get(*b).cloned().unwrap_or(0);
+                weight_b.cmp(&weight_a).then_with(|| a.cmp(b))
+            });
+            labels.into_iter().map(|s| s.as_str()).collect()
         } else {
             let query_lower = self.filter_query.to_lowercase();
-            self.available_labels
+            let normalized_query = normalize_label_key(&query_lower);
+            let mut matches: Vec<(usize, &String)> = self
+                .available_labels
                 .iter()
-                .filter(|label| label.to_lowercase().contains(&query_lower))
-                .map(|s| s.as_str())
-                .collect()
+                .filter_map(|label| {
+                    let label_lower = label.to_lowercase();
+                    let normalized_label = normalize_label_key(&label_lower);
+                    let base_score = fuzzy_score(&label_lower, &query_lower)
+                        .or_else(|| fuzzy_score(&normalized_label, &normalized_query))?;
+                    let weight = self.label_weights.get(label).cloned().unwrap_or(0);
+                    Some((base_score.saturating_add(weight.saturating_mul(10)), label))
+                })
+                .collect();
+
+            matches.sort_by(|(score_a, label_a), (score_b, label_b)| {
+                score_b.cmp(score_a).then_with(|| label_a.cmp(label_b))
+            });
+
+            matches.into_iter().map(|(_, label)| label.as_str()).collect()
         }
     }
 
@@ -198,6 +227,53 @@ impl LabelPickerState {
     pub fn is_selected(&self, label: &str) -> bool {
         self.selected_labels.contains(&label.to_string())
     }
+}
+
+fn fuzzy_score(label: &str, query: &str) -> Option<usize> {
+    if query.is_empty() {
+        return None;
+    }
+
+    let haystack = label.as_bytes();
+    let needle = query.as_bytes();
+    let mut score = 0usize;
+    let mut index = 0usize;
+    let mut last_match: Option<usize> = None;
+
+    for &needle_byte in needle {
+        let mut found = None;
+        for i in index..haystack.len() {
+            if haystack[i] == needle_byte {
+                found = Some(i);
+                break;
+            }
+        }
+
+        let pos = found?;
+        if let Some(prev) = last_match {
+            if pos == prev + 1 {
+                score += 3;
+            } else {
+                score += 1;
+            }
+        } else {
+            score += 2;
+            if pos == 0 {
+                score += 3;
+            }
+        }
+
+        last_match = Some(pos);
+        index = pos + 1;
+    }
+
+    if label.starts_with(query) {
+        score += 15;
+    } else if label.contains(query) {
+        score += 8;
+    }
+
+    Some(score)
 }
 
 impl Default for LabelPickerState {
@@ -639,6 +715,36 @@ mod tests {
         assert_eq!(filtered.len(), 2);
         assert!(filtered.contains(&"bug-fix"));
         assert!(filtered.contains(&"bug-report"));
+    }
+
+    #[test]
+    fn test_filtered_labels_fuzzy_normalized_match() {
+        let labels = vec!["bug-fix".to_string(), "feature".to_string()];
+        let mut state = LabelPickerState::new(labels);
+
+        state.start_filtering();
+        for c in "bugfix".chars() {
+            state.insert_char(c);
+        }
+
+        let filtered = state.filtered_labels();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0], "bug-fix");
+    }
+
+    #[test]
+    fn test_filtered_labels_ranked_by_weight() {
+        let labels = vec!["bug".to_string(), "feature".to_string(), "urgent".to_string()];
+        let mut state = LabelPickerState::new(labels);
+
+        let mut weights = HashMap::new();
+        weights.insert("urgent".to_string(), 5);
+        weights.insert("bug".to_string(), 2);
+        state.set_label_weights(weights);
+
+        let filtered = state.filtered_labels();
+        assert_eq!(filtered[0], "urgent");
+        assert_eq!(filtered[1], "bug");
     }
 
     #[test]

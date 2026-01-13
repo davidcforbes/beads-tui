@@ -7,6 +7,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, StatefulWidget, Widget},
 };
+use crate::models::{normalize_label_key, split_label_dimension};
 use std::collections::HashMap;
 
 /// Label statistics
@@ -18,6 +19,12 @@ pub struct LabelStats {
     pub count: usize,
     /// Color for the label (optional)
     pub color: Option<Color>,
+    /// Alternate names for the label
+    pub aliases: Vec<String>,
+    /// Optional dimension extracted from "dimension:value"
+    pub dimension: Option<String>,
+    /// Optional dimension value extracted from "dimension:value"
+    pub value: Option<String>,
 }
 
 /// Labels view state for tracking selection and interaction
@@ -25,6 +32,8 @@ pub struct LabelStats {
 pub struct LabelsViewState {
     list_state: ListState,
     search_query: String,
+    search_cursor: usize,
+    is_searching: bool,
 }
 
 impl Default for LabelsViewState {
@@ -41,6 +50,8 @@ impl LabelsViewState {
         Self {
             list_state,
             search_query: String::new(),
+            search_cursor: 0,
+            is_searching: false,
         }
     }
 
@@ -100,14 +111,59 @@ impl LabelsViewState {
         &self.search_query
     }
 
+    /// Check if search mode is active
+    pub fn is_searching(&self) -> bool {
+        self.is_searching
+    }
+
+    /// Start search mode
+    pub fn start_search(&mut self) {
+        self.is_searching = true;
+        self.search_query.clear();
+        self.search_cursor = 0;
+        self.list_state.select(Some(0));
+    }
+
+    /// Stop search mode
+    pub fn stop_search(&mut self) {
+        self.is_searching = false;
+        self.search_cursor = 0;
+    }
+
     /// Set search query
     pub fn set_search_query(&mut self, query: String) {
+        self.search_cursor = query.len();
         self.search_query = query;
+        self.list_state.select(Some(0));
     }
 
     /// Clear search
     pub fn clear_search(&mut self) {
         self.search_query.clear();
+    }
+
+    /// Insert character into search query
+    pub fn insert_search_char(&mut self, c: char) {
+        if c == '\n' {
+            return;
+        }
+        self.search_query.insert(self.search_cursor, c);
+        self.search_cursor += 1;
+        self.list_state.select(Some(0));
+    }
+
+    /// Delete character from search query
+    pub fn delete_search_char(&mut self) {
+        if self.search_cursor > 0 {
+            self.search_query.remove(self.search_cursor - 1);
+            self.search_cursor -= 1;
+            self.list_state.select(Some(0));
+        }
+    }
+
+    /// Get labels filtered by the current search query.
+    pub fn filtered_labels<'a>(&self, labels: &'a [LabelStats]) -> Vec<&'a LabelStats> {
+        filter_label_stats(labels, &self.search_query)
     }
 }
 
@@ -174,22 +230,63 @@ impl<'a> LabelsView<'a> {
         summary.render(area, buf);
     }
 
-    fn render_labels_list(&self, area: Rect, buf: &mut Buffer, state: &mut ListState) {
-        let label_items: Vec<ListItem> = if self.labels.is_empty() {
+    fn render_search_bar(&self, area: Rect, buf: &mut Buffer, state: &LabelsViewState) {
+        let title = if state.is_searching() {
+            "Search (active)"
+        } else {
+            "Search"
+        };
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(title)
+            .style(self.block_style);
+
+        let inner = block.inner(area);
+        block.render(area, buf);
+
+        let text = if state.search_query().is_empty() {
+            Span::styled(
+                "Type to filter labels...",
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )
+        } else {
+            Span::raw(state.search_query())
+        };
+
+        Paragraph::new(Line::from(text)).render(inner, buf);
+    }
+
+    fn render_labels_list(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        state: &mut ListState,
+        labels: &[&LabelStats],
+        total_count: usize,
+        has_query: bool,
+    ) {
+        let label_items: Vec<ListItem> = if labels.is_empty() {
             vec![ListItem::new(Line::from(Span::styled(
-                "No labels found",
+                if has_query {
+                    "No labels match search"
+                } else {
+                    "No labels found"
+                },
                 Style::default()
                     .fg(Color::DarkGray)
                     .add_modifier(Modifier::ITALIC),
             )))]
         } else {
-            self.labels
+            labels
                 .iter()
                 .map(|label_stat| {
+                    let label_stat = *label_stat;
                     let color = label_stat.color.unwrap_or(Color::White);
-                    ListItem::new(Line::from(vec![
+                    let mut spans = vec![
                         Span::styled(
-                            &label_stat.name,
+                            format!("[{}]", label_stat.name),
                             Style::default().fg(color).add_modifier(Modifier::BOLD),
                         ),
                         Span::raw(" "),
@@ -197,16 +294,36 @@ impl<'a> LabelsView<'a> {
                             format!("({})", label_stat.count),
                             Style::default().fg(Color::DarkGray),
                         ),
-                    ]))
+                    ];
+
+                    if !label_stat.aliases.is_empty() {
+                        spans.push(Span::raw(" "));
+                        spans.push(Span::styled(
+                            format!(
+                                "+{} alias{}",
+                                label_stat.aliases.len(),
+                                if label_stat.aliases.len() == 1 { "" } else { "es" }
+                            ),
+                            Style::default().fg(Color::DarkGray),
+                        ));
+                    }
+
+                    ListItem::new(Line::from(spans))
                 })
                 .collect()
+        };
+
+        let title = if total_count == labels.len() {
+            format!("Labels ({})", total_count)
+        } else {
+            format!("Labels ({}/{})", labels.len(), total_count)
         };
 
         let labels_list = List::new(label_items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title(format!("Labels ({})", self.labels.len()))
+                    .title(title)
                     .style(self.block_style),
             )
             .highlight_style(
@@ -222,7 +339,7 @@ impl<'a> LabelsView<'a> {
 
     fn render_help(&self, area: Rect, buf: &mut Buffer) {
         let help_text =
-            "a: Add Label | d: Delete Label | e: Edit Label | s: Show Statistics | /: Search";
+            "a: Add | d: Delete | e: Edit | s: Stats | /: Search | Esc: Clear";
         let help = Paragraph::new(Line::from(Span::styled(
             help_text,
             Style::default().fg(Color::DarkGray),
@@ -241,21 +358,122 @@ impl<'a> StatefulWidget for LabelsView<'a> {
     type State = LabelsViewState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        // Create layout: summary (7) + labels list (fill) + help (1)
+        let show_search = state.is_searching() || !state.search_query().is_empty();
+        let mut constraints = vec![
+            Constraint::Length(7), // Summary
+        ];
+        if show_search {
+            constraints.push(Constraint::Length(3)); // Search bar
+        }
+        constraints.push(Constraint::Min(5)); // Labels list
+        constraints.push(Constraint::Length(1)); // Help
+
+        // Create layout: summary + optional search + labels list + help
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(7), // Summary
-                Constraint::Min(5),    // Labels list
-                Constraint::Length(1), // Help
-            ])
+            .constraints(constraints)
             .split(area);
 
+        let filtered_labels = state.filtered_labels(&self.labels);
+        if let Some(selected) = state.list_state.selected() {
+            if selected >= filtered_labels.len() {
+                state.list_state.select(if filtered_labels.is_empty() {
+                    None
+                } else {
+                    Some(0)
+                });
+            }
+        } else if !filtered_labels.is_empty() {
+            state.list_state.select(Some(0));
+        }
+
         // Render components
-        self.render_summary(chunks[0], buf);
-        self.render_labels_list(chunks[1], buf, &mut state.list_state);
-        self.render_help(chunks[2], buf);
+        let mut chunk_index = 0;
+        self.render_summary(chunks[chunk_index], buf);
+        chunk_index += 1;
+
+        if show_search {
+            self.render_search_bar(chunks[chunk_index], buf, state);
+            chunk_index += 1;
+        }
+
+        let has_query = !state.search_query().is_empty();
+        self.render_labels_list(
+            chunks[chunk_index],
+            buf,
+            &mut state.list_state,
+            &filtered_labels,
+            self.labels.len(),
+            has_query,
+        );
+        chunk_index += 1;
+
+        self.render_help(chunks[chunk_index], buf);
     }
+}
+
+fn color_for_label(name: &str) -> Color {
+    const PALETTE: &[Color] = &[
+        Color::Cyan,
+        Color::Green,
+        Color::Yellow,
+        Color::Magenta,
+        Color::Blue,
+        Color::Red,
+        Color::LightBlue,
+        Color::LightMagenta,
+    ];
+
+    let mut hash: u64 = 0;
+    for byte in name.as_bytes() {
+        hash = hash.wrapping_mul(31).wrapping_add(*byte as u64);
+    }
+    let idx = (hash % PALETTE.len() as u64) as usize;
+    PALETTE[idx]
+}
+
+fn dimension_parts(label: &str) -> (Option<String>, Option<String>) {
+    split_label_dimension(label)
+        .map(|(dimension, value)| (Some(dimension), Some(value)))
+        .unwrap_or((None, None))
+}
+
+fn label_matches_query(label: &LabelStats, query: &str) -> bool {
+    if query.is_empty() {
+        return true;
+    }
+
+    let query_lower = query.to_lowercase();
+    let query_normalized = normalize_label_key(&query_lower);
+
+    let mut candidates: Vec<String> = Vec::new();
+    candidates.push(label.name.to_lowercase());
+    if let Some(ref dimension) = label.dimension {
+        candidates.push(dimension.to_lowercase());
+    }
+    if let Some(ref value) = label.value {
+        candidates.push(value.to_lowercase());
+    }
+    if let (Some(ref dimension), Some(ref value)) = (label.dimension.as_ref(), label.value.as_ref())
+    {
+        candidates.push(format!("{}:{}", dimension.to_lowercase(), value.to_lowercase()));
+    }
+    for alias in &label.aliases {
+        candidates.push(alias.to_lowercase());
+    }
+
+    candidates.into_iter().any(|candidate| {
+        candidate.contains(&query_lower)
+            || (!query_normalized.is_empty()
+                && normalize_label_key(&candidate).contains(&query_normalized))
+    })
+}
+
+fn filter_label_stats<'a>(labels: &'a [LabelStats], query: &str) -> Vec<&'a LabelStats> {
+    labels
+        .iter()
+        .filter(|label| label_matches_query(label, query))
+        .collect()
 }
 
 /// Helper function to compute label statistics from issues
@@ -263,20 +481,60 @@ pub fn compute_label_stats<'a, I>(issues: I) -> Vec<LabelStats>
 where
     I: IntoIterator<Item = &'a crate::beads::models::Issue>,
 {
-    let mut label_counts: HashMap<String, usize> = HashMap::new();
+    struct LabelAggregate {
+        total: usize,
+        counts: HashMap<String, usize>,
+    }
+
+    let mut aggregates: HashMap<String, LabelAggregate> = HashMap::new();
 
     for issue in issues {
         for label in &issue.labels {
-            *label_counts.entry(label.clone()).or_insert(0) += 1;
+            let normalized = normalize_label_key(label);
+            let key = if normalized.is_empty() {
+                label.to_lowercase()
+            } else {
+                normalized
+            };
+            let entry = aggregates.entry(key).or_insert_with(|| LabelAggregate {
+                total: 0,
+                counts: HashMap::new(),
+            });
+            entry.total += 1;
+            *entry.counts.entry(label.clone()).or_insert(0) += 1;
         }
     }
 
-    let mut stats: Vec<LabelStats> = label_counts
+    let mut stats: Vec<LabelStats> = aggregates
         .into_iter()
-        .map(|(name, count)| LabelStats {
-            name,
-            count,
-            color: None, // Could be enhanced to assign colors
+        .map(|(_key, aggregate)| {
+            let (canonical, _) = aggregate
+                .counts
+                .iter()
+                .max_by(|(name_a, count_a), (name_b, count_b)| {
+                    count_a.cmp(count_b).then_with(|| name_a.cmp(name_b))
+                })
+                .map(|(name, count)| (name.clone(), *count))
+                .unwrap_or_else(|| ("".to_string(), 0));
+
+            let mut aliases: Vec<String> = aggregate
+                .counts
+                .keys()
+                .filter(|name| *name != &canonical)
+                .cloned()
+                .collect();
+            aliases.sort();
+
+            let (dimension, value) = dimension_parts(&canonical);
+
+            LabelStats {
+                name: canonical.clone(),
+                count: aggregate.total,
+                color: Some(color_for_label(&canonical)),
+                aliases,
+                dimension,
+                value,
+            }
         })
         .collect();
 
@@ -323,11 +581,17 @@ mod tests {
                 name: "bug".to_string(),
                 count: 5,
                 color: Some(Color::Red),
+                aliases: vec![],
+                dimension: None,
+                value: None,
             },
             LabelStats {
                 name: "feature".to_string(),
                 count: 3,
                 color: Some(Color::Green),
+                aliases: vec![],
+                dimension: None,
+                value: None,
             },
         ];
 
@@ -528,6 +792,9 @@ mod tests {
             name: "test".to_string(),
             count: 1,
             color: None,
+            aliases: vec![],
+            dimension: None,
+            value: None,
         }];
         let style = Style::default().fg(Color::Yellow);
 
@@ -543,6 +810,9 @@ mod tests {
             name: "bug".to_string(),
             count: 5,
             color: Some(Color::Red),
+            aliases: vec![],
+            dimension: None,
+            value: None,
         };
 
         assert_eq!(stats.name, "bug");
@@ -556,6 +826,9 @@ mod tests {
             name: "feature".to_string(),
             count: 3,
             color: None,
+            aliases: vec![],
+            dimension: None,
+            value: None,
         };
 
         assert!(stats.color.is_none());
@@ -586,6 +859,19 @@ mod tests {
         assert_eq!(stats.len(), 1);
         assert_eq!(stats[0].name, "bug");
         assert_eq!(stats[0].count, 3);
+    }
+
+    #[test]
+    fn test_compute_label_stats_alias_grouping() {
+        let issues = vec![
+            create_test_issue_with_labels("1", vec!["bug-fix"]),
+            create_test_issue_with_labels("2", vec!["bugfix"]),
+        ];
+
+        let stats = compute_label_stats(&issues);
+        assert_eq!(stats.len(), 1);
+        assert_eq!(stats[0].count, 2);
+        assert!(stats[0].aliases.contains(&"bugfix".to_string()));
     }
 
     #[test]
@@ -638,11 +924,36 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_label_stats_color_not_set() {
+    fn test_compute_label_stats_color_set() {
         let issues = vec![create_test_issue_with_labels("1", vec!["test"])];
 
         let stats = compute_label_stats(&issues);
         assert_eq!(stats.len(), 1);
-        assert!(stats[0].color.is_none());
+        assert!(stats[0].color.is_some());
+    }
+
+    #[test]
+    fn test_filtered_labels_matches_alias_and_dimension() {
+        let labels = vec![LabelStats {
+            name: "bug-fix".to_string(),
+            count: 2,
+            color: Some(Color::Red),
+            aliases: vec!["bugfix".to_string()],
+            dimension: Some("state".to_string()),
+            value: Some("patrol".to_string()),
+        }];
+
+        let mut state = LabelsViewState::new();
+        state.set_search_query("bugfix".to_string());
+        let filtered = state.filtered_labels(&labels);
+        assert_eq!(filtered.len(), 1);
+
+        state.set_search_query("state".to_string());
+        let filtered = state.filtered_labels(&labels);
+        assert_eq!(filtered.len(), 1);
+
+        state.set_search_query("patrol".to_string());
+        let filtered = state.filtered_labels(&labels);
+        assert_eq!(filtered.len(), 1);
     }
 }
