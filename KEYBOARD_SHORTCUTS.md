@@ -9,7 +9,7 @@ This reference reflects the current key handling in `src/main.rs`.
 | `q` | Quit application |
 | `Tab` | Next tab |
 | `Shift+Tab` | Previous tab |
-| `1-5` | Jump to tab (1 Issues, 2 Dependencies, 3 Labels, 4 Database, 5 Help) |
+| `1-5` | Jump to tab (1 Issues, 2 Dependencies, 3 Labels, 4 PERT, 5 Gantt) |
 | `Ctrl+P` / `F12` | Toggle performance stats |
 | `Esc` | Dismiss notification |
 

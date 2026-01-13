@@ -235,10 +235,7 @@ mod tests {
 
         assert_eq!(stats.total_frames(), 3);
         assert!(stats.avg_render_time().is_some());
-        assert_eq!(
-            stats.avg_render_time().unwrap(),
-            Duration::from_millis(15)
-        );
+        assert_eq!(stats.avg_render_time().unwrap(), Duration::from_millis(15));
     }
 
     #[test]

@@ -437,11 +437,20 @@ mod tests {
 
     #[test]
     fn test_priority_description() {
-        assert_eq!(IssueDetailView::priority_description(&Priority::P0), "Critical");
+        assert_eq!(
+            IssueDetailView::priority_description(&Priority::P0),
+            "Critical"
+        );
         assert_eq!(IssueDetailView::priority_description(&Priority::P1), "High");
-        assert_eq!(IssueDetailView::priority_description(&Priority::P2), "Medium");
+        assert_eq!(
+            IssueDetailView::priority_description(&Priority::P2),
+            "Medium"
+        );
         assert_eq!(IssueDetailView::priority_description(&Priority::P3), "Low");
-        assert_eq!(IssueDetailView::priority_description(&Priority::P4), "Backlog");
+        assert_eq!(
+            IssueDetailView::priority_description(&Priority::P4),
+            "Backlog"
+        );
     }
 
     #[test]
@@ -450,7 +459,7 @@ mod tests {
         let view = IssueDetailView::new(&issue)
             .show_dependencies(false)
             .show_notes(true);
-        
+
         assert!(!view.show_dependencies);
         assert!(view.show_notes);
     }
@@ -459,7 +468,7 @@ mod tests {
     fn test_issue_detail_view_with_no_assignee() {
         let mut issue = create_test_issue();
         issue.assignee = None;
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.assignee, None);
     }
@@ -468,7 +477,7 @@ mod tests {
     fn test_issue_detail_view_with_no_labels() {
         let mut issue = create_test_issue();
         issue.labels = vec![];
-        
+
         let view = IssueDetailView::new(&issue);
         assert!(view.issue.labels.is_empty());
     }
@@ -477,7 +486,7 @@ mod tests {
     fn test_issue_detail_view_with_no_description() {
         let mut issue = create_test_issue();
         issue.description = None;
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.description, None);
     }
@@ -487,7 +496,7 @@ mod tests {
         let mut issue = create_test_issue();
         issue.status = IssueStatus::Closed;
         issue.closed = Some(Utc::now());
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.status, IssueStatus::Closed);
         assert!(view.issue.closed.is_some());
@@ -498,7 +507,7 @@ mod tests {
         let mut issue = create_test_issue();
         issue.dependencies = vec![];
         issue.blocks = vec![];
-        
+
         let view = IssueDetailView::new(&issue);
         assert!(view.issue.dependencies.is_empty());
         assert!(view.issue.blocks.is_empty());
@@ -512,7 +521,7 @@ mod tests {
             "beads-002".to_string(),
             "beads-003".to_string(),
         ];
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.dependencies.len(), 3);
     }
@@ -520,11 +529,8 @@ mod tests {
     #[test]
     fn test_issue_detail_view_with_multiple_blocks() {
         let mut issue = create_test_issue();
-        issue.blocks = vec![
-            "beads-004".to_string(),
-            "beads-005".to_string(),
-        ];
-        
+        issue.blocks = vec!["beads-004".to_string(), "beads-005".to_string()];
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.blocks.len(), 2);
     }
@@ -532,7 +538,7 @@ mod tests {
     #[test]
     fn test_issue_detail_view_with_no_notes() {
         let issue = create_test_issue();
-        
+
         let view = IssueDetailView::new(&issue);
         assert!(view.issue.notes.is_empty());
     }
@@ -540,7 +546,7 @@ mod tests {
     #[test]
     fn test_issue_detail_view_with_notes() {
         use crate::beads::models::Note;
-        
+
         let mut issue = create_test_issue();
         issue.notes = vec![
             Note {
@@ -554,7 +560,7 @@ mod tests {
                 content: "Second note".to_string(),
             },
         ];
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.notes.len(), 2);
         assert_eq!(view.issue.notes[0].author, "alice");
@@ -565,7 +571,7 @@ mod tests {
     fn test_issue_detail_view_hide_dependencies_section() {
         let issue = create_test_issue();
         let view = IssueDetailView::new(&issue).show_dependencies(false);
-        
+
         assert!(!view.show_dependencies);
         assert!(view.show_notes);
     }
@@ -574,7 +580,7 @@ mod tests {
     fn test_issue_detail_view_hide_notes_section() {
         let issue = create_test_issue();
         let view = IssueDetailView::new(&issue).show_notes(false);
-        
+
         assert!(view.show_dependencies);
         assert!(!view.show_notes);
     }
@@ -585,7 +591,7 @@ mod tests {
         let view = IssueDetailView::new(&issue)
             .show_dependencies(false)
             .show_notes(false);
-        
+
         assert!(!view.show_dependencies);
         assert!(!view.show_notes);
     }
@@ -594,7 +600,7 @@ mod tests {
     fn test_issue_detail_view_with_epic_type() {
         let mut issue = create_test_issue();
         issue.issue_type = IssueType::Epic;
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.issue_type, IssueType::Epic);
     }
@@ -603,7 +609,7 @@ mod tests {
     fn test_issue_detail_view_with_bug_type() {
         let mut issue = create_test_issue();
         issue.issue_type = IssueType::Bug;
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.issue_type, IssueType::Bug);
     }
@@ -612,7 +618,7 @@ mod tests {
     fn test_issue_detail_view_with_feature_type() {
         let mut issue = create_test_issue();
         issue.issue_type = IssueType::Feature;
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.issue_type, IssueType::Feature);
     }
@@ -621,7 +627,7 @@ mod tests {
     fn test_issue_detail_view_with_blocked_status() {
         let mut issue = create_test_issue();
         issue.status = IssueStatus::Blocked;
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.status, IssueStatus::Blocked);
     }
@@ -630,7 +636,7 @@ mod tests {
     fn test_issue_detail_view_with_in_progress_status() {
         let mut issue = create_test_issue();
         issue.status = IssueStatus::InProgress;
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.status, IssueStatus::InProgress);
     }
@@ -639,7 +645,7 @@ mod tests {
     fn test_issue_detail_view_with_p0_priority() {
         let mut issue = create_test_issue();
         issue.priority = Priority::P0;
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.priority, Priority::P0);
     }
@@ -648,7 +654,7 @@ mod tests {
     fn test_issue_detail_view_with_p4_priority() {
         let mut issue = create_test_issue();
         issue.priority = Priority::P4;
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.priority, Priority::P4);
     }
@@ -662,7 +668,7 @@ mod tests {
             "security".to_string(),
             "p0".to_string(),
         ];
-        
+
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.labels.len(), 4);
         assert!(view.issue.labels.contains(&"security".to_string()));
@@ -672,7 +678,7 @@ mod tests {
     fn test_issue_detail_view_defaults_show_all_sections() {
         let issue = create_test_issue();
         let view = IssueDetailView::new(&issue);
-        
+
         assert!(view.show_dependencies);
         assert!(view.show_notes);
     }
@@ -681,7 +687,7 @@ mod tests {
     fn test_issue_detail_view_show_dependencies_true() {
         let issue = create_test_issue();
         let view = IssueDetailView::new(&issue).show_dependencies(true);
-        
+
         assert!(view.show_dependencies);
     }
 
@@ -793,13 +799,11 @@ mod tests {
         use crate::beads::models::Note;
 
         let mut issue = create_test_issue();
-        issue.notes = vec![
-            Note {
-                timestamp: Utc::now(),
-                author: "alice".to_string(),
-                content: "Single note".to_string(),
-            },
-        ];
+        issue.notes = vec![Note {
+            timestamp: Utc::now(),
+            author: "alice".to_string(),
+            content: "Single note".to_string(),
+        }];
 
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.notes.len(), 1);
@@ -856,13 +860,11 @@ mod tests {
             closed: Some(Utc::now()),
             dependencies: vec!["beads-001".to_string()],
             blocks: vec!["beads-002".to_string()],
-            notes: vec![
-                Note {
-                    timestamp: Utc::now(),
-                    author: "bob".to_string(),
-                    content: "Note content".to_string(),
-                },
-            ],
+            notes: vec![Note {
+                timestamp: Utc::now(),
+                author: "bob".to_string(),
+                content: "Note content".to_string(),
+            }],
         };
 
         let view = IssueDetailView::new(&issue);
@@ -920,10 +922,7 @@ mod tests {
             "beads-002".to_string(),
             "beads-003".to_string(),
         ];
-        issue.blocks = vec![
-            "beads-004".to_string(),
-            "beads-005".to_string(),
-        ];
+        issue.blocks = vec!["beads-004".to_string(), "beads-005".to_string()];
 
         let view = IssueDetailView::new(&issue);
         assert_eq!(view.issue.dependencies.len(), 3);

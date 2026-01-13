@@ -218,10 +218,7 @@ mod tests {
         let mut nav = NavigationStack::new();
         nav.push(View::IssueDetail("beads-123".to_string()));
 
-        assert_eq!(
-            nav.current(),
-            &View::IssueDetail("beads-123".to_string())
-        );
+        assert_eq!(nav.current(), &View::IssueDetail("beads-123".to_string()));
     }
 
     #[test]
@@ -231,22 +228,13 @@ mod tests {
         nav.push(View::IssueDetail("beads-002".to_string()));
         nav.push(View::IssueDetail("beads-003".to_string()));
 
-        assert_eq!(
-            nav.current(),
-            &View::IssueDetail("beads-003".to_string())
-        );
+        assert_eq!(nav.current(), &View::IssueDetail("beads-003".to_string()));
 
         nav.back();
-        assert_eq!(
-            nav.current(),
-            &View::IssueDetail("beads-002".to_string())
-        );
+        assert_eq!(nav.current(), &View::IssueDetail("beads-002".to_string()));
 
         nav.back();
-        assert_eq!(
-            nav.current(),
-            &View::IssueDetail("beads-001".to_string())
-        );
+        assert_eq!(nav.current(), &View::IssueDetail("beads-001".to_string()));
     }
 
     #[test]

@@ -442,10 +442,10 @@ mod tests {
     #[test]
     fn test_selector_state_select() {
         let mut state = SelectorState::new();
-        
+
         state.select(3, 5);
         assert_eq!(state.selected(), Some(3));
-        
+
         // Out of bounds should not change selection
         state.select(10, 5);
         assert_eq!(state.selected(), Some(3));
@@ -455,7 +455,7 @@ mod tests {
     fn test_selector_state_select_next_wraparound() {
         let mut state = SelectorState::new();
         state.select(4, 5);
-        
+
         state.select_next(5);
         assert_eq!(state.selected(), Some(0)); // Wraps to beginning
     }
@@ -464,7 +464,7 @@ mod tests {
     fn test_selector_state_select_previous_wraparound() {
         let mut state = SelectorState::new();
         // Starts at 0
-        
+
         state.select_previous(5);
         assert_eq!(state.selected(), Some(4)); // Wraps to end
     }
@@ -472,10 +472,10 @@ mod tests {
     #[test]
     fn test_selector_state_navigation_with_empty_list() {
         let mut state = SelectorState::new();
-        
+
         state.select_next(0);
         assert_eq!(state.selected(), Some(0)); // No change
-        
+
         state.select_previous(0);
         assert_eq!(state.selected(), Some(0)); // No change
     }
@@ -483,10 +483,10 @@ mod tests {
     #[test]
     fn test_selector_state_navigation_with_single_item() {
         let mut state = SelectorState::new();
-        
+
         state.select_next(1);
         assert_eq!(state.selected(), Some(0)); // Wraps to itself
-        
+
         state.select_previous(1);
         assert_eq!(state.selected(), Some(0)); // Wraps to itself
     }
@@ -494,10 +494,10 @@ mod tests {
     #[test]
     fn test_selector_state_open_close() {
         let mut state = SelectorState::new();
-        
+
         state.open();
         assert!(state.is_open());
-        
+
         state.close();
         assert!(!state.is_open());
     }
@@ -505,13 +505,13 @@ mod tests {
     #[test]
     fn test_selector_state_multiple_toggles() {
         let mut state = SelectorState::new();
-        
+
         for _ in 0..4 {
             let before = state.is_open();
             state.toggle();
             assert_ne!(before, state.is_open());
         }
-        
+
         // After even number of toggles, should be back to initial closed state
         assert!(!state.is_open());
     }
@@ -532,31 +532,52 @@ mod tests {
     #[test]
     fn test_priority_selector_all_options() {
         let options = PrioritySelector::get_options();
-        assert_eq!(options, vec![
-            Priority::P0,
-            Priority::P1,
-            Priority::P2,
-            Priority::P3,
-            Priority::P4,
-        ]);
+        assert_eq!(
+            options,
+            vec![
+                Priority::P0,
+                Priority::P1,
+                Priority::P2,
+                Priority::P3,
+                Priority::P4,
+            ]
+        );
     }
 
     #[test]
     fn test_priority_selector_colors() {
         assert_eq!(PrioritySelector::priority_color(&Priority::P0), Color::Red);
-        assert_eq!(PrioritySelector::priority_color(&Priority::P1), Color::LightRed);
-        assert_eq!(PrioritySelector::priority_color(&Priority::P2), Color::Yellow);
+        assert_eq!(
+            PrioritySelector::priority_color(&Priority::P1),
+            Color::LightRed
+        );
+        assert_eq!(
+            PrioritySelector::priority_color(&Priority::P2),
+            Color::Yellow
+        );
         assert_eq!(PrioritySelector::priority_color(&Priority::P3), Color::Blue);
         assert_eq!(PrioritySelector::priority_color(&Priority::P4), Color::Gray);
     }
 
     #[test]
     fn test_priority_selector_descriptions() {
-        assert_eq!(PrioritySelector::priority_description(&Priority::P0), "Critical");
-        assert_eq!(PrioritySelector::priority_description(&Priority::P1), "High");
-        assert_eq!(PrioritySelector::priority_description(&Priority::P2), "Medium");
+        assert_eq!(
+            PrioritySelector::priority_description(&Priority::P0),
+            "Critical"
+        );
+        assert_eq!(
+            PrioritySelector::priority_description(&Priority::P1),
+            "High"
+        );
+        assert_eq!(
+            PrioritySelector::priority_description(&Priority::P2),
+            "Medium"
+        );
         assert_eq!(PrioritySelector::priority_description(&Priority::P3), "Low");
-        assert_eq!(PrioritySelector::priority_description(&Priority::P4), "Backlog");
+        assert_eq!(
+            PrioritySelector::priority_description(&Priority::P4),
+            "Backlog"
+        );
     }
 
     #[test]
@@ -575,20 +596,35 @@ mod tests {
     #[test]
     fn test_status_selector_all_options() {
         let options = StatusSelector::get_options();
-        assert_eq!(options, vec![
-            IssueStatus::Open,
-            IssueStatus::InProgress,
-            IssueStatus::Blocked,
-            IssueStatus::Closed,
-        ]);
+        assert_eq!(
+            options,
+            vec![
+                IssueStatus::Open,
+                IssueStatus::InProgress,
+                IssueStatus::Blocked,
+                IssueStatus::Closed,
+            ]
+        );
     }
 
     #[test]
     fn test_status_selector_colors() {
-        assert_eq!(StatusSelector::status_color(&IssueStatus::Open), Color::Green);
-        assert_eq!(StatusSelector::status_color(&IssueStatus::InProgress), Color::Cyan);
-        assert_eq!(StatusSelector::status_color(&IssueStatus::Blocked), Color::Red);
-        assert_eq!(StatusSelector::status_color(&IssueStatus::Closed), Color::Gray);
+        assert_eq!(
+            StatusSelector::status_color(&IssueStatus::Open),
+            Color::Green
+        );
+        assert_eq!(
+            StatusSelector::status_color(&IssueStatus::InProgress),
+            Color::Cyan
+        );
+        assert_eq!(
+            StatusSelector::status_color(&IssueStatus::Blocked),
+            Color::Red
+        );
+        assert_eq!(
+            StatusSelector::status_color(&IssueStatus::Closed),
+            Color::Gray
+        );
     }
 
     #[test]
@@ -607,13 +643,16 @@ mod tests {
     #[test]
     fn test_type_selector_all_options() {
         let options = TypeSelector::get_options();
-        assert_eq!(options, vec![
-            IssueType::Epic,
-            IssueType::Feature,
-            IssueType::Task,
-            IssueType::Bug,
-            IssueType::Chore,
-        ]);
+        assert_eq!(
+            options,
+            vec![
+                IssueType::Epic,
+                IssueType::Feature,
+                IssueType::Task,
+                IssueType::Bug,
+                IssueType::Chore,
+            ]
+        );
     }
 
     #[test]
@@ -629,10 +668,10 @@ mod tests {
     fn test_selector_state_select_with_none() {
         let mut state = SelectorState::new();
         state.list_state.select(None);
-        
+
         state.select_next(5);
         assert_eq!(state.selected(), Some(0)); // Starts from 0 when None
-        
+
         state.list_state.select(None);
         state.select_previous(5);
         assert_eq!(state.selected(), Some(0)); // Starts from 0 when None

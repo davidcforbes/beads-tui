@@ -917,19 +917,19 @@ mod tests {
     #[test]
     fn test_history_exact_max_boundary() {
         let mut state = SearchInputState::new();
-        
+
         // Add exactly max_history items
         for i in 0..50 {
             state.set_query(format!("query{}", i));
             state.add_to_history();
         }
-        
+
         assert_eq!(state.history().len(), 50);
-        
+
         // Add one more
         state.set_query("query50");
         state.add_to_history();
-        
+
         // Should still be 50, oldest removed
         assert_eq!(state.history().len(), 50);
         assert_eq!(state.history()[0], "query1"); // query0 removed
@@ -938,13 +938,13 @@ mod tests {
     #[test]
     fn test_history_very_large() {
         let mut state = SearchInputState::new();
-        
+
         // Add 100 items
         for i in 0..100 {
             state.set_query(format!("query{}", i));
             state.add_to_history();
         }
-        
+
         // Should only keep last 50
         assert_eq!(state.history().len(), 50);
         assert_eq!(state.history()[0], "query50");
@@ -954,7 +954,7 @@ mod tests {
     #[test]
     fn test_complex_editing_sequence() {
         let mut state = SearchInputState::new();
-        
+
         // Build "hello world"
         state.insert_char('h');
         state.insert_char('e');
@@ -967,10 +967,10 @@ mod tests {
         state.insert_char('r');
         state.insert_char('l');
         state.insert_char('d');
-        
+
         assert_eq!(state.query(), "hello world");
         assert_eq!(state.cursor_position(), 11);
-        
+
         // Move to middle and delete
         state.move_cursor_to_start();
         state.move_cursor_right();
@@ -979,10 +979,10 @@ mod tests {
         state.move_cursor_right();
         state.move_cursor_right();
         assert_eq!(state.cursor_position(), 5);
-        
+
         state.delete_char_forward();
         assert_eq!(state.query(), "helloworld");
-        
+
         // Insert at current position
         state.insert_char('_');
         assert_eq!(state.query(), "hello_world");
@@ -992,21 +992,21 @@ mod tests {
     fn test_state_cursor_always_valid() {
         let mut state = SearchInputState::new();
         state.set_query("test");
-        
+
         // Cursor should be at end
         assert_eq!(state.cursor_position(), 4);
         assert!(state.cursor_position() <= state.query().len());
-        
+
         // Delete all characters
         state.delete_char();
         state.delete_char();
         state.delete_char();
         state.delete_char();
-        
+
         // Cursor should be 0
         assert_eq!(state.cursor_position(), 0);
         assert!(state.cursor_position() <= state.query().len());
-        
+
         // Try to delete more (should not panic)
         state.delete_char();
         assert_eq!(state.cursor_position(), 0);
@@ -1024,14 +1024,14 @@ mod tests {
         state.set_query("only");
         state.add_to_history();
         state.clear();
-        
+
         state.history_previous();
         assert_eq!(state.query(), "only");
-        
+
         // Try to go further back (should stay)
         state.history_previous();
         assert_eq!(state.query(), "only");
-        
+
         // Try to go forward (should clear)
         state.history_next();
         assert_eq!(state.query(), "");
@@ -1041,15 +1041,15 @@ mod tests {
     fn test_very_long_query() {
         let mut state = SearchInputState::new();
         let long_query = "a".repeat(1000);
-        
+
         state.set_query(long_query.clone());
         assert_eq!(state.query().len(), 1000);
         assert_eq!(state.cursor_position(), 1000);
-        
+
         // Navigate should work
         state.move_cursor_to_start();
         assert_eq!(state.cursor_position(), 0);
-        
+
         state.move_cursor_to_end();
         assert_eq!(state.cursor_position(), 1000);
     }
@@ -1059,16 +1059,16 @@ mod tests {
         let mut state = SearchInputState::new();
         state.set_query("world");
         state.move_cursor_to_start();
-        
+
         assert_eq!(state.cursor_position(), 0);
-        
+
         state.insert_char('h');
         state.insert_char('e');
         state.insert_char('l');
         state.insert_char('l');
         state.insert_char('o');
         state.insert_char(' ');
-        
+
         assert_eq!(state.query(), "hello world");
         assert_eq!(state.cursor_position(), 6);
     }
@@ -1079,7 +1079,7 @@ mod tests {
         state.set_query("hllo");
         state.move_cursor_to_start();
         state.move_cursor_right(); // After 'h'
-        
+
         state.insert_char('e');
         assert_eq!(state.query(), "hello");
         assert_eq!(state.cursor_position(), 2);
@@ -1089,10 +1089,10 @@ mod tests {
     fn test_delete_forward_at_end() {
         let mut state = SearchInputState::new();
         state.set_query("test");
-        
+
         // Cursor at end
         assert_eq!(state.cursor_position(), 4);
-        
+
         // Delete forward should do nothing
         state.delete_char_forward();
         assert_eq!(state.query(), "test");
@@ -1104,10 +1104,10 @@ mod tests {
         let mut state = SearchInputState::new();
         state.set_query("test");
         state.move_cursor_to_start();
-        
+
         // Cursor at start
         assert_eq!(state.cursor_position(), 0);
-        
+
         // Delete backward should do nothing
         state.delete_char();
         assert_eq!(state.query(), "test");
@@ -1121,9 +1121,9 @@ mod tests {
         state.move_cursor_to_start();
         state.move_cursor_right();
         state.move_cursor_right();
-        
+
         assert_eq!(state.cursor_position(), 2);
-        
+
         state.clear();
         assert_eq!(state.query(), "");
         assert_eq!(state.cursor_position(), 0);
@@ -1134,9 +1134,9 @@ mod tests {
         let mut state = SearchInputState::new();
         state.set_query("test");
         state.move_cursor_to_start();
-        
+
         assert_eq!(state.cursor_position(), 0);
-        
+
         state.set_query("new query");
         assert_eq!(state.cursor_position(), 9); // Cursor moved to end
     }
@@ -1145,13 +1145,13 @@ mod tests {
     fn test_focus_state_toggle() {
         let mut state = SearchInputState::new();
         assert!(!state.is_focused());
-        
+
         state.set_focused(true);
         assert!(state.is_focused());
-        
+
         state.set_focused(false);
         assert!(!state.is_focused());
-        
+
         state.set_focused(true);
         state.set_focused(true); // Multiple sets
         assert!(state.is_focused());
@@ -1160,14 +1160,14 @@ mod tests {
     #[test]
     fn test_history_preserves_order() {
         let mut state = SearchInputState::new();
-        
+
         state.set_query("first");
         state.add_to_history();
         state.set_query("second");
         state.add_to_history();
         state.set_query("third");
         state.add_to_history();
-        
+
         let history = state.history();
         assert_eq!(history[0], "first");
         assert_eq!(history[1], "second");
@@ -1177,10 +1177,15 @@ mod tests {
     #[test]
     fn test_widget_default_values() {
         let input = SearchInput::new();
-        
+
         assert_eq!(input.placeholder, Some("Search..."));
         assert_eq!(input.style, Style::default());
-        assert_eq!(input.focused_style, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+        assert_eq!(
+            input.focused_style,
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD)
+        );
         assert!(input.block.is_some());
         assert!(input.show_icon);
     }
@@ -1188,7 +1193,7 @@ mod tests {
     #[test]
     fn test_multiple_history_navigations() {
         let mut state = SearchInputState::new();
-        
+
         state.set_query("first");
         state.add_to_history();
         state.set_query("second");
@@ -1196,28 +1201,28 @@ mod tests {
         state.set_query("third");
         state.add_to_history();
         state.clear();
-        
+
         // Navigate: empty -> third -> second -> first
         state.history_previous();
         assert_eq!(state.query(), "third");
-        
+
         state.history_previous();
         assert_eq!(state.query(), "second");
-        
+
         state.history_previous();
         assert_eq!(state.query(), "first");
-        
+
         // Try to go further (should stay at first)
         state.history_previous();
         assert_eq!(state.query(), "first");
-        
+
         // Navigate forward: first -> second -> third -> empty
         state.history_next();
         assert_eq!(state.query(), "second");
-        
+
         state.history_next();
         assert_eq!(state.query(), "third");
-        
+
         state.history_next();
         assert_eq!(state.query(), "");
     }
@@ -1226,11 +1231,11 @@ mod tests {
     fn test_unicode_query() {
         let mut state = SearchInputState::new();
         state.set_query("Hello 世界");
-        
+
         assert_eq!(state.query(), "Hello 世界");
         // Cursor position is in bytes, query length is also in bytes for UTF-8
         assert!(state.cursor_position() <= state.query().len());
-        
+
         // Test with simple unicode
         state.clear();
         state.set_query("世界");
@@ -1243,7 +1248,7 @@ mod tests {
         state1.set_query("test query");
         state1.set_focused(true);
         state1.add_to_history();
-        
+
         // SearchInputState should be clonable via Debug trait reconstruction
         // or by manually creating a new state with same values
         let state2 = SearchInputState::new();
@@ -1256,21 +1261,21 @@ mod tests {
     fn test_cursor_navigation_sequence() {
         let mut state = SearchInputState::new();
         state.set_query("abcdef");
-        
+
         // Move to start
         state.move_cursor_to_start();
         assert_eq!(state.cursor_position(), 0);
-        
+
         // Move right 3 times
         state.move_cursor_right();
         state.move_cursor_right();
         state.move_cursor_right();
         assert_eq!(state.cursor_position(), 3);
-        
+
         // Move left 1 time
         state.move_cursor_left();
         assert_eq!(state.cursor_position(), 2);
-        
+
         // Move to end
         state.move_cursor_to_end();
         assert_eq!(state.cursor_position(), 6);
@@ -1279,11 +1284,11 @@ mod tests {
     #[test]
     fn test_empty_history_navigation() {
         let mut state = SearchInputState::new();
-        
+
         // Try to navigate with empty history
         state.history_previous();
         assert_eq!(state.query(), "");
-        
+
         state.history_next();
         assert_eq!(state.query(), "");
     }
@@ -1292,7 +1297,7 @@ mod tests {
     fn test_query_with_special_characters() {
         let mut state = SearchInputState::new();
         let special = "!@#$%^&*()_+-=[]{}|;':\",./<>?`~";
-        
+
         state.set_query(special);
         assert_eq!(state.query(), special);
         assert_eq!(state.cursor_position(), special.len());

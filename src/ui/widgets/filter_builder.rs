@@ -423,10 +423,12 @@ impl<'a> StatefulWidget for FilterBuilder<'a> {
         };
 
         // Render section tabs
-        let tab_titles = [("Status", FilterSection::Status),
+        let tab_titles = [
+            ("Status", FilterSection::Status),
             ("Priority", FilterSection::Priority),
             ("Type", FilterSection::Type),
-            ("Labels", FilterSection::Labels)];
+            ("Labels", FilterSection::Labels),
+        ];
 
         let tab_spans: Vec<Span> = tab_titles
             .iter()
@@ -635,7 +637,7 @@ mod tests {
     #[test]
     fn test_filter_builder_state_criteria_mut() {
         let mut state = FilterBuilderState::new();
-        
+
         state.criteria_mut().add_status(IssueStatus::Open);
         assert!(state.criteria().statuses.contains(&IssueStatus::Open));
     }
@@ -644,7 +646,7 @@ mod tests {
     fn test_select_next_wraparound_priority_section() {
         let mut state = FilterBuilderState::new();
         state.set_section(FilterSection::Priority);
-        
+
         // Priority has 5 items (P0-P4)
         state.list_state.select(Some(4));
         state.select_next();
@@ -655,7 +657,7 @@ mod tests {
     fn test_select_next_wraparound_type_section() {
         let mut state = FilterBuilderState::new();
         state.set_section(FilterSection::Type);
-        
+
         // Type has 5 items
         state.list_state.select(Some(4));
         state.select_next();
@@ -666,7 +668,7 @@ mod tests {
     fn test_select_previous_wraparound_priority_section() {
         let mut state = FilterBuilderState::new();
         state.set_section(FilterSection::Priority);
-        
+
         state.list_state.select(Some(0));
         state.select_previous();
         assert_eq!(state.selected(), Some(4)); // Wraps to end
@@ -713,11 +715,11 @@ mod tests {
         let mut state = FilterBuilderState::new();
         state.set_section(FilterSection::Labels);
         state.list_state.select(Some(0));
-        
+
         let before_count = state.criteria().labels.len();
         state.toggle_selected();
         let after_count = state.criteria().labels.len();
-        
+
         assert_eq!(before_count, after_count);
     }
 
@@ -725,7 +727,7 @@ mod tests {
     fn test_toggle_selected_with_no_selection() {
         let mut state = FilterBuilderState::new();
         state.list_state.select(None);
-        
+
         state.toggle_selected();
         // Should not panic, just do nothing
         assert!(state.criteria().statuses.is_empty());
@@ -737,10 +739,10 @@ mod tests {
         state.criteria_mut().add_priority(Priority::P0);
         state.criteria_mut().add_priority(Priority::P1);
         state.criteria_mut().add_status(IssueStatus::Open);
-        
+
         state.set_section(FilterSection::Priority);
         state.clear_section();
-        
+
         assert!(state.criteria().priorities.is_empty());
         assert!(!state.criteria().statuses.is_empty()); // Other sections unchanged
     }
@@ -750,10 +752,10 @@ mod tests {
         let mut state = FilterBuilderState::new();
         state.criteria_mut().add_type(IssueType::Bug);
         state.criteria_mut().add_type(IssueType::Feature);
-        
+
         state.set_section(FilterSection::Type);
         state.clear_section();
-        
+
         assert!(state.criteria().types.is_empty());
     }
 
@@ -762,10 +764,10 @@ mod tests {
         let mut state = FilterBuilderState::new();
         state.criteria_mut().add_label("bug".to_string());
         state.criteria_mut().add_label("urgent".to_string());
-        
+
         state.set_section(FilterSection::Labels);
         state.clear_section();
-        
+
         assert!(state.criteria().labels.is_empty());
     }
 
@@ -821,14 +823,14 @@ mod tests {
         let style = Style::default().fg(Color::Magenta);
         let selected = Style::default().bg(Color::Green);
         let active = Style::default().fg(Color::White);
-        
+
         let builder = FilterBuilder::new()
             .title("My Filters")
             .show_help(false)
             .style(style)
             .selected_style(selected)
             .active_style(active);
-        
+
         assert_eq!(builder.title, "My Filters");
         assert!(!builder.show_help);
         assert_eq!(builder.style.fg, Some(Color::Magenta));
@@ -838,16 +840,31 @@ mod tests {
 
     #[test]
     fn test_status_color_all_statuses() {
-        assert_eq!(FilterBuilder::status_color(&IssueStatus::Open), Color::Green);
-        assert_eq!(FilterBuilder::status_color(&IssueStatus::InProgress), Color::Cyan);
-        assert_eq!(FilterBuilder::status_color(&IssueStatus::Blocked), Color::Red);
-        assert_eq!(FilterBuilder::status_color(&IssueStatus::Closed), Color::Gray);
+        assert_eq!(
+            FilterBuilder::status_color(&IssueStatus::Open),
+            Color::Green
+        );
+        assert_eq!(
+            FilterBuilder::status_color(&IssueStatus::InProgress),
+            Color::Cyan
+        );
+        assert_eq!(
+            FilterBuilder::status_color(&IssueStatus::Blocked),
+            Color::Red
+        );
+        assert_eq!(
+            FilterBuilder::status_color(&IssueStatus::Closed),
+            Color::Gray
+        );
     }
 
     #[test]
     fn test_priority_color_all_priorities() {
         assert_eq!(FilterBuilder::priority_color(&Priority::P0), Color::Red);
-        assert_eq!(FilterBuilder::priority_color(&Priority::P1), Color::LightRed);
+        assert_eq!(
+            FilterBuilder::priority_color(&Priority::P1),
+            Color::LightRed
+        );
         assert_eq!(FilterBuilder::priority_color(&Priority::P2), Color::Yellow);
         assert_eq!(FilterBuilder::priority_color(&Priority::P3), Color::Blue);
         assert_eq!(FilterBuilder::priority_color(&Priority::P4), Color::Gray);
@@ -866,17 +883,17 @@ mod tests {
     fn test_toggle_multiple_statuses() {
         let mut state = FilterBuilderState::new();
         state.set_section(FilterSection::Status);
-        
+
         // Toggle Open (index 0)
         state.list_state.select(Some(0));
         state.toggle_selected();
         assert!(state.criteria().statuses.contains(&IssueStatus::Open));
-        
+
         // Toggle InProgress (index 1)
         state.list_state.select(Some(1));
         state.toggle_selected();
         assert!(state.criteria().statuses.contains(&IssueStatus::InProgress));
-        
+
         // Both should be active
         assert_eq!(state.criteria().statuses.len(), 2);
     }
@@ -885,13 +902,13 @@ mod tests {
     fn test_toggle_multiple_priorities() {
         let mut state = FilterBuilderState::new();
         state.set_section(FilterSection::Priority);
-        
+
         state.list_state.select(Some(0)); // P0
         state.toggle_selected();
-        
+
         state.list_state.select(Some(2)); // P2
         state.toggle_selected();
-        
+
         assert_eq!(state.criteria().priorities.len(), 2);
         assert!(state.criteria().priorities.contains(&Priority::P0));
         assert!(state.criteria().priorities.contains(&Priority::P2));
@@ -901,13 +918,13 @@ mod tests {
     fn test_toggle_multiple_types() {
         let mut state = FilterBuilderState::new();
         state.set_section(FilterSection::Type);
-        
+
         state.list_state.select(Some(0)); // Epic
         state.toggle_selected();
-        
+
         state.list_state.select(Some(3)); // Bug
         state.toggle_selected();
-        
+
         assert_eq!(state.criteria().types.len(), 2);
         assert!(state.criteria().types.contains(&IssueType::Epic));
         assert!(state.criteria().types.contains(&IssueType::Bug));

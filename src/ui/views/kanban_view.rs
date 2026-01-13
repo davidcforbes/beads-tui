@@ -1,7 +1,9 @@
 //! Kanban board view for visual issue management
 
 use crate::beads::models::{Issue, IssueStatus, Priority};
-use crate::models::kanban_config::{CardSort, ColumnDefinition, ColumnId, GroupingMode, KanbanConfig};
+use crate::models::kanban_config::{
+    CardSort, ColumnDefinition, ColumnId, GroupingMode, KanbanConfig,
+};
 use crate::ui::widgets::kanban_card::{render_kanban_card, CardMode, KanbanCardConfig};
 use ratatui::{
     buffer::Buffer,
@@ -70,7 +72,8 @@ impl ColumnManagerState {
     /// Move selected column up
     pub fn move_up(&mut self) {
         if self.selected_index > 0 {
-            self.columns.swap(self.selected_index, self.selected_index - 1);
+            self.columns
+                .swap(self.selected_index, self.selected_index - 1);
             self.selected_index -= 1;
         }
     }
@@ -78,7 +81,8 @@ impl ColumnManagerState {
     /// Move selected column down
     pub fn move_down(&mut self) {
         if self.selected_index < self.columns.len().saturating_sub(1) {
-            self.columns.swap(self.selected_index, self.selected_index + 1);
+            self.columns
+                .swap(self.selected_index, self.selected_index + 1);
             self.selected_index += 1;
         }
     }
@@ -93,7 +97,8 @@ impl ColumnManagerState {
     /// Navigate to previous column in list
     pub fn previous_column(&mut self) {
         if !self.columns.is_empty() {
-            self.selected_index = (self.selected_index + self.columns.len() - 1) % self.columns.len();
+            self.selected_index =
+                (self.selected_index + self.columns.len() - 1) % self.columns.len();
         }
     }
 
@@ -332,7 +337,7 @@ impl KanbanViewState {
     pub fn apply_column_manager_changes(&mut self) {
         self.config.columns = self.column_manager.columns.clone();
         self.column_manager.close();
-        
+
         // Ensure selected_column is still valid after changes
         let visible_count = self.visible_columns().len();
         if self.selected_column >= visible_count && visible_count > 0 {
@@ -358,11 +363,11 @@ impl KanbanViewState {
                 ColumnDefinition::new(ColumnId::PriorityP3),
                 ColumnDefinition::new(ColumnId::PriorityP4),
             ],
-            GroupingMode::Assignee | GroupingMode::Label => vec![
-                ColumnDefinition::new(ColumnId::Unassigned),
-            ],
+            GroupingMode::Assignee | GroupingMode::Label => {
+                vec![ColumnDefinition::new(ColumnId::Unassigned)]
+            }
         };
-        
+
         // Update overlay if it's open
         if self.column_manager.visible {
             self.column_manager.open(self.config.columns.clone());
@@ -419,11 +424,11 @@ impl KanbanViewState {
     /// Ensure the selected column is visible within the current scroll view
     pub fn ensure_selected_column_visible(&mut self, viewport_width: u16) {
         let visible_columns = self.visible_columns();
-        
+
         // Calculate which columns fit in viewport starting from horizontal_scroll
         let mut accumulated_width = 0u16;
         let mut visible_range_end = self.horizontal_scroll;
-        
+
         for idx in self.horizontal_scroll..visible_columns.len() {
             if let Some(col) = visible_columns.get(idx) {
                 accumulated_width += col.width;
@@ -434,12 +439,12 @@ impl KanbanViewState {
                 }
             }
         }
-        
+
         // If selected column is before scroll position, scroll left to it
         if self.selected_column < self.horizontal_scroll {
             self.horizontal_scroll = self.selected_column;
         }
-        
+
         // If selected column is after visible range, scroll right to show it
         if self.selected_column > visible_range_end {
             self.horizontal_scroll = self.selected_column;
@@ -479,21 +484,30 @@ impl KanbanViewState {
             let visible_columns = self.visible_columns();
 
             // Get source and target columns
-            let source_column = visible_columns.get(self.selected_column)
+            let source_column = visible_columns
+                .get(self.selected_column)
                 .ok_or("Invalid source column")?;
-            let target_column = visible_columns.get(target_column_idx)
+            let target_column = visible_columns
+                .get(target_column_idx)
                 .ok_or("Invalid target column")?;
 
             // Get the selected issue
             let source_issues = self.get_column_issues(self.selected_column);
-            let issue = source_issues.get(self.selected_card)
+            let issue = source_issues
+                .get(self.selected_card)
                 .ok_or("No card selected")?;
 
-            (source_column.id.clone(), target_column.id.clone(), issue.id.clone())
+            (
+                source_column.id.clone(),
+                target_column.id.clone(),
+                issue.id.clone(),
+            )
         }; // visible_columns borrow ends here
 
         // Find the issue in our issues vector and update it
-        let issue_mut = self.issues.iter_mut()
+        let issue_mut = self
+            .issues
+            .iter_mut()
             .find(|i| i.id == issue_id)
             .ok_or("Issue not found in state")?;
 
@@ -520,17 +534,15 @@ impl KanbanViewState {
                 };
                 issue_mut.priority = new_priority;
             }
-            GroupingMode::Assignee => {
-                match &target_column_id {
-                    ColumnId::Assignee(name) => {
-                        issue_mut.assignee = Some(name.clone());
-                    }
-                    ColumnId::Unassigned => {
-                        issue_mut.assignee = None;
-                    }
-                    _ => return Err("Invalid assignee column".to_string()),
+            GroupingMode::Assignee => match &target_column_id {
+                ColumnId::Assignee(name) => {
+                    issue_mut.assignee = Some(name.clone());
                 }
-            }
+                ColumnId::Unassigned => {
+                    issue_mut.assignee = None;
+                }
+                _ => return Err("Invalid assignee column".to_string()),
+            },
             GroupingMode::Label => {
                 // For label mode, we need to handle adding/removing labels
                 match (&source_column_id, &target_column_id) {
@@ -566,14 +578,17 @@ impl KanbanViewState {
     /// Quick action: Update selected issue status
     pub fn update_selected_issue_status(&mut self, status: IssueStatus) -> Result<(), String> {
         let column_issues = self.get_column_issues(self.selected_column);
-        let issue = column_issues.get(self.selected_card)
+        let issue = column_issues
+            .get(self.selected_card)
             .ok_or("No card selected")?;
         let issue_id = issue.id.clone();
 
-        let issue_mut = self.issues.iter_mut()
+        let issue_mut = self
+            .issues
+            .iter_mut()
             .find(|i| i.id == issue_id)
             .ok_or("Issue not found")?;
-        
+
         issue_mut.status = status;
         Ok(())
     }
@@ -581,29 +596,38 @@ impl KanbanViewState {
     /// Quick action: Update selected issue priority
     pub fn update_selected_issue_priority(&mut self, priority: Priority) -> Result<(), String> {
         let column_issues = self.get_column_issues(self.selected_column);
-        let issue = column_issues.get(self.selected_card)
+        let issue = column_issues
+            .get(self.selected_card)
             .ok_or("No card selected")?;
         let issue_id = issue.id.clone();
 
-        let issue_mut = self.issues.iter_mut()
+        let issue_mut = self
+            .issues
+            .iter_mut()
             .find(|i| i.id == issue_id)
             .ok_or("Issue not found")?;
-        
+
         issue_mut.priority = priority;
         Ok(())
     }
 
     /// Quick action: Update selected issue assignee
-    pub fn update_selected_issue_assignee(&mut self, assignee: Option<String>) -> Result<(), String> {
+    pub fn update_selected_issue_assignee(
+        &mut self,
+        assignee: Option<String>,
+    ) -> Result<(), String> {
         let column_issues = self.get_column_issues(self.selected_column);
-        let issue = column_issues.get(self.selected_card)
+        let issue = column_issues
+            .get(self.selected_card)
             .ok_or("No card selected")?;
         let issue_id = issue.id.clone();
 
-        let issue_mut = self.issues.iter_mut()
+        let issue_mut = self
+            .issues
+            .iter_mut()
             .find(|i| i.id == issue_id)
             .ok_or("Issue not found")?;
-        
+
         issue_mut.assignee = assignee;
         Ok(())
     }
@@ -611,14 +635,17 @@ impl KanbanViewState {
     /// Quick action: Add label to selected issue
     pub fn add_label_to_selected_issue(&mut self, label: String) -> Result<(), String> {
         let column_issues = self.get_column_issues(self.selected_column);
-        let issue = column_issues.get(self.selected_card)
+        let issue = column_issues
+            .get(self.selected_card)
             .ok_or("No card selected")?;
         let issue_id = issue.id.clone();
 
-        let issue_mut = self.issues.iter_mut()
+        let issue_mut = self
+            .issues
+            .iter_mut()
             .find(|i| i.id == issue_id)
             .ok_or("Issue not found")?;
-        
+
         if !issue_mut.labels.contains(&label) {
             issue_mut.labels.push(label);
         }
@@ -628,14 +655,17 @@ impl KanbanViewState {
     /// Quick action: Remove label from selected issue
     pub fn remove_label_from_selected_issue(&mut self, label: &str) -> Result<(), String> {
         let column_issues = self.get_column_issues(self.selected_column);
-        let issue = column_issues.get(self.selected_card)
+        let issue = column_issues
+            .get(self.selected_card)
             .ok_or("No card selected")?;
         let issue_id = issue.id.clone();
 
-        let issue_mut = self.issues.iter_mut()
+        let issue_mut = self
+            .issues
+            .iter_mut()
             .find(|i| i.id == issue_id)
             .ok_or("Issue not found")?;
-        
+
         issue_mut.labels.retain(|l| l != label);
         Ok(())
     }
@@ -679,7 +709,8 @@ impl KanbanViewState {
 
             // If not found, try to keep same column/card position
             if !found {
-                self.selected_column = old_selected_column.min(visible_column_count.saturating_sub(1));
+                self.selected_column =
+                    old_selected_column.min(visible_column_count.saturating_sub(1));
                 let column_issue_count = self.get_column_issues(self.selected_column).len();
                 self.selected_card = old_selected_card.min(column_issue_count.saturating_sub(1));
             }
@@ -700,10 +731,10 @@ impl KanbanViewState {
         let visible_columns = self.visible_columns();
         if let Some(column) = visible_columns.get(column_index) {
             let mut issues = self.filter_issues_for_column(column);
-            
+
             // Apply global filters
             issues = self.apply_global_filters(issues);
-            
+
             // Apply column-specific sorting
             self.sort_issues(issues, column.card_sort)
         } else {
@@ -714,7 +745,7 @@ impl KanbanViewState {
     /// Apply global filters to a list of issues
     fn apply_global_filters<'a>(&'a self, issues: Vec<&'a Issue>) -> Vec<&'a Issue> {
         let filters = &self.config.filters;
-        
+
         issues
             .into_iter()
             .filter(|issue| {
@@ -734,7 +765,10 @@ impl KanbanViewState {
 
                 // Label filter
                 if !filters.labels.is_empty() {
-                    let has_matching_label = filters.labels.iter().any(|label| issue.labels.contains(label));
+                    let has_matching_label = filters
+                        .labels
+                        .iter()
+                        .any(|label| issue.labels.contains(label));
                     if !has_matching_label {
                         return false;
                     }
@@ -754,7 +788,11 @@ impl KanbanViewState {
                 // Status filter
                 if !filters.statuses.is_empty() {
                     let status_str = format!("{:?}", issue.status).to_lowercase();
-                    if !filters.statuses.iter().any(|s| s.to_lowercase() == status_str) {
+                    if !filters
+                        .statuses
+                        .iter()
+                        .any(|s| s.to_lowercase() == status_str)
+                    {
                         return false;
                     }
                 }
@@ -767,7 +805,7 @@ impl KanbanViewState {
     /// Sort issues based on the specified sort order
     fn sort_issues<'a>(&self, mut issues: Vec<&'a Issue>, sort: CardSort) -> Vec<&'a Issue> {
         use crate::beads::models::Priority;
-        
+
         match sort {
             CardSort::Priority => {
                 issues.sort_by(|a, b| {
@@ -799,7 +837,7 @@ impl KanbanViewState {
                 issues.sort_by(|a, b| b.updated.cmp(&a.updated)); // Most recent first
             }
         }
-        
+
         issues
     }
 
@@ -930,9 +968,7 @@ impl KanbanView {
 
         if visible_columns.is_empty() {
             // No columns to display
-            let block = Block::default()
-                .title("Kanban Board")
-                .borders(Borders::ALL);
+            let block = Block::default().title("Kanban Board").borders(Borders::ALL);
             let inner = block.inner(area);
             block.render(area, buf);
 
@@ -965,11 +1001,11 @@ impl KanbanView {
         // Calculate which columns to render based on horizontal scroll
         let scroll_offset = state.horizontal_scroll();
         let viewport_width = columns_area.width;
-        
+
         // Determine visible columns that fit in viewport
         let mut columns_to_render = Vec::new();
         let mut accumulated_width = 0u16;
-        
+
         for (idx, col) in visible_columns.iter().enumerate().skip(scroll_offset) {
             if accumulated_width + col.width <= viewport_width {
                 columns_to_render.push((idx, col, col.width));
@@ -992,9 +1028,8 @@ impl KanbanView {
                 .split(columns_area);
 
             // Render each visible column
-            for ((col_idx, column, _), column_area) in columns_to_render
-                .iter()
-                .zip(columns_layout.iter())
+            for ((col_idx, column, _), column_area) in
+                columns_to_render.iter().zip(columns_layout.iter())
             {
                 Self::render_column(
                     *column_area,
@@ -1015,10 +1050,12 @@ impl KanbanView {
                 columns_area.x,
                 columns_area.y,
                 indicator,
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             );
         }
-        
+
         if scroll_offset + columns_to_render.len() < visible_columns.len() {
             // Right scroll indicator
             let indicator = " ▶ ";
@@ -1027,7 +1064,9 @@ impl KanbanView {
                 x,
                 columns_area.y,
                 indicator,
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             );
         }
 
@@ -1040,9 +1079,12 @@ impl KanbanView {
     /// Render the filter row showing active filters
     fn render_filter_row(area: Rect, buf: &mut Buffer, state: &KanbanViewState) {
         let filters = &state.config.filters;
-        let mut spans = vec![
-            Span::styled("Filters: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-        ];
+        let mut spans = vec![Span::styled(
+            "Filters: ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )];
 
         let mut filter_parts = Vec::new();
 
@@ -1074,7 +1116,10 @@ impl KanbanView {
         }
 
         spans.push(Span::raw(" "));
-        spans.push(Span::styled("(Press 'f' to edit, 'F' to clear)", Style::default().fg(Color::DarkGray)));
+        spans.push(Span::styled(
+            "(Press 'f' to edit, 'F' to clear)",
+            Style::default().fg(Color::DarkGray),
+        ));
 
         let line = Line::from(spans);
         let paragraph = Paragraph::new(line);
@@ -1086,10 +1131,10 @@ impl KanbanView {
         // Calculate centered overlay area (60% width, 80% height)
         let overlay_width = (area.width as f32 * 0.6).max(50.0).min(area.width as f32) as u16;
         let overlay_height = (area.height as f32 * 0.8).max(20.0).min(area.height as f32) as u16;
-        
+
         let overlay_x = area.x + (area.width.saturating_sub(overlay_width)) / 2;
         let overlay_y = area.y + (area.height.saturating_sub(overlay_height)) / 2;
-        
+
         let overlay_area = Rect {
             x: overlay_x,
             y: overlay_y,
@@ -1101,9 +1146,13 @@ impl KanbanView {
         let block = Block::default()
             .title(" Column Manager ")
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            .border_style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )
             .style(Style::default().bg(Color::Black));
-        
+
         let inner = block.inner(overlay_area);
         block.render(overlay_area, buf);
 
@@ -1140,7 +1189,7 @@ impl KanbanView {
         // Render column list
         let manager = &state.column_manager;
         let list_area = chunks[1];
-        
+
         let mut y = list_area.y;
         for (idx, col) in manager.columns.iter().enumerate() {
             if y >= list_area.y + list_area.height {
@@ -1155,7 +1204,12 @@ impl KanbanView {
 
             // Selection indicator
             if is_selected {
-                spans.push(Span::styled("> ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
+                spans.push(Span::styled(
+                    "> ",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ));
             } else {
                 spans.push(Span::raw("  "));
             }
@@ -1172,7 +1226,9 @@ impl KanbanView {
 
             // Column label
             let label_style = if is_selected {
-                Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
             };
@@ -1180,16 +1236,19 @@ impl KanbanView {
             spans.push(Span::raw(" "));
 
             // WIP Limit
-            let wip_text = if is_editing && matches!(manager.edit_mode, Some(ColumnEditMode::WipLimit)) {
-                format!("[WIP: {}█]", manager.input_buffer)
-            } else {
-                match col.wip_limit {
-                    Some(limit) => format!("[WIP: {}]", limit),
-                    None => "[WIP: -]".to_string(),
-                }
-            };
+            let wip_text =
+                if is_editing && matches!(manager.edit_mode, Some(ColumnEditMode::WipLimit)) {
+                    format!("[WIP: {}█]", manager.input_buffer)
+                } else {
+                    match col.wip_limit {
+                        Some(limit) => format!("[WIP: {}]", limit),
+                        None => "[WIP: -]".to_string(),
+                    }
+                };
             let wip_style = if is_editing {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::DarkGray)
             };
@@ -1202,7 +1261,10 @@ impl KanbanView {
 
         // Status line
         let status_text = format!("{} columns total", manager.columns.len());
-        let status_line = Line::from(Span::styled(status_text, Style::default().fg(Color::DarkGray)));
+        let status_line = Line::from(Span::styled(
+            status_text,
+            Style::default().fg(Color::DarkGray),
+        ));
         Paragraph::new(status_line).render(chunks[2], buf);
     }
 
@@ -1216,7 +1278,9 @@ impl KanbanView {
         is_selected: bool,
     ) {
         let border_style = if is_selected {
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::DarkGray)
         };
@@ -1416,7 +1480,7 @@ mod tests {
         let mut state = KanbanViewState::new(vec![]);
         state.set_search_query(Some("test".to_string()));
         assert_eq!(state.config.filters.search_query, Some("test".to_string()));
-        
+
         state.set_search_query(None);
         assert_eq!(state.config.filters.search_query, None);
     }
@@ -1424,18 +1488,18 @@ mod tests {
     #[test]
     fn test_add_remove_label_filter() {
         let mut state = KanbanViewState::new(vec![]);
-        
+
         state.add_label_filter("bug".to_string());
         assert_eq!(state.config.filters.labels.len(), 1);
         assert!(state.config.filters.labels.contains(&"bug".to_string()));
-        
+
         // Adding duplicate should not increase count
         state.add_label_filter("bug".to_string());
         assert_eq!(state.config.filters.labels.len(), 1);
-        
+
         state.add_label_filter("feature".to_string());
         assert_eq!(state.config.filters.labels.len(), 2);
-        
+
         state.remove_label_filter("bug");
         assert_eq!(state.config.filters.labels.len(), 1);
         assert!(!state.config.filters.labels.contains(&"bug".to_string()));
@@ -1444,10 +1508,10 @@ mod tests {
     #[test]
     fn test_add_remove_assignee_filter() {
         let mut state = KanbanViewState::new(vec![]);
-        
+
         state.add_assignee_filter("alice".to_string());
         assert_eq!(state.config.filters.assignees.len(), 1);
-        
+
         state.remove_assignee_filter("alice");
         assert_eq!(state.config.filters.assignees.len(), 0);
     }
@@ -1455,10 +1519,10 @@ mod tests {
     #[test]
     fn test_add_remove_status_filter() {
         let mut state = KanbanViewState::new(vec![]);
-        
+
         state.add_status_filter("open".to_string());
         assert_eq!(state.config.filters.statuses.len(), 1);
-        
+
         state.remove_status_filter("open");
         assert_eq!(state.config.filters.statuses.len(), 0);
     }
@@ -1466,16 +1530,16 @@ mod tests {
     #[test]
     fn test_clear_all_filters() {
         let mut state = KanbanViewState::new(vec![]);
-        
+
         state.set_search_query(Some("test".to_string()));
         state.add_label_filter("bug".to_string());
         state.add_assignee_filter("alice".to_string());
         state.add_status_filter("open".to_string());
-        
+
         assert!(state.has_active_filters());
-        
+
         state.clear_all_filters();
-        
+
         assert!(!state.has_active_filters());
         assert_eq!(state.config.filters.search_query, None);
         assert!(state.config.filters.labels.is_empty());
@@ -1486,10 +1550,10 @@ mod tests {
     #[test]
     fn test_set_column_sort() {
         let mut state = KanbanViewState::new(vec![]);
-        
+
         // Set sort for first column
         state.set_column_sort(0, CardSort::Title);
-        
+
         let sort = state.get_column_sort(0);
         assert_eq!(sort, Some(CardSort::Title));
     }
@@ -1501,12 +1565,12 @@ mod tests {
             create_test_issue("TEST-2", "Add dashboard", IssueStatus::Open),
         ];
         let mut state = KanbanViewState::new(issues);
-        
+
         state.set_search_query(Some("login".to_string()));
-        
+
         let all_issues: Vec<&Issue> = state.issues.iter().collect();
         let filtered = state.apply_global_filters(all_issues);
-        
+
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].id, "TEST-1");
     }
@@ -1515,7 +1579,7 @@ mod tests {
     fn test_sort_issues_by_priority() {
         use crate::beads::models::{IssueType, Priority};
         use chrono::Utc;
-        
+
         let issues = vec![
             Issue {
                 id: "TEST-1".to_string(),
@@ -1550,11 +1614,11 @@ mod tests {
                 notes: vec![],
             },
         ];
-        
+
         let state = KanbanViewState::new(issues.clone());
         let issue_refs: Vec<&Issue> = issues.iter().collect();
         let sorted = state.sort_issues(issue_refs, CardSort::Priority);
-        
+
         // P0 should come first
         assert_eq!(sorted[0].id, "TEST-2");
         assert_eq!(sorted[1].id, "TEST-1");
@@ -1566,11 +1630,11 @@ mod tests {
             create_test_issue("TEST-1", "Zebra", IssueStatus::Open),
             create_test_issue("TEST-2", "Alpha", IssueStatus::Open),
         ];
-        
+
         let state = KanbanViewState::new(issues.clone());
         let issue_refs: Vec<&Issue> = issues.iter().collect();
         let sorted = state.sort_issues(issue_refs, CardSort::Title);
-        
+
         assert_eq!(sorted[0].title, "Alpha");
         assert_eq!(sorted[1].title, "Zebra");
     }

@@ -696,7 +696,7 @@ mod tests {
     fn test_date_range_contains_empty_range() {
         let range = DateRange::new();
         let any_date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
-        
+
         // Empty range contains all dates
         assert!(range.contains(&any_date));
     }
@@ -752,9 +752,11 @@ mod tests {
     #[test]
     fn test_date_range_picker_apply_selected_custom() {
         let mut state = DateRangePickerState::new();
-        
+
         // Select Custom preset (last one)
-        state.list_state.select(Some(DateRangePreset::all().len() - 1));
+        state
+            .list_state
+            .select(Some(DateRangePreset::all().len() - 1));
         state.apply_selected();
 
         assert_eq!(state.preset(), DateRangePreset::Custom);
@@ -765,10 +767,10 @@ mod tests {
     fn test_preset_yesterday() {
         let preset = DateRangePreset::Yesterday;
         let (start, end) = preset.date_range().unwrap();
-        
+
         // Yesterday should be a single day
         assert_eq!(start, end);
-        
+
         let now = Local::now().naive_local().date();
         let yesterday = now - Duration::days(1);
         assert_eq!(start, yesterday);
@@ -789,12 +791,12 @@ mod tests {
         let (start, end) = preset.date_range().unwrap();
 
         let now = Local::now().naive_local().date();
-        
+
         // Start should be first day of current month
         assert_eq!(start.day(), 1);
         assert_eq!(start.month(), now.month());
         assert_eq!(start.year(), now.year());
-        
+
         // End should be today
         assert_eq!(end, now);
     }
@@ -806,7 +808,7 @@ mod tests {
 
         // Start should be first day of last month
         assert_eq!(start.day(), 1);
-        
+
         // Should be exactly one month before current month
         let now = Local::now().naive_local().date();
         if now.month() == 1 {
@@ -859,7 +861,7 @@ mod tests {
         let preset = DateRangePreset::Last7Days;
         let copied = preset;
         assert_eq!(preset, copied);
-        
+
         // Can still use original after copy
         assert_eq!(preset.name(), "Last 7 days");
     }
@@ -868,17 +870,17 @@ mod tests {
     fn test_date_range_picker_builder_order_independence() {
         let style1 = Style::default().fg(Color::Red);
         let style2 = Style::default().bg(Color::Blue);
-        
+
         let picker1 = DateRangePicker::new()
             .title("Custom")
             .style(style1)
             .selected_style(style2);
-        
+
         let picker2 = DateRangePicker::new()
             .selected_style(style2)
             .style(style1)
             .title("Custom");
-        
+
         assert_eq!(picker1.title, picker2.title);
     }
 
@@ -888,7 +890,7 @@ mod tests {
             .title("First")
             .title("Second")
             .title("Third");
-        
+
         assert_eq!(picker.title, "Third");
     }
 
@@ -901,7 +903,7 @@ mod tests {
     #[test]
     fn test_all_date_range_preset_variants_covered() {
         let all = DateRangePreset::all();
-        
+
         assert!(all.contains(&DateRangePreset::Today));
         assert!(all.contains(&DateRangePreset::Yesterday));
         assert!(all.contains(&DateRangePreset::Last7Days));
@@ -917,7 +919,7 @@ mod tests {
     fn test_date_range_preset_names_unique() {
         let all = DateRangePreset::all();
         let mut names = std::collections::HashSet::new();
-        
+
         for preset in all {
             let name = preset.name().to_string();
             assert!(names.insert(name.clone()), "Duplicate name: {}", name);
@@ -929,7 +931,7 @@ mod tests {
         let start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
         let end = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
         let range = DateRange::from_dates(start, end);
-        
+
         assert!(range.contains(&start));
     }
 
@@ -938,7 +940,7 @@ mod tests {
         let start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
         let end = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
         let range = DateRange::from_dates(start, end);
-        
+
         assert!(range.contains(&end));
     }
 
@@ -947,7 +949,7 @@ mod tests {
         let start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
         let mut range = DateRange::new();
         range.start = Some(start);
-        
+
         let formatted = range.format();
         assert!(formatted.starts_with("From"));
         assert!(formatted.contains("2024-01-01"));
@@ -958,7 +960,7 @@ mod tests {
         let end = NaiveDate::from_ymd_opt(2024, 12, 31).unwrap();
         let mut range = DateRange::new();
         range.end = Some(end);
-        
+
         let formatted = range.format();
         assert!(formatted.starts_with("Until"));
         assert!(formatted.contains("2024-12-31"));
@@ -974,7 +976,7 @@ mod tests {
     fn test_date_range_format_same_day() {
         let date = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
         let range = DateRange::from_dates(date, date);
-        
+
         // Should show single date, not range
         assert_eq!(range.format(), "2024-06-15");
         assert!(!range.format().contains(" to "));
@@ -985,12 +987,12 @@ mod tests {
         let start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
         let end = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
         let range = DateRange::from_dates(start, end);
-        
+
         let mut cloned = range.clone();
-        
+
         // Modify clone
         cloned.clear();
-        
+
         // Original should be unchanged
         assert!(!range.is_empty());
         assert!(cloned.is_empty());
@@ -999,9 +1001,9 @@ mod tests {
     #[test]
     fn test_date_range_picker_state_set_custom_mode_enabled() {
         let mut state = DateRangePickerState::new();
-        
+
         state.set_custom_mode(true);
-        
+
         assert!(state.is_custom_mode());
         assert_eq!(state.preset(), DateRangePreset::Custom);
     }
@@ -1009,10 +1011,10 @@ mod tests {
     #[test]
     fn test_date_range_picker_state_set_custom_mode_disabled() {
         let mut state = DateRangePickerState::new();
-        
+
         state.set_custom_mode(true);
         assert!(state.is_custom_mode());
-        
+
         state.set_custom_mode(false);
         assert!(!state.is_custom_mode());
         // Note: preset stays Custom, only mode flag changes
@@ -1022,10 +1024,10 @@ mod tests {
     fn test_date_range_picker_navigation_wraparound_forward() {
         let mut state = DateRangePickerState::new();
         let preset_count = DateRangePreset::all().len();
-        
+
         // Navigate to last
         state.list_state.select(Some(preset_count - 1));
-        
+
         // Next should wrap to first
         state.select_next();
         assert_eq!(state.list_state.selected(), Some(0));
@@ -1034,10 +1036,10 @@ mod tests {
     #[test]
     fn test_date_range_picker_navigation_wraparound_backward() {
         let mut state = DateRangePickerState::new();
-        
+
         // Start at first
         state.list_state.select(Some(0));
-        
+
         // Previous should wrap to last
         state.select_previous();
         assert_eq!(
@@ -1050,10 +1052,10 @@ mod tests {
     fn test_date_range_picker_apply_selected_no_selection() {
         let mut state = DateRangePickerState::new();
         state.list_state.select(None);
-        
+
         let preset_before = state.preset();
         state.apply_selected();
-        
+
         // Should not change when nothing is selected
         assert_eq!(state.preset(), preset_before);
     }
@@ -1061,16 +1063,16 @@ mod tests {
     #[test]
     fn test_date_range_picker_clear_resets_all_state() {
         let mut state = DateRangePickerState::new();
-        
+
         // Set to custom with date range
         let start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
         let end = NaiveDate::from_ymd_opt(2024, 1, 31).unwrap();
         state.set_date_range(Some(start), Some(end));
         state.select_next();
         state.select_next();
-        
+
         state.clear();
-        
+
         // Everything should be reset
         assert!(state.date_range().is_empty());
         assert_eq!(state.preset(), DateRangePreset::Today);
@@ -1083,12 +1085,12 @@ mod tests {
         let mut state = DateRangePickerState::new();
         state.select_next();
         state.apply_selected();
-        
+
         let mut cloned = state.clone();
-        
+
         // Modify clone
         cloned.clear();
-        
+
         // Original should be unchanged
         assert_ne!(state.preset(), cloned.preset());
         assert!(!state.date_range().is_empty());
@@ -1110,7 +1112,11 @@ mod tests {
         for preset in DateRangePreset::all() {
             if let Some((start, end)) = preset.date_range() {
                 // Start should be <= end
-                assert!(start <= end, "Preset {:?} has invalid range: start > end", preset);
+                assert!(
+                    start <= end,
+                    "Preset {:?} has invalid range: start > end",
+                    preset
+                );
             }
         }
     }
@@ -1119,7 +1125,7 @@ mod tests {
     fn test_date_range_is_empty_with_only_start() {
         let mut range = DateRange::new();
         range.start = Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap());
-        
+
         // Not empty if any date is set
         assert!(!range.is_empty());
     }
@@ -1128,7 +1134,7 @@ mod tests {
     fn test_date_range_is_empty_with_only_end() {
         let mut range = DateRange::new();
         range.end = Some(NaiveDate::from_ymd_opt(2024, 1, 31).unwrap());
-        
+
         // Not empty if any date is set
         assert!(!range.is_empty());
     }
@@ -1136,9 +1142,9 @@ mod tests {
     #[test]
     fn test_date_range_picker_set_date_range_both_none() {
         let mut state = DateRangePickerState::new();
-        
+
         state.set_date_range(None, None);
-        
+
         assert!(state.date_range().is_empty());
         assert_eq!(state.preset(), DateRangePreset::Custom);
         assert!(state.is_custom_mode());
@@ -1148,9 +1154,9 @@ mod tests {
     fn test_date_range_picker_set_date_range_partial() {
         let mut state = DateRangePickerState::new();
         let start = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
-        
+
         state.set_date_range(Some(start), None);
-        
+
         assert!(!state.date_range().is_empty());
         assert_eq!(state.date_range().start, Some(start));
         assert_eq!(state.date_range().end, None);
@@ -1162,9 +1168,9 @@ mod tests {
             let mut state = DateRangePickerState::new();
             state.list_state.select(Some(i));
             state.apply_selected();
-            
+
             assert_eq!(state.preset(), *preset);
-            
+
             if *preset == DateRangePreset::Custom {
                 assert!(state.is_custom_mode());
             } else {

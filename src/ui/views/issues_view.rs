@@ -69,6 +69,11 @@ impl IssuesViewState {
         &mut self.search_state
     }
 
+    /// Get all issues
+    pub fn all_issues(&self) -> &[Issue] {
+        self.search_state.all_issues()
+    }
+
     /// Get the selected issue
     pub fn selected_issue(&self) -> Option<&Issue> {
         self.selected_issue.as_ref()
@@ -403,7 +408,10 @@ mod tests {
         let mut state = IssuesViewState::new(issues);
 
         // Modify search state through mutable reference
-        state.search_state_mut().search_state_mut().set_query("Issue 1".to_string());
+        state
+            .search_state_mut()
+            .search_state_mut()
+            .set_query("Issue 1".to_string());
         assert_eq!(state.search_state().search_state().query(), "Issue 1");
     }
 
@@ -419,7 +427,9 @@ mod tests {
 
         // Modify editor state
         if let Some(editor) = state.editor_state_mut() {
-            editor.form_state_mut().set_value("title", "Modified Title".to_string());
+            editor
+                .form_state_mut()
+                .set_value("title", "Modified Title".to_string());
         }
 
         assert!(state.editor_state().is_some());
@@ -437,7 +447,8 @@ mod tests {
 
         // Modify create form state
         if let Some(form) = state.create_form_state_mut() {
-            form.form_state_mut().set_value("title", "New Issue".to_string());
+            form.form_state_mut()
+                .set_value("title", "New Issue".to_string());
         }
 
         assert!(state.create_form_state().is_some());
@@ -496,8 +507,10 @@ mod tests {
 
         state.enter_create_mode();
         if let Some(form) = state.create_form_state_mut() {
-            form.form_state_mut().set_value("title", "New Issue".to_string());
-            form.form_state_mut().set_value("description", "Description".to_string());
+            form.form_state_mut()
+                .set_value("title", "New Issue".to_string());
+            form.form_state_mut()
+                .set_value("description", "Description".to_string());
         }
 
         let data = state.save_create();
@@ -524,7 +537,9 @@ mod tests {
 
         state.enter_edit_mode();
         if let Some(editor) = state.editor_state_mut() {
-            editor.form_state_mut().set_value("title", "Modified Title".to_string());
+            editor
+                .form_state_mut()
+                .set_value("title", "Modified Title".to_string());
         }
 
         let updated = state.save_edit();
@@ -741,7 +756,9 @@ mod tests {
 
         state.enter_edit_mode();
         if let Some(editor) = state.editor_state_mut() {
-            editor.form_state_mut().set_value("title", "Modified".to_string());
+            editor
+                .form_state_mut()
+                .set_value("title", "Modified".to_string());
         }
 
         state.save_edit();
@@ -761,7 +778,9 @@ mod tests {
         let selected_id = state.selected_issue().map(|i| i.id.clone());
 
         if let Some(editor) = state.editor_state_mut() {
-            editor.form_state_mut().set_value("title", "Modified".to_string());
+            editor
+                .form_state_mut()
+                .set_value("title", "Modified".to_string());
         }
 
         // Selected issue should remain the same
@@ -776,11 +795,15 @@ mod tests {
         state.enter_edit_mode();
 
         if let Some(editor) = state.editor_state_mut() {
-            editor.form_state_mut().set_value("title", "First Modification".to_string());
+            editor
+                .form_state_mut()
+                .set_value("title", "First Modification".to_string());
         }
 
         if let Some(editor) = state.editor_state_mut() {
-            editor.form_state_mut().set_value("title", "Second Modification".to_string());
+            editor
+                .form_state_mut()
+                .set_value("title", "Second Modification".to_string());
         }
 
         // Editor state should still be present
@@ -795,11 +818,13 @@ mod tests {
         state.enter_create_mode();
 
         if let Some(form) = state.create_form_state_mut() {
-            form.form_state_mut().set_value("title", "New Issue 1".to_string());
+            form.form_state_mut()
+                .set_value("title", "New Issue 1".to_string());
         }
 
         if let Some(form) = state.create_form_state_mut() {
-            form.form_state_mut().set_value("description", "Description 1".to_string());
+            form.form_state_mut()
+                .set_value("description", "Description 1".to_string());
         }
 
         // Create form state should still be present
@@ -820,7 +845,10 @@ mod tests {
     fn test_large_number_of_issues() {
         let mut issues = vec![];
         for i in 0..100 {
-            issues.push(create_test_issue(&format!("beads-{:04}", i), &format!("Issue {}", i)));
+            issues.push(create_test_issue(
+                &format!("beads-{:04}", i),
+                &format!("Issue {}", i),
+            ));
         }
 
         let state = IssuesViewState::new(issues);
@@ -911,7 +939,9 @@ mod tests {
 
         state.enter_edit_mode();
         if let Some(editor) = state.editor_state_mut() {
-            editor.form_state_mut().set_value("title", "Modified".to_string());
+            editor
+                .form_state_mut()
+                .set_value("title", "Modified".to_string());
         }
 
         state.cancel_edit();
@@ -925,7 +955,8 @@ mod tests {
 
         state.enter_create_mode();
         if let Some(form) = state.create_form_state_mut() {
-            form.form_state_mut().set_value("title", "New Issue".to_string());
+            form.form_state_mut()
+                .set_value("title", "New Issue".to_string());
         }
 
         state.cancel_create();
@@ -1010,7 +1041,9 @@ mod tests {
 
         state.enter_edit_mode();
         if let Some(editor) = state.editor_state_mut() {
-            editor.form_state_mut().set_value("title", "Modified Title".to_string());
+            editor
+                .form_state_mut()
+                .set_value("title", "Modified Title".to_string());
         }
 
         state.save_edit();
@@ -1030,7 +1063,9 @@ mod tests {
 
         state.enter_edit_mode();
         if let Some(editor) = state.editor_state_mut() {
-            editor.form_state_mut().set_value("title", "Modified Title".to_string());
+            editor
+                .form_state_mut()
+                .set_value("title", "Modified Title".to_string());
             assert!(!editor.is_cancelled());
         }
 

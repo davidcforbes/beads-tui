@@ -254,7 +254,11 @@ impl<'a> DatabaseView<'a> {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(if state.active_operation.is_some() { 3 } else { 0 }),
+                Constraint::Length(if state.active_operation.is_some() {
+                    3
+                } else {
+                    0
+                }),
                 Constraint::Min(0),
             ])
             .split(area);
@@ -273,14 +277,19 @@ impl<'a> DatabaseView<'a> {
             .borders(Borders::ALL)
             .title("Sync Log")
             .style(self.block_style);
-        
-        let logs: Vec<Line> = state.sync_logs.iter().rev().map(|l| Line::from(l.as_str())).collect();
+
+        let logs: Vec<Line> = state
+            .sync_logs
+            .iter()
+            .rev()
+            .map(|l| Line::from(l.as_str()))
+            .collect();
         let p = if logs.is_empty() {
             Paragraph::new("No recent activity.").style(Style::default().fg(Color::DarkGray))
         } else {
             Paragraph::new(logs)
         };
-        
+
         p.block(block).render(chunks[1], buf);
     }
 
@@ -297,22 +306,37 @@ impl<'a> DatabaseView<'a> {
             .borders(Borders::ALL)
             .title("Database Maintenance")
             .style(self.block_style);
-        
+
         let ops = vec![
-            Line::from(vec![Span::styled("i", Style::default().fg(Color::Green)), Span::raw(" - Import Issues")]),
-            Line::from(vec![Span::styled("e", Style::default().fg(Color::Green)), Span::raw(" - Export Issues")]),
-            Line::from(vec![Span::styled("v", Style::default().fg(Color::Green)), Span::raw(" - Verify Integrity")]),
-            Line::from(vec![Span::styled("c", Style::default().fg(Color::Green)), Span::raw(" - Compact Database (Destructive History)")]),
+            Line::from(vec![
+                Span::styled("i", Style::default().fg(Color::Green)),
+                Span::raw(" - Import Issues"),
+            ]),
+            Line::from(vec![
+                Span::styled("e", Style::default().fg(Color::Green)),
+                Span::raw(" - Export Issues"),
+            ]),
+            Line::from(vec![
+                Span::styled("v", Style::default().fg(Color::Green)),
+                Span::raw(" - Verify Integrity"),
+            ]),
+            Line::from(vec![
+                Span::styled("c", Style::default().fg(Color::Green)),
+                Span::raw(" - Compact Database (Destructive History)"),
+            ]),
         ];
-        
+
         Paragraph::new(ops).block(ops_block).render(chunks[0], buf);
 
         let report_block = Block::default()
             .borders(Borders::ALL)
             .title("Integrity Report")
             .style(self.block_style);
-        
-        let report = state.integrity_report.as_deref().unwrap_or("No report available. Run 'v' to verify.");
+
+        let report = state
+            .integrity_report
+            .as_deref()
+            .unwrap_or("No report available. Run 'v' to verify.");
         Paragraph::new(report)
             .block(report_block)
             .wrap(Wrap { trim: true })
@@ -332,34 +356,47 @@ impl<'a> DatabaseView<'a> {
             .borders(Borders::ALL)
             .title("Daemon Management")
             .style(self.block_style);
-        
+
         let status = if self.daemon_running {
             Span::styled("Running", Style::default().fg(Color::Green))
         } else {
             Span::styled("Stopped", Style::default().fg(Color::Red))
         };
-        
+
         let lines = vec![
             Line::from(vec![Span::raw("Current Status: "), status]),
             Line::from(""),
-            Line::from(vec![Span::styled("d", Style::default().fg(Color::Green)), Span::raw(" - Start/Stop Daemon")]),
-            Line::from(vec![Span::styled("k", Style::default().fg(Color::Red)), Span::raw(" - Kill All beads processes (Force)")]),
+            Line::from(vec![
+                Span::styled("d", Style::default().fg(Color::Green)),
+                Span::raw(" - Start/Stop Daemon"),
+            ]),
+            Line::from(vec![
+                Span::styled("k", Style::default().fg(Color::Red)),
+                Span::raw(" - Kill All beads processes (Force)"),
+            ]),
         ];
-        
-        Paragraph::new(lines).block(status_block).render(chunks[0], buf);
+
+        Paragraph::new(lines)
+            .block(status_block)
+            .render(chunks[0], buf);
 
         let log_block = Block::default()
             .borders(Borders::ALL)
             .title("Daemon Logs")
             .style(self.block_style);
-        
-        let logs: Vec<Line> = state.daemon_logs.iter().rev().map(|l| Line::from(l.as_str())).collect();
+
+        let logs: Vec<Line> = state
+            .daemon_logs
+            .iter()
+            .rev()
+            .map(|l| Line::from(l.as_str()))
+            .collect();
         let p = if logs.is_empty() {
             Paragraph::new("No recent daemon logs.").style(Style::default().fg(Color::DarkGray))
         } else {
             Paragraph::new(logs)
         };
-        
+
         p.block(log_block).render(chunks[1], buf);
     }
 
@@ -426,31 +463,19 @@ impl<'a> DatabaseView<'a> {
             Line::from(""),
             Line::from(vec![
                 Span::styled("Total Issues:  ", Style::default().fg(Color::Gray)),
-                Span::styled(
-                    format!("{total_issues}"),
-                    Style::default().fg(Color::Cyan),
-                ),
+                Span::styled(format!("{total_issues}"), Style::default().fg(Color::Cyan)),
             ]),
             Line::from(vec![
                 Span::styled("Open:          ", Style::default().fg(Color::Gray)),
-                Span::styled(
-                    format!("{open_issues}"),
-                    Style::default().fg(Color::Green),
-                ),
+                Span::styled(format!("{open_issues}"), Style::default().fg(Color::Green)),
             ]),
             Line::from(vec![
                 Span::styled("Closed:        ", Style::default().fg(Color::Gray)),
-                Span::styled(
-                    format!("{closed_issues}"),
-                    Style::default().fg(Color::Blue),
-                ),
+                Span::styled(format!("{closed_issues}"), Style::default().fg(Color::Blue)),
             ]),
             Line::from(vec![
                 Span::styled("Blocked:       ", Style::default().fg(Color::Gray)),
-                Span::styled(
-                    format!("{blocked_issues}"),
-                    Style::default().fg(Color::Red),
-                ),
+                Span::styled(format!("{blocked_issues}"), Style::default().fg(Color::Red)),
             ]),
             Line::from(""),
             Line::from(vec![
@@ -482,17 +507,25 @@ impl<'a> StatefulWidget for DatabaseView<'a> {
             .split(area);
 
         // Render Sub-tabs
-        let tabs: Vec<Line> = DatabaseViewMode::all().iter().map(|m| {
-            let style = if state.mode == *m {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(Color::White)
-            };
-            Line::from(Span::styled(format!(" {} ", m.display_name()), style))
-        }).collect();
-        
-        let tab_bar = Paragraph::new(tabs)
-            .block(Block::default().borders(Borders::ALL).title("Database Operations"));
+        let tabs: Vec<Line> = DatabaseViewMode::all()
+            .iter()
+            .map(|m| {
+                let style = if state.mode == *m {
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                };
+                Line::from(Span::styled(format!(" {} ", m.display_name()), style))
+            })
+            .collect();
+
+        let tab_bar = Paragraph::new(tabs).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Database Operations"),
+        );
         // Note: Simple paragraph representation of tabs for now, could use Tabs widget
         tab_bar.render(chunks[0], buf);
 
@@ -516,10 +549,9 @@ impl<'a> StatefulWidget for DatabaseView<'a> {
                 .borders(Borders::ALL)
                 .title(state.input_prompt.clone())
                 .style(Style::default().fg(Color::Yellow));
-            
-            let input_p = Paragraph::new(state.input_value.clone())
-                .block(input_block);
-            
+
+            let input_p = Paragraph::new(state.input_value.clone()).block(input_block);
+
             // Clear area before rendering input
             let clear_area = input_area;
             for y in clear_area.top()..clear_area.bottom() {

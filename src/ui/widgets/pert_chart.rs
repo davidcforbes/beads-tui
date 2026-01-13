@@ -60,13 +60,9 @@ impl Default for PertChartConfig {
                 .bg(Color::DarkGray)
                 .fg(Color::White)
                 .add_modifier(Modifier::BOLD),
-            critical_style: Style::default()
-                .fg(Color::Red)
-                .add_modifier(Modifier::BOLD),
+            critical_style: Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             edge_style: Style::default().fg(Color::Gray),
-            critical_edge_style: Style::default()
-                .fg(Color::Red)
-                .add_modifier(Modifier::BOLD),
+            critical_edge_style: Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             node_width: 20,
             node_height: 5,
             focus_mode: false,
@@ -267,10 +263,7 @@ impl<'a> PertChart<'a> {
 
     /// Check if a position is visible in the viewport
     fn is_visible(&self, x: i32, y: i32, area: &Rect) -> bool {
-        x >= 0
-            && y >= 0
-            && (x as u16) < area.width
-            && (y as u16) < area.height
+        x >= 0 && y >= 0 && (x as u16) < area.width && (y as u16) < area.height
     }
 
     /// Render a node box
@@ -286,10 +279,7 @@ impl<'a> PertChart<'a> {
         let y = area.y + vy as u16;
 
         // Determine node style
-        let is_selected = self
-            .config
-            .selected_node
-            .as_ref() == Some(&node.issue_id);
+        let is_selected = self.config.selected_node.as_ref() == Some(&node.issue_id);
         let is_critical = node.is_critical && self.config.show_critical_path;
 
         let style = if is_selected {
@@ -301,8 +291,14 @@ impl<'a> PertChart<'a> {
         };
 
         // Render box borders
-        let width = self.config.node_width.min(area.width.saturating_sub(vx as u16));
-        let height = self.config.node_height.min(area.height.saturating_sub(vy as u16));
+        let width = self
+            .config
+            .node_width
+            .min(area.width.saturating_sub(vx as u16));
+        let height = self
+            .config
+            .node_height
+            .min(area.height.saturating_sub(vy as u16));
 
         if width < 4 || height < 3 {
             return; // Too small to render
@@ -383,9 +379,8 @@ impl<'a> PertChart<'a> {
         };
 
         // Check if edge is on critical path
-        let is_critical = self.config.show_critical_path
-            && from_node.is_critical
-            && to_node.is_critical;
+        let is_critical =
+            self.config.show_critical_path && from_node.is_critical && to_node.is_critical;
 
         let style = if is_critical {
             self.config.critical_edge_style
@@ -398,7 +393,8 @@ impl<'a> PertChart<'a> {
             from_node.x + self.config.node_width,
             from_node.y + self.config.node_height / 2,
         );
-        let (to_vx, to_vy) = self.transform_position(to_node.x, to_node.y + self.config.node_height / 2);
+        let (to_vx, to_vy) =
+            self.transform_position(to_node.x, to_node.y + self.config.node_height / 2);
 
         // Skip if edge goes backward horizontally (shouldn't happen in DAG)
         if from_vx >= to_vx {
@@ -425,7 +421,7 @@ impl<'a> PertChart<'a> {
             // Non-horizontal edge: draw H-V-H pattern with corners
             // Turn point is halfway between source and target X
             let turn_x = from_vx + (to_vx - from_vx) / 2;
-            
+
             // Horizontal segment 1: from source to turn point
             let y1 = area.y + from_vy as u16;
             if y1 >= area.y && y1 < area.y + area.height {
@@ -445,7 +441,7 @@ impl<'a> PertChart<'a> {
                 } else {
                     (to_vy, from_vy)
                 };
-                
+
                 for y in (y_start + 1)..y_end {
                     let y_pos = area.y + y as u16;
                     if y_pos >= area.y && y_pos < area.y + area.height {
@@ -572,7 +568,10 @@ impl<'a> Widget for PertChart<'a> {
             let status = if let Some(selected) = &self.config.selected_node {
                 if let Some(node) = self.graph.nodes.get(selected) {
                     let focus_info = if self.config.focus_mode {
-                        format!(" | Focus: {} depth {}", self.config.focus_direction, self.config.focus_depth)
+                        format!(
+                            " | Focus: {} depth {}",
+                            self.config.focus_direction, self.config.focus_depth
+                        )
                     } else {
                         String::new()
                     };
@@ -591,7 +590,10 @@ impl<'a> Widget for PertChart<'a> {
             } else {
                 let focus_info = if self.config.focus_mode {
                     if let Some(focus) = &self.config.focus_node {
-                        format!(" | Focus: {} on {} (depth {})", self.config.focus_direction, focus, self.config.focus_depth)
+                        format!(
+                            " | Focus: {} on {} (depth {})",
+                            self.config.focus_direction, focus, self.config.focus_depth
+                        )
                     } else {
                         " | Focus mode (no node)".to_string()
                     }
@@ -810,7 +812,7 @@ mod tests {
     #[test]
     fn test_pert_chart_config_focus_on_node() {
         let mut config = PertChartConfig::default();
-        
+
         config.focus_on_node(Some("B".to_string()));
         assert!(config.focus_mode);
         assert_eq!(config.focus_node, Some("B".to_string()));
@@ -993,7 +995,7 @@ mod tests {
         let mut config = PertChartConfig::default();
         config.select_node(Some("test-node".to_string()));
         assert_eq!(config.selected_node, Some("test-node".to_string()));
-        
+
         config.select_node(None);
         assert!(config.selected_node.is_none());
     }
@@ -1002,7 +1004,7 @@ mod tests {
     fn test_pert_chart_config_select_adjacent_empty_graph() {
         let graph = PertGraph::new(&[], 1.0);
         let mut config = PertChartConfig::default();
-        
+
         config.select_adjacent(&graph, Direction::Right);
         assert!(config.selected_node.is_none());
     }
@@ -1012,7 +1014,7 @@ mod tests {
         let issue = create_test_issue("A", "Task A");
         let graph = PertGraph::new(&[issue], 1.0);
         let mut config = PertChartConfig::default();
-        
+
         config.select_adjacent(&graph, Direction::Right);
         // Should select first node when nothing selected
         assert!(config.selected_node.is_some());
@@ -1024,7 +1026,7 @@ mod tests {
         let graph = PertGraph::new(&[issue], 1.0);
         let config = PertChartConfig::new().zoom(2.0);
         let chart = PertChart::new(&graph).config(config);
-        
+
         assert_eq!(chart.config.zoom, 2.0);
     }
 
@@ -1081,13 +1083,13 @@ mod tests {
     #[test]
     fn test_pert_chart_config_focus_direction_variations() {
         let mut config = PertChartConfig::default();
-        
+
         config.set_focus_direction("upstream");
         assert_eq!(config.focus_direction, "upstream");
-        
+
         config.set_focus_direction("downstream");
         assert_eq!(config.focus_direction, "downstream");
-        
+
         config.set_focus_direction("both");
         assert_eq!(config.focus_direction, "both");
     }
@@ -1098,7 +1100,7 @@ mod tests {
             focus_mode: true,
             ..Default::default()
         };
-        
+
         config.exit_focus_mode();
         assert!(!config.focus_mode);
     }
@@ -1264,9 +1266,7 @@ mod tests {
 
     #[test]
     fn test_pert_chart_config_builder_chain() {
-        let config = PertChartConfig::new()
-            .offset(10, 20)
-            .zoom(2.5);
+        let config = PertChartConfig::new().offset(10, 20).zoom(2.5);
 
         assert_eq!(config.offset_x, 10);
         assert_eq!(config.offset_y, 20);

@@ -163,12 +163,7 @@ impl PertGraph {
 
         for node_id in self.nodes.keys() {
             if !visited.contains(node_id) {
-                self.dfs_detect_cycle(
-                    node_id,
-                    &mut visited,
-                    &mut rec_stack,
-                    &mut cycle_edges,
-                );
+                self.dfs_detect_cycle(node_id, &mut visited, &mut rec_stack, &mut cycle_edges);
             }
         }
 
@@ -345,10 +340,7 @@ impl PertGraph {
 
         for (id, node) in &self.nodes {
             let bucket = (node.earliest_start / bucket_size) as u16;
-            time_buckets
-                .entry(bucket)
-                .or_default()
-                .push(id.clone());
+            time_buckets.entry(bucket).or_default().push(id.clone());
         }
 
         // Assign Y positions within each bucket to avoid overlap
@@ -828,7 +820,7 @@ mod tests {
     #[test]
     fn test_pert_graph_empty_issues() {
         let graph = PertGraph::new(&[], 8.0);
-        
+
         assert_eq!(graph.nodes.len(), 0);
         assert_eq!(graph.edges.len(), 0);
         assert_eq!(graph.topological_order.len(), 0);
@@ -840,10 +832,10 @@ mod tests {
     fn test_pert_graph_single_issue() {
         let issue = create_test_issue("A", "Single Task");
         let graph = PertGraph::new(&[issue], 5.0);
-        
+
         assert_eq!(graph.nodes.len(), 1);
         assert_eq!(graph.topological_order.len(), 1);
-        
+
         let node = graph.nodes.get("A").unwrap();
         assert_eq!(node.duration, 5.0);
         assert_eq!(node.earliest_start, 0.0);
@@ -865,7 +857,7 @@ mod tests {
             from: "B".to_string(),
             to: "C".to_string(),
         };
-        
+
         assert_eq!(edge1, edge2);
         assert_ne!(edge1, edge3);
     }
@@ -873,7 +865,7 @@ mod tests {
     #[test]
     fn test_pert_edge_hash() {
         use std::collections::HashSet;
-        
+
         let mut edges = HashSet::new();
         let edge1 = PertEdge {
             from: "A".to_string(),
@@ -883,10 +875,10 @@ mod tests {
             from: "A".to_string(),
             to: "B".to_string(),
         };
-        
+
         edges.insert(edge1);
         edges.insert(edge2); // Duplicate should not be added
-        
+
         assert_eq!(edges.len(), 1);
     }
 
@@ -894,9 +886,9 @@ mod tests {
     fn test_cycle_detection_self_loop() {
         let mut issue = create_test_issue("A", "Task A");
         issue.dependencies = vec!["A".to_string()]; // Self-loop
-        
+
         let graph = PertGraph::new(&[issue], 1.0);
-        
+
         assert!(graph.cycle_detection.has_cycle);
     }
 
@@ -906,17 +898,17 @@ mod tests {
         let mut issue2 = create_test_issue("B", "Task B");
         let mut issue3 = create_test_issue("C", "Task C");
         let mut issue4 = create_test_issue("D", "Task D");
-        
+
         // Cycle: A -> B -> A
         issue2.dependencies = vec!["A".to_string()];
         issue1.dependencies = vec!["B".to_string()];
-        
+
         // Cycle: C -> D -> C
         issue4.dependencies = vec!["C".to_string()];
         issue3.dependencies = vec!["D".to_string()];
-        
+
         let graph = PertGraph::new(&[issue1, issue2, issue3, issue4], 1.0);
-        
+
         assert!(graph.cycle_detection.has_cycle);
         assert!(!graph.cycle_detection.cycle_edges.is_empty());
     }
@@ -927,24 +919,24 @@ mod tests {
         let mut issue2 = create_test_issue("B", "Task B");
         let mut issue3 = create_test_issue("C", "Task C");
         let mut issue4 = create_test_issue("D", "Task D");
-        
+
         // Diamond: A -> B -> D (1 hour each)
         //          A -> C -> D (C is 3 hours - critical path)
         issue2.dependencies = vec!["A".to_string()];
         issue3.dependencies = vec!["A".to_string()];
         issue4.dependencies = vec!["B".to_string(), "C".to_string()];
-        
+
         let mut graph = PertGraph::new(&[issue1.clone(), issue2, issue3, issue4], 1.0);
-        
+
         // Manually set C to have 3 hour duration to create slack on B path
         if let Some(node_c) = graph.nodes.get_mut("C") {
             node_c.duration = 3.0;
         }
-        
+
         // Recompute timing and critical path
         graph.compute_timing();
         graph.compute_critical_path();
-        
+
         let node_b = graph.nodes.get("B").unwrap();
         // B path: A(0-1) -> B(1-2) -> D(3-4)
         // C path: A(0-1) -> C(1-4) -> D(4-5) [critical]
@@ -957,9 +949,9 @@ mod tests {
     fn test_missing_dependency() {
         let mut issue = create_test_issue("A", "Task A");
         issue.dependencies = vec!["NONEXISTENT".to_string()];
-        
+
         let graph = PertGraph::new(&[issue], 1.0);
-        
+
         // Should not panic, dependency to nonexistent node is ignored
         assert_eq!(graph.nodes.len(), 1);
         assert_eq!(graph.edges.len(), 0);
@@ -969,9 +961,9 @@ mod tests {
     fn test_compute_subgraph_nonexistent_node() {
         let issue = create_test_issue("A", "Task A");
         let graph = PertGraph::new(&[issue], 1.0);
-        
+
         let (nodes, edges) = graph.compute_subgraph("NONEXISTENT", 1, "both");
-        
+
         assert_eq!(nodes.len(), 0);
         assert_eq!(edges.len(), 0);
     }
@@ -981,11 +973,11 @@ mod tests {
         let issue1 = create_test_issue("A", "Task A");
         let mut issue2 = create_test_issue("B", "Task B");
         issue2.dependencies = vec!["A".to_string()];
-        
+
         let graph = PertGraph::new(&[issue1, issue2], 1.0);
-        
+
         let (nodes, edges) = graph.compute_subgraph("A", 0, "downstream");
-        
+
         // Depth 0 should only include the focus node itself
         assert_eq!(nodes.len(), 1);
         assert!(nodes.contains("A"));
@@ -996,9 +988,9 @@ mod tests {
     fn test_compute_subgraph_invalid_direction() {
         let issue = create_test_issue("A", "Task A");
         let graph = PertGraph::new(&[issue], 1.0);
-        
+
         let (nodes, edges) = graph.compute_subgraph("A", 1, "invalid");
-        
+
         // Invalid direction should only include focus node
         assert_eq!(nodes.len(), 1);
         assert!(nodes.contains("A"));
@@ -1009,10 +1001,10 @@ mod tests {
     fn test_filter_by_nodes_empty_set() {
         let issue = create_test_issue("A", "Task A");
         let graph = PertGraph::new(&[issue], 1.0);
-        
+
         let filter_nodes = HashSet::new();
         let filtered = graph.filter_by_nodes(&filter_nodes);
-        
+
         assert_eq!(filtered.nodes.len(), 0);
         assert_eq!(filtered.edges.len(), 0);
         assert_eq!(filtered.topological_order.len(), 0);
@@ -1023,15 +1015,15 @@ mod tests {
         let issue1 = create_test_issue("A", "Task A");
         let mut issue2 = create_test_issue("B", "Task B");
         issue2.dependencies = vec!["A".to_string()];
-        
+
         let graph = PertGraph::new(&[issue1, issue2], 1.0);
-        
+
         let mut filter_nodes = HashSet::new();
         filter_nodes.insert("A".to_string());
         filter_nodes.insert("B".to_string());
-        
+
         let filtered = graph.filter_by_nodes(&filter_nodes);
-        
+
         assert_eq!(filtered.nodes.len(), 2);
         assert_eq!(filtered.edges.len(), 1);
         assert_eq!(filtered.topological_order.len(), 2);
@@ -1040,7 +1032,7 @@ mod tests {
     #[test]
     fn test_nodes_in_order_empty() {
         let graph = PertGraph::new(&[], 1.0);
-        
+
         let ordered = graph.nodes_in_order();
         assert_eq!(ordered.len(), 0);
     }
@@ -1048,7 +1040,7 @@ mod tests {
     #[test]
     fn test_critical_path_nodes_empty() {
         let graph = PertGraph::new(&[], 1.0);
-        
+
         let critical = graph.critical_path_nodes();
         assert_eq!(critical.len(), 0);
     }
@@ -1058,19 +1050,19 @@ mod tests {
         let issue1 = create_test_issue("A", "Task A");
         let issue2 = create_test_issue("B", "Task B");
         let issue3 = create_test_issue("C", "Task C");
-        
+
         // All start at time 0, so they're in the same time bucket
         let graph = PertGraph::new(&[issue1, issue2, issue3], 1.0);
-        
+
         let node_a = graph.nodes.get("A").unwrap();
         let node_b = graph.nodes.get("B").unwrap();
         let node_c = graph.nodes.get("C").unwrap();
-        
+
         // All should have same x (same bucket)
         assert_eq!(node_a.x, 0);
         assert_eq!(node_b.x, 0);
         assert_eq!(node_c.x, 0);
-        
+
         // Different y positions to avoid overlap
         let y_positions = [node_a.y, node_b.y, node_c.y];
         let unique_y: HashSet<_> = y_positions.iter().collect();
@@ -1084,7 +1076,7 @@ mod tests {
         let mut issue3 = create_test_issue("C", "Task C");
         let mut issue4 = create_test_issue("D", "Task D");
         let mut issue5 = create_test_issue("E", "Task E");
-        
+
         // Complex DAG:
         // A -> B -> D -> E
         // A -> C -> E
@@ -1092,14 +1084,14 @@ mod tests {
         issue3.dependencies = vec!["A".to_string()];
         issue4.dependencies = vec!["B".to_string()];
         issue5.dependencies = vec!["D".to_string(), "C".to_string()];
-        
+
         let graph = PertGraph::new(&[issue1, issue2, issue3, issue4, issue5], 1.0);
-        
+
         // E depends on both D and C, should start after latest finish
         let node_e = graph.nodes.get("E").unwrap();
         let node_d = graph.nodes.get("D").unwrap();
         let node_c = graph.nodes.get("C").unwrap();
-        
+
         let max_predecessor_finish = node_d.earliest_finish.max(node_c.earliest_finish);
         assert_eq!(node_e.earliest_start, max_predecessor_finish);
     }
@@ -1107,10 +1099,10 @@ mod tests {
     #[test]
     fn test_different_durations() {
         let graph = PertGraph::new(&[], 5.0);
-        
+
         // Verify default duration can vary
         let graph2 = PertGraph::new(&[], 10.0);
-        
+
         // Just verify they were created with different default durations
         // (actual duration verification happens in other tests)
         assert_eq!(graph.nodes.len(), 0);
@@ -1122,18 +1114,18 @@ mod tests {
         let issue1 = create_test_issue("A", "Task A");
         let mut issue2 = create_test_issue("B", "Task B");
         let mut issue3 = create_test_issue("C", "Task C");
-        
+
         issue2.dependencies = vec!["A".to_string()];
         issue3.dependencies = vec!["A".to_string()];
-        
+
         let graph = PertGraph::new(&[issue1, issue2, issue3], 1.0);
-        
+
         // A should have 2 outgoing edges (to B and C)
         let a_adjacency = graph.adjacency.get("A").unwrap();
         assert_eq!(a_adjacency.len(), 2);
         assert!(a_adjacency.contains(&"B".to_string()));
         assert!(a_adjacency.contains(&"C".to_string()));
-        
+
         // B should have 1 incoming edge (from A)
         let b_reverse = graph.reverse_adjacency.get("B").unwrap();
         assert_eq!(b_reverse.len(), 1);
@@ -1144,9 +1136,9 @@ mod tests {
     fn test_pert_node_fields() {
         let issue = create_test_issue("test-123", "Test Node");
         let graph = PertGraph::new(&[issue], 8.5);
-        
+
         let node = graph.nodes.get("test-123").unwrap();
-        
+
         assert_eq!(node.issue_id, "test-123");
         assert_eq!(node.title, "Test Node");
         assert_eq!(node.status, IssueStatus::Open);
@@ -1163,26 +1155,26 @@ mod tests {
         let issue1 = create_test_issue("A", "Task A");
         let mut issue2 = create_test_issue("B", "Task B");
         let mut issue3 = create_test_issue("C", "Task C");
-        
+
         issue2.dependencies = vec!["A".to_string()];
         issue3.dependencies = vec!["A".to_string()];
-        
+
         let mut graph = PertGraph::new(&[issue1, issue2, issue3], 1.0);
-        
+
         // Make C longer to create critical path
         if let Some(node_c) = graph.nodes.get_mut("C") {
             node_c.duration = 5.0;
         }
-        
+
         graph.compute_timing();
         graph.compute_critical_path();
-        
+
         let critical = graph.critical_path_nodes();
-        
+
         // A and C should be critical, B should not
         assert!(critical.iter().any(|n| n.issue_id == "A"));
         assert!(critical.iter().any(|n| n.issue_id == "C"));
-        
+
         let node_b = graph.nodes.get("B").unwrap();
         assert!(!node_b.is_critical);
     }
@@ -1192,19 +1184,31 @@ mod tests {
         let issue1 = create_test_issue("A", "Task A");
         let issue2 = create_test_issue("B", "Task B");
         let mut issue3 = create_test_issue("C", "Task C");
-        
+
         // A and B are independent, C depends on both
         issue3.dependencies = vec!["A".to_string(), "B".to_string()];
-        
+
         let graph = PertGraph::new(&[issue1, issue2, issue3], 1.0);
-        
+
         assert_eq!(graph.topological_order.len(), 3);
-        
+
         // C must come after both A and B
-        let a_pos = graph.topological_order.iter().position(|id| id == "A").unwrap();
-        let b_pos = graph.topological_order.iter().position(|id| id == "B").unwrap();
-        let c_pos = graph.topological_order.iter().position(|id| id == "C").unwrap();
-        
+        let a_pos = graph
+            .topological_order
+            .iter()
+            .position(|id| id == "A")
+            .unwrap();
+        let b_pos = graph
+            .topological_order
+            .iter()
+            .position(|id| id == "B")
+            .unwrap();
+        let c_pos = graph
+            .topological_order
+            .iter()
+            .position(|id| id == "C")
+            .unwrap();
+
         assert!(c_pos > a_pos);
         assert!(c_pos > b_pos);
     }

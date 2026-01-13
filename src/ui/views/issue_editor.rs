@@ -113,60 +113,72 @@ impl IssueEditorState {
         );
 
         add_field(
-            FormField::selector("status", "Status", vec![
-                "open".to_string(),
-                "in_progress".to_string(),
-                "blocked".to_string(),
-                "closed".to_string(),
-            ])
-                .required()
-                .value(issue.status.to_string())
-                .with_validation(ValidationRule::Enum(vec![
+            FormField::selector(
+                "status",
+                "Status",
+                vec![
                     "open".to_string(),
                     "in_progress".to_string(),
                     "blocked".to_string(),
                     "closed".to_string(),
-                ])),
+                ],
+            )
+            .required()
+            .value(issue.status.to_string())
+            .with_validation(ValidationRule::Enum(vec![
+                "open".to_string(),
+                "in_progress".to_string(),
+                "blocked".to_string(),
+                "closed".to_string(),
+            ])),
             Section::Summary,
         );
 
         add_field(
-            FormField::selector("priority", "Priority", vec![
-                "P0".to_string(),
-                "P1".to_string(),
-                "P2".to_string(),
-                "P3".to_string(),
-                "P4".to_string(),
-            ])
-                .required()
-                .value(issue.priority.to_string())
-                .with_validation(ValidationRule::Enum(vec![
+            FormField::selector(
+                "priority",
+                "Priority",
+                vec![
                     "P0".to_string(),
                     "P1".to_string(),
                     "P2".to_string(),
                     "P3".to_string(),
                     "P4".to_string(),
-                ])),
+                ],
+            )
+            .required()
+            .value(issue.priority.to_string())
+            .with_validation(ValidationRule::Enum(vec![
+                "P0".to_string(),
+                "P1".to_string(),
+                "P2".to_string(),
+                "P3".to_string(),
+                "P4".to_string(),
+            ])),
             Section::Summary,
         );
 
         add_field(
-            FormField::selector("type", "Type", vec![
-                "task".to_string(),
-                "bug".to_string(),
-                "feature".to_string(),
-                "epic".to_string(),
-                "chore".to_string(),
-            ])
-                .required()
-                .value(issue.issue_type.to_string())
-                .with_validation(ValidationRule::Enum(vec![
+            FormField::selector(
+                "type",
+                "Type",
+                vec![
                     "task".to_string(),
                     "bug".to_string(),
                     "feature".to_string(),
                     "epic".to_string(),
                     "chore".to_string(),
-                ])),
+                ],
+            )
+            .required()
+            .value(issue.issue_type.to_string())
+            .with_validation(ValidationRule::Enum(vec![
+                "task".to_string(),
+                "bug".to_string(),
+                "feature".to_string(),
+                "epic".to_string(),
+                "chore".to_string(),
+            ])),
             Section::Summary,
         );
 
@@ -372,7 +384,7 @@ impl IssueEditorState {
 
         // Apply form values to issue
         use crate::beads::models::{IssueStatus, IssueType, Priority};
-        
+
         if let Some(title) = self.form_state.get_value("title") {
             updated.title = title.to_string();
         }
@@ -506,7 +518,8 @@ impl IssueEditorState {
                     update = update.description(change.new_value);
                 }
                 "labels" => {
-                    let labels: Vec<String> = change.new_value
+                    let labels: Vec<String> = change
+                        .new_value
                         .lines()
                         .map(|s| s.trim().to_string())
                         .filter(|s| !s.is_empty())
@@ -548,10 +561,7 @@ impl IssueEditorState {
         let mut grouped: HashMap<Section, Vec<String>> = HashMap::new();
 
         for (field_id, section) in &self.field_sections {
-            grouped
-                .entry(*section)
-                .or_default()
-                .push(field_id.clone());
+            grouped.entry(*section).or_default().push(field_id.clone());
         }
 
         grouped
@@ -580,8 +590,7 @@ impl<'a> Widget for ChangeSummaryPanel<'a> {
         block.render(area, buf);
 
         if self.changes.is_empty() {
-            let text = Paragraph::new("No changes")
-                .style(Style::default().fg(Color::DarkGray));
+            let text = Paragraph::new("No changes").style(Style::default().fg(Color::DarkGray));
             text.render(inner, buf);
             return;
         }
@@ -589,7 +598,9 @@ impl<'a> Widget for ChangeSummaryPanel<'a> {
         let mut lines = Vec::new();
         lines.push(Line::from(Span::styled(
             format!("{} field(s) modified:", self.changes.len()),
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         )));
         lines.push(Line::from(""));
 
@@ -597,7 +608,9 @@ impl<'a> Widget for ChangeSummaryPanel<'a> {
             // Field label
             lines.push(Line::from(Span::styled(
                 format!("• {}", change.label),
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             )));
 
             // Old value
@@ -635,8 +648,7 @@ impl<'a> Widget for ChangeSummaryPanel<'a> {
 }
 
 /// Widget for rendering the Issue Editor view
-pub struct IssueEditorView {
-}
+pub struct IssueEditorView {}
 
 impl IssueEditorView {
     pub fn new() -> Self {
@@ -655,7 +667,7 @@ impl StatefulWidget for IssueEditorView {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         use crate::ui::widgets::form::Form;
-        
+
         // For now, delegate to the Form widget
         let form = Form::default();
         StatefulWidget::render(form, area, buf, state.form_state_mut());
@@ -728,7 +740,9 @@ mod tests {
 
         assert!(!state.is_dirty());
 
-        state.form_state_mut().set_value("title", "New Title".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "New Title".to_string());
 
         assert!(state.is_dirty());
         assert!(state.is_field_dirty("title"));
@@ -740,7 +754,9 @@ mod tests {
         let issue = create_test_issue();
         let mut state = IssueEditorState::new(&issue);
 
-        state.form_state_mut().set_value("title", "New Title".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "New Title".to_string());
         state
             .form_state_mut()
             .set_value("description", "New description".to_string());
@@ -765,15 +781,14 @@ mod tests {
         let issue = create_test_issue();
         let mut state = IssueEditorState::new(&issue);
 
-        state.form_state_mut().set_value("title", "Modified".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Modified".to_string());
         assert!(state.is_field_dirty("title"));
 
         state.reset_field("title");
         assert!(!state.is_field_dirty("title"));
-        assert_eq!(
-            state.form_state().get_value("title").unwrap(),
-            "Test Issue"
-        );
+        assert_eq!(state.form_state().get_value("title").unwrap(), "Test Issue");
     }
 
     #[test]
@@ -782,8 +797,12 @@ mod tests {
         let mut state = IssueEditorState::new(&issue);
 
         // Modify multiple fields in Summary section
-        state.form_state_mut().set_value("title", "Modified Title".to_string());
-        state.form_state_mut().set_value("status", "in_progress".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Modified Title".to_string());
+        state
+            .form_state_mut()
+            .set_value("status", "in_progress".to_string());
 
         // Modify field in different section
         state
@@ -807,7 +826,9 @@ mod tests {
         let issue = create_test_issue();
         let mut state = IssueEditorState::new(&issue);
 
-        state.form_state_mut().set_value("title", "Modified".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Modified".to_string());
         state
             .form_state_mut()
             .set_value("description", "Modified Desc".to_string());
@@ -824,16 +845,15 @@ mod tests {
         let issue = create_test_issue();
         let mut state = IssueEditorState::new(&issue);
 
-        state.form_state_mut().set_value("title", "Modified".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Modified".to_string());
         assert!(state.is_dirty());
 
         state.reload_from_source();
 
         assert!(!state.is_dirty());
-        assert_eq!(
-            state.form_state().get_value("title").unwrap(),
-            "Test Issue"
-        );
+        assert_eq!(state.form_state().get_value("title").unwrap(), "Test Issue");
     }
 
     #[test]
@@ -914,15 +934,13 @@ mod tests {
 
     #[test]
     fn test_change_summary_panel_with_changes() {
-        let changes = vec![
-            FieldChange {
-                field_id: "title".to_string(),
-                label: "Title".to_string(),
-                old_value: "Old".to_string(),
-                new_value: "New".to_string(),
-                section: Section::Summary,
-            },
-        ];
+        let changes = vec![FieldChange {
+            field_id: "title".to_string(),
+            label: "Title".to_string(),
+            old_value: "Old".to_string(),
+            new_value: "New".to_string(),
+            section: Section::Summary,
+        }];
         let panel = ChangeSummaryPanel::new(&changes);
 
         assert_eq!(panel.changes.len(), 1);

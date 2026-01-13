@@ -892,18 +892,18 @@ mod tests {
     fn test_very_large_option_list() {
         let mut state = AutocompleteState::new();
         let mut options = Vec::new();
-        
+
         // Create 100 options
         for i in 0..100 {
             options.push(format!("option{:03}", i));
         }
-        
+
         state.set_options(options);
-        
+
         // All options should be available
         let suggestions = state.filtered_suggestions();
         assert_eq!(suggestions.len(), 100);
-        
+
         // Filter should work
         state.input.push_str("option050");
         state.cursor_position = state.input.len();
@@ -939,18 +939,18 @@ mod tests {
             "charlie".to_string(),
             "david".to_string(),
         ]);
-        
+
         // Type 'al'
         state.insert_char('a');
         state.insert_char('l');
         assert_eq!(state.input(), "al");
         assert!(state.is_showing_suggestions());
         assert_eq!(state.list_state.selected(), Some(0));
-        
+
         // Only "alice" matches "al"
         let filtered = state.filtered_suggestions();
         assert_eq!(filtered.len(), 1);
-        
+
         // Confirm selection
         state.confirm_selection();
         assert_eq!(state.selected_value(), Some("alice"));
@@ -966,15 +966,15 @@ mod tests {
             "Привет мир".to_string(),
             "مرحبا العالم".to_string(),
         ]);
-        
+
         let suggestions = state.filtered_suggestions();
         assert_eq!(suggestions.len(), 3);
-        
+
         // Filter with unicode - use input directly to avoid byte boundary issues
         state.input = "世界".to_string();
         state.cursor_position = state.input.len();
         state.show_suggestions = true;
-        
+
         let filtered = state.filtered_suggestions();
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0], "Hello 世界");
@@ -989,7 +989,7 @@ mod tests {
             "path/to/file".to_string(),
             "!@#$%^&*()".to_string(),
         ]);
-        
+
         state.insert_char('@');
         let filtered = state.filtered_suggestions();
         assert_eq!(filtered.len(), 2); // user@example.com and !@#$%^&*()
@@ -1003,12 +1003,12 @@ mod tests {
             "test2".to_string(),
             "test3".to_string(),
         ]);
-        
+
         state.insert_char('t');
         state.insert_char('e');
         state.insert_char('s');
         state.insert_char('t');
-        
+
         let filtered = state.filtered_suggestions();
         assert_eq!(filtered.len(), 3); // All match "test"
     }
@@ -1021,11 +1021,11 @@ mod tests {
             "bob".to_string(),
             "charlie".to_string(),
         ]);
-        
+
         state.insert_char('x');
         state.insert_char('y');
         state.insert_char('z');
-        
+
         let filtered = state.filtered_suggestions();
         assert_eq!(filtered.len(), 0); // None match "xyz"
     }
@@ -1034,11 +1034,11 @@ mod tests {
     fn test_clear_selected_after_typing() {
         let mut state = AutocompleteState::new();
         state.set_options(vec!["alice".to_string(), "bob".to_string()]);
-        
+
         state.insert_char('a');
         state.confirm_selection();
         assert_eq!(state.selected_value(), Some("alice"));
-        
+
         state.clear_selected();
         assert_eq!(state.selected_value(), None);
         assert_eq!(state.input(), "");
@@ -1048,24 +1048,24 @@ mod tests {
     #[test]
     fn test_cursor_position_after_operations() {
         let mut state = AutocompleteState::new();
-        
+
         state.insert_char('h');
         assert_eq!(state.cursor_position(), 1);
-        
+
         state.insert_char('e');
         assert_eq!(state.cursor_position(), 2);
-        
+
         state.insert_char('l');
         state.insert_char('l');
         state.insert_char('o');
         assert_eq!(state.cursor_position(), 5);
-        
+
         state.move_cursor_left();
         assert_eq!(state.cursor_position(), 4);
-        
+
         state.move_cursor_right();
         assert_eq!(state.cursor_position(), 5);
-        
+
         state.delete_char();
         assert_eq!(state.cursor_position(), 4);
     }
@@ -1074,15 +1074,15 @@ mod tests {
     fn test_selected_value_persistence() {
         let mut state = AutocompleteState::new();
         state.set_options(vec!["alice".to_string(), "bob".to_string()]);
-        
+
         state.insert_char('a');
         state.confirm_selection();
         assert_eq!(state.selected_value(), Some("alice"));
-        
+
         // Selected value should persist until cleared or changed
         state.move_cursor_left();
         assert_eq!(state.selected_value(), Some("alice"));
-        
+
         state.move_cursor_right();
         assert_eq!(state.selected_value(), Some("alice"));
     }
@@ -1091,14 +1091,14 @@ mod tests {
     fn test_focus_state_shows_suggestions() {
         let mut state = AutocompleteState::new();
         state.set_options(vec!["alice".to_string()]);
-        
+
         state.insert_char('a');
         assert!(state.is_showing_suggestions());
-        
+
         state.set_focused(false);
         assert!(!state.is_showing_suggestions());
         assert!(!state.is_focused());
-        
+
         state.set_focused(true);
         assert!(state.is_showing_suggestions()); // Should show since input is not empty
         assert!(state.is_focused());
@@ -1108,10 +1108,10 @@ mod tests {
     fn test_suggestions_hide_after_confirm() {
         let mut state = AutocompleteState::new();
         state.set_options(vec!["alice".to_string(), "bob".to_string()]);
-        
+
         state.insert_char('a');
         assert!(state.is_showing_suggestions());
-        
+
         state.confirm_selection();
         assert!(!state.is_showing_suggestions());
     }
@@ -1120,12 +1120,12 @@ mod tests {
     fn test_suggestions_show_after_typing() {
         let mut state = AutocompleteState::new();
         state.set_options(vec!["alice".to_string()]);
-        
+
         assert!(!state.is_showing_suggestions());
-        
+
         state.insert_char('a');
         assert!(state.is_showing_suggestions());
-        
+
         state.insert_char('l');
         assert!(state.is_showing_suggestions());
     }
@@ -1134,14 +1134,14 @@ mod tests {
     fn test_delete_all_chars_hides_suggestions() {
         let mut state = AutocompleteState::new();
         state.set_options(vec!["alice".to_string()]);
-        
+
         state.insert_char('a');
         state.insert_char('l');
         assert!(state.is_showing_suggestions());
-        
+
         state.delete_char();
         assert!(state.is_showing_suggestions()); // Still has "a"
-        
+
         state.delete_char();
         assert!(!state.is_showing_suggestions()); // Empty input
     }
@@ -1154,18 +1154,18 @@ mod tests {
             "bob".to_string(),
             "charlie".to_string(),
         ]);
-        
+
         assert_eq!(state.list_state.selected(), Some(0));
-        
+
         state.select_next();
         assert_eq!(state.list_state.selected(), Some(1));
-        
+
         state.select_next();
         assert_eq!(state.list_state.selected(), Some(2));
-        
+
         state.select_next();
         assert_eq!(state.list_state.selected(), Some(0)); // Wraps to start
-        
+
         state.select_previous();
         assert_eq!(state.list_state.selected(), Some(2)); // Wraps to end
     }
@@ -1178,7 +1178,7 @@ mod tests {
             "bob".to_string(),
             "charlie".to_string(),
         ]);
-        
+
         let suggestions = state.filtered_suggestions();
         assert_eq!(suggestions.len(), 3); // All options when input is empty
     }
@@ -1191,11 +1191,11 @@ mod tests {
             "bob".to_string(),
             "charlie".to_string(),
         ]);
-        
+
         state.select_next();
         state.select_next();
         assert_eq!(state.list_state.selected(), Some(2));
-        
+
         state.insert_char('a');
         assert_eq!(state.list_state.selected(), Some(0)); // Reset to first
     }
@@ -1208,11 +1208,11 @@ mod tests {
             "bob".to_string(),
             "charlie".to_string(),
         ]);
-        
+
         state.insert_char('a');
         state.select_next();
         state.select_next();
-        
+
         state.delete_char();
         assert_eq!(state.list_state.selected(), Some(0)); // Reset to first
     }
@@ -1224,11 +1224,11 @@ mod tests {
         state.insert_char('e');
         state.insert_char('s');
         state.insert_char('t');
-        
+
         assert_eq!(state.input(), "test");
-        
+
         state.set_options(vec!["new1".to_string(), "new2".to_string()]);
-        
+
         assert_eq!(state.input(), "test"); // Input should be preserved
     }
 
@@ -1240,11 +1240,11 @@ mod tests {
             "World".to_string(),
             "TeSt".to_string(),
         ]);
-        
+
         state.insert_char('h');
         state.insert_char('e');
         state.insert_char('l');
-        
+
         let filtered = state.filtered_suggestions();
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0], "HELLO");
@@ -1259,11 +1259,21 @@ mod tests {
     #[test]
     fn test_widget_default_values() {
         let widget = Autocomplete::new();
-        
+
         assert_eq!(widget.placeholder, Some("Type to search..."));
         assert_eq!(widget.style, Style::default());
-        assert_eq!(widget.focused_style, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
-        assert_eq!(widget.selected_style, Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD));
+        assert_eq!(
+            widget.focused_style,
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD)
+        );
+        assert_eq!(
+            widget.selected_style,
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD)
+        );
         assert_eq!(widget.block, None);
         assert_eq!(widget.max_suggestions, 5);
     }
@@ -1272,13 +1282,13 @@ mod tests {
     fn test_cursor_position_getter() {
         let mut state = AutocompleteState::new();
         assert_eq!(state.cursor_position(), 0);
-        
+
         state.insert_char('a');
         assert_eq!(state.cursor_position(), 1);
-        
+
         state.insert_char('b');
         assert_eq!(state.cursor_position(), 2);
-        
+
         state.move_cursor_left();
         assert_eq!(state.cursor_position(), 1);
     }

@@ -579,7 +579,7 @@ mod tests {
     #[test]
     fn test_editor_state_access() {
         let mut state = DescriptionEditorState::new("Test".to_string(), "content".to_string());
-        
+
         // Test immutable access
         let editor_state = state.editor_state();
         assert!(!editor_state.text().is_empty());
@@ -592,7 +592,7 @@ mod tests {
     #[test]
     fn test_all_editor_modes() {
         let mut state = DescriptionEditorState::new("Test".to_string(), String::new());
-        
+
         state.set_mode(EditorMode::Normal);
         assert_eq!(state.mode(), EditorMode::Normal);
 
@@ -763,7 +763,8 @@ mod tests {
 
     #[test]
     fn test_delete_line_with_content() {
-        let mut state = DescriptionEditorState::new("Test".to_string(), "Line to delete".to_string());
+        let mut state =
+            DescriptionEditorState::new("Test".to_string(), "Line to delete".to_string());
         state.set_modified(false);
         state.delete_line();
         assert!(state.is_modified());
@@ -1015,7 +1016,8 @@ mod tests {
     // Cursor movement on multiline text
     #[test]
     fn test_cursor_movement_multiline() {
-        let mut state = DescriptionEditorState::new("Test".to_string(), "Line 1\nLine 2\nLine 3".to_string());
+        let mut state =
+            DescriptionEditorState::new("Test".to_string(), "Line 1\nLine 2\nLine 3".to_string());
 
         state.move_cursor_down();
         state.move_cursor_down();
@@ -1122,7 +1124,8 @@ mod tests {
     // Clone preserves all fields
     #[test]
     fn test_clone_preserves_all_fields() {
-        let mut state = DescriptionEditorState::new("Test Title".to_string(), "content".to_string());
+        let mut state =
+            DescriptionEditorState::new("Test Title".to_string(), "content".to_string());
         state.set_mode(EditorMode::Command);
         state.toggle_help();
         state.set_modified(true);

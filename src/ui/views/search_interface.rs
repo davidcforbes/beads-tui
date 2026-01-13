@@ -212,6 +212,24 @@ impl SearchInterfaceState {
         self.update_filtered_issues();
     }
 
+    /// Clear all filters and reset to default view
+    pub fn clear_all_filters(&mut self) {
+        // Clear search text
+        self.search_state.clear();
+
+        // Reset search scope to All
+        self.search_scope = SearchScope::All;
+
+        // Reset view to All
+        self.current_view = ViewType::All;
+
+        // Clear column filters
+        self.list_state.clear_filters();
+
+        // Update filtered issues to reflect cleared state
+        self.update_filtered_issues();
+    }
+
     /// Update filtered issues based on search query, scope, column filters, and view
     pub fn update_filtered_issues(&mut self) {
         let query = self.search_state.query().to_lowercase();
@@ -967,7 +985,9 @@ mod tests {
 
         assert_eq!(state.result_count(), 1);
         assert_eq!(state.filtered_issues()[0].id, "beads-002");
-        assert!(state.filtered_issues()[0].labels.contains(&"editor".to_string()));
+        assert!(state.filtered_issues()[0]
+            .labels
+            .contains(&"editor".to_string()));
     }
 
     #[test]
@@ -1201,7 +1221,10 @@ mod tests {
         state.update_filtered_issues();
 
         assert_eq!(state.result_count(), 1);
-        assert!(state.filtered_issues()[0].title.to_lowercase().contains("fix"));
+        assert!(state.filtered_issues()[0]
+            .title
+            .to_lowercase()
+            .contains("fix"));
     }
 
     #[test]
@@ -1399,7 +1422,7 @@ mod tests {
         // Add content to all searchable fields
         issues[0].title = "title_match".to_string();
         issues[1].description = Some("description_match".to_string());
-        
+
         use crate::beads::models::Note;
         issues[2].notes.push(Note {
             timestamp: Utc::now(),
@@ -1659,7 +1682,10 @@ mod tests {
         // Only beads-001 is assigned to alice
         assert_eq!(state.result_count(), 1);
         assert_eq!(state.filtered_issues()[0].id, "beads-001");
-        assert_eq!(state.filtered_issues()[0].assignee, Some("alice".to_string()));
+        assert_eq!(
+            state.filtered_issues()[0].assignee,
+            Some("alice".to_string())
+        );
     }
 
     #[test]
@@ -1856,7 +1882,11 @@ mod tests {
         // Should show beads-001 (3 days) and beads-003 (recent)
         assert_eq!(state.result_count(), 2);
 
-        let ids: Vec<&str> = state.filtered_issues().iter().map(|i| i.id.as_str()).collect();
+        let ids: Vec<&str> = state
+            .filtered_issues()
+            .iter()
+            .map(|i| i.id.as_str())
+            .collect();
         assert!(ids.contains(&"beads-001"));
         assert!(ids.contains(&"beads-003"));
         assert!(!ids.contains(&"beads-002"));
@@ -1874,7 +1904,11 @@ mod tests {
         state.set_view(ViewType::Recently);
 
         // Should include issues updated within last 7 days
-        let ids: Vec<&str> = state.filtered_issues().iter().map(|i| i.id.as_str()).collect();
+        let ids: Vec<&str> = state
+            .filtered_issues()
+            .iter()
+            .map(|i| i.id.as_str())
+            .collect();
         assert!(ids.contains(&"beads-001"));
     }
 
@@ -1929,7 +1963,11 @@ mod tests {
         // Should show both InProgress and Blocked stale issues
         assert_eq!(state.result_count(), 2);
 
-        let ids: Vec<&str> = state.filtered_issues().iter().map(|i| i.id.as_str()).collect();
+        let ids: Vec<&str> = state
+            .filtered_issues()
+            .iter()
+            .map(|i| i.id.as_str())
+            .collect();
         assert!(ids.contains(&"beads-001"));
         assert!(ids.contains(&"beads-002"));
         assert!(!ids.contains(&"beads-003"));
@@ -1977,7 +2015,11 @@ mod tests {
         state.set_view(ViewType::Stale);
 
         // 31+ days should be included, but 29 days should NOT
-        let ids: Vec<&str> = state.filtered_issues().iter().map(|i| i.id.as_str()).collect();
+        let ids: Vec<&str> = state
+            .filtered_issues()
+            .iter()
+            .map(|i| i.id.as_str())
+            .collect();
         assert!(ids.contains(&"beads-001"));
         assert!(!ids.contains(&"beads-002"));
     }

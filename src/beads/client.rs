@@ -115,7 +115,10 @@ impl BeadsClient {
     }
 
     /// Create a new issue with full options
-    pub async fn create_issue_full(&self, params: super::models::CreateIssueParams<'_>) -> Result<String> {
+    pub async fn create_issue_full(
+        &self,
+        params: super::models::CreateIssueParams<'_>,
+    ) -> Result<String> {
         let mut args = vec![
             "create".to_string(),
             "--title".to_string(),
@@ -515,7 +518,10 @@ mod tests {
     #[test]
     fn test_issue_update_description() {
         let update = IssueUpdate::new().description("A detailed description".to_string());
-        assert_eq!(update.description, Some("A detailed description".to_string()));
+        assert_eq!(
+            update.description,
+            Some("A detailed description".to_string())
+        );
     }
 
     #[test]
@@ -757,10 +763,10 @@ mod tests {
     // Complex builder chain scenarios
     #[test]
     fn test_client_builder_chain_order_independence() {
-        let client1 = BeadsClient::with_timeout(Duration::from_secs(60))
-            .with_bd_path("/test/bd".to_string());
-        let client2 = BeadsClient::with_timeout(Duration::from_secs(60))
-            .with_bd_path("/test/bd".to_string());
+        let client1 =
+            BeadsClient::with_timeout(Duration::from_secs(60)).with_bd_path("/test/bd".to_string());
+        let client2 =
+            BeadsClient::with_timeout(Duration::from_secs(60)).with_bd_path("/test/bd".to_string());
 
         assert_eq!(client1.bd_path, client2.bd_path);
         assert_eq!(client1.command_timeout, client2.command_timeout);
@@ -998,7 +1004,10 @@ mod tests {
     #[test]
     fn test_issue_update_assignee_with_special_chars() {
         let update = IssueUpdate::new().assignee("user.name+tag@example.com".to_string());
-        assert_eq!(update.assignee, Some("user.name+tag@example.com".to_string()));
+        assert_eq!(
+            update.assignee,
+            Some("user.name+tag@example.com".to_string())
+        );
     }
 
     // Very long label lists
@@ -1012,8 +1021,7 @@ mod tests {
     // Builder chain with all None values preserved
     #[test]
     fn test_issue_update_builder_preserves_none() {
-        let update = IssueUpdate::new()
-            .title("Title".to_string());
+        let update = IssueUpdate::new().title("Title".to_string());
         // Only title should be set, all others should remain None
 
         assert_eq!(update.title, Some("Title".to_string()));
@@ -1096,7 +1104,8 @@ mod tests {
 
     #[test]
     fn test_issue_update_description_with_code_blocks() {
-        let description = "Fix:\n```rust\nfn main() {\n    println!(\"Hello\");\n}\n```".to_string();
+        let description =
+            "Fix:\n```rust\nfn main() {\n    println!(\"Hello\");\n}\n```".to_string();
         let update = IssueUpdate::new().description(description.clone());
         assert_eq!(update.description, Some(description));
     }

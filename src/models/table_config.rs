@@ -276,7 +276,11 @@ impl TableConfig {
             // Insert Title after Id (position 1) since we just added Id if it was missing
             let insert_pos = if has_id {
                 // Id was already present, find its position
-                self.columns.iter().position(|c| c.id == ColumnId::Id).map(|pos| pos + 1).unwrap_or(1)
+                self.columns
+                    .iter()
+                    .position(|c| c.id == ColumnId::Id)
+                    .map(|pos| pos + 1)
+                    .unwrap_or(1)
             } else {
                 // Id was just added at position 0
                 1
@@ -668,7 +672,10 @@ mod tests {
         filter.filters.insert(ColumnId::Status, "open".to_string());
         let cloned = filter.clone();
         assert_eq!(cloned.filters.len(), 1);
-        assert_eq!(cloned.filters.get(&ColumnId::Status), Some(&"open".to_string()));
+        assert_eq!(
+            cloned.filters.get(&ColumnId::Status),
+            Some(&"open".to_string())
+        );
     }
 
     #[test]
@@ -804,7 +811,7 @@ mod tests {
             ColumnId::Updated,
             ColumnId::Created,
         ];
-        
+
         for (i, id1) in ids.iter().enumerate() {
             for (j, id2) in ids.iter().enumerate() {
                 if i != j {
@@ -826,7 +833,7 @@ mod tests {
     #[test]
     fn test_all_alignment_inequalities() {
         let aligns = [Alignment::Left, Alignment::Center, Alignment::Right];
-        
+
         for (i, a1) in aligns.iter().enumerate() {
             for (j, a2) in aligns.iter().enumerate() {
                 if i != j {
@@ -847,10 +854,12 @@ mod tests {
 
     #[test]
     fn test_all_wrap_behavior_inequalities() {
-        let wraps = [WrapBehavior::Truncate,
+        let wraps = [
+            WrapBehavior::Truncate,
             WrapBehavior::Wrap,
-            WrapBehavior::WrapAnywhere];
-        
+            WrapBehavior::WrapAnywhere,
+        ];
+
         for (i, w1) in wraps.iter().enumerate() {
             for (j, w2) in wraps.iter().enumerate() {
                 if i != j {
@@ -866,7 +875,7 @@ mod tests {
         assert_eq!(constraints.min, 20);
         assert_eq!(constraints.max, Some(20));
         assert_eq!(constraints.preferred, 25);
-        
+
         // Clamping should work correctly
         assert_eq!(constraints.clamp(15), 20);
         assert_eq!(constraints.clamp(20), 20);
@@ -899,10 +908,10 @@ mod tests {
     fn test_column_definition_set_visible_non_mandatory() {
         let mut col = ColumnDefinition::new(ColumnId::Status);
         assert!(col.visible);
-        
+
         col.set_visible(false);
         assert!(!col.visible);
-        
+
         col.set_visible(true);
         assert!(col.visible);
     }
@@ -911,7 +920,7 @@ mod tests {
     fn test_column_definition_set_visible_mandatory_id() {
         let mut col = ColumnDefinition::new(ColumnId::Id);
         assert!(col.visible);
-        
+
         col.set_visible(false);
         assert!(col.visible); // Should remain visible
     }
@@ -920,7 +929,7 @@ mod tests {
     fn test_column_definition_set_visible_mandatory_title() {
         let mut col = ColumnDefinition::new(ColumnId::Title);
         assert!(col.visible);
-        
+
         col.set_visible(false);
         assert!(col.visible); // Should remain visible
     }
@@ -938,7 +947,7 @@ mod tests {
             ColumnId::Updated,
             ColumnId::Created,
         ];
-        
+
         for column in columns {
             let sort = SortConfig {
                 column,
@@ -969,37 +978,65 @@ mod tests {
     fn test_filter_config_single_filter() {
         let mut config = FilterConfig::default();
         config.filters.insert(ColumnId::Status, "open".to_string());
-        
+
         assert_eq!(config.filters.len(), 1);
-        assert_eq!(config.filters.get(&ColumnId::Status), Some(&"open".to_string()));
+        assert_eq!(
+            config.filters.get(&ColumnId::Status),
+            Some(&"open".to_string())
+        );
     }
 
     #[test]
     fn test_filter_config_multiple_filters() {
         let mut config = FilterConfig::default();
         config.filters.insert(ColumnId::Status, "open".to_string());
-        config.filters.insert(ColumnId::Priority, "high".to_string());
+        config
+            .filters
+            .insert(ColumnId::Priority, "high".to_string());
         config.filters.insert(ColumnId::Type, "bug".to_string());
-        
+
         assert_eq!(config.filters.len(), 3);
-        assert_eq!(config.filters.get(&ColumnId::Status), Some(&"open".to_string()));
-        assert_eq!(config.filters.get(&ColumnId::Priority), Some(&"high".to_string()));
-        assert_eq!(config.filters.get(&ColumnId::Type), Some(&"bug".to_string()));
+        assert_eq!(
+            config.filters.get(&ColumnId::Status),
+            Some(&"open".to_string())
+        );
+        assert_eq!(
+            config.filters.get(&ColumnId::Priority),
+            Some(&"high".to_string())
+        );
+        assert_eq!(
+            config.filters.get(&ColumnId::Type),
+            Some(&"bug".to_string())
+        );
     }
 
     #[test]
     fn test_table_config_all_columns_hidden_except_mandatory() {
         let mut config = TableConfig::default();
-        
+
         // Try to hide all columns
         for col in &mut config.columns {
             col.set_visible(false);
         }
-        
+
         // Mandatory columns should remain visible
-        assert!(config.columns.iter().find(|c| c.id == ColumnId::Id).unwrap().visible);
-        assert!(config.columns.iter().find(|c| c.id == ColumnId::Title).unwrap().visible);
-        
+        assert!(
+            config
+                .columns
+                .iter()
+                .find(|c| c.id == ColumnId::Id)
+                .unwrap()
+                .visible
+        );
+        assert!(
+            config
+                .columns
+                .iter()
+                .find(|c| c.id == ColumnId::Title)
+                .unwrap()
+                .visible
+        );
+
         // Non-mandatory should be hidden
         if let Some(status) = config.columns.iter().find(|c| c.id == ColumnId::Status) {
             assert!(!status.visible);
@@ -1020,7 +1057,7 @@ mod tests {
             filters: FilterConfig::default(),
             version: 1,
         };
-        
+
         assert_eq!(config.columns[0].id, ColumnId::Priority);
         assert_eq!(config.columns[1].id, ColumnId::Title);
         assert_eq!(config.columns[2].id, ColumnId::Id);
@@ -1036,7 +1073,7 @@ mod tests {
             filters: FilterConfig::default(),
             version: 1,
         };
-        
+
         assert_eq!(config.row_height, 1000);
     }
 
@@ -1049,7 +1086,7 @@ mod tests {
             filters: FilterConfig::default(),
             version: 1,
         };
-        
+
         assert_eq!(config.row_height, 0);
     }
 
@@ -1063,13 +1100,13 @@ mod tests {
     #[test]
     fn test_column_definition_all_alignments() {
         let mut col = ColumnDefinition::new(ColumnId::Id);
-        
+
         col.alignment = Alignment::Left;
         assert_eq!(col.alignment, Alignment::Left);
-        
+
         col.alignment = Alignment::Center;
         assert_eq!(col.alignment, Alignment::Center);
-        
+
         col.alignment = Alignment::Right;
         assert_eq!(col.alignment, Alignment::Right);
     }
@@ -1077,13 +1114,13 @@ mod tests {
     #[test]
     fn test_column_definition_all_wrap_behaviors() {
         let mut col = ColumnDefinition::new(ColumnId::Title);
-        
+
         col.wrap = WrapBehavior::Truncate;
         assert_eq!(col.wrap, WrapBehavior::Truncate);
-        
+
         col.wrap = WrapBehavior::Wrap;
         assert_eq!(col.wrap, WrapBehavior::Wrap);
-        
+
         col.wrap = WrapBehavior::WrapAnywhere;
         assert_eq!(col.wrap, WrapBehavior::WrapAnywhere);
     }
@@ -1091,11 +1128,11 @@ mod tests {
     #[test]
     fn test_table_config_get_column_by_id() {
         let config = TableConfig::default();
-        
+
         let id_col = config.get_column(ColumnId::Id);
         assert!(id_col.is_some());
         assert_eq!(id_col.unwrap().id, ColumnId::Id);
-        
+
         let title_col = config.get_column(ColumnId::Title);
         assert!(title_col.is_some());
         assert_eq!(title_col.unwrap().id, ColumnId::Title);
@@ -1104,11 +1141,11 @@ mod tests {
     #[test]
     fn test_table_config_get_column_mut_by_id() {
         let mut config = TableConfig::default();
-        
+
         if let Some(col) = config.get_column_mut(ColumnId::Id) {
             col.width = 15;
         }
-        
+
         let id_col = config.get_column(ColumnId::Id);
         assert_eq!(id_col.unwrap().width, 15);
     }
@@ -1117,41 +1154,49 @@ mod tests {
     fn test_table_config_reorder_column_to_end() {
         let mut config = TableConfig::default();
         let original_len = config.columns.len();
-        
+
         // Find Id column index
-        let id_index = config.columns.iter().position(|c| c.id == ColumnId::Id).unwrap();
-        
+        let id_index = config
+            .columns
+            .iter()
+            .position(|c| c.id == ColumnId::Id)
+            .unwrap();
+
         // Move Id column to end
         config.reorder_column(id_index, original_len - 1);
-        
+
         assert_eq!(config.columns[original_len - 1].id, ColumnId::Id);
     }
 
     #[test]
     fn test_table_config_reorder_column_to_start() {
         let mut config = TableConfig::default();
-        
+
         // Find Updated column index
-        let updated_index = config.columns.iter().position(|c| c.id == ColumnId::Updated).unwrap();
-        
+        let updated_index = config
+            .columns
+            .iter()
+            .position(|c| c.id == ColumnId::Updated)
+            .unwrap();
+
         // Move Updated column to start
         config.reorder_column(updated_index, 0);
-        
+
         assert_eq!(config.columns[0].id, ColumnId::Updated);
     }
 
     #[test]
     fn test_table_config_toggle_visibility_multiple_times() {
         let mut config = TableConfig::default();
-        
+
         config.toggle_column_visibility(ColumnId::Status);
         let status = config.get_column(ColumnId::Status).unwrap();
         assert!(!status.visible);
-        
+
         config.toggle_column_visibility(ColumnId::Status);
         let status = config.get_column(ColumnId::Status).unwrap();
         assert!(status.visible);
-        
+
         config.toggle_column_visibility(ColumnId::Status);
         let status = config.get_column(ColumnId::Status).unwrap();
         assert!(!status.visible);
@@ -1160,11 +1205,11 @@ mod tests {
     #[test]
     fn test_table_config_toggle_visibility_mandatory() {
         let mut config = TableConfig::default();
-        
+
         config.toggle_column_visibility(ColumnId::Id);
         let id_col = config.get_column(ColumnId::Id).unwrap();
         assert!(id_col.visible); // Should remain visible
-        
+
         config.toggle_column_visibility(ColumnId::Title);
         let title_col = config.get_column(ColumnId::Title).unwrap();
         assert!(title_col.visible); // Should remain visible
@@ -1174,7 +1219,7 @@ mod tests {
     fn test_table_config_version() {
         let config = TableConfig::default();
         assert_eq!(config.version, 1);
-        
+
         let custom_config = TableConfig {
             columns: TableConfig::default_columns(),
             row_height: 1,
@@ -1188,12 +1233,12 @@ mod tests {
     #[test]
     fn test_column_id_hash_different() {
         use std::collections::HashSet;
-        
+
         let mut set = HashSet::new();
         set.insert(ColumnId::Id);
         set.insert(ColumnId::Title);
         set.insert(ColumnId::Status);
-        
+
         assert_eq!(set.len(), 3);
         assert!(set.contains(&ColumnId::Id));
         assert!(set.contains(&ColumnId::Title));
@@ -1235,9 +1280,9 @@ mod tests {
             filters: FilterConfig::default(),
             version: 1,
         };
-        
+
         config = config.validate_and_migrate();
-        
+
         // Should have added both Id and Title
         assert_eq!(config.columns[0].id, ColumnId::Id);
         assert_eq!(config.columns[1].id, ColumnId::Title);
@@ -1261,17 +1306,25 @@ mod tests {
     fn test_filter_config_update_existing() {
         let mut config = FilterConfig::default();
         config.filters.insert(ColumnId::Status, "open".to_string());
-        assert_eq!(config.filters.get(&ColumnId::Status), Some(&"open".to_string()));
-        
-        config.filters.insert(ColumnId::Status, "closed".to_string());
-        assert_eq!(config.filters.get(&ColumnId::Status), Some(&"closed".to_string()));
+        assert_eq!(
+            config.filters.get(&ColumnId::Status),
+            Some(&"open".to_string())
+        );
+
+        config
+            .filters
+            .insert(ColumnId::Status, "closed".to_string());
+        assert_eq!(
+            config.filters.get(&ColumnId::Status),
+            Some(&"closed".to_string())
+        );
     }
 
     #[test]
     fn test_column_definition_label_customization() {
         let mut col = ColumnDefinition::new(ColumnId::Id);
         assert_eq!(col.label, "ID");
-        
+
         col.label = "Identifier".to_string();
         assert_eq!(col.label, "Identifier");
     }

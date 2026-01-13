@@ -626,7 +626,10 @@ mod tests {
         assert!(!lines.is_empty());
         // First line should be the title
         let title_line = &lines[0];
-        assert!(title_line.spans.iter().any(|s| s.content.contains("Global")));
+        assert!(title_line
+            .spans
+            .iter()
+            .any(|s| s.content.contains("Global")));
     }
 
     #[test]
@@ -635,7 +638,10 @@ mod tests {
         let lines = view.render_issues_help();
         assert!(!lines.is_empty());
         let title_line = &lines[0];
-        assert!(title_line.spans.iter().any(|s| s.content.contains("Issues")));
+        assert!(title_line
+            .spans
+            .iter()
+            .any(|s| s.content.contains("Issues")));
     }
 
     #[test]
@@ -644,7 +650,10 @@ mod tests {
         let lines = view.render_dependencies_help();
         assert!(!lines.is_empty());
         let title_line = &lines[0];
-        assert!(title_line.spans.iter().any(|s| s.content.contains("Dependencies")));
+        assert!(title_line
+            .spans
+            .iter()
+            .any(|s| s.content.contains("Dependencies")));
     }
 
     #[test]
@@ -653,7 +662,10 @@ mod tests {
         let lines = view.render_labels_help();
         assert!(!lines.is_empty());
         let title_line = &lines[0];
-        assert!(title_line.spans.iter().any(|s| s.content.contains("Labels")));
+        assert!(title_line
+            .spans
+            .iter()
+            .any(|s| s.content.contains("Labels")));
     }
 
     #[test]
@@ -662,7 +674,10 @@ mod tests {
         let lines = view.render_database_help();
         assert!(!lines.is_empty());
         let title_line = &lines[0];
-        assert!(title_line.spans.iter().any(|s| s.content.contains("Database")));
+        assert!(title_line
+            .spans
+            .iter()
+            .any(|s| s.content.contains("Database")));
     }
 
     #[test]
@@ -763,7 +778,11 @@ mod tests {
         let view = HelpView::new();
         for section in HelpSection::all() {
             let content = view.get_section_content(section);
-            assert!(!content.is_empty(), "Section {:?} should have content", section);
+            assert!(
+                !content.is_empty(),
+                "Section {:?} should have content",
+                section
+            );
         }
     }
 
@@ -916,7 +935,10 @@ mod tests {
         let lines = view.render_about();
 
         // About section should have substantial content
-        assert!(lines.len() > 5, "About section should have multiple information lines");
+        assert!(
+            lines.len() > 5,
+            "About section should have multiple information lines"
+        );
     }
 
     #[test]

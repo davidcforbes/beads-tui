@@ -96,12 +96,20 @@ impl AppState {
             Formula {
                 name: "Feature".to_string(),
                 description: "Standard feature template with estimate and labels".to_string(),
-                variables: vec!["title".to_string(), "description".to_string(), "estimate".to_string()],
+                variables: vec![
+                    "title".to_string(),
+                    "description".to_string(),
+                    "estimate".to_string(),
+                ],
             },
             Formula {
                 name: "Bug".to_string(),
                 description: "Bug report template with steps to reproduce and priority".to_string(),
-                variables: vec!["title".to_string(), "repro_steps".to_string(), "priority".to_string()],
+                variables: vec![
+                    "title".to_string(),
+                    "repro_steps".to_string(),
+                    "priority".to_string(),
+                ],
             },
             Formula {
                 name: "Chore".to_string(),
@@ -118,7 +126,17 @@ impl AppState {
         Self {
             should_quit: false,
             selected_tab: 0,
-            tabs: vec!["Issues", "Dependencies", "Labels", "PERT", "Gantt", "Kanban", "Molecular", "Database", "Help"],
+            tabs: vec![
+                "Issues",
+                "Dependencies",
+                "Labels",
+                "PERT",
+                "Gantt",
+                "Kanban",
+                "Molecular",
+                "Database",
+                "Help",
+            ],
             beads_client,
             issues_view_state: IssuesViewState::new(issues.clone()),
             dependencies_view_state: DependenciesViewState::new(),
@@ -230,7 +248,10 @@ impl AppState {
     /// Navigate to next help section
     pub fn next_help_section(&mut self) {
         let sections = HelpSection::all();
-        let current_idx = sections.iter().position(|&s| s == self.help_section).unwrap_or(0);
+        let current_idx = sections
+            .iter()
+            .position(|&s| s == self.help_section)
+            .unwrap_or(0);
         self.help_section = sections[(current_idx + 1) % sections.len()];
         self.mark_dirty();
     }
@@ -238,7 +259,10 @@ impl AppState {
     /// Navigate to previous help section
     pub fn previous_help_section(&mut self) {
         let sections = HelpSection::all();
-        let current_idx = sections.iter().position(|&s| s == self.help_section).unwrap_or(0);
+        let current_idx = sections
+            .iter()
+            .position(|&s| s == self.help_section)
+            .unwrap_or(0);
         self.help_section = if current_idx == 0 {
             sections[sections.len() - 1]
         } else {
@@ -324,7 +348,17 @@ mod tests {
         AppState {
             should_quit: false,
             selected_tab: 0,
-            tabs: vec!["Issues", "Dependencies", "Labels", "PERT", "Gantt", "Kanban", "Molecular", "Database", "Help"],
+            tabs: vec![
+                "Issues",
+                "Dependencies",
+                "Labels",
+                "PERT",
+                "Gantt",
+                "Kanban",
+                "Molecular",
+                "Database",
+                "Help",
+            ],
             beads_client: BeadsClient::new(),
             issues_view_state: IssuesViewState::new(vec![]),
             dependencies_view_state: DependenciesViewState::new(),
@@ -717,17 +751,11 @@ mod tests {
         let mut state = create_test_app_state();
 
         state.set_error("First error".to_string());
-        assert_eq!(
-            state.notification.as_ref().unwrap().message,
-            "First error"
-        );
+        assert_eq!(state.notification.as_ref().unwrap().message, "First error");
 
         // Setting a new notification should replace the old one
         state.set_success("Success!".to_string());
-        assert_eq!(
-            state.notification.as_ref().unwrap().message,
-            "Success!"
-        );
+        assert_eq!(state.notification.as_ref().unwrap().message, "Success!");
         assert_eq!(
             state.notification.as_ref().unwrap().notification_type,
             NotificationType::Success
@@ -842,7 +870,7 @@ mod tests {
     #[test]
     fn test_check_notification_timeout_info_auto_dismiss() {
         let mut state = create_test_app_state();
-        
+
         // Create an info notification with a timestamp in the past
         state.notification = Some(NotificationMessage {
             message: "Old info".to_string(),
@@ -857,7 +885,7 @@ mod tests {
     #[test]
     fn test_check_notification_timeout_success_auto_dismiss() {
         let mut state = create_test_app_state();
-        
+
         // Create a success notification with a timestamp in the past
         state.notification = Some(NotificationMessage {
             message: "Old success".to_string(),
@@ -872,7 +900,7 @@ mod tests {
     #[test]
     fn test_check_notification_timeout_error_no_auto_dismiss() {
         let mut state = create_test_app_state();
-        
+
         // Create an error notification with a timestamp in the past
         state.notification = Some(NotificationMessage {
             message: "Old error".to_string(),
@@ -887,7 +915,7 @@ mod tests {
     #[test]
     fn test_check_notification_timeout_warning_no_auto_dismiss() {
         let mut state = create_test_app_state();
-        
+
         // Create a warning notification with a timestamp in the past
         state.notification = Some(NotificationMessage {
             message: "Old warning".to_string(),
@@ -902,7 +930,7 @@ mod tests {
     #[test]
     fn test_check_notification_timeout_info_recent_not_dismissed() {
         let mut state = create_test_app_state();
-        
+
         // Create a recent info notification
         state.notification = Some(NotificationMessage {
             message: "Recent info".to_string(),
@@ -917,10 +945,10 @@ mod tests {
     #[test]
     fn test_toggle_perf_stats_twice() {
         let mut state = create_test_app_state();
-        
+
         state.toggle_perf_stats();
         assert!(state.show_perf_stats);
-        
+
         state.toggle_perf_stats();
         assert!(!state.show_perf_stats);
     }
@@ -958,10 +986,10 @@ mod tests {
     fn test_mark_dirty_idempotent() {
         let mut state = create_test_app_state();
         state.dirty = false;
-        
+
         state.mark_dirty();
         assert!(state.is_dirty());
-        
+
         state.mark_dirty();
         assert!(state.is_dirty());
     }
@@ -970,10 +998,10 @@ mod tests {
     fn test_clear_dirty_idempotent() {
         let mut state = create_test_app_state();
         state.dirty = true;
-        
+
         state.clear_dirty();
         assert!(!state.is_dirty());
-        
+
         state.clear_dirty();
         assert!(!state.is_dirty());
     }
@@ -986,7 +1014,7 @@ mod tests {
             NotificationType::Info,
             NotificationType::Warning,
         ];
-        
+
         for variant in &variants {
             let debug = format!("{:?}", variant);
             assert!(!debug.is_empty());

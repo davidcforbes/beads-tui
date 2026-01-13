@@ -600,7 +600,10 @@ mod tests {
 
     #[test]
     fn test_dialog_builder_chain() {
-        let buttons = vec![DialogButton::new("Yes", "yes"), DialogButton::new("No", "no")];
+        let buttons = vec![
+            DialogButton::new("Yes", "yes"),
+            DialogButton::new("No", "no"),
+        ];
         let dialog = Dialog::new("Test", "Message")
             .dialog_type(DialogType::Error)
             .width(60)
@@ -664,19 +667,19 @@ mod tests {
     #[test]
     fn test_dialog_builder_order_independence() {
         let buttons = vec![DialogButton::new("Yes", "yes")];
-        
+
         let dialog1 = Dialog::new("Test", "Message")
             .width(60)
             .height(20)
             .dialog_type(DialogType::Warning)
             .buttons(buttons.clone());
-        
+
         let dialog2 = Dialog::new("Test", "Message")
             .buttons(buttons.clone())
             .dialog_type(DialogType::Warning)
             .height(20)
             .width(60);
-        
+
         assert_eq!(dialog1.width, dialog2.width);
         assert_eq!(dialog1.height, dialog2.height);
         assert_eq!(dialog1.dialog_type, dialog2.dialog_type);
@@ -691,7 +694,7 @@ mod tests {
             state.select_next(10);
         }
         assert_eq!(state.selected_button(), 5);
-        
+
         // Wrap around
         for _ in 0..5 {
             state.select_next(10);
@@ -705,19 +708,21 @@ mod tests {
         // At button 0, go previous should wrap to last button
         state.select_previous(5);
         assert_eq!(state.selected_button(), 4);
-        
+
         state.select_previous(5);
         assert_eq!(state.selected_button(), 3);
     }
 
     #[test]
     fn test_all_dialog_type_inequalities() {
-        let types = [DialogType::Info,
+        let types = [
+            DialogType::Info,
             DialogType::Warning,
             DialogType::Error,
             DialogType::Success,
-            DialogType::Confirm];
-        
+            DialogType::Confirm,
+        ];
+
         for (i, type1) in types.iter().enumerate() {
             for (j, type2) in types.iter().enumerate() {
                 if i != j {
@@ -748,7 +753,7 @@ mod tests {
             DialogButton::new("いいえ", "no"),
             DialogButton::new("キャンセル", "cancel"),
         ];
-        
+
         let dialog = Dialog::new("Test", "Message").buttons(buttons);
         assert_eq!(dialog.buttons.len(), 3);
         assert_eq!(dialog.buttons[0].label, "はい");
@@ -762,7 +767,7 @@ mod tests {
             .dialog_type(DialogType::Info)
             .dialog_type(DialogType::Warning)
             .dialog_type(DialogType::Error);
-        
+
         // Last application should win
         assert_eq!(dialog.dialog_type, DialogType::Error);
     }
@@ -771,7 +776,7 @@ mod tests {
     fn test_dialog_width_edge_cases() {
         let dialog1 = Dialog::new("Test", "Message").width(0);
         assert_eq!(dialog1.width, 0);
-        
+
         let dialog2 = Dialog::new("Test", "Message").width(u16::MAX);
         assert_eq!(dialog2.width, u16::MAX);
     }
@@ -780,7 +785,7 @@ mod tests {
     fn test_dialog_height_edge_cases() {
         let dialog1 = Dialog::new("Test", "Message").height(0);
         assert_eq!(dialog1.height, 0);
-        
+
         let dialog2 = Dialog::new("Test", "Message").height(u16::MAX);
         assert_eq!(dialog2.height, u16::MAX);
     }
@@ -788,7 +793,7 @@ mod tests {
     #[test]
     fn test_dialog_state_complex_navigation_sequence() {
         let mut state = DialogState::new();
-        
+
         // Complex navigation sequence with 7 buttons
         state.select_next(7); // 0 -> 1
         state.select_next(7); // 1 -> 2
@@ -798,7 +803,7 @@ mod tests {
         state.select_next(7); // 3 -> 4
         state.select_previous(7); // 4 -> 3
         state.select_previous(7); // 3 -> 2
-        
+
         assert_eq!(state.selected_button(), 2);
     }
 
@@ -821,7 +826,7 @@ mod tests {
         let error_symbol = DialogType::Error.symbol();
         let success_symbol = DialogType::Success.symbol();
         let confirm_symbol = DialogType::Confirm.symbol();
-        
+
         assert!(!info_symbol.is_empty());
         assert!(!warning_symbol.is_empty());
         assert!(!error_symbol.is_empty());
@@ -832,21 +837,21 @@ mod tests {
     #[test]
     fn test_dialog_state_wraparound_exact_boundaries() {
         let mut state = DialogState::new();
-        
+
         // Test with 3 buttons: valid indices are 0, 1, 2
         // Start at 0, go to last (2)
         state.select_previous(3);
         assert_eq!(state.selected_button(), 2);
-        
+
         // Go next should wrap to 0
         state.select_next(3);
         assert_eq!(state.selected_button(), 0);
-        
+
         // Go next twice to get to 2
         state.select_next(3);
         state.select_next(3);
         assert_eq!(state.selected_button(), 2);
-        
+
         // Go next should wrap to 0
         state.select_next(3);
         assert_eq!(state.selected_button(), 0);
@@ -854,11 +859,8 @@ mod tests {
 
     #[test]
     fn test_multiple_width_applications() {
-        let dialog = Dialog::new("Test", "Message")
-            .width(40)
-            .width(60)
-            .width(80);
-        
+        let dialog = Dialog::new("Test", "Message").width(40).width(60).width(80);
+
         // Last application should win
         assert_eq!(dialog.width, 80);
     }
@@ -869,7 +871,7 @@ mod tests {
             .height(10)
             .height(20)
             .height(30);
-        
+
         // Last application should win
         assert_eq!(dialog.height, 30);
     }
@@ -877,16 +879,16 @@ mod tests {
     #[test]
     fn test_dialog_state_reset_after_navigation() {
         let mut state = DialogState::new();
-        
+
         state.select_next(10);
         state.select_next(10);
         state.select_next(10);
         state.select_next(10);
         assert_eq!(state.selected_button(), 4);
-        
+
         state.reset();
         assert_eq!(state.selected_button(), 0);
-        
+
         // Verify can navigate again after reset
         state.select_next(10);
         assert_eq!(state.selected_button(), 1);
@@ -896,7 +898,7 @@ mod tests {
     fn test_dialog_button_action_edge_cases() {
         let button1 = DialogButton::new("OK", "");
         assert_eq!(button1.action, "");
-        
+
         let long_action = "a".repeat(300);
         let button2 = DialogButton::new("OK", &long_action);
         assert_eq!(button2.action.len(), 300);
@@ -906,9 +908,12 @@ mod tests {
     fn test_dialog_many_buttons() {
         let mut buttons = Vec::new();
         for i in 0..50 {
-            buttons.push(DialogButton::new(&format!("Button {}", i), &format!("action_{}", i)));
+            buttons.push(DialogButton::new(
+                &format!("Button {}", i),
+                &format!("action_{}", i),
+            ));
         }
-        
+
         let dialog = Dialog::new("Test", "Message").buttons(buttons);
         assert_eq!(dialog.buttons.len(), 50);
         assert_eq!(dialog.buttons[0].label, "Button 0");
@@ -918,19 +923,19 @@ mod tests {
     #[test]
     fn test_dialog_state_navigation_50_buttons() {
         let mut state = DialogState::new();
-        
+
         // Navigate to middle
         for _ in 0..25 {
             state.select_next(50);
         }
         assert_eq!(state.selected_button(), 25);
-        
+
         // Navigate to end
         for _ in 0..24 {
             state.select_next(50);
         }
         assert_eq!(state.selected_button(), 49);
-        
+
         // Wrap around
         state.select_next(50);
         assert_eq!(state.selected_button(), 0);
@@ -960,11 +965,11 @@ mod tests {
     fn test_multiple_buttons_applications() {
         let buttons1 = vec![DialogButton::new("A", "a")];
         let buttons2 = vec![DialogButton::new("B", "b"), DialogButton::new("C", "c")];
-        
+
         let dialog = Dialog::new("Test", "Message")
             .buttons(buttons1)
             .buttons(buttons2);
-        
+
         // Last application should win
         assert_eq!(dialog.buttons.len(), 2);
         assert_eq!(dialog.buttons[0].label, "B");

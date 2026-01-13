@@ -12,8 +12,7 @@ use ratatui::{
 use std::collections::HashMap;
 
 /// Grouping mode for swim lanes
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum GroupingMode {
     /// No grouping - all issues in a single lane
     None,
@@ -27,7 +26,6 @@ pub enum GroupingMode {
     /// Group by issue type
     Type,
 }
-
 
 /// Configuration for Gantt chart rendering
 #[derive(Debug, Clone)]
@@ -181,9 +179,10 @@ impl<'a> GanttChart<'a> {
                         Priority::P4 => "P4 - Backlog",
                     }
                     .to_string(),
-                    GroupingMode::Assignee => {
-                        issue.assignee.clone().unwrap_or_else(|| "Unassigned".to_string())
-                    }
+                    GroupingMode::Assignee => issue
+                        .assignee
+                        .clone()
+                        .unwrap_or_else(|| "Unassigned".to_string()),
                     GroupingMode::Type => match issue.issue_type {
                         IssueType::Bug => "Bug",
                         IssueType::Feature => "Feature",
@@ -197,10 +196,7 @@ impl<'a> GanttChart<'a> {
                 "Unknown".to_string()
             };
 
-            lanes
-                .entry(lane_key)
-                .or_default()
-                .push(schedule.clone());
+            lanes.entry(lane_key).or_default().push(schedule.clone());
         }
 
         // Convert to sorted vector of swim lanes
@@ -286,9 +282,9 @@ impl<'a> GanttChart<'a> {
             if let Some(x) = self.date_to_x(today, area) {
                 if x >= area.x + 20 && x < area.right() {
                     for y in area.y..area.bottom() {
-                        buf.get_mut(x, y)
-                            .set_symbol("│")
-                            .set_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
+                        buf.get_mut(x, y).set_symbol("│").set_style(
+                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                        );
                     }
                 }
             }
@@ -308,7 +304,12 @@ impl<'a> GanttChart<'a> {
 
     /// Render swim lanes with issue bars
     /// Returns a map of issue_id to (center_x, bar_y) for dependency line rendering
-    fn render_lanes(&self, area: Rect, buf: &mut Buffer, lanes: &[SwimLane]) -> HashMap<String, (u16, u16)> {
+    fn render_lanes(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        lanes: &[SwimLane],
+    ) -> HashMap<String, (u16, u16)> {
         let mut issue_positions: HashMap<String, (u16, u16)> = HashMap::new();
         let mut current_y = area.y + 2; // Start after time axis
 
@@ -324,9 +325,11 @@ impl<'a> GanttChart<'a> {
                 let x_pos = area.x + (i as u16);
                 let max_x = area.x + 19;
                 if x_pos < max_x {
-                    buf.get_mut(x_pos, current_y)
-                        .set_char(ch)
-                        .set_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+                    buf.get_mut(x_pos, current_y).set_char(ch).set_style(
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    );
                 }
             }
 
@@ -354,9 +357,7 @@ impl<'a> GanttChart<'a> {
                             && self
                                 .issues
                                 .get(&schedule.issue_id)
-                                .map(|i| {
-                                    i.status != crate::beads::models::IssueStatus::Closed
-                                })
+                                .map(|i| i.status != crate::beads::models::IssueStatus::Closed)
                                 .unwrap_or(false);
 
                         let bar_style = if is_selected {
@@ -370,9 +371,7 @@ impl<'a> GanttChart<'a> {
                         // Render bar background
                         for x in start_x..start_x + bar_width {
                             if x >= area.x + 20 && x < area.right() && bar_y < area.bottom() {
-                                buf.get_mut(x, bar_y)
-                                    .set_symbol("█")
-                                    .set_style(bar_style);
+                                buf.get_mut(x, bar_y).set_symbol("█").set_style(bar_style);
                             }
                         }
 
@@ -384,14 +383,13 @@ impl<'a> GanttChart<'a> {
 
                             for (i, ch) in truncated.chars().enumerate() {
                                 let text_x = start_x + 1 + i as u16;
-                                if text_x >= area.x + 20 && text_x < area.right() && bar_y < area.bottom() {
-                                    buf.get_mut(text_x, bar_y)
-                                        .set_char(ch)
-                                        .set_style(
-                                            bar_style
-                                                .fg(Color::Black)
-                                                .add_modifier(Modifier::BOLD),
-                                        );
+                                if text_x >= area.x + 20
+                                    && text_x < area.right()
+                                    && bar_y < area.bottom()
+                                {
+                                    buf.get_mut(text_x, bar_y).set_char(ch).set_style(
+                                        bar_style.fg(Color::Black).add_modifier(Modifier::BOLD),
+                                    );
                                 }
                             }
                         }
@@ -412,7 +410,12 @@ impl<'a> GanttChart<'a> {
 
     /// Render dependency lines between issues
     /// Draws arrows from depending issues to their dependencies
-    fn render_dependencies(&self, area: Rect, buf: &mut Buffer, positions: &HashMap<String, (u16, u16)>) {
+    fn render_dependencies(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        positions: &HashMap<String, (u16, u16)>,
+    ) {
         if !self.show_dependencies {
             return;
         }
@@ -434,12 +437,17 @@ impl<'a> GanttChart<'a> {
                             let end_x = from_x.max(to_x);
                             for x in *start_x..=*end_x {
                                 if x >= area.x + 20 && x < area.right() && *from_y < area.bottom() {
-                                    buf.get_mut(x, *from_y).set_symbol("─").set_style(line_style);
+                                    buf.get_mut(x, *from_y)
+                                        .set_symbol("─")
+                                        .set_style(line_style);
                                 }
                             }
                             // Draw arrow at dependency
-                            if *to_x >= area.x + 20 && *to_x < area.right() && *to_y < area.bottom() {
-                                buf.get_mut(*to_x, *to_y).set_symbol("→").set_style(line_style);
+                            if *to_x >= area.x + 20 && *to_x < area.right() && *to_y < area.bottom()
+                            {
+                                buf.get_mut(*to_x, *to_y)
+                                    .set_symbol("→")
+                                    .set_style(line_style);
                             }
                         } else {
                             // Different rows - draw L-shaped line
@@ -447,8 +455,13 @@ impl<'a> GanttChart<'a> {
                             let start_y = from_y.min(to_y);
                             let end_y = from_y.max(to_y);
                             for y in *start_y..=*end_y {
-                                if *from_x >= area.x + 20 && *from_x < area.right() && y < area.bottom() {
-                                    buf.get_mut(*from_x, y).set_symbol("│").set_style(line_style);
+                                if *from_x >= area.x + 20
+                                    && *from_x < area.right()
+                                    && y < area.bottom()
+                                {
+                                    buf.get_mut(*from_x, y)
+                                        .set_symbol("│")
+                                        .set_style(line_style);
                                 }
                             }
                             // Horizontal line from from_x to to_x at to_y
@@ -460,8 +473,11 @@ impl<'a> GanttChart<'a> {
                                 }
                             }
                             // Draw arrow at dependency
-                            if *to_x >= area.x + 20 && *to_x < area.right() && *to_y < area.bottom() {
-                                buf.get_mut(*to_x, *to_y).set_symbol("→").set_style(line_style);
+                            if *to_x >= area.x + 20 && *to_x < area.right() && *to_y < area.bottom()
+                            {
+                                buf.get_mut(*to_x, *to_y)
+                                    .set_symbol("→")
+                                    .set_style(line_style);
                             }
                         }
                     }
@@ -658,7 +674,9 @@ mod tests {
 
     #[test]
     fn test_gantt_chart_config_clone() {
-        let config = GanttChartConfig::new().grouping(GroupingMode::Priority).lane_height(5);
+        let config = GanttChartConfig::new()
+            .grouping(GroupingMode::Priority)
+            .lane_height(5);
         let cloned = config.clone();
         assert_eq!(config.grouping, cloned.grouping);
         assert_eq!(config.lane_height, cloned.lane_height);
@@ -723,8 +741,8 @@ mod tests {
     fn test_gantt_chart_selected_some() {
         let issue = create_test_issue("TEST-1", "Test");
         let schedule = create_test_schedule("TEST-1", 0);
-        let chart = GanttChart::new(vec![schedule], vec![&issue])
-            .selected(Some("TEST-1".to_string()));
+        let chart =
+            GanttChart::new(vec![schedule], vec![&issue]).selected(Some("TEST-1".to_string()));
         assert_eq!(chart.selected_id, Some("TEST-1".to_string()));
     }
 
@@ -732,8 +750,7 @@ mod tests {
     fn test_gantt_chart_selected_none() {
         let issue = create_test_issue("TEST-1", "Test");
         let schedule = create_test_schedule("TEST-1", 0);
-        let chart = GanttChart::new(vec![schedule], vec![&issue])
-            .selected(None);
+        let chart = GanttChart::new(vec![schedule], vec![&issue]).selected(None);
         assert_eq!(chart.selected_id, None);
     }
 
@@ -926,11 +943,13 @@ mod tests {
 
     #[test]
     fn test_all_grouping_mode_inequalities() {
-        let modes = [GroupingMode::None,
+        let modes = [
+            GroupingMode::None,
             GroupingMode::Status,
             GroupingMode::Priority,
             GroupingMode::Assignee,
-            GroupingMode::Type];
+            GroupingMode::Type,
+        ];
 
         for (i, mode1) in modes.iter().enumerate() {
             for (j, mode2) in modes.iter().enumerate() {
@@ -1064,7 +1083,13 @@ mod tests {
         let mut issues = Vec::new();
         let mut schedules = Vec::new();
 
-        let priorities = [Priority::P0, Priority::P1, Priority::P2, Priority::P3, Priority::P4];
+        let priorities = [
+            Priority::P0,
+            Priority::P1,
+            Priority::P2,
+            Priority::P3,
+            Priority::P4,
+        ];
 
         for (i, priority) in priorities.iter().enumerate() {
             let id = format!("TEST-{}", i);
@@ -1109,10 +1134,8 @@ mod tests {
 
     #[test]
     fn test_gantt_chart_config_builder_variations() {
-        let config1 = GanttChartConfig::new()
-            .grouping(GroupingMode::Type);
-        let config2 = GanttChartConfig::default()
-            .lane_height(7);
+        let config1 = GanttChartConfig::new().grouping(GroupingMode::Type);
+        let config2 = GanttChartConfig::default().lane_height(7);
 
         assert_eq!(config1.grouping, GroupingMode::Type);
         assert_eq!(config2.lane_height, 7);
@@ -1141,11 +1164,13 @@ mod tests {
         let mut issues = Vec::new();
         let mut schedules = Vec::new();
 
-        let types = [IssueType::Bug,
+        let types = [
+            IssueType::Bug,
             IssueType::Feature,
             IssueType::Task,
             IssueType::Epic,
-            IssueType::Chore];
+            IssueType::Chore,
+        ];
 
         for (i, issue_type) in types.iter().enumerate() {
             let id = format!("TEST-{}", i);
@@ -1168,10 +1193,12 @@ mod tests {
         let mut issues = Vec::new();
         let mut schedules = Vec::new();
 
-        let statuses = [IssueStatus::Open,
+        let statuses = [
+            IssueStatus::Open,
             IssueStatus::InProgress,
             IssueStatus::Blocked,
-            IssueStatus::Closed];
+            IssueStatus::Closed,
+        ];
 
         for (i, status) in statuses.iter().enumerate() {
             let id = format!("TEST-{}", i);
@@ -1301,8 +1328,8 @@ mod tests {
         let issue = create_test_issue("TEST-1", "Test");
         let schedule = create_test_schedule("TEST-1", 0);
 
-        let chart = GanttChart::new(vec![schedule], vec![&issue])
-            .selected(Some("INVALID-ID".to_string()));
+        let chart =
+            GanttChart::new(vec![schedule], vec![&issue]).selected(Some("INVALID-ID".to_string()));
 
         assert_eq!(chart.selected_id, Some("INVALID-ID".to_string()));
         // Chart should still work even with invalid selected ID
@@ -1310,9 +1337,7 @@ mod tests {
 
     #[test]
     fn test_config_all_options_disabled() {
-        let config = GanttChartConfig::new()
-            .show_grid(false)
-            .show_today(false);
+        let config = GanttChartConfig::new().show_grid(false).show_today(false);
 
         assert!(!config.show_grid);
         assert!(!config.show_today);
@@ -1320,9 +1345,7 @@ mod tests {
 
     #[test]
     fn test_config_all_options_enabled() {
-        let config = GanttChartConfig::new()
-            .show_grid(true)
-            .show_today(true);
+        let config = GanttChartConfig::new().show_grid(true).show_today(true);
 
         assert!(config.show_grid);
         assert!(config.show_today);
@@ -1341,8 +1364,7 @@ mod tests {
     fn test_show_dependencies_enabled() {
         let issue = create_test_issue("TEST-1", "Test");
         let schedule = create_test_schedule("TEST-1", 0);
-        let chart = GanttChart::new(vec![schedule], vec![&issue])
-            .show_dependencies(true);
+        let chart = GanttChart::new(vec![schedule], vec![&issue]).show_dependencies(true);
 
         assert!(chart.show_dependencies);
     }
@@ -1351,8 +1373,7 @@ mod tests {
     fn test_show_dependencies_disabled() {
         let issue = create_test_issue("TEST-1", "Test");
         let schedule = create_test_schedule("TEST-1", 0);
-        let chart = GanttChart::new(vec![schedule], vec![&issue])
-            .show_dependencies(false);
+        let chart = GanttChart::new(vec![schedule], vec![&issue]).show_dependencies(false);
 
         assert!(!chart.show_dependencies);
     }

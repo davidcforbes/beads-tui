@@ -152,11 +152,7 @@ mod tests {
 
     #[test]
     fn test_tab_bar_with_long_names() {
-        let tabs = vec![
-            "Very Long Tab Name One",
-            "Another Long Tab Name",
-            "Short",
-        ];
+        let tabs = vec!["Very Long Tab Name One", "Another Long Tab Name", "Short"];
         let tab_bar = TabBar::new(tabs.clone());
         assert_eq!(tab_bar.tabs.len(), 3);
         assert_eq!(tab_bar.tabs[0], "Very Long Tab Name One");

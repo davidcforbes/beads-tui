@@ -677,7 +677,13 @@ mod tests {
 
     #[test]
     fn test_render_card_different_priorities() {
-        for priority in [Priority::P0, Priority::P1, Priority::P2, Priority::P3, Priority::P4] {
+        for priority in [
+            Priority::P0,
+            Priority::P1,
+            Priority::P2,
+            Priority::P3,
+            Priority::P4,
+        ] {
             let mut issue = create_test_issue();
             issue.priority = priority;
 
@@ -766,10 +772,10 @@ mod tests {
     fn test_kanban_card_config_clone_independence() {
         let mut config1 = KanbanCardConfig::default();
         let mut config2 = config1.clone();
-        
+
         config1.max_width = 50;
         config2.max_width = 100;
-        
+
         assert_eq!(config1.max_width, 50);
         assert_eq!(config2.max_width, 100);
     }
@@ -777,17 +783,17 @@ mod tests {
     #[test]
     fn test_kanban_card_config_builder_order_independence() {
         let style1 = Style::default().fg(Color::Red);
-        
+
         let config1 = KanbanCardConfig::default()
             .mode(CardMode::TwoLine)
             .max_width(80)
             .selected_style(style1);
-        
+
         let config2 = KanbanCardConfig::default()
             .max_width(80)
             .selected_style(style1)
             .mode(CardMode::TwoLine);
-        
+
         assert_eq!(config1.mode, config2.mode);
         assert_eq!(config1.max_width, config2.max_width);
         assert_eq!(config1.selected_style.fg, config2.selected_style.fg);
@@ -796,12 +802,12 @@ mod tests {
     #[test]
     fn test_kanban_card_config_builder_chaining() {
         let selected = Style::default().bg(Color::Blue);
-        
+
         let config = KanbanCardConfig::default()
             .mode(CardMode::SingleLine)
             .max_width(60)
             .selected_style(selected);
-        
+
         assert_eq!(config.mode, CardMode::SingleLine);
         assert_eq!(config.max_width, 60);
         assert_eq!(config.selected_style.bg, Some(Color::Blue));
@@ -810,7 +816,7 @@ mod tests {
     #[test]
     fn test_kanban_card_config_default_values() {
         let config = KanbanCardConfig::default();
-        
+
         assert_eq!(config.mode, CardMode::TwoLine);
         assert!(config.priority_colors);
     }
@@ -822,7 +828,7 @@ mod tests {
         let p2_color = priority_color(Priority::P2);
         let p3_color = priority_color(Priority::P3);
         let p4_color = priority_color(Priority::P4);
-        
+
         // All priorities should have colors
         assert_eq!(p0_color, Color::Red);
         assert_eq!(p1_color, Color::LightRed);
@@ -872,10 +878,10 @@ mod tests {
     fn test_render_card_very_long_id() {
         let mut issue = create_test_issue();
         issue.id = "VERY-LONG-PROJECT-IDENTIFIER-12345".to_string();
-        
+
         let config = KanbanCardConfig::default();
         let lines = render_kanban_card(&issue, &config, false);
-        
+
         assert!(!lines.is_empty());
         let line1_text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
         assert!(line1_text.contains("VERY-LONG"));
@@ -885,10 +891,10 @@ mod tests {
     fn test_render_card_empty_title() {
         let mut issue = create_test_issue();
         issue.title = String::new();
-        
+
         let config = KanbanCardConfig::default();
         let lines = render_kanban_card(&issue, &config, false);
-        
+
         // Should still render with empty title
         assert!(!lines.is_empty());
     }
@@ -903,10 +909,10 @@ mod tests {
             "label4".to_string(),
             "label5".to_string(),
         ];
-        
+
         let config = KanbanCardConfig::default();
         let lines = render_kanban_card(&issue, &config, false);
-        
+
         let line2_text: String = lines[1].spans.iter().map(|s| s.content.as_ref()).collect();
         // Should show some labels and possibly a +N indicator
         assert!(line2_text.contains('#'));
@@ -915,11 +921,11 @@ mod tests {
     #[test]
     fn test_render_card_max_width_variations() {
         let issue = create_test_issue();
-        
+
         for width in [10, 20, 30, 50, 100] {
             let config = KanbanCardConfig::default().max_width(width);
             let lines = render_kanban_card(&issue, &config, false);
-            
+
             // All widths should render successfully
             assert!(!lines.is_empty());
         }
@@ -934,10 +940,10 @@ mod tests {
             priority_colors: false,
             ..Default::default()
         };
-        
+
         let lines_with = render_kanban_card(&issue, &config_with, false);
         let lines_without = render_kanban_card(&issue, &config_without, false);
-        
+
         // Both should render
         assert!(!lines_with.is_empty());
         assert!(!lines_without.is_empty());
@@ -950,7 +956,7 @@ mod tests {
         let issue = create_test_issue();
         let config = KanbanCardConfig::default().mode(CardMode::SingleLine);
         let lines = render_kanban_card(&issue, &config, true);
-        
+
         assert_eq!(lines.len(), 1);
         // Should have padding for selected state
         let line_text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
@@ -961,12 +967,12 @@ mod tests {
     fn test_render_two_line_very_long_title() {
         let mut issue = create_test_issue();
         issue.title = "This is a very long title that should wrap across multiple lines in two-line mode and test the wrapping functionality".to_string();
-        
+
         let config = KanbanCardConfig::default()
             .mode(CardMode::TwoLine)
             .max_width(30);
         let lines = render_kanban_card(&issue, &config, false);
-        
+
         // Should have multiple lines for wrapped title plus metadata
         assert!(lines.len() > 2);
     }
@@ -974,7 +980,7 @@ mod tests {
     #[test]
     fn test_render_card_all_metadata_combinations() {
         let base_issue = create_test_issue();
-        
+
         // Test with assignee and labels
         let mut issue1 = base_issue.clone();
         issue1.assignee = Some("alice".to_string());
@@ -984,7 +990,7 @@ mod tests {
         let line2_1: String = lines1[1].spans.iter().map(|s| s.content.as_ref()).collect();
         assert!(line2_1.contains("@alice"));
         assert!(line2_1.contains("#bug"));
-        
+
         // Test with no assignee, with labels
         let mut issue2 = base_issue.clone();
         issue2.assignee = None;
@@ -993,7 +999,7 @@ mod tests {
         let line2_2: String = lines2[1].spans.iter().map(|s| s.content.as_ref()).collect();
         assert!(!line2_2.contains('@'));
         assert!(line2_2.contains("#feature"));
-        
+
         // Test with assignee, no labels
         let mut issue3 = base_issue.clone();
         issue3.assignee = Some("bob".to_string());
@@ -1002,7 +1008,7 @@ mod tests {
         let line2_3: String = lines3[1].spans.iter().map(|s| s.content.as_ref()).collect();
         assert!(line2_3.contains("@bob"));
         assert!(!line2_3.contains('#'));
-        
+
         // Test with no assignee, no labels
         let mut issue4 = base_issue.clone();
         issue4.assignee = None;
@@ -1021,13 +1027,15 @@ mod tests {
         let config = KanbanCardConfig {
             selected_style: selected,
             normal_style: Style::default().bg(Color::DarkGray),
-            id_style: Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            id_style: Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
             title_style: Style::default().fg(Color::Green),
             ..Default::default()
         };
-        
+
         let lines = render_kanban_card(&issue, &config, false);
-        
+
         // Should render with custom styles
         assert!(!lines.is_empty());
     }

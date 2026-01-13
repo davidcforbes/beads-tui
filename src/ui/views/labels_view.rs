@@ -154,10 +154,7 @@ impl<'a> LabelsView<'a> {
             Line::from(""),
             Line::from(vec![
                 Span::styled("Total Labels:  ", Style::default().fg(Color::Gray)),
-                Span::styled(
-                    format!("{total_labels}"),
-                    Style::default().fg(Color::Cyan),
-                ),
+                Span::styled(format!("{total_labels}"), Style::default().fg(Color::Cyan)),
             ]),
             Line::from(vec![
                 Span::styled("Total Usage:   ", Style::default().fg(Color::Gray)),
@@ -420,7 +417,7 @@ mod tests {
     fn test_select_next_wraparound() {
         let mut state = LabelsViewState::new();
         state.list_state_mut().select(Some(2));
-        
+
         state.select_next(3); // len=3, current=2, should wrap to 0
         assert_eq!(state.selected(), Some(0));
     }
@@ -429,7 +426,7 @@ mod tests {
     fn test_select_next_middle() {
         let mut state = LabelsViewState::new();
         state.list_state_mut().select(Some(1));
-        
+
         state.select_next(5); // len=5, current=1, should go to 2
         assert_eq!(state.selected(), Some(2));
     }
@@ -438,7 +435,7 @@ mod tests {
     fn test_select_next_empty_list() {
         let mut state = LabelsViewState::new();
         state.list_state_mut().select(Some(0));
-        
+
         state.select_next(0); // Empty list
         assert_eq!(state.selected(), Some(0)); // Should remain unchanged
     }
@@ -447,7 +444,7 @@ mod tests {
     fn test_select_next_no_selection() {
         let mut state = LabelsViewState::new();
         state.list_state_mut().select(None);
-        
+
         state.select_next(5);
         assert_eq!(state.selected(), Some(0)); // Should select first
     }
@@ -456,7 +453,7 @@ mod tests {
     fn test_select_previous_wraparound() {
         let mut state = LabelsViewState::new();
         state.list_state_mut().select(Some(0));
-        
+
         state.select_previous(3); // len=3, current=0, should wrap to 2
         assert_eq!(state.selected(), Some(2));
     }
@@ -465,7 +462,7 @@ mod tests {
     fn test_select_previous_middle() {
         let mut state = LabelsViewState::new();
         state.list_state_mut().select(Some(3));
-        
+
         state.select_previous(5); // len=5, current=3, should go to 2
         assert_eq!(state.selected(), Some(2));
     }
@@ -474,7 +471,7 @@ mod tests {
     fn test_select_previous_empty_list() {
         let mut state = LabelsViewState::new();
         state.list_state_mut().select(Some(0));
-        
+
         state.select_previous(0); // Empty list
         assert_eq!(state.selected(), Some(0)); // Should remain unchanged
     }
@@ -483,7 +480,7 @@ mod tests {
     fn test_select_previous_no_selection() {
         let mut state = LabelsViewState::new();
         state.list_state_mut().select(None);
-        
+
         state.select_previous(5);
         assert_eq!(state.selected(), Some(0)); // Should select first
     }
@@ -492,7 +489,7 @@ mod tests {
     fn test_search_query_getter() {
         let mut state = LabelsViewState::new();
         state.set_search_query("test".to_string());
-        
+
         assert_eq!(state.search_query(), "test");
     }
 
@@ -500,7 +497,7 @@ mod tests {
     fn test_set_search_query() {
         let mut state = LabelsViewState::new();
         state.set_search_query("bug".to_string());
-        
+
         assert_eq!(state.search_query, "bug");
     }
 
@@ -509,7 +506,7 @@ mod tests {
         let mut state = LabelsViewState::new();
         state.set_search_query("test".to_string());
         state.clear_search();
-        
+
         assert!(state.search_query().is_empty());
     }
 
@@ -527,19 +524,15 @@ mod tests {
 
     #[test]
     fn test_labels_view_builder_chain() {
-        let labels = vec![
-            LabelStats {
-                name: "test".to_string(),
-                count: 1,
-                color: None,
-            },
-        ];
+        let labels = vec![LabelStats {
+            name: "test".to_string(),
+            count: 1,
+            color: None,
+        }];
         let style = Style::default().fg(Color::Yellow);
-        
-        let view = LabelsView::new()
-            .labels(labels.clone())
-            .block_style(style);
-        
+
+        let view = LabelsView::new().labels(labels.clone()).block_style(style);
+
         assert_eq!(view.labels.len(), 1);
         assert_eq!(view.block_style, style);
     }
@@ -551,7 +544,7 @@ mod tests {
             count: 5,
             color: Some(Color::Red),
         };
-        
+
         assert_eq!(stats.name, "bug");
         assert_eq!(stats.count, 5);
         assert_eq!(stats.color, Some(Color::Red));
@@ -564,19 +557,17 @@ mod tests {
             count: 3,
             color: None,
         };
-        
+
         assert!(stats.color.is_none());
     }
 
     #[test]
     fn test_compute_label_stats_single_issue_multiple_labels() {
-        let issues = vec![
-            create_test_issue_with_labels("1", vec!["a", "b", "c"]),
-        ];
-        
+        let issues = vec![create_test_issue_with_labels("1", vec!["a", "b", "c"])];
+
         let stats = compute_label_stats(&issues);
         assert_eq!(stats.len(), 3);
-        
+
         // All should have count=1
         for stat in &stats {
             assert_eq!(stat.count, 1);
@@ -590,7 +581,7 @@ mod tests {
             create_test_issue_with_labels("2", vec!["bug"]),
             create_test_issue_with_labels("3", vec!["bug"]),
         ];
-        
+
         let stats = compute_label_stats(&issues);
         assert_eq!(stats.len(), 1);
         assert_eq!(stats[0].name, "bug");
@@ -603,7 +594,7 @@ mod tests {
             create_test_issue_with_labels("1", vec![]),
             create_test_issue_with_labels("2", vec!["bug"]),
         ];
-        
+
         let stats = compute_label_stats(&issues);
         assert_eq!(stats.len(), 1);
         assert_eq!(stats[0].name, "bug");
@@ -615,7 +606,7 @@ mod tests {
             create_test_issue_with_labels("1", vec!["zebra"]),
             create_test_issue_with_labels("2", vec!["apple"]),
         ];
-        
+
         let stats = compute_label_stats(&issues);
         // Both have count=1, should be sorted alphabetically
         assert_eq!(stats[0].name, "apple");
@@ -626,7 +617,7 @@ mod tests {
     fn test_select_next_single_item() {
         let mut state = LabelsViewState::new();
         state.list_state_mut().select(Some(0));
-        
+
         state.select_next(1); // len=1, should stay at 0
         assert_eq!(state.selected(), Some(0));
     }
@@ -635,7 +626,7 @@ mod tests {
     fn test_select_previous_single_item() {
         let mut state = LabelsViewState::new();
         state.list_state_mut().select(Some(0));
-        
+
         state.select_previous(1); // len=1, should stay at 0
         assert_eq!(state.selected(), Some(0));
     }
@@ -648,10 +639,8 @@ mod tests {
 
     #[test]
     fn test_compute_label_stats_color_not_set() {
-        let issues = vec![
-            create_test_issue_with_labels("1", vec!["test"]),
-        ];
-        
+        let issues = vec![create_test_issue_with_labels("1", vec!["test"])];
+
         let stats = compute_label_stats(&issues);
         assert_eq!(stats.len(), 1);
         assert!(stats[0].color.is_none());

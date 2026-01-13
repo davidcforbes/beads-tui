@@ -293,7 +293,7 @@ impl CreateIssueFormState {
             .get_value("description")
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string());
-        
+
         // New fields
         let due_date = self
             .form_state
@@ -438,8 +438,7 @@ impl CreateIssueFormState {
             FormField::text("time_estimate", "Time Estimate")
                 .placeholder("e.g., 2h, 3d, 1w (optional)"),
             // Relationships section
-            FormField::text("parent", "Parent Issue")
-                .placeholder("beads-xxx (optional)"),
+            FormField::text("parent", "Parent Issue").placeholder("beads-xxx (optional)"),
             FormField::text("dependencies", "Dependencies")
                 .placeholder("comma-separated beads-xxx (optional)"),
             // Labels section
@@ -707,12 +706,27 @@ mod tests {
 
     #[test]
     fn test_form_section_description() {
-        assert_eq!(FormSection::Summary.description(), "Title, type, priority, status");
-        assert_eq!(FormSection::Scheduling.description(), "Due date, defer date, time estimate");
-        assert_eq!(FormSection::Relationships.description(), "Parent issue, dependencies");
+        assert_eq!(
+            FormSection::Summary.description(),
+            "Title, type, priority, status"
+        );
+        assert_eq!(
+            FormSection::Scheduling.description(),
+            "Due date, defer date, time estimate"
+        );
+        assert_eq!(
+            FormSection::Relationships.description(),
+            "Parent issue, dependencies"
+        );
         assert_eq!(FormSection::Labels.description(), "Tags and categories");
-        assert_eq!(FormSection::Text.description(), "Description, design, acceptance criteria, notes");
-        assert_eq!(FormSection::Metadata.description(), "Read-only system information");
+        assert_eq!(
+            FormSection::Text.description(),
+            "Description, design, acceptance criteria, notes"
+        );
+        assert_eq!(
+            FormSection::Metadata.description(),
+            "Read-only system information"
+        );
     }
 
     #[test]
@@ -872,7 +886,9 @@ mod tests {
     #[test]
     fn test_is_section_complete_summary_filled() {
         let mut state = CreateIssueFormState::new();
-        state.form_state_mut().set_value("title", "Test Issue".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Test Issue".to_string());
         assert!(state.is_section_complete(FormSection::Summary));
     }
 
@@ -891,21 +907,52 @@ mod tests {
     fn test_get_data_with_all_fields() {
         let mut state = CreateIssueFormState::new();
 
-        state.form_state_mut().set_value("title", "Test Issue".to_string());
-        state.form_state_mut().set_value("type", "Feature".to_string());
-        state.form_state_mut().set_value("priority", "P1 (High)".to_string());
-        state.form_state_mut().set_value("status", "InProgress".to_string());
-        state.form_state_mut().set_value("assignee", "alice".to_string());
-        state.form_state_mut().set_value("labels", "frontend, ui".to_string());
-        state.form_state_mut().set_value("description", "Test description".to_string());
-        state.form_state_mut().set_value("due_date", "2026-01-31".to_string());
-        state.form_state_mut().set_value("defer_date", "2026-01-20".to_string());
-        state.form_state_mut().set_value("time_estimate", "3d".to_string());
-        state.form_state_mut().set_value("parent", "beads-abcd-0001".to_string());
-        state.form_state_mut().set_value("dependencies", "beads-efgh-0002, beads-ijkl-0003".to_string());
-        state.form_state_mut().set_value("design", "Design notes".to_string());
-        state.form_state_mut().set_value("acceptance", "Acceptance criteria".to_string());
-        state.form_state_mut().set_value("notes", "Additional notes".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Test Issue".to_string());
+        state
+            .form_state_mut()
+            .set_value("type", "Feature".to_string());
+        state
+            .form_state_mut()
+            .set_value("priority", "P1 (High)".to_string());
+        state
+            .form_state_mut()
+            .set_value("status", "InProgress".to_string());
+        state
+            .form_state_mut()
+            .set_value("assignee", "alice".to_string());
+        state
+            .form_state_mut()
+            .set_value("labels", "frontend, ui".to_string());
+        state
+            .form_state_mut()
+            .set_value("description", "Test description".to_string());
+        state
+            .form_state_mut()
+            .set_value("due_date", "2026-01-31".to_string());
+        state
+            .form_state_mut()
+            .set_value("defer_date", "2026-01-20".to_string());
+        state
+            .form_state_mut()
+            .set_value("time_estimate", "3d".to_string());
+        state
+            .form_state_mut()
+            .set_value("parent", "beads-abcd-0001".to_string());
+        state.form_state_mut().set_value(
+            "dependencies",
+            "beads-efgh-0002, beads-ijkl-0003".to_string(),
+        );
+        state
+            .form_state_mut()
+            .set_value("design", "Design notes".to_string());
+        state
+            .form_state_mut()
+            .set_value("acceptance", "Acceptance criteria".to_string());
+        state
+            .form_state_mut()
+            .set_value("notes", "Additional notes".to_string());
 
         assert!(state.validate());
 
@@ -942,9 +989,13 @@ mod tests {
     #[test]
     fn test_get_data_empty_strings_become_none() {
         let mut state = CreateIssueFormState::new();
-        state.form_state_mut().set_value("title", "Test".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Test".to_string());
         state.form_state_mut().set_value("assignee", "".to_string());
-        state.form_state_mut().set_value("description", "".to_string());
+        state
+            .form_state_mut()
+            .set_value("description", "".to_string());
 
         assert!(state.validate());
 
@@ -956,8 +1007,12 @@ mod tests {
     #[test]
     fn test_get_data_labels_splitting() {
         let mut state = CreateIssueFormState::new();
-        state.form_state_mut().set_value("title", "Test".to_string());
-        state.form_state_mut().set_value("labels", "  bug ,  urgent , high-priority  ".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Test".to_string());
+        state
+            .form_state_mut()
+            .set_value("labels", "  bug ,  urgent , high-priority  ".to_string());
 
         assert!(state.validate());
 
@@ -971,8 +1026,13 @@ mod tests {
     #[test]
     fn test_get_data_dependencies_splitting() {
         let mut state = CreateIssueFormState::new();
-        state.form_state_mut().set_value("title", "Test".to_string());
-        state.form_state_mut().set_value("dependencies", "  beads-abcd-0001 ,  beads-efgh-0002  ".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Test".to_string());
+        state.form_state_mut().set_value(
+            "dependencies",
+            "  beads-abcd-0001 ,  beads-efgh-0002  ".to_string(),
+        );
 
         assert!(state.validate());
 
@@ -987,7 +1047,9 @@ mod tests {
         let mut state = CreateIssueFormState::new();
         state.set_section(FormSection::Labels);
         state.toggle_preview();
-        state.form_state_mut().set_value("title", "Test".to_string());
+        state
+            .form_state_mut()
+            .set_value("title", "Test".to_string());
 
         assert_eq!(state.current_section(), FormSection::Labels);
         assert!(state.is_preview_mode());
@@ -1031,9 +1093,7 @@ mod tests {
 
     #[test]
     fn test_create_issue_form_builder_chain() {
-        let form = CreateIssueForm::new()
-            .title("Edit Issue")
-            .show_help(false);
+        let form = CreateIssueForm::new().title("Edit Issue").show_help(false);
 
         assert_eq!(form.title, "Edit Issue");
         assert!(!form.show_help);

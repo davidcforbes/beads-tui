@@ -376,8 +376,16 @@ impl IssueListState {
                 let prev_col_id = visible_cols[focused_idx - 1].id;
 
                 // Find their positions in the full column list
-                let current_pos = self.table_config.columns.iter().position(|c| c.id == current_col_id);
-                let prev_pos = self.table_config.columns.iter().position(|c| c.id == prev_col_id);
+                let current_pos = self
+                    .table_config
+                    .columns
+                    .iter()
+                    .position(|c| c.id == current_col_id);
+                let prev_pos = self
+                    .table_config
+                    .columns
+                    .iter()
+                    .position(|c| c.id == prev_col_id);
 
                 if let (Some(curr), Some(prev)) = (current_pos, prev_pos) {
                     self.table_config.reorder_column(curr, prev);
@@ -397,8 +405,16 @@ impl IssueListState {
                 let next_col_id = visible_cols[focused_idx + 1].id;
 
                 // Find their positions in the full column list
-                let current_pos = self.table_config.columns.iter().position(|c| c.id == current_col_id);
-                let next_pos = self.table_config.columns.iter().position(|c| c.id == next_col_id);
+                let current_pos = self
+                    .table_config
+                    .columns
+                    .iter()
+                    .position(|c| c.id == current_col_id);
+                let next_pos = self
+                    .table_config
+                    .columns
+                    .iter()
+                    .position(|c| c.id == next_col_id);
 
                 if let (Some(curr), Some(next)) = (current_pos, next_pos) {
                     self.table_config.reorder_column(curr, next);
@@ -642,7 +658,7 @@ impl<'a> IssueList<'a> {
     /// Render the filter row below the table
     fn render_filter_row(area: Rect, buf: &mut Buffer, state: &IssueListState) {
         use ratatui::widgets::Paragraph;
-        
+
         let filters = state.column_filters();
         let mut filter_parts = Vec::new();
 
@@ -666,13 +682,18 @@ impl<'a> IssueList<'a> {
         let filter_text = if filter_parts.is_empty() {
             "Quick Filters: [No filters active] Press 'f' to toggle filters".to_string()
         } else {
-            format!("Quick Filters: {} | Press 'f' to toggle", filter_parts.join(" | "))
+            format!(
+                "Quick Filters: {} | Press 'f' to toggle",
+                filter_parts.join(" | ")
+            )
         };
 
         let filter_style = if filter_parts.is_empty() {
             Style::default().fg(Color::DarkGray)
         } else {
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD)
         };
 
         let paragraph = Paragraph::new(filter_text)
@@ -692,8 +713,8 @@ impl<'a> StatefulWidget for IssueList<'a> {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Min(5),     // Table area
-                    Constraint::Length(3),  // Filter row area
+                    Constraint::Min(5),    // Table area
+                    Constraint::Length(3), // Filter row area
                 ])
                 .split(area);
             (chunks[0], Some(chunks[1]))
@@ -1100,7 +1121,7 @@ mod tests {
             id: "tui".to_string(),
             ..Default::default()
         };
-        
+
         let issue = create_test_issue("beads-tui-123", "Test", Priority::P2, IssueStatus::Open);
         assert!(filters.matches(&issue));
     }
@@ -1111,7 +1132,7 @@ mod tests {
             id: "TUI".to_string(),
             ..Default::default()
         };
-        
+
         let issue = create_test_issue("beads-tui-123", "Test", Priority::P2, IssueStatus::Open);
         assert!(filters.matches(&issue));
     }
@@ -1122,7 +1143,7 @@ mod tests {
             id: "xyz".to_string(),
             ..Default::default()
         };
-        
+
         let issue = create_test_issue("beads-tui-123", "Test", Priority::P2, IssueStatus::Open);
         assert!(!filters.matches(&issue));
     }
@@ -1144,7 +1165,10 @@ mod tests {
         let mut state = IssueListState::new();
         state.start_editing(0, "Test Title".to_string());
         assert!(state.is_editing());
-        assert_eq!(state.editing_state(), Some((0, &"Test Title".to_string(), 10)));
+        assert_eq!(
+            state.editing_state(),
+            Some((0, &"Test Title".to_string(), 10))
+        );
     }
 
     #[test]
@@ -1197,7 +1221,7 @@ mod tests {
         let mut state = IssueListState::new();
         state.set_focused_column(Some(0));
         let visible_count = state.table_config().visible_columns().len();
-        
+
         // Advance through all columns and wrap back to start
         for _ in 0..visible_count {
             state.focus_next_column();
@@ -1218,8 +1242,8 @@ mod tests {
     #[test]
     fn test_issue_list_with_sort() {
         let issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
-        let list = IssueList::new(vec![&issue])
-            .with_sort(SortColumn::Priority, SortDirection::Descending);
+        let list =
+            IssueList::new(vec![&issue]).with_sort(SortColumn::Priority, SortDirection::Descending);
         assert_eq!(list.sort_column, SortColumn::Priority);
         assert_eq!(list.sort_direction, SortDirection::Descending);
     }

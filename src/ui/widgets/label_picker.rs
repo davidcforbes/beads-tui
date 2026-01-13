@@ -609,7 +609,11 @@ mod tests {
 
     #[test]
     fn test_filtered_labels_with_empty_query() {
-        let labels = vec!["bug".to_string(), "feature".to_string(), "urgent".to_string()];
+        let labels = vec![
+            "bug".to_string(),
+            "feature".to_string(),
+            "urgent".to_string(),
+        ];
         let state = LabelPickerState::new(labels.clone());
 
         let filtered = state.filtered_labels();
@@ -696,13 +700,13 @@ mod tests {
 
         state.start_filtering();
         state.insert_char('t');
-        
+
         // Move cursor to beginning by deleting
         state.delete_char();
-        
+
         // Try to delete at position 0
         state.delete_char();
-        
+
         assert_eq!(state.filter_query(), "");
     }
 
@@ -712,13 +716,13 @@ mod tests {
         let mut state = LabelPickerState::new(labels);
 
         state.start_filtering();
-        
+
         state.insert_char('a');
         assert_eq!(state.filter_cursor, 1);
-        
+
         state.insert_char('b');
         assert_eq!(state.filter_cursor, 2);
-        
+
         state.insert_char('c');
         assert_eq!(state.filter_cursor, 3);
     }
@@ -732,10 +736,10 @@ mod tests {
         state.insert_char('a');
         state.insert_char('b');
         assert_eq!(state.filter_cursor, 2);
-        
+
         state.delete_char();
         assert_eq!(state.filter_cursor, 1);
-        
+
         state.delete_char();
         assert_eq!(state.filter_cursor, 0);
     }

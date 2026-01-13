@@ -13,11 +13,11 @@ pub mod filter_save_dialog;
 pub mod form;
 pub mod gantt_chart;
 pub mod inline_metadata;
-pub mod pert_chart;
 pub mod issue_list;
 pub mod kanban_card;
 pub mod label_picker;
 pub mod markdown_viewer;
+pub mod pert_chart;
 pub mod progress;
 pub mod search_input;
 pub mod selector;
@@ -37,7 +37,6 @@ pub use filter_panel::{FilterCriteria, FilterPanel};
 pub use filter_save_dialog::{FilterSaveDialog, FilterSaveDialogState, FilterSaveField};
 pub use form::{FieldType, Form, FormField, FormState, ValidationRule};
 pub use gantt_chart::{GanttChart, GanttChartConfig, GroupingMode};
-pub use pert_chart::{Direction, PertChart, PertChartConfig};
 pub use inline_metadata::{
     build_metadata_spans, format_age, format_assignee, format_labels, MetadataDisplayConfig,
 };
@@ -45,6 +44,7 @@ pub use issue_list::{ColumnFilters, IssueList, IssueListState, SortColumn, SortD
 pub use kanban_card::{render_kanban_card, CardMode, KanbanCardConfig};
 pub use label_picker::{LabelPicker, LabelPickerState};
 pub use markdown_viewer::{MarkdownViewer, MarkdownViewerState};
+pub use pert_chart::{Direction, PertChart, PertChartConfig};
 pub use progress::{LoadingIndicator, ProgressBar, Spinner};
 pub use search_input::{SearchInput, SearchInputState};
 pub use selector::{PrioritySelector, SelectorState, StatusSelector, TypeSelector};

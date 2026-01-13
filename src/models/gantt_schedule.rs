@@ -37,8 +37,7 @@ impl TimeEstimate {
 
 /// Schedule data for an issue (future extension of Issue model)
 /// These fields will eventually be added to the Issue model
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ScheduleData {
     /// Earliest date work can start (deferred until)
     pub defer_until: Option<DateTime<Utc>>,
@@ -47,7 +46,6 @@ pub struct ScheduleData {
     /// Estimated effort required
     pub estimate: Option<TimeEstimate>,
 }
-
 
 /// Computed schedule for an issue in Gantt chart
 #[derive(Debug, Clone)]
@@ -94,9 +92,7 @@ impl IssueSchedule {
         schedule_data: &ScheduleData,
     ) -> (Option<DateTime<Utc>>, Option<DateTime<Utc>>) {
         // Determine start date
-        let start = schedule_data
-            .defer_until
-            .or(Some(issue.created));
+        let start = schedule_data.defer_until.or(Some(issue.created));
 
         // Determine end date
         let end = if let Some(due_at) = schedule_data.due_at {
@@ -105,7 +101,9 @@ impl IssueSchedule {
         } else if let (Some(start_date), Some(estimate)) = (start, &schedule_data.estimate) {
             // Compute from start + estimate
             Some(start_date + estimate.to_duration())
-        } else { start.map(|start_date| start_date + Duration::days(1)) };
+        } else {
+            start.map(|start_date| start_date + Duration::days(1))
+        };
 
         (start, end)
     }
@@ -152,8 +150,7 @@ impl IssueSchedule {
 }
 
 /// Zoom level for Gantt chart timeline
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ZoomLevel {
     /// Show hours (for short-term planning)
     Hours,
@@ -165,7 +162,6 @@ pub enum ZoomLevel {
     /// Show months (for long-term planning)
     Months,
 }
-
 
 impl ZoomLevel {
     /// Get the duration represented by one unit at this zoom level
@@ -268,8 +264,7 @@ impl TimelineConfig {
 
     /// Fit the timeline to show all scheduled issues
     pub fn fit_to_schedules(&mut self, schedules: &[IssueSchedule]) {
-        let scheduled: Vec<&IssueSchedule> =
-            schedules.iter().filter(|s| s.is_scheduled).collect();
+        let scheduled: Vec<&IssueSchedule> = schedules.iter().filter(|s| s.is_scheduled).collect();
 
         if scheduled.is_empty() {
             return;
@@ -609,7 +604,7 @@ mod tests {
     #[test]
     fn test_schedule_data_partial_fields() {
         let now = Utc::now();
-        
+
         // Only defer_until
         let data1 = ScheduleData {
             defer_until: Some(now),
@@ -699,7 +694,7 @@ mod tests {
         // With fallback, start will always be Some(created), test can't have None
         let schedule_data = ScheduleData::default();
         let schedule = IssueSchedule::from_issue(&issue, schedule_data);
-        
+
         // Should not be upcoming (start is now/past)
         assert!(!schedule.is_upcoming(Utc::now()));
     }
@@ -753,7 +748,7 @@ mod tests {
     #[test]
     fn test_zoom_level_format_date() {
         let date = Utc::now();
-        
+
         // Just verify they don't panic and return strings
         let hours_str = ZoomLevel::Hours.format_date(date);
         let days_str = ZoomLevel::Days.format_date(date);
@@ -769,7 +764,7 @@ mod tests {
     #[test]
     fn test_zoom_level_compute_span_zero_duration() {
         let now = Utc::now();
-        
+
         assert_eq!(ZoomLevel::Hours.compute_span(now, now), 0);
         assert_eq!(ZoomLevel::Days.compute_span(now, now), 0);
         assert_eq!(ZoomLevel::Weeks.compute_span(now, now), 0);
@@ -790,7 +785,7 @@ mod tests {
     #[test]
     fn test_timeline_config_default() {
         let config = TimelineConfig::default();
-        
+
         assert_eq!(config.zoom_level, ZoomLevel::Days);
         assert!(config.viewport_end > config.viewport_start);
     }
@@ -882,11 +877,11 @@ mod tests {
         let hours = TimeEstimate::Hours(8);
         let debug_str = format!("{:?}", hours);
         assert!(debug_str.contains("Hours"));
-        
+
         let days = TimeEstimate::Days(5);
         let debug_str = format!("{:?}", days);
         assert!(debug_str.contains("Days"));
-        
+
         let weeks = TimeEstimate::Weeks(2);
         let debug_str = format!("{:?}", weeks);
         assert!(debug_str.contains("Weeks"));
@@ -926,7 +921,7 @@ mod tests {
         let hours = TimeEstimate::Hours(1);
         let days = TimeEstimate::Days(1);
         let weeks = TimeEstimate::Weeks(1);
-        
+
         assert_eq!(hours.to_hours(), 1);
         assert_eq!(days.to_hours(), 8);
         assert_eq!(weeks.to_hours(), 40);
@@ -937,7 +932,7 @@ mod tests {
         let estimate = TimeEstimate::Days(5);
         let copied = estimate;
         assert_eq!(estimate, copied);
-        
+
         // Can still use original after copy
         assert_eq!(estimate.to_hours(), 40);
     }
@@ -945,7 +940,7 @@ mod tests {
     #[test]
     fn test_schedule_data_all_combinations() {
         let now = Utc::now();
-        
+
         // All fields present
         let data1 = ScheduleData {
             defer_until: Some(now),
@@ -955,7 +950,7 @@ mod tests {
         assert!(data1.defer_until.is_some());
         assert!(data1.due_at.is_some());
         assert!(data1.estimate.is_some());
-        
+
         // Two fields
         let data2 = ScheduleData {
             defer_until: Some(now),
@@ -964,7 +959,7 @@ mod tests {
         };
         assert!(data2.defer_until.is_some());
         assert!(data2.due_at.is_some());
-        
+
         // All fields None
         let data3 = ScheduleData::default();
         assert!(data3.defer_until.is_none());
@@ -976,16 +971,16 @@ mod tests {
     fn test_issue_schedule_estimate_precedence_over_default() {
         let issue = create_test_issue("test-precedence");
         let start = Utc::now();
-        
+
         // Estimate should be used to compute end
         let schedule_data = ScheduleData {
             defer_until: Some(start),
             due_at: None,
             estimate: Some(TimeEstimate::Weeks(2)),
         };
-        
+
         let schedule = IssueSchedule::from_issue(&issue, schedule_data);
-        
+
         assert_eq!(schedule.start, Some(start));
         assert_eq!(schedule.end, Some(start + Duration::weeks(2)));
         assert_eq!(schedule.duration_days(), Some(14));
@@ -996,16 +991,16 @@ mod tests {
         let issue = create_test_issue("test-due-precedence");
         let start = Utc::now();
         let due = start + Duration::days(7);
-        
+
         // due_at should take precedence over estimate
         let schedule_data = ScheduleData {
             defer_until: Some(start),
             due_at: Some(due),
             estimate: Some(TimeEstimate::Days(10)), // Different from actual due
         };
-        
+
         let schedule = IssueSchedule::from_issue(&issue, schedule_data);
-        
+
         assert_eq!(schedule.start, Some(start));
         assert_eq!(schedule.end, Some(due)); // Uses due_at, not start + estimate
         assert_eq!(schedule.duration_days(), Some(7));
@@ -1015,18 +1010,18 @@ mod tests {
     fn test_issue_schedule_is_overdue_at_exact_time() {
         let issue = create_test_issue("test-exact-overdue");
         let now = Utc::now();
-        
+
         let schedule_data = ScheduleData {
             defer_until: Some(now - Duration::days(5)),
             due_at: Some(now), // Exactly now
             estimate: None,
         };
-        
+
         let schedule = IssueSchedule::from_issue(&issue, schedule_data);
-        
+
         // At exact end time, should NOT be overdue (end < now is false)
         assert!(!schedule.is_overdue(now));
-        
+
         // One second later, should be overdue
         let one_second_later = now + Duration::seconds(1);
         assert!(schedule.is_overdue(one_second_later));
@@ -1037,18 +1032,18 @@ mod tests {
         let issue = create_test_issue("test-end-boundary");
         let start = Utc::now() - Duration::days(5);
         let end = Utc::now();
-        
+
         let schedule_data = ScheduleData {
             defer_until: Some(start),
             due_at: Some(end),
             estimate: None,
         };
-        
+
         let schedule = IssueSchedule::from_issue(&issue, schedule_data);
-        
+
         // At exact end time, should NOT be in progress (now < end is false)
         assert!(!schedule.is_in_progress(end));
-        
+
         // Just before end, should be in progress
         let just_before = end - Duration::seconds(1);
         assert!(schedule.is_in_progress(just_before));
@@ -1058,18 +1053,18 @@ mod tests {
     fn test_issue_schedule_is_upcoming_at_exact_start() {
         let issue = create_test_issue("test-start-upcoming");
         let start = Utc::now();
-        
+
         let schedule_data = ScheduleData {
             defer_until: Some(start),
             due_at: Some(start + Duration::days(5)),
             estimate: None,
         };
-        
+
         let schedule = IssueSchedule::from_issue(&issue, schedule_data);
-        
+
         // At exact start time, should NOT be upcoming (start > now is false)
         assert!(!schedule.is_upcoming(start));
-        
+
         // Just before start, should be upcoming
         let just_before = start - Duration::seconds(1);
         assert!(schedule.is_upcoming(just_before));
@@ -1083,7 +1078,7 @@ mod tests {
             ZoomLevel::Weeks,
             ZoomLevel::Months,
         ];
-        
+
         for variant in variants {
             // Ensure all variants can be created and used
             let _ = variant.unit_duration();
@@ -1097,7 +1092,7 @@ mod tests {
         let level = ZoomLevel::Weeks;
         let copied = level;
         assert_eq!(level, copied);
-        
+
         // Can still use original after copy
         assert_eq!(level.unit_duration(), Duration::weeks(1));
     }
@@ -1106,7 +1101,7 @@ mod tests {
     fn test_timeline_config_pan_with_different_zoom_levels() {
         let start = Utc::now();
         let end = start + Duration::days(30);
-        
+
         // Test pan at Hours zoom
         let mut config = TimelineConfig::new(start, end);
         config.zoom_level = ZoomLevel::Hours;
@@ -1114,7 +1109,7 @@ mod tests {
         config.pan_forward();
         let delta_hours = (config.viewport_start - original).num_hours();
         assert_eq!(delta_hours, 5); // 5 hours
-        
+
         // Test pan at Weeks zoom
         let mut config = TimelineConfig::new(start, end);
         config.zoom_level = ZoomLevel::Weeks;
@@ -1133,7 +1128,7 @@ mod tests {
         };
         config.zoom_out();
         assert_eq!(config.zoom_level, ZoomLevel::Days);
-        
+
         // Start from Days
         config.zoom_level = ZoomLevel::Days;
         config.zoom_in();
@@ -1141,7 +1136,7 @@ mod tests {
         config.zoom_level = ZoomLevel::Days;
         config.zoom_out();
         assert_eq!(config.zoom_level, ZoomLevel::Weeks);
-        
+
         // Start from Weeks
         config.zoom_level = ZoomLevel::Weeks;
         config.zoom_in();
@@ -1149,7 +1144,7 @@ mod tests {
         config.zoom_level = ZoomLevel::Weeks;
         config.zoom_out();
         assert_eq!(config.zoom_level, ZoomLevel::Months);
-        
+
         // Start from Months
         config.zoom_level = ZoomLevel::Months;
         config.zoom_in();
@@ -1160,10 +1155,10 @@ mod tests {
     fn test_timeline_config_fit_to_schedules_with_unscheduled() {
         let issue1 = create_test_issue("test-scheduled");
         let issue2 = create_test_issue("test-unscheduled");
-        
+
         let start = Utc::now();
         let end = start + Duration::days(10);
-        
+
         let schedule1 = IssueSchedule::from_issue(
             &issue1,
             ScheduleData {
@@ -1172,13 +1167,13 @@ mod tests {
                 estimate: None,
             },
         );
-        
+
         // Create an unscheduled issue (though with fallback it will have dates)
         let schedule2 = IssueSchedule::from_issue(&issue2, ScheduleData::default());
-        
+
         let mut config = TimelineConfig::default();
         config.fit_to_schedules(&[schedule1, schedule2]);
-        
+
         // Should fit to include both schedules
         assert!(config.viewport_end > config.viewport_start);
     }
@@ -1187,7 +1182,7 @@ mod tests {
     fn test_zoom_level_compute_span_large_duration() {
         let start = Utc::now();
         let end = start + Duration::days(365); // One year
-        
+
         assert_eq!(ZoomLevel::Days.compute_span(start, end), 365);
         assert_eq!(ZoomLevel::Weeks.compute_span(start, end), 52); // 365 / 7
         assert_eq!(ZoomLevel::Months.compute_span(start, end), 12); // 365 / 30
@@ -1198,15 +1193,15 @@ mod tests {
         let issue = create_test_issue("test-negative");
         let start = Utc::now();
         let end = start - Duration::days(5); // End before start
-        
+
         let schedule_data = ScheduleData {
             defer_until: Some(start),
             due_at: Some(end),
             estimate: None,
         };
-        
+
         let schedule = IssueSchedule::from_issue(&issue, schedule_data);
-        
+
         // Should have negative duration
         assert_eq!(schedule.duration_days(), Some(-5));
         assert!(schedule.duration_hours().unwrap() < 0);
@@ -1218,11 +1213,11 @@ mod tests {
         let weeks = TimeEstimate::Weeks(1);
         let days = TimeEstimate::Days(5);
         let hours = TimeEstimate::Hours(40);
-        
+
         assert_eq!(weeks.to_hours(), 40);
         assert_eq!(days.to_hours(), 40);
         assert_eq!(hours.to_hours(), 40);
-        
+
         // Duration conversions
         assert_eq!(weeks.to_duration(), Duration::weeks(1));
         assert_eq!(days.to_duration(), Duration::days(5));
@@ -1234,7 +1229,7 @@ mod tests {
         let start = Utc::now();
         let end = start + Duration::days(60);
         let config = TimelineConfig::new(start, end);
-        
+
         // Verify viewport span
         let span_days = (config.viewport_end - config.viewport_start).num_days();
         assert_eq!(span_days, 60);
@@ -1244,15 +1239,15 @@ mod tests {
     fn test_issue_schedule_with_hours_estimate() {
         let issue = create_test_issue("test-hours-estimate");
         let start = Utc::now();
-        
+
         let schedule_data = ScheduleData {
             defer_until: Some(start),
             due_at: None,
             estimate: Some(TimeEstimate::Hours(16)),
         };
-        
+
         let schedule = IssueSchedule::from_issue(&issue, schedule_data);
-        
+
         assert_eq!(schedule.start, Some(start));
         assert_eq!(schedule.end, Some(start + Duration::hours(16)));
         assert_eq!(schedule.duration_hours(), Some(16));
@@ -1261,12 +1256,17 @@ mod tests {
     #[test]
     fn test_zoom_level_format_date_consistency() {
         let date = Utc::now();
-        
+
         // Verify all zoom levels can format dates without panicking
-        for level in [ZoomLevel::Hours, ZoomLevel::Days, ZoomLevel::Weeks, ZoomLevel::Months] {
+        for level in [
+            ZoomLevel::Hours,
+            ZoomLevel::Days,
+            ZoomLevel::Weeks,
+            ZoomLevel::Months,
+        ] {
             let formatted = level.format_date(date);
             assert!(!formatted.is_empty());
-            
+
             // Verify it matches the date_format
             let expected = date.format(level.date_format()).to_string();
             assert_eq!(formatted, expected);
@@ -1277,18 +1277,18 @@ mod tests {
     fn test_timeline_config_visible_units_all_zoom_levels() {
         let start = Utc::now();
         let end = start + Duration::days(7);
-        
+
         let mut config = TimelineConfig::new(start, end);
-        
+
         config.zoom_level = ZoomLevel::Hours;
         assert_eq!(config.visible_units(), 168); // 7 * 24
-        
+
         config.zoom_level = ZoomLevel::Days;
         assert_eq!(config.visible_units(), 7);
-        
+
         config.zoom_level = ZoomLevel::Weeks;
         assert_eq!(config.visible_units(), 1);
-        
+
         config.zoom_level = ZoomLevel::Months;
         assert_eq!(config.visible_units(), 0); // 7 days / 30
     }
@@ -1297,15 +1297,15 @@ mod tests {
     fn test_issue_schedule_same_start_and_end() {
         let issue = create_test_issue("test-same-time");
         let now = Utc::now();
-        
+
         let schedule_data = ScheduleData {
             defer_until: Some(now),
             due_at: Some(now), // Same as start
             estimate: None,
         };
-        
+
         let schedule = IssueSchedule::from_issue(&issue, schedule_data);
-        
+
         assert_eq!(schedule.duration_days(), Some(0));
         assert_eq!(schedule.duration_hours(), Some(0));
         assert!(!schedule.is_in_progress(now)); // Not in progress if duration is 0

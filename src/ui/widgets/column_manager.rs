@@ -204,10 +204,7 @@ impl<'a> StatefulWidget for ColumnManager<'a> {
 
                 let content = format!(
                     "[{}] {:12} {:>6} {}",
-                    visibility,
-                    col.label,
-                    width_info,
-                    mandatory
+                    visibility, col.label, width_info, mandatory
                 );
 
                 let style = if is_selected {
@@ -406,7 +403,10 @@ mod tests {
     fn test_column_manager_action_equality() {
         assert_eq!(ColumnManagerAction::MoveUp, ColumnManagerAction::MoveUp);
         assert_eq!(ColumnManagerAction::MoveDown, ColumnManagerAction::MoveDown);
-        assert_eq!(ColumnManagerAction::ToggleVisibility, ColumnManagerAction::ToggleVisibility);
+        assert_eq!(
+            ColumnManagerAction::ToggleVisibility,
+            ColumnManagerAction::ToggleVisibility
+        );
         assert_eq!(ColumnManagerAction::Reset, ColumnManagerAction::Reset);
         assert_eq!(ColumnManagerAction::Apply, ColumnManagerAction::Apply);
         assert_eq!(ColumnManagerAction::Cancel, ColumnManagerAction::Cancel);
@@ -482,10 +482,10 @@ mod tests {
     fn test_move_up_at_top() {
         let cols = create_test_columns();
         let mut state = ColumnManagerState::new(cols);
-        
+
         state.selected = 0;
         state.move_up();
-        
+
         // Should not move when at the top
         assert_eq!(state.selected(), 0);
         assert!(!state.is_modified());
@@ -495,10 +495,10 @@ mod tests {
     fn test_move_down_at_bottom() {
         let cols = create_test_columns();
         let mut state = ColumnManagerState::new(cols);
-        
+
         state.selected = 3; // Last column
         state.move_down();
-        
+
         // Should not move when at the bottom
         assert_eq!(state.selected(), 3);
         assert!(!state.is_modified());
@@ -508,10 +508,10 @@ mod tests {
     fn test_select_next_wraparound() {
         let cols = create_test_columns();
         let mut state = ColumnManagerState::new(cols);
-        
+
         state.selected = 3; // Last column
         state.select_next();
-        
+
         // Should wrap to first column
         assert_eq!(state.selected(), 0);
     }
@@ -520,10 +520,10 @@ mod tests {
     fn test_select_previous_wraparound() {
         let cols = create_test_columns();
         let mut state = ColumnManagerState::new(cols);
-        
+
         state.selected = 0;
         state.select_previous();
-        
+
         // Should wrap to last column
         assert_eq!(state.selected(), 3);
     }
@@ -532,10 +532,10 @@ mod tests {
     fn test_toggle_visibility_out_of_bounds() {
         let cols = create_test_columns();
         let mut state = ColumnManagerState::new(cols);
-        
+
         state.selected = 999; // Out of bounds
         state.toggle_visibility();
-        
+
         // Should not panic or modify
         assert!(!state.is_modified());
     }
@@ -544,7 +544,7 @@ mod tests {
     fn test_columns_accessor() {
         let cols = create_test_columns();
         let state = ColumnManagerState::new(cols.clone());
-        
+
         let columns = state.columns();
         assert_eq!(columns.len(), 4);
         assert_eq!(columns[0].id, ColumnId::Id);
@@ -555,9 +555,9 @@ mod tests {
     fn test_selected_accessor() {
         let cols = create_test_columns();
         let mut state = ColumnManagerState::new(cols);
-        
+
         assert_eq!(state.selected(), 0);
-        
+
         state.selected = 2;
         assert_eq!(state.selected(), 2);
     }
@@ -590,10 +590,8 @@ mod tests {
 
     #[test]
     fn test_column_manager_builder_chain() {
-        let manager = ColumnManager::new()
-            .title("Test Manager")
-            .show_help(false);
-        
+        let manager = ColumnManager::new().title("Test Manager").show_help(false);
+
         assert_eq!(manager.title, "Test Manager");
         assert!(!manager.show_help);
     }
@@ -603,13 +601,13 @@ mod tests {
         let cols = create_test_columns();
         let mut state = ColumnManagerState::new(cols);
         state.selected = 2;
-        
+
         for _ in 0..4 {
             let before = state.columns()[2].visible;
             state.toggle_visibility();
             assert_ne!(before, state.columns()[2].visible);
         }
-        
+
         // After even number of toggles, should be back to visible
         assert!(state.columns()[2].visible);
     }
@@ -618,7 +616,7 @@ mod tests {
     fn test_select_next_with_empty_list() {
         let state = ColumnManagerState::new(vec![]);
         let mut state_copy = state;
-        
+
         state_copy.select_next();
         // Should not panic with empty list
         assert_eq!(state_copy.selected(), 0);
@@ -628,10 +626,10 @@ mod tests {
     fn test_reset_clears_selection() {
         let cols = create_test_columns();
         let mut state = ColumnManagerState::new(cols);
-        
+
         state.selected = 3;
         state.reset(create_test_columns());
-        
+
         assert_eq!(state.selected(), 0);
     }
 
@@ -639,15 +637,15 @@ mod tests {
     fn test_modified_flag_preserved_across_operations() {
         let cols = create_test_columns();
         let mut state = ColumnManagerState::new(cols);
-        
+
         assert!(!state.is_modified());
-        
+
         state.move_down();
         assert!(state.is_modified());
-        
+
         state.move_down();
         assert!(state.is_modified()); // Still modified
-        
+
         state.move_up();
         assert!(state.is_modified()); // Still modified after reverting
     }

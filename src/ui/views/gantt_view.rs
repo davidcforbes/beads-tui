@@ -236,10 +236,14 @@ impl GanttViewState {
     /// Update the selected issue with new schedule data
     /// Returns Ok(issue_id) if successful, or Err with error message
     /// The caller is responsible for calling `bd update` with the returned ID and refreshing the issue list
-    pub fn apply_edit(&mut self, _new_start: Option<chrono::DateTime<chrono::Utc>>,
-                       _new_due: Option<chrono::DateTime<chrono::Utc>>,
-                       _new_estimate: Option<String>) -> Result<String, String> {
-        let issue_id = self.selected_issue()
+    pub fn apply_edit(
+        &mut self,
+        _new_start: Option<chrono::DateTime<chrono::Utc>>,
+        _new_due: Option<chrono::DateTime<chrono::Utc>>,
+        _new_estimate: Option<String>,
+    ) -> Result<String, String> {
+        let issue_id = self
+            .selected_issue()
             .map(|i| i.id.clone())
             .ok_or("No issue selected")?;
 
@@ -339,15 +343,16 @@ impl GanttViewState {
 
         // Apply label filter (issue must have at least one matching label)
         if !self.filters.labels.is_empty() {
-            filtered.retain(|issue| {
-                issue.labels.iter().any(|l| self.filters.labels.contains(l))
-            });
+            filtered.retain(|issue| issue.labels.iter().any(|l| self.filters.labels.contains(l)));
         }
 
         // Apply assignee filter
         if !self.filters.assignees.is_empty() {
             filtered.retain(|issue| {
-                issue.assignee.as_ref().is_some_and(|a| self.filters.assignees.contains(a))
+                issue
+                    .assignee
+                    .as_ref()
+                    .is_some_and(|a| self.filters.assignees.contains(a))
             });
         }
 
@@ -450,16 +455,17 @@ impl GanttView {
 
         let title = title_parts.join(" - ");
 
-        let block = Block::default()
-            .title(title)
-            .borders(Borders::ALL)
-            .style(if state.is_editing() {
-                Style::default().fg(Color::Yellow)
-            } else if state.has_active_filters() {
-                Style::default().fg(Color::Cyan)
-            } else {
-                Style::default().fg(Color::White)
-            });
+        let block =
+            Block::default()
+                .title(title)
+                .borders(Borders::ALL)
+                .style(if state.is_editing() {
+                    Style::default().fg(Color::Yellow)
+                } else if state.has_active_filters() {
+                    Style::default().fg(Color::Cyan)
+                } else {
+                    Style::default().fg(Color::White)
+                });
 
         let inner = block.inner(area);
         block.render(area, buf);
@@ -925,7 +931,11 @@ mod tests {
         // Filter by blocked
         state.toggle_blocked_filter();
         assert_eq!(state.filtered_issues().len(), 2);
-        let filtered_ids: Vec<&str> = state.filtered_issues().iter().map(|i| i.id.as_str()).collect();
+        let filtered_ids: Vec<&str> = state
+            .filtered_issues()
+            .iter()
+            .map(|i| i.id.as_str())
+            .collect();
         assert!(filtered_ids.contains(&"TEST-1"));
         assert!(filtered_ids.contains(&"TEST-2"));
     }

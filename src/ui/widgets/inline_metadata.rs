@@ -620,7 +620,11 @@ mod tests {
 
     #[test]
     fn test_build_metadata_spans_with_all_features() {
-        let labels = vec!["bug".to_string(), "urgent".to_string(), "backend".to_string()];
+        let labels = vec![
+            "bug".to_string(),
+            "urgent".to_string(),
+            "backend".to_string(),
+        ];
         let assignee = Some("alice");
         let created = Utc::now() - chrono::Duration::hours(5);
         let updated = Some(Utc::now() - chrono::Duration::hours(1));
@@ -667,15 +671,22 @@ mod tests {
 
     #[test]
     fn test_metadata_display_config_builder_assignee_style_only() {
-        let custom_style = Style::default().fg(Color::Green).add_modifier(Modifier::ITALIC);
+        let custom_style = Style::default()
+            .fg(Color::Green)
+            .add_modifier(Modifier::ITALIC);
         let config = MetadataDisplayConfig::new().assignee_style(custom_style);
         assert_eq!(config.assignee_style.fg, Some(Color::Green));
-        assert!(config.assignee_style.add_modifier.contains(Modifier::ITALIC));
+        assert!(config
+            .assignee_style
+            .add_modifier
+            .contains(Modifier::ITALIC));
     }
 
     #[test]
     fn test_metadata_display_config_builder_age_style_only() {
-        let custom_style = Style::default().fg(Color::Blue).add_modifier(Modifier::UNDERLINED);
+        let custom_style = Style::default()
+            .fg(Color::Blue)
+            .add_modifier(Modifier::UNDERLINED);
         let config = MetadataDisplayConfig::new().age_style(custom_style);
         assert_eq!(config.age_style.fg, Some(Color::Blue));
         assert!(config.age_style.add_modifier.contains(Modifier::UNDERLINED));

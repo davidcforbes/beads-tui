@@ -18,7 +18,6 @@ pub enum GroupingMode {
     Priority,
 }
 
-
 impl GroupingMode {
     /// Returns the display name for this grouping mode
     pub fn display_name(&self) -> &'static str {
@@ -154,7 +153,6 @@ pub enum CardSort {
     /// Sort by update date (most recent first)
     Updated,
 }
-
 
 /// Column definition for the Kanban board
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -307,9 +305,9 @@ impl KanbanConfig {
                 ColumnDefinition::new(ColumnId::PriorityP4),
             ],
             // Assignee and Label columns are dynamically created based on actual data
-            GroupingMode::Assignee | GroupingMode::Label => vec![
-                ColumnDefinition::new(ColumnId::Unassigned),
-            ],
+            GroupingMode::Assignee | GroupingMode::Label => {
+                vec![ColumnDefinition::new(ColumnId::Unassigned)]
+            }
         }
     }
 
@@ -341,28 +339,26 @@ impl KanbanConfig {
 
         // Remove columns that don't match the current grouping mode
         let mode = self.grouping_mode;
-        self.columns.retain(|col| {
-            match mode {
-                GroupingMode::Status => matches!(
-                    col.id,
-                    ColumnId::StatusOpen
-                        | ColumnId::StatusInProgress
-                        | ColumnId::StatusBlocked
-                        | ColumnId::StatusClosed
-                ),
-                GroupingMode::Priority => matches!(
-                    col.id,
-                    ColumnId::PriorityP0
-                        | ColumnId::PriorityP1
-                        | ColumnId::PriorityP2
-                        | ColumnId::PriorityP3
-                        | ColumnId::PriorityP4
-                ),
-                GroupingMode::Assignee => {
-                    matches!(col.id, ColumnId::Assignee(_) | ColumnId::Unassigned)
-                }
-                GroupingMode::Label => matches!(col.id, ColumnId::Label(_) | ColumnId::Unassigned),
+        self.columns.retain(|col| match mode {
+            GroupingMode::Status => matches!(
+                col.id,
+                ColumnId::StatusOpen
+                    | ColumnId::StatusInProgress
+                    | ColumnId::StatusBlocked
+                    | ColumnId::StatusClosed
+            ),
+            GroupingMode::Priority => matches!(
+                col.id,
+                ColumnId::PriorityP0
+                    | ColumnId::PriorityP1
+                    | ColumnId::PriorityP2
+                    | ColumnId::PriorityP3
+                    | ColumnId::PriorityP4
+            ),
+            GroupingMode::Assignee => {
+                matches!(col.id, ColumnId::Assignee(_) | ColumnId::Unassigned)
             }
+            GroupingMode::Label => matches!(col.id, ColumnId::Label(_) | ColumnId::Unassigned),
         });
 
         // If no columns remain after filtering, restore defaults
@@ -547,8 +543,14 @@ mod tests {
             .columns
             .iter()
             .any(|c| c.id == ColumnId::StatusInProgress));
-        assert!(config.columns.iter().any(|c| c.id == ColumnId::StatusBlocked));
-        assert!(config.columns.iter().any(|c| c.id == ColumnId::StatusClosed));
+        assert!(config
+            .columns
+            .iter()
+            .any(|c| c.id == ColumnId::StatusBlocked));
+        assert!(config
+            .columns
+            .iter()
+            .any(|c| c.id == ColumnId::StatusClosed));
     }
 
     #[test]
@@ -715,10 +717,7 @@ mod tests {
         assert_eq!(ColumnId::StatusInProgress.default_label(), "In Progress");
         assert_eq!(ColumnId::StatusBlocked.default_label(), "Blocked");
         assert_eq!(ColumnId::StatusClosed.default_label(), "Closed");
-        assert_eq!(
-            ColumnId::Assignee("bob".to_string()).default_label(),
-            "bob"
-        );
+        assert_eq!(ColumnId::Assignee("bob".to_string()).default_label(), "bob");
         assert_eq!(ColumnId::Label("bug".to_string()).default_label(), "bug");
         assert_eq!(ColumnId::PriorityP0.default_label(), "P0 - Critical");
         assert_eq!(ColumnId::PriorityP1.default_label(), "P1 - High");
@@ -980,7 +979,7 @@ mod tests {
         set.insert(GroupingMode::Status);
         set.insert(GroupingMode::Assignee);
         set.insert(GroupingMode::Status); // Duplicate
-        
+
         assert_eq!(set.len(), 2); // Only 2 unique values
     }
 
@@ -991,7 +990,7 @@ mod tests {
         set.insert(ColumnId::StatusOpen);
         set.insert(ColumnId::PriorityP0);
         set.insert(ColumnId::StatusOpen); // Duplicate
-        
+
         assert_eq!(set.len(), 2);
     }
 
@@ -1014,7 +1013,7 @@ mod tests {
         let c1 = WidthConstraints::new(10, Some(50), 30);
         let c2 = WidthConstraints::new(10, Some(50), 30);
         let c3 = WidthConstraints::new(15, Some(50), 30);
-        
+
         assert_eq!(c1, c2);
         assert_ne!(c1, c3);
     }
@@ -1030,7 +1029,7 @@ mod tests {
     fn test_column_definition_set_width_clamped() {
         let mut col = ColumnDefinition::new(ColumnId::StatusOpen);
         let constraints = col.width_constraints;
-        
+
         col.set_width(1000); // Very large
         assert!(col.width <= constraints.max.unwrap_or(u16::MAX));
     }
@@ -1057,9 +1056,9 @@ mod tests {
             filters: BoardFilters::default(),
             version: 1,
         };
-        
+
         config = config.validate_and_migrate();
-        
+
         // Should have restored default columns
         assert_eq!(config.columns.len(), 4);
     }
@@ -1073,12 +1072,12 @@ mod tests {
             filters: BoardFilters::default(),
             version: 1,
         };
-        
+
         config.columns = KanbanConfig::default_columns(GroupingMode::Priority);
         config.columns[0].visible = false; // Try to hide P0
-        
+
         config = config.validate_and_migrate();
-        
+
         // All mandatory columns should be visible
         assert!(config.columns.iter().all(|c| c.visible));
     }
@@ -1109,10 +1108,10 @@ mod tests {
             filters: BoardFilters::default(),
             version: 1,
         };
-        
+
         let assignee_id = ColumnId::Assignee("alice".to_string());
         config.toggle_column_visibility(&assignee_id);
-        
+
         assert!(!config.get_column(&assignee_id).unwrap().visible);
     }
 
@@ -1121,7 +1120,7 @@ mod tests {
         let config = KanbanConfig::default();
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: KanbanConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(config.grouping_mode, deserialized.grouping_mode);
         assert_eq!(config.card_height, deserialized.card_height);
         assert_eq!(config.version, deserialized.version);

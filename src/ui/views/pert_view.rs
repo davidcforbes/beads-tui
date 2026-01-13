@@ -46,8 +46,11 @@ impl PertViewState {
 
         // Update selected node in config if we have a graph
         if let Some(graph) = &self.graph {
-            if !graph.topological_order.is_empty() && self.selected_issue < graph.topological_order.len() {
-                self.config.selected_node = Some(graph.topological_order[self.selected_issue].clone());
+            if !graph.topological_order.is_empty()
+                && self.selected_issue < graph.topological_order.len()
+            {
+                self.config.selected_node =
+                    Some(graph.topological_order[self.selected_issue].clone());
             }
         }
     }
@@ -64,7 +67,9 @@ impl PertViewState {
 
         // Adjust selection if needed
         if let Some(graph) = &self.graph {
-            if self.selected_issue >= graph.topological_order.len() && !graph.topological_order.is_empty() {
+            if self.selected_issue >= graph.topological_order.len()
+                && !graph.topological_order.is_empty()
+            {
                 self.selected_issue = graph.topological_order.len() - 1;
             }
         }
@@ -86,7 +91,8 @@ impl PertViewState {
         if let Some(graph) = &self.graph {
             if !graph.topological_order.is_empty() {
                 self.selected_issue = (self.selected_issue + 1) % graph.topological_order.len();
-                self.config.selected_node = Some(graph.topological_order[self.selected_issue].clone());
+                self.config.selected_node =
+                    Some(graph.topological_order[self.selected_issue].clone());
             }
         }
     }
@@ -100,7 +106,8 @@ impl PertViewState {
                 } else {
                     self.selected_issue - 1
                 };
-                self.config.selected_node = Some(graph.topological_order[self.selected_issue].clone());
+                self.config.selected_node =
+                    Some(graph.topological_order[self.selected_issue].clone());
             }
         }
     }
@@ -210,9 +217,7 @@ impl PertView {
     /// Render the PERT chart with state
     pub fn render_with_state(area: Rect, buf: &mut Buffer, state: &PertViewState) {
         if state.issues.is_empty() {
-            let block = Block::default()
-                .title("PERT Chart")
-                .borders(Borders::ALL);
+            let block = Block::default().title("PERT Chart").borders(Borders::ALL);
             let inner = block.inner(area);
             block.render(area, buf);
 
@@ -236,9 +241,7 @@ impl PertView {
                 let text = vec![
                     Line::from(Span::styled(
                         "⚠ Dependency Cycle Detected",
-                        Style::default()
-                            .fg(Color::Red)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                     )),
                     Line::from(""),
                     Line::from("Cannot compute PERT chart with circular dependencies."),
@@ -255,9 +258,7 @@ impl PertView {
             pert_chart.render(area, buf);
         } else {
             // No graph available
-            let block = Block::default()
-                .title("PERT Chart")
-                .borders(Borders::ALL);
+            let block = Block::default().title("PERT Chart").borders(Borders::ALL);
             let inner = block.inner(area);
             block.render(area, buf);
 

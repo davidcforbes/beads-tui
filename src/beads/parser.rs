@@ -4,13 +4,15 @@ use serde_json::Value;
 
 /// Parse a list of issues from JSON output
 pub fn parse_issue_list(json: &str) -> Result<Vec<Issue>> {
-    let value: Value = serde_json::from_str(json)
-        .map_err(|e| BeadsError::Json(e, json.to_string()))?;
+    let value: Value =
+        serde_json::from_str(json).map_err(|e| BeadsError::Json(e, json.to_string()))?;
 
     if let Some(issues_array) = value.as_array() {
         issues_array
             .iter()
-            .map(|v| serde_json::from_value(v.clone()).map_err(|e| BeadsError::Json(e, v.to_string())))
+            .map(|v| {
+                serde_json::from_value(v.clone()).map_err(|e| BeadsError::Json(e, v.to_string()))
+            })
             .collect()
     } else if let Ok(issue) = serde_json::from_value::<Issue>(value.clone()) {
         // Single issue returned
@@ -49,13 +51,15 @@ pub fn parse_stats(json: &str) -> Result<IssueStats> {
 
 /// Parse labels from JSON output
 pub fn parse_labels(json: &str) -> Result<Vec<Label>> {
-    let value: Value = serde_json::from_str(json)
-        .map_err(|e| BeadsError::Json(e, json.to_string()))?;
+    let value: Value =
+        serde_json::from_str(json).map_err(|e| BeadsError::Json(e, json.to_string()))?;
 
     if let Some(labels_array) = value.as_array() {
         labels_array
             .iter()
-            .map(|v| serde_json::from_value(v.clone()).map_err(|e| BeadsError::Json(e, v.to_string())))
+            .map(|v| {
+                serde_json::from_value(v.clone()).map_err(|e| BeadsError::Json(e, v.to_string()))
+            })
             .collect()
     } else {
         Ok(vec![])

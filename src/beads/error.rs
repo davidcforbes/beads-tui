@@ -127,9 +127,11 @@ mod tests {
 
     #[test]
     fn test_multiple_error_types() {
-        let errors = [BeadsError::CommandError("test".to_string()),
+        let errors = [
+            BeadsError::CommandError("test".to_string()),
             BeadsError::Timeout(100),
-            BeadsError::BeadsNotFound];
+            BeadsError::BeadsNotFound,
+        ];
 
         assert_eq!(errors.len(), 3);
         assert!(errors[0].to_string().contains("Command execution error"));

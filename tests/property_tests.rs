@@ -1,7 +1,7 @@
 use beads_tui::beads::models::{Issue, IssueStatus, IssueType, Priority};
 use beads_tui::beads::parser;
-use proptest::prelude::*;
 use chrono::Utc;
+use proptest::prelude::*;
 
 proptest! {
     #[test]
@@ -27,10 +27,10 @@ proptest! {
             closed: None,
             notes: vec![],
         };
-        
+
         let json = serde_json::to_string(&issue).unwrap();
         let parsed = serde_json::from_str::<Issue>(&json).unwrap();
-        
+
         assert_eq!(issue.id, parsed.id);
         assert_eq!(issue.title, parsed.title);
         assert_eq!(issue.assignee, parsed.assignee);

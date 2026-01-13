@@ -698,12 +698,16 @@ mod tests {
         // Should be visible in Issues context
         palette.set_context(AppContext::Issues);
         let issues_results = palette.search();
-        assert!(issues_results.iter().any(|(cmd, _)| cmd.id == "multi.context"));
+        assert!(issues_results
+            .iter()
+            .any(|(cmd, _)| cmd.id == "multi.context"));
 
         // Should be visible in Labels context
         palette.set_context(AppContext::Labels);
         let labels_results = palette.search();
-        assert!(labels_results.iter().any(|(cmd, _)| cmd.id == "multi.context"));
+        assert!(labels_results
+            .iter()
+            .any(|(cmd, _)| cmd.id == "multi.context"));
 
         // Should NOT be visible in Database context
         palette.set_context(AppContext::Database);
@@ -811,7 +815,9 @@ mod tests {
 
         palette.set_context(AppContext::Global);
         let global_results = palette.search();
-        assert!(!global_results.iter().any(|(cmd, _)| cmd.id == "help.specific"));
+        assert!(!global_results
+            .iter()
+            .any(|(cmd, _)| cmd.id == "help.specific"));
     }
 
     #[test]
@@ -832,7 +838,9 @@ mod tests {
 
         palette.set_context(AppContext::Issues);
         let issues_results = palette.search();
-        assert!(!issues_results.iter().any(|(cmd, _)| cmd.id == "settings.specific"));
+        assert!(!issues_results
+            .iter()
+            .any(|(cmd, _)| cmd.id == "settings.specific"));
     }
 
     #[test]
@@ -853,7 +861,9 @@ mod tests {
 
         palette.set_context(AppContext::Database);
         let database_results = palette.search();
-        assert!(!database_results.iter().any(|(cmd, _)| cmd.id == "graph.specific"));
+        assert!(!database_results
+            .iter()
+            .any(|(cmd, _)| cmd.id == "graph.specific"));
     }
 
     #[test]
@@ -1036,7 +1046,9 @@ mod tests {
 
         palette.set_context(AppContext::Global);
         let global_results = palette.search();
-        assert!(!global_results.iter().any(|(cmd, _)| cmd.id == "single.context"));
+        assert!(!global_results
+            .iter()
+            .any(|(cmd, _)| cmd.id == "single.context"));
     }
 
     #[test]

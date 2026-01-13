@@ -1,7 +1,7 @@
 /// Data models for beads issues and related structures
 use chrono::{DateTime, Utc};
-use serde::{de, Deserialize, Deserializer, Serialize};
 use serde::de::Visitor;
+use serde::{de, Deserialize, Deserializer, Serialize};
 use std::fmt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -401,8 +401,8 @@ mod tests {
 
     #[test]
     fn test_create_issue_params_with_status() {
-        let params = CreateIssueParams::new("Test", IssueType::Bug, Priority::P1)
-            .with_status("in_progress");
+        let params =
+            CreateIssueParams::new("Test", IssueType::Bug, Priority::P1).with_status("in_progress");
         assert_eq!(params.status, Some("in_progress"));
     }
 
@@ -416,8 +416,8 @@ mod tests {
     #[test]
     fn test_create_issue_params_with_labels() {
         let labels = vec!["bug".to_string(), "urgent".to_string()];
-        let params = CreateIssueParams::new("Test", IssueType::Bug, Priority::P0)
-            .with_labels(&labels);
+        let params =
+            CreateIssueParams::new("Test", IssueType::Bug, Priority::P0).with_labels(&labels);
         assert_eq!(params.labels.len(), 2);
         assert_eq!(params.labels[0], "bug");
         assert_eq!(params.labels[1], "urgent");
@@ -655,8 +655,8 @@ mod tests {
     #[test]
     fn test_create_issue_params_empty_labels() {
         let empty_labels: Vec<String> = vec![];
-        let params = CreateIssueParams::new("Test", IssueType::Bug, Priority::P0)
-            .with_labels(&empty_labels);
+        let params =
+            CreateIssueParams::new("Test", IssueType::Bug, Priority::P0).with_labels(&empty_labels);
         assert!(params.labels.is_empty());
     }
 
@@ -990,8 +990,8 @@ mod tests {
             "urgent".to_string(),
             "frontend".to_string(),
         ];
-        let params = CreateIssueParams::new("Test", IssueType::Bug, Priority::P0)
-            .with_labels(&labels);
+        let params =
+            CreateIssueParams::new("Test", IssueType::Bug, Priority::P0).with_labels(&labels);
         assert_eq!(params.labels.len(), 3);
         assert_eq!(params.labels[2], "frontend");
     }

@@ -179,7 +179,13 @@ impl<'a> DependenciesView<'a> {
         message.render(area, buf);
     }
 
-    fn render_dependencies(&self, area: Rect, buf: &mut Buffer, issue: &Issue, state: &mut DependenciesViewState) {
+    fn render_dependencies(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        issue: &Issue,
+        state: &mut DependenciesViewState,
+    ) {
         // Create layout: issue info (3) + dependencies (fill) + blocks (fill) + help (1)
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -261,7 +267,12 @@ impl<'a> DependenciesView<'a> {
             )
             .highlight_symbol("▶ ");
 
-        StatefulWidget::render(dependencies, chunks[1], buf, &mut state.dependencies_list_state);
+        StatefulWidget::render(
+            dependencies,
+            chunks[1],
+            buf,
+            &mut state.dependencies_list_state,
+        );
 
         // Render blocks (what this issue blocks)
         let block_items: Vec<ListItem> = if issue.blocks.is_empty() {
@@ -455,7 +466,7 @@ mod tests {
     fn test_dependencies_view_state_select_next_empty_list() {
         let mut state = DependenciesViewState::new();
         state.select_next(0); // Empty list
-        // Should not panic or change state
+                              // Should not panic or change state
         assert_eq!(state.selected_dependency(), Some(0));
     }
 
@@ -463,7 +474,7 @@ mod tests {
     fn test_dependencies_view_state_select_previous_empty_list() {
         let mut state = DependenciesViewState::new();
         state.select_previous(0); // Empty list
-        // Should not panic or change state
+                                  // Should not panic or change state
         assert_eq!(state.selected_dependency(), Some(0));
     }
 
@@ -826,10 +837,7 @@ mod tests {
         let mut issue2 = create_test_issue("beads-002", "Issue 2");
 
         // Issue 2 depends on non-existent issues
-        issue2.dependencies = vec![
-            "beads-999".to_string(),
-            "beads-888".to_string(),
-        ];
+        issue2.dependencies = vec!["beads-999".to_string(), "beads-888".to_string()];
 
         let issues = vec![&issue1, &issue2];
         let view = DependenciesView::new(issues).issue(&issue2);
@@ -845,10 +853,7 @@ mod tests {
         let mut issue2 = create_test_issue("beads-002", "Issue 2");
 
         // Issue 2 blocks non-existent issues
-        issue2.blocks = vec![
-            "beads-777".to_string(),
-            "beads-666".to_string(),
-        ];
+        issue2.blocks = vec!["beads-777".to_string(), "beads-666".to_string()];
 
         let issues = vec![&issue1, &issue2];
         let view = DependenciesView::new(issues).issue(&issue2);
@@ -865,10 +870,7 @@ mod tests {
         let mut issue3 = create_test_issue("beads-003", "Issue 3");
 
         // Issue 3 depends on Issue 1 (exists) and Issue 999 (missing)
-        issue3.dependencies = vec![
-            "beads-001".to_string(),
-            "beads-999".to_string(),
-        ];
+        issue3.dependencies = vec!["beads-001".to_string(), "beads-999".to_string()];
 
         let issues = vec![&issue1, &issue2, &issue3];
         let view = DependenciesView::new(issues).issue(&issue3);
@@ -1015,7 +1017,10 @@ mod tests {
     fn test_large_number_of_dependencies() {
         let mut issues_vec: Vec<Issue> = vec![];
         for i in 0..100 {
-            issues_vec.push(create_test_issue(&format!("beads-{:03}", i), &format!("Issue {}", i)));
+            issues_vec.push(create_test_issue(
+                &format!("beads-{:03}", i),
+                &format!("Issue {}", i),
+            ));
         }
 
         let mut main_issue = create_test_issue("beads-main", "Main Issue");
@@ -1034,7 +1039,10 @@ mod tests {
     fn test_large_number_of_blocks() {
         let mut issues_vec: Vec<Issue> = vec![];
         for i in 0..100 {
-            issues_vec.push(create_test_issue(&format!("beads-{:03}", i), &format!("Issue {}", i)));
+            issues_vec.push(create_test_issue(
+                &format!("beads-{:03}", i),
+                &format!("Issue {}", i),
+            ));
         }
 
         let mut main_issue = create_test_issue("beads-main", "Main Issue");

@@ -236,9 +236,7 @@ impl FormField {
                     {
                         None
                     } else {
-                        Some(format!(
-                            "{label} must match format: beads-xxxx-xxxx"
-                        ))
+                        Some(format!("{label} must match format: beads-xxxx-xxxx"))
                     }
                 } else {
                     None
@@ -280,9 +278,7 @@ impl FormField {
                         // Relative dates are always future by definition
                         None
                     } else {
-                        Some(format!(
-                            "{label} must be a valid future date"
-                        ))
+                        Some(format!("{label} must be a valid future date"))
                     }
                 } else {
                     None
@@ -299,8 +295,7 @@ impl FormField {
         }
 
         let (num_part, unit_part) = value.split_at(value.len() - 1);
-        num_part.parse::<u32>().is_ok()
-            && matches!(unit_part, "d" | "w" | "m" | "y" | "h")
+        num_part.parse::<u32>().is_ok() && matches!(unit_part, "d" | "w" | "m" | "y" | "h")
     }
 }
 
@@ -494,7 +489,10 @@ impl FormState {
 
         let field = &self.fields[focused_idx];
         if field.field_type != FieldType::TextArea {
-            return Err(format!("Cannot load file into {:?} field", field.field_type));
+            return Err(format!(
+                "Cannot load file into {:?} field",
+                field.field_type
+            ));
         }
 
         // Validate file exists
@@ -508,8 +506,7 @@ impl FormState {
         }
 
         // Read file content
-        let content = fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read file: {e}"))?;
+        let content = fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))?;
 
         // Validate UTF-8 (already validated by read_to_string, but check for null bytes)
         if content.contains('\0') {
@@ -912,8 +909,7 @@ mod tests {
 
     #[test]
     fn test_validation_rule_required() {
-        let mut field = FormField::text("title", "Title")
-            .with_validation(ValidationRule::Required);
+        let mut field = FormField::text("title", "Title").with_validation(ValidationRule::Required);
 
         assert!(!field.validate());
         assert!(field.error.is_some());
@@ -925,8 +921,8 @@ mod tests {
 
     #[test]
     fn test_validation_rule_enum() {
-        let mut field = FormField::text("status", "Status")
-            .with_validation(ValidationRule::Enum(vec![
+        let mut field =
+            FormField::text("status", "Status").with_validation(ValidationRule::Enum(vec![
                 "open".to_string(),
                 "closed".to_string(),
             ]));
@@ -998,8 +994,7 @@ mod tests {
 
     #[test]
     fn test_validation_rule_no_spaces() {
-        let mut field = FormField::text("label", "Label")
-            .with_validation(ValidationRule::NoSpaces);
+        let mut field = FormField::text("label", "Label").with_validation(ValidationRule::NoSpaces);
 
         // Empty value should pass
         assert!(field.validate());
@@ -1015,8 +1010,8 @@ mod tests {
 
     #[test]
     fn test_validation_rule_date() {
-        let mut field = FormField::text("due_date", "Due Date")
-            .with_validation(ValidationRule::Date);
+        let mut field =
+            FormField::text("due_date", "Due Date").with_validation(ValidationRule::Date);
 
         // Empty value should pass
         assert!(field.validate());
@@ -1039,8 +1034,8 @@ mod tests {
 
     #[test]
     fn test_validation_rule_future_date() {
-        let mut field = FormField::text("due_date", "Due Date")
-            .with_validation(ValidationRule::FutureDate);
+        let mut field =
+            FormField::text("due_date", "Due Date").with_validation(ValidationRule::FutureDate);
 
         // Empty value should pass
         assert!(field.validate());
@@ -1090,9 +1085,12 @@ mod tests {
     #[test]
     fn test_validation_rule_eq() {
         assert_eq!(ValidationRule::Required, ValidationRule::Required);
-        assert_eq!(ValidationRule::PositiveInteger, ValidationRule::PositiveInteger);
+        assert_eq!(
+            ValidationRule::PositiveInteger,
+            ValidationRule::PositiveInteger
+        );
         assert_ne!(ValidationRule::Required, ValidationRule::PositiveInteger);
-        
+
         let enum1 = ValidationRule::Enum(vec!["a".to_string()]);
         let enum2 = ValidationRule::Enum(vec!["a".to_string()]);
         let enum3 = ValidationRule::Enum(vec!["b".to_string()]);
@@ -1163,7 +1161,7 @@ mod tests {
             .required()
             .placeholder("Enter title...")
             .value("Test");
-        
+
         let cloned = field.clone();
         assert_eq!(cloned.id, field.id);
         assert_eq!(cloned.label, field.label);
@@ -1180,7 +1178,7 @@ mod tests {
             .placeholder("Enter hours")
             .value("10")
             .with_validation(ValidationRule::PositiveInteger);
-        
+
         assert!(field.required);
         assert_eq!(field.placeholder, Some("Enter hours".to_string()));
         assert_eq!(field.value, "10");
@@ -1389,8 +1387,7 @@ mod tests {
 
     #[test]
     fn test_validation_whitespace_vs_empty() {
-        let mut field = FormField::text("title", "Title")
-            .with_validation(ValidationRule::Required);
+        let mut field = FormField::text("title", "Title").with_validation(ValidationRule::Required);
 
         field.value = "   ".to_string();
         assert!(!field.validate());
@@ -1407,8 +1404,7 @@ mod tests {
 
     #[test]
     fn test_validation_beads_id_edge_cases() {
-        let mut field = FormField::text("id", "ID")
-            .with_validation(ValidationRule::BeadsIdFormat);
+        let mut field = FormField::text("id", "ID").with_validation(ValidationRule::BeadsIdFormat);
 
         // Special characters in parts
         field.value = "beads-12@4-5678".to_string();
@@ -1429,8 +1425,8 @@ mod tests {
 
     #[test]
     fn test_validation_positive_integer_edge_cases() {
-        let mut field = FormField::text("value", "Value")
-            .with_validation(ValidationRule::PositiveInteger);
+        let mut field =
+            FormField::text("value", "Value").with_validation(ValidationRule::PositiveInteger);
 
         // Decimal number
         field.value = "1.5".to_string();
@@ -1451,8 +1447,7 @@ mod tests {
 
     #[test]
     fn test_validation_relative_date_formats() {
-        let mut field = FormField::text("date", "Date")
-            .with_validation(ValidationRule::Date);
+        let mut field = FormField::text("date", "Date").with_validation(ValidationRule::Date);
 
         // Valid relative dates
         field.value = "1h".to_string();
@@ -1483,8 +1478,8 @@ mod tests {
 
     #[test]
     fn test_validation_enum_case_sensitive() {
-        let mut field = FormField::text("status", "Status")
-            .with_validation(ValidationRule::Enum(vec![
+        let mut field =
+            FormField::text("status", "Status").with_validation(ValidationRule::Enum(vec![
                 "open".to_string(),
                 "closed".to_string(),
             ]));
@@ -1678,8 +1673,7 @@ mod tests {
 
     #[test]
     fn test_validation_no_spaces_allows_underscores_and_dashes() {
-        let mut field = FormField::text("label", "Label")
-            .with_validation(ValidationRule::NoSpaces);
+        let mut field = FormField::text("label", "Label").with_validation(ValidationRule::NoSpaces);
 
         field.value = "bug_fix".to_string();
         assert!(field.validate());

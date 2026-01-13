@@ -17,8 +17,8 @@ pub use navigation::*;
 pub use perf::PerfStats;
 
 // Re-export table and kanban configs with their full types to avoid ambiguity
-pub use table_config::TableConfig;
 pub use kanban_config::KanbanConfig;
+pub use table_config::TableConfig;
 
 // Re-export gantt schedule types
 pub use gantt_schedule::{IssueSchedule, ScheduleData, TimeEstimate, TimelineConfig, ZoomLevel};
