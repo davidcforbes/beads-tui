@@ -421,6 +421,6 @@ mod tests {
     fn test_filter_quick_select_menu_creation() {
         let _menu = FilterQuickSelectMenu::new();
         // Just verify it can be constructed
-        let _menu2 = FilterQuickSelectMenu::default();
+        let _menu2 = FilterQuickSelectMenu;
     }
 }

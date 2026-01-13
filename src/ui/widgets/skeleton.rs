@@ -201,7 +201,7 @@ impl Widget for SkeletonList {
                 let width = if self.vary_widths {
                     // Vary widths between 60-100% for more natural look
                     let variation = (i * 13) % 40; // Pseudo-random variation
-                    (self.width_percent as i32 - 20 + variation as i32).max(60).min(100) as u16
+                    (self.width_percent as i32 - 20 + variation as i32).clamp(60, 100) as u16
                 } else {
                     self.width_percent
                 };
@@ -310,13 +310,12 @@ impl Widget for SkeletonTable {
                 .column_widths
                 .iter()
                 .enumerate()
-                .map(|(i, &width)| {
+                .flat_map(|(i, &width)| {
                     let col_width = (area.width as u32 * width as u32 / 100) as usize;
                     let text = "▓".repeat(col_width.saturating_sub(1));
                     let separator = if i < self.columns - 1 { " " } else { "" };
                     vec![Span::styled(text, header_style), Span::raw(separator)]
                 })
-                .flatten()
                 .collect();
             items.push(ListItem::new(Line::from(header_spans)));
         }
@@ -327,13 +326,12 @@ impl Widget for SkeletonTable {
                 .column_widths
                 .iter()
                 .enumerate()
-                .map(|(i, &width)| {
+                .flat_map(|(i, &width)| {
                     let col_width = (area.width as u32 * width as u32 / 100) as usize;
                     let text = "▓".repeat(col_width.saturating_sub(1));
                     let separator = if i < self.columns - 1 { " " } else { "" };
                     vec![Span::styled(text, style), Span::raw(separator)]
                 })
-                .flatten()
                 .collect();
             items.push(ListItem::new(Line::from(row_spans)));
         }

@@ -1,5 +1,5 @@
 use beads_tui::beads::models::{Issue, IssueStatus, IssueType, Priority};
-use beads_tui::ui::views::{SearchInterfaceState, SearchScope, ViewType};
+use beads_tui::ui::views::{SearchInterfaceState, ViewType};
 use chrono::Utc;
 
 fn create_test_issue(

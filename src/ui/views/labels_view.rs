@@ -454,7 +454,7 @@ fn label_matches_query(label: &LabelStats, query: &str) -> bool {
     if let Some(ref value) = label.value {
         candidates.push(value.to_lowercase());
     }
-    if let (Some(ref dimension), Some(ref value)) = (label.dimension.as_ref(), label.value.as_ref())
+    if let (Some(dimension), Some(value)) = (label.dimension.as_ref(), label.value.as_ref())
     {
         candidates.push(format!("{}:{}", dimension.to_lowercase(), value.to_lowercase()));
     }
@@ -505,9 +505,7 @@ where
         }
     }
 
-    let mut stats: Vec<LabelStats> = aggregates
-        .into_iter()
-        .map(|(_key, aggregate)| {
+    let mut stats: Vec<LabelStats> = aggregates.into_values().map(|aggregate| {
             let (canonical, _) = aggregate
                 .counts
                 .iter()

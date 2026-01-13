@@ -1,6 +1,6 @@
 use beads_tui::models::AppState;
-use beads_tui::ui::views::{DatabaseView, FormulaBrowser, HelpView, IssuesView, LabelsView};
-use ratatui::{backend::TestBackend, buffer::Buffer, Terminal};
+use beads_tui::ui::views::{DatabaseView, HelpView};
+use ratatui::{backend::TestBackend, Terminal};
 
 #[test]
 fn test_help_view_snapshot() {

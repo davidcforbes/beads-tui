@@ -502,7 +502,7 @@ mod tests {
         let mut output = Vec::new();
 
         // Without expansion, should only show parent
-        flatten_tree(&[parent.clone()], &state.expanded, 0, &mut output);
+        flatten_tree(std::slice::from_ref(&parent), &state.expanded, 0, &mut output);
         assert_eq!(output.len(), 1);
         assert_eq!(output[0].id, "parent");
         assert_eq!(output[0].level, 0);
@@ -590,12 +590,12 @@ mod tests {
 
         // Initially only root is visible
         let mut output = Vec::new();
-        flatten_tree(&[root.clone()], &state.expanded, 0, &mut output);
+        flatten_tree(std::slice::from_ref(&root), &state.expanded, 0, &mut output);
         assert_eq!(output.len(), 1);
         assert_eq!(output[0].id, "root");
 
         // Expand all
-        state.expand_all(&[root.clone()]);
+        state.expand_all(std::slice::from_ref(&root));
 
         // Now all nodes should be visible
         output.clear();

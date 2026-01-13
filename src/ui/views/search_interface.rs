@@ -331,11 +331,7 @@ impl SearchInterfaceState {
                 "chore" => Some(crate::beads::models::IssueType::Chore),
                 _ => None,
             },
-            assignee: if col_filters.no_assignee {
-                None
-            } else {
-                None // We don't track specific assignee in column filters currently
-            },
+            assignee: None, // We don't track specific assignee in column filters currently
             labels: col_filters.labels.clone(),
             label_logic: self.label_logic,
             search_text: if self.search_state.query().is_empty() {

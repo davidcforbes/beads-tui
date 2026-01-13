@@ -12,7 +12,7 @@ async fn test_dependency_cycle_detection() {
 
     let create = |title: &str| {
         let output = Command::new("bd")
-            .args(&[
+            .args([
                 "create",
                 "--title",
                 title,
@@ -39,7 +39,7 @@ async fn test_dependency_cycle_detection() {
 
     let add_dep = |from: &str, to: &str| {
         Command::new("bd")
-            .args(&["dep", "add", from, to])
+            .args(["dep", "add", from, to])
             .current_dir(root)
             .status()
             .expect("Failed to add dependency");
@@ -71,7 +71,7 @@ async fn test_deep_dependency_chain() {
     for i in 0..20 {
         let title = format!("Chain Task {}", i);
         let id = Command::new("bd")
-            .args(&[
+            .args([
                 "create",
                 "--title",
                 &title,
@@ -94,7 +94,7 @@ async fn test_deep_dependency_chain() {
 
         if let Some(p) = prev_id {
             Command::new("bd")
-                .args(&["dep", "add", &p, &id])
+                .args(["dep", "add", &p, &id])
                 .current_dir(root)
                 .status()
                 .unwrap();

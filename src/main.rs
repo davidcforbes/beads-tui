@@ -1606,7 +1606,7 @@ fn run_app<B: ratatui::backend::Backend>(
 
                 // Check for saved filter hotkeys (F1-F11)
                 if let KeyCode::F(num) = key.code {
-                    if num >= 1 && num <= 11 {
+                    if (1..=11).contains(&num) {
                         // Map F-key to hotkey char: F1='1', F2='2', ..., F9='9', F10='A', F11='B'
                         let hotkey = if num <= 9 {
                             char::from_digit(num as u32, 10).unwrap()
@@ -1755,7 +1755,7 @@ fn run_app<B: ratatui::backend::Backend>(
                             if let Some(selected_idx) = app.priority_selector_state.selected() {
                                 use crate::beads::models::Priority;
                                 use crate::beads::client::IssueUpdate;
-                                let priorities = vec![Priority::P0, Priority::P1, Priority::P2, Priority::P3, Priority::P4];
+                                let priorities = [Priority::P0, Priority::P1, Priority::P2, Priority::P3, Priority::P4];
                                 if let Some(&new_priority) = priorities.get(selected_idx) {
                                     if let Some(issue) = app.issues_view_state.selected_issue() {
                                         let issue_id = issue.id.clone();
@@ -1881,7 +1881,7 @@ fn run_app<B: ratatui::backend::Backend>(
                             if let Some(selected_idx) = app.status_selector_state.selected() {
                                 use crate::beads::models::IssueStatus;
                                 use crate::beads::client::IssueUpdate;
-                                let statuses = vec![IssueStatus::Open, IssueStatus::InProgress, IssueStatus::Closed];
+                                let statuses = [IssueStatus::Open, IssueStatus::InProgress, IssueStatus::Closed];
                                 if let Some(&new_status) = statuses.get(selected_idx) {
                                     if let Some(issue) = app.issues_view_state.selected_issue() {
                                         let issue_id = issue.id.clone();
@@ -2351,7 +2351,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     if app.is_context_help_visible() {
         use ui::widgets::{HelpOverlay, HelpOverlayPosition};
 
-        let (title, subtitle, bindings) = get_context_help_content(&app);
+        let (title, subtitle, bindings) = get_context_help_content(app);
         let subtitle_text = format!("{} | Press F1 or Esc to close", subtitle);
 
         let mut help = HelpOverlay::new(&title)

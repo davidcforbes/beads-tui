@@ -242,8 +242,8 @@ fn fuzzy_score(label: &str, query: &str) -> Option<usize> {
 
     for &needle_byte in needle {
         let mut found = None;
-        for i in index..haystack.len() {
-            if haystack[i] == needle_byte {
+        for (i, &hay_byte) in haystack.iter().enumerate().skip(index) {
+            if hay_byte == needle_byte {
                 found = Some(i);
                 break;
             }
