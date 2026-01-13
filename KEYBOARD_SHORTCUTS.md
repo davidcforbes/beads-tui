@@ -11,7 +11,7 @@ These shortcuts work from any view:
 | `q` | Quit application |
 | `Tab` | Next tab |
 | `Shift+Tab` | Previous tab |
-| `1-5` | Jump to tab directly (1=Issues, 2=Dependencies, 3=Labels, 4=Database, 5=Help) |
+| `1-8` | Jump to tab directly (1=Issues, 2=Dependencies, 3=Labels, 4=PERT, 5=Gantt, 6=Kanban, 7=Database, 8=Help) |
 | `?` | Toggle help |
 | `Ctrl+C` | Force quit |
 

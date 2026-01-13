@@ -22,7 +22,7 @@ use ratatui::{
 };
 use std::io;
 use std::time::Instant;
-use ui::views::{DatabaseView, DependenciesView, HelpView, IssuesView, LabelsView};
+use ui::views::{DatabaseView, DependenciesView, GanttView, GanttViewState, HelpView, IssuesView, KanbanView, KanbanViewState, LabelsView, PertView, PertViewState};
 use clap::Parser;
 
 /// Interactive terminal UI for Beads issue management
@@ -1221,6 +1221,18 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             f.render_stateful_widget(labels_view, tabs_chunks[1], &mut app.labels_view_state);
         }
         3 => {
+            // PERT Chart view
+            PertView::render_with_state(tabs_chunks[1], f.buffer_mut(), &app.pert_view_state);
+        }
+        4 => {
+            // Gantt Chart view
+            GanttView::render_with_state(tabs_chunks[1], f.buffer_mut(), &app.gantt_view_state);
+        }
+        5 => {
+            // Kanban Board view
+            KanbanView::render_with_state(tabs_chunks[1], f.buffer_mut(), &app.kanban_view_state);
+        }
+        6 => {
             // Database view
             let database_view = DatabaseView::new()
                 .status(app.database_status)
@@ -1229,7 +1241,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             f.render_widget(database_view, tabs_chunks[1]);
         }
         _ => {
-            // Help view (tab 4 and beyond)
+            // Help view (tab 7 and beyond)
             let help_view = HelpView::new().selected_section(app.help_section);
             f.render_widget(help_view, tabs_chunks[1]);
         }

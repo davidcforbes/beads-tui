@@ -1,8 +1,9 @@
 /// Application state management
 use crate::beads::BeadsClient;
 use crate::ui::views::{
-    compute_label_stats, DatabaseStats, DatabaseStatus, DependenciesViewState, HelpSection,
-    IssuesViewState, LabelStats, LabelsViewState,
+    compute_label_stats, DatabaseStats, DatabaseStatus, DependenciesViewState,
+    GanttViewState, HelpSection, IssuesViewState, KanbanViewState, LabelStats,
+    LabelsViewState, PertViewState,
 };
 use crate::ui::widgets::DialogState;
 
@@ -34,6 +35,9 @@ pub struct AppState {
     pub issues_view_state: IssuesViewState,
     pub dependencies_view_state: DependenciesViewState,
     pub labels_view_state: LabelsViewState,
+    pub pert_view_state: PertViewState,
+    pub gantt_view_state: GanttViewState,
+    pub kanban_view_state: KanbanViewState,
     pub label_stats: Vec<LabelStats>,
     pub database_stats: DatabaseStats,
     pub database_status: DatabaseStatus,
@@ -81,11 +85,14 @@ impl AppState {
         Self {
             should_quit: false,
             selected_tab: 0,
-            tabs: vec!["Issues", "Dependencies", "Labels", "Database", "Help"],
+            tabs: vec!["Issues", "Dependencies", "Labels", "PERT", "Gantt", "Kanban", "Database", "Help"],
             beads_client,
-            issues_view_state: IssuesViewState::new(issues),
+            issues_view_state: IssuesViewState::new(issues.clone()),
             dependencies_view_state: DependenciesViewState::new(),
             labels_view_state: LabelsViewState::new(),
+            pert_view_state: PertViewState::new(issues.clone()),
+            gantt_view_state: GanttViewState::new(issues.clone()),
+            kanban_view_state: KanbanViewState::new(issues),
             label_stats,
             database_stats,
             database_status: DatabaseStatus::Ready,
@@ -275,11 +282,14 @@ mod tests {
         AppState {
             should_quit: false,
             selected_tab: 0,
-            tabs: vec!["Issues", "Dependencies", "Labels", "Database", "Help"],
+            tabs: vec!["Issues", "Dependencies", "Labels", "PERT", "Gantt", "Kanban", "Database", "Help"],
             beads_client: BeadsClient::new(),
             issues_view_state: IssuesViewState::new(vec![]),
             dependencies_view_state: DependenciesViewState::new(),
             labels_view_state: LabelsViewState::new(),
+            pert_view_state: PertViewState::new(vec![]),
+            gantt_view_state: GanttViewState::new(vec![]),
+            kanban_view_state: KanbanViewState::new(vec![]),
             label_stats: vec![],
             database_stats: DatabaseStats {
                 total_issues: 0,
@@ -325,7 +335,7 @@ mod tests {
     #[test]
     fn test_next_tab_wraps_around() {
         let mut state = create_test_app_state();
-        state.selected_tab = 4; // Last tab (Help)
+        state.selected_tab = 7; // Last tab (Help)
 
         state.next_tab();
         assert_eq!(state.selected_tab, 0); // Wraps to first tab
@@ -347,7 +357,7 @@ mod tests {
         state.selected_tab = 0; // First tab
 
         state.previous_tab();
-        assert_eq!(state.selected_tab, 4); // Wraps to last tab
+        assert_eq!(state.selected_tab, 7); // Wraps to last tab
     }
 
     // Dirty flag tests
@@ -565,7 +575,7 @@ mod tests {
         let state = AppState::default();
         assert!(!state.should_quit);
         assert_eq!(state.selected_tab, 0);
-        assert_eq!(state.tabs.len(), 5);
+        assert_eq!(state.tabs.len(), 8);
     }
 
     #[test]
@@ -573,7 +583,7 @@ mod tests {
         let mut state = create_test_app_state();
 
         // Navigate through all tabs
-        for i in 1..5 {
+        for i in 1..8 {
             state.next_tab();
             assert_eq!(state.selected_tab, i);
         }
@@ -586,17 +596,17 @@ mod tests {
     #[test]
     fn test_previous_tab_multiple_times() {
         let mut state = create_test_app_state();
-        state.selected_tab = 4; // Start at last tab
+        state.selected_tab = 7; // Start at last tab
 
         // Navigate backward through all tabs
-        for i in (0..4).rev() {
+        for i in (0..7).rev() {
             state.previous_tab();
             assert_eq!(state.selected_tab, i);
         }
 
         // Previous should wrap to last
         state.previous_tab();
-        assert_eq!(state.selected_tab, 4);
+        assert_eq!(state.selected_tab, 7);
     }
 
     #[test]
@@ -867,12 +877,15 @@ mod tests {
     #[test]
     fn test_tabs_count() {
         let state = create_test_app_state();
-        assert_eq!(state.tabs.len(), 5);
+        assert_eq!(state.tabs.len(), 8);
         assert_eq!(state.tabs[0], "Issues");
         assert_eq!(state.tabs[1], "Dependencies");
         assert_eq!(state.tabs[2], "Labels");
-        assert_eq!(state.tabs[3], "Database");
-        assert_eq!(state.tabs[4], "Help");
+        assert_eq!(state.tabs[3], "PERT");
+        assert_eq!(state.tabs[4], "Gantt");
+        assert_eq!(state.tabs[5], "Kanban");
+        assert_eq!(state.tabs[6], "Database");
+        assert_eq!(state.tabs[7], "Help");
     }
 
     #[test]
