@@ -8,7 +8,7 @@ use crate::ui::views::{
     HistoryOpsState, IssuesViewState, KanbanViewState, LabelStats, LabelsViewState, PertViewState,
     PourWizardState, WispManagerState,
 };
-use crate::ui::widgets::{DialogState, FilterSaveDialogState};
+use crate::ui::widgets::{DialogState, FilterQuickSelectState, FilterSaveDialogState};
 
 use super::PerfStats;
 
@@ -73,6 +73,8 @@ pub struct AppState {
     pub config: Config,
     /// Filter save dialog state
     pub filter_save_dialog_state: Option<FilterSaveDialogState>,
+    /// Filter quick-select menu state
+    pub filter_quick_select_state: Option<FilterQuickSelectState>,
 }
 
 impl AppState {
@@ -181,6 +183,7 @@ impl AppState {
             daemon_running,
             config,
             filter_save_dialog_state: None,
+            filter_quick_select_state: None,
         }
     }
 
@@ -364,6 +367,44 @@ impl AppState {
     /// Check if filter save dialog is visible
     pub fn is_filter_save_dialog_visible(&self) -> bool {
         self.filter_save_dialog_state.is_some()
+    }
+
+    /// Show the filter quick-select menu
+    pub fn show_filter_quick_select(&mut self) {
+        let filters = self.config.filters.clone();
+        self.filter_quick_select_state = Some(FilterQuickSelectState::new(filters));
+        self.mark_dirty();
+    }
+
+    /// Hide the filter quick-select menu
+    pub fn hide_filter_quick_select(&mut self) {
+        self.filter_quick_select_state = None;
+        self.mark_dirty();
+    }
+
+    /// Check if filter quick-select menu is visible
+    pub fn is_filter_quick_select_visible(&self) -> bool {
+        self.filter_quick_select_state.is_some()
+    }
+
+    /// Get the currently selected filter from the quick-select menu
+    pub fn get_quick_selected_filter(&self) -> Option<&crate::models::SavedFilter> {
+        self.filter_quick_select_state
+            .as_ref()
+            .and_then(|state| state.selected_filter())
+    }
+
+    /// Apply the currently selected filter from the quick-select menu
+    pub fn apply_quick_selected_filter(&mut self) -> Result<(), String> {
+        let selected_filter = self
+            .get_quick_selected_filter()
+            .ok_or_else(|| "No filter selected".to_string())?
+            .clone();
+
+        self.apply_saved_filter(&selected_filter);
+        self.hide_filter_quick_select();
+
+        Ok(())
     }
 
     /// Save the current filter from the dialog
@@ -607,6 +648,7 @@ mod tests {
             daemon_running: false,
             config: Config::default(),
             filter_save_dialog_state: None,
+            filter_quick_select_state: None,
         }
     }
 
