@@ -172,6 +172,9 @@ pub struct ColumnDefinition {
     /// Sort order for cards in this column
     #[serde(default)]
     pub card_sort: CardSort,
+    /// Work-in-progress limit (None = no limit)
+    #[serde(default)]
+    pub wip_limit: Option<usize>,
 }
 
 impl ColumnDefinition {
@@ -186,6 +189,7 @@ impl ColumnDefinition {
             width: width_constraints.preferred,
             visible: true,
             card_sort: CardSort::default(),
+            wip_limit: None,
         }
     }
 

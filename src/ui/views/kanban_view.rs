@@ -11,6 +11,123 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget},
 };
 
+/// Column manager overlay state
+#[derive(Debug, Clone)]
+pub struct ColumnManagerState {
+    /// Working copy of columns for editing
+    pub columns: Vec<ColumnDefinition>,
+    /// Selected column index in the list
+    pub selected_index: usize,
+    /// Whether the overlay is visible
+    pub visible: bool,
+    /// Edit mode (None, WipLimit)
+    pub edit_mode: Option<ColumnEditMode>,
+    /// Input buffer for editing fields
+    pub input_buffer: String,
+}
+
+/// Column edit mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColumnEditMode {
+    /// Editing WIP limit
+    WipLimit,
+}
+
+impl ColumnManagerState {
+    /// Create a new column manager state
+    pub fn new() -> Self {
+        Self {
+            columns: Vec::new(),
+            selected_index: 0,
+            visible: false,
+            edit_mode: None,
+            input_buffer: String::new(),
+        }
+    }
+
+    /// Open the overlay with columns from config
+    pub fn open(&mut self, config_columns: Vec<ColumnDefinition>) {
+        self.columns = config_columns;
+        self.selected_index = 0;
+        self.visible = true;
+        self.edit_mode = None;
+        self.input_buffer.clear();
+    }
+
+    /// Close the overlay
+    pub fn close(&mut self) {
+        self.visible = false;
+        self.edit_mode = None;
+        self.input_buffer.clear();
+    }
+
+    /// Move selected column up
+    pub fn move_up(&mut self) {
+        if self.selected_index > 0 {
+            self.columns.swap(self.selected_index, self.selected_index - 1);
+            self.selected_index -= 1;
+        }
+    }
+
+    /// Move selected column down
+    pub fn move_down(&mut self) {
+        if self.selected_index < self.columns.len().saturating_sub(1) {
+            self.columns.swap(self.selected_index, self.selected_index + 1);
+            self.selected_index += 1;
+        }
+    }
+
+    /// Navigate to next column in list
+    pub fn next_column(&mut self) {
+        if !self.columns.is_empty() {
+            self.selected_index = (self.selected_index + 1) % self.columns.len();
+        }
+    }
+
+    /// Navigate to previous column in list
+    pub fn previous_column(&mut self) {
+        if !self.columns.is_empty() {
+            self.selected_index = (self.selected_index + self.columns.len() - 1) % self.columns.len();
+        }
+    }
+
+    /// Toggle visibility of selected column
+    pub fn toggle_visibility(&mut self, mode: GroupingMode) {
+        if let Some(col) = self.columns.get_mut(self.selected_index) {
+            if !col.id.is_mandatory(mode) {
+                col.visible = !col.visible;
+            }
+        }
+    }
+
+    /// Start editing WIP limit for selected column
+    pub fn edit_wip_limit(&mut self) {
+        if let Some(col) = self.columns.get(self.selected_index) {
+            self.edit_mode = Some(ColumnEditMode::WipLimit);
+            self.input_buffer = col.wip_limit.map_or(String::new(), |l| l.to_string());
+        }
+    }
+
+    /// Apply WIP limit edit
+    pub fn apply_wip_limit_edit(&mut self) {
+        if let Some(col) = self.columns.get_mut(self.selected_index) {
+            col.wip_limit = if self.input_buffer.is_empty() {
+                None
+            } else {
+                self.input_buffer.parse::<usize>().ok()
+            };
+        }
+        self.edit_mode = None;
+        self.input_buffer.clear();
+    }
+
+    /// Cancel current edit
+    pub fn cancel_edit(&mut self) {
+        self.edit_mode = None;
+        self.input_buffer.clear();
+    }
+}
+
 /// State for Kanban board view
 #[derive(Debug)]
 pub struct KanbanViewState {
@@ -24,6 +141,8 @@ pub struct KanbanViewState {
     selected_card: usize,
     /// Card display mode
     card_mode: CardMode,
+    /// Column manager overlay state
+    column_manager: ColumnManagerState,
 }
 
 impl KanbanViewState {
@@ -35,6 +154,7 @@ impl KanbanViewState {
             selected_column: 0,
             selected_card: 0,
             card_mode: CardMode::TwoLine,
+            column_manager: ColumnManagerState::new(),
         }
     }
 
@@ -187,6 +307,67 @@ impl KanbanViewState {
     pub fn get_column_sort(&self, column_index: usize) -> Option<CardSort> {
         let visible_columns = self.visible_columns();
         visible_columns.get(column_index).map(|col| col.card_sort)
+    }
+
+    /// Open the column manager overlay
+    pub fn open_column_manager(&mut self) {
+        self.column_manager.open(self.config.columns.clone());
+    }
+
+    /// Close the column manager overlay without applying changes
+    pub fn close_column_manager(&mut self) {
+        self.column_manager.close();
+    }
+
+    /// Apply column manager changes to config
+    pub fn apply_column_manager_changes(&mut self) {
+        self.config.columns = self.column_manager.columns.clone();
+        self.column_manager.close();
+        
+        // Ensure selected_column is still valid after changes
+        let visible_count = self.visible_columns().len();
+        if self.selected_column >= visible_count && visible_count > 0 {
+            self.selected_column = visible_count - 1;
+        }
+        self.selected_card = 0;
+    }
+
+    /// Reset columns to defaults
+    pub fn reset_columns_to_default(&mut self) {
+        let mode = self.config.grouping_mode;
+        self.config.columns = match mode {
+            GroupingMode::Status => vec![
+                ColumnDefinition::new(ColumnId::StatusOpen),
+                ColumnDefinition::new(ColumnId::StatusInProgress),
+                ColumnDefinition::new(ColumnId::StatusBlocked),
+                ColumnDefinition::new(ColumnId::StatusClosed),
+            ],
+            GroupingMode::Priority => vec![
+                ColumnDefinition::new(ColumnId::PriorityP0),
+                ColumnDefinition::new(ColumnId::PriorityP1),
+                ColumnDefinition::new(ColumnId::PriorityP2),
+                ColumnDefinition::new(ColumnId::PriorityP3),
+                ColumnDefinition::new(ColumnId::PriorityP4),
+            ],
+            GroupingMode::Assignee | GroupingMode::Label => vec![
+                ColumnDefinition::new(ColumnId::Unassigned),
+            ],
+        };
+        
+        // Update overlay if it's open
+        if self.column_manager.visible {
+            self.column_manager.open(self.config.columns.clone());
+        }
+    }
+
+    /// Check if column manager is visible
+    pub fn is_column_manager_visible(&self) -> bool {
+        self.column_manager.visible
+    }
+
+    /// Get mutable reference to column manager (for input handling)
+    pub fn column_manager_mut(&mut self) -> &mut ColumnManagerState {
+        &mut self.column_manager
     }
 
     /// Get visible columns
@@ -491,6 +672,11 @@ impl KanbanView {
                 col_idx == state.selected_column,
             );
         }
+
+        // Render column manager overlay on top if visible
+        if state.is_column_manager_visible() {
+            Self::render_column_manager(area, buf, state);
+        }
     }
 
     /// Render the filter row showing active filters
@@ -535,6 +721,131 @@ impl KanbanView {
         let line = Line::from(spans);
         let paragraph = Paragraph::new(line);
         paragraph.render(area, buf);
+    }
+
+    /// Render the column manager overlay
+    fn render_column_manager(area: Rect, buf: &mut Buffer, state: &KanbanViewState) {
+        // Calculate centered overlay area (60% width, 80% height)
+        let overlay_width = (area.width as f32 * 0.6).max(50.0).min(area.width as f32) as u16;
+        let overlay_height = (area.height as f32 * 0.8).max(20.0).min(area.height as f32) as u16;
+        
+        let overlay_x = area.x + (area.width.saturating_sub(overlay_width)) / 2;
+        let overlay_y = area.y + (area.height.saturating_sub(overlay_height)) / 2;
+        
+        let overlay_area = Rect {
+            x: overlay_x,
+            y: overlay_y,
+            width: overlay_width,
+            height: overlay_height,
+        };
+
+        // Render background block
+        let block = Block::default()
+            .title(" Column Manager ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            .style(Style::default().bg(Color::Black));
+        
+        let inner = block.inner(overlay_area);
+        block.render(overlay_area, buf);
+
+        // Split into help line and column list
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(2),
+                Constraint::Min(0),
+                Constraint::Length(2),
+            ])
+            .split(inner);
+
+        // Help line
+        let help_spans = vec![
+            Span::styled("j/k", Style::default().fg(Color::Yellow)),
+            Span::raw(": Navigate  "),
+            Span::styled("↑/↓", Style::default().fg(Color::Yellow)),
+            Span::raw(": Reorder  "),
+            Span::styled("v", Style::default().fg(Color::Yellow)),
+            Span::raw(": Toggle  "),
+            Span::styled("w", Style::default().fg(Color::Yellow)),
+            Span::raw(": WIP Limit  "),
+            Span::styled("r", Style::default().fg(Color::Yellow)),
+            Span::raw(": Reset  "),
+            Span::styled("Enter", Style::default().fg(Color::Yellow)),
+            Span::raw(": Apply  "),
+            Span::styled("Esc", Style::default().fg(Color::Yellow)),
+            Span::raw(": Cancel"),
+        ];
+        let help_line = Line::from(help_spans);
+        Paragraph::new(help_line).render(chunks[0], buf);
+
+        // Render column list
+        let manager = &state.column_manager;
+        let list_area = chunks[1];
+        
+        let mut y = list_area.y;
+        for (idx, col) in manager.columns.iter().enumerate() {
+            if y >= list_area.y + list_area.height {
+                break;
+            }
+
+            let is_selected = idx == manager.selected_index;
+            let is_editing = is_selected && manager.edit_mode.is_some();
+
+            // Build line spans
+            let mut spans = Vec::new();
+
+            // Selection indicator
+            if is_selected {
+                spans.push(Span::styled("> ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
+            } else {
+                spans.push(Span::raw("  "));
+            }
+
+            // Visibility toggle
+            let visibility_marker = if col.visible { "[✓]" } else { "[ ]" };
+            let visibility_style = if col.visible {
+                Style::default().fg(Color::Green)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            };
+            spans.push(Span::styled(visibility_marker, visibility_style));
+            spans.push(Span::raw(" "));
+
+            // Column label
+            let label_style = if is_selected {
+                Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            spans.push(Span::styled(&col.label, label_style));
+            spans.push(Span::raw(" "));
+
+            // WIP Limit
+            let wip_text = if is_editing && matches!(manager.edit_mode, Some(ColumnEditMode::WipLimit)) {
+                format!("[WIP: {}█]", manager.input_buffer)
+            } else {
+                match col.wip_limit {
+                    Some(limit) => format!("[WIP: {}]", limit),
+                    None => "[WIP: -]".to_string(),
+                }
+            };
+            let wip_style = if is_editing {
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            };
+            spans.push(Span::styled(wip_text, wip_style));
+
+            let line = Line::from(spans);
+            buf.set_line(list_area.x, y, &line, list_area.width);
+            y += 1;
+        }
+
+        // Status line
+        let status_text = format!("{} columns total", manager.columns.len());
+        let status_line = Line::from(Span::styled(status_text, Style::default().fg(Color::DarkGray)));
+        Paragraph::new(status_line).render(chunks[2], buf);
     }
 
     /// Render a single column
