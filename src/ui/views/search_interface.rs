@@ -3,6 +3,7 @@
 use crate::beads::models::{Issue, IssueStatus};
 use crate::ui::widgets::{IssueList, IssueListState, SearchInput, SearchInputState};
 use chrono::{Duration, Utc};
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
@@ -56,7 +57,6 @@ impl ViewType {
 }
 
 /// Search interface state
-#[derive(Debug)]
 pub struct SearchInterfaceState {
     search_state: SearchInputState,
     list_state: IssueListState,
@@ -67,6 +67,26 @@ pub struct SearchInterfaceState {
     current_user: Option<String>,
     show_help: bool,
     regex_enabled: bool,
+    fuzzy_enabled: bool,
+    fuzzy_matcher: SkimMatcherV2,
+}
+
+impl std::fmt::Debug for SearchInterfaceState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SearchInterfaceState")
+            .field("search_state", &self.search_state)
+            .field("list_state", &self.list_state)
+            .field("all_issues", &self.all_issues)
+            .field("filtered_issues", &self.filtered_issues)
+            .field("search_scope", &self.search_scope)
+            .field("current_view", &self.current_view)
+            .field("current_user", &self.current_user)
+            .field("show_help", &self.show_help)
+            .field("regex_enabled", &self.regex_enabled)
+            .field("fuzzy_enabled", &self.fuzzy_enabled)
+            .field("fuzzy_matcher", &"<SkimMatcherV2>")
+            .finish()
+    }
 }
 
 /// Search scope for filtering
@@ -112,6 +132,8 @@ impl SearchInterfaceState {
             current_user: None,
             show_help: true,
             regex_enabled: false,
+            fuzzy_enabled: false,
+            fuzzy_matcher: SkimMatcherV2::default(),
         }
     }
 
@@ -218,6 +240,17 @@ impl SearchInterfaceState {
     /// Check if regex search is enabled
     pub fn is_regex_enabled(&self) -> bool {
         self.regex_enabled
+    }
+
+    /// Toggle fuzzy search mode
+    pub fn toggle_fuzzy(&mut self) {
+        self.fuzzy_enabled = !self.fuzzy_enabled;
+        self.update_filtered_issues();
+    }
+
+    /// Check if fuzzy search is enabled
+    pub fn is_fuzzy_enabled(&self) -> bool {
+        self.fuzzy_enabled
     }
 
     /// Set all issues
@@ -369,10 +402,13 @@ impl SearchInterfaceState {
         }
     }
 
-    /// Helper method to match text using either regex or substring matching
+    /// Helper method to match text using fuzzy, regex, or substring matching
     /// Falls back to substring matching if regex compilation fails
     fn matches_text(&self, text: &str, query: &str) -> bool {
-        if self.regex_enabled {
+        if self.fuzzy_enabled {
+            // Use fuzzy matching - returns Some(score) if there's a match
+            self.fuzzy_matcher.fuzzy_match(text, query).is_some()
+        } else if self.regex_enabled {
             // Try to compile and match regex
             // Case-insensitive by default, fallback to substring if regex is invalid
             match Regex::new(&format!("(?i){}", query)) {
@@ -2506,5 +2542,240 @@ mod tests {
 
         // Should match only the first issue
         assert_eq!(state.result_count(), 1);
+    }
+
+    #[test]
+    fn test_fuzzy_toggle() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Initially fuzzy should be disabled
+        assert!(!state.is_fuzzy_enabled());
+
+        // Toggle on
+        state.toggle_fuzzy();
+        assert!(state.is_fuzzy_enabled());
+
+        // Toggle off
+        state.toggle_fuzzy();
+        assert!(!state.is_fuzzy_enabled());
+    }
+
+    #[test]
+    fn test_fuzzy_basic_match() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Implement feature".to_string();
+        issues[1].title = "Fix bug in parser".to_string();
+        issues[2].title = "Refactor code".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable fuzzy and search for "impl" (should match "Implement")
+        state.toggle_fuzzy();
+        state.search_state_mut().set_query("impl");
+        state.update_filtered_issues();
+
+        // Should match the first issue
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "Implement feature");
+    }
+
+    #[test]
+    fn test_fuzzy_typo_tolerance() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Feature implementation".to_string();
+        issues[1].title = "Bug fix".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable fuzzy and search with typo "implmnt" (should match "implementation")
+        state.toggle_fuzzy();
+        state.search_state_mut().set_query("implmnt");
+        state.update_filtered_issues();
+
+        // Should match the first issue with fuzzy matching
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "Feature implementation");
+    }
+
+    #[test]
+    fn test_fuzzy_acronym_match() {
+        let mut issues = create_test_issues();
+        issues[0].title = "User Interface Component".to_string();
+        issues[1].title = "Database connection".to_string();
+        issues[2].title = "API endpoint".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable fuzzy and search for "uic" (should match "User Interface Component")
+        state.toggle_fuzzy();
+        state.search_state_mut().set_query("uic");
+        state.update_filtered_issues();
+
+        // Should match the first issue
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "User Interface Component");
+    }
+
+    #[test]
+    fn test_fuzzy_partial_match() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Authentication system".to_string();
+        issues[1].title = "Database schema".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable fuzzy and search for "auth" (should match "Authentication")
+        state.toggle_fuzzy();
+        state.search_state_mut().set_query("auth");
+        state.update_filtered_issues();
+
+        // Should match the first issue
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "Authentication system");
+    }
+
+    #[test]
+    fn test_fuzzy_search_scope_title() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Feature ABC".to_string();
+        issues[0].description = Some("Description XYZ".to_string());
+        issues[1].title = "Other task".to_string();
+        issues[1].description = Some("Contains ABC".to_string());
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable fuzzy, set scope to Title, search for "abc"
+        state.toggle_fuzzy();
+        state.set_search_scope(SearchScope::Title);
+        state.search_state_mut().set_query("abc");
+        state.update_filtered_issues();
+
+        // Should match only the first issue (title match)
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "Feature ABC");
+    }
+
+    #[test]
+    fn test_fuzzy_search_scope_description() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Feature".to_string();
+        issues[0].description = Some("Simple description".to_string());
+        issues[1].title = "Task".to_string();
+        issues[1].description = Some("Contains important info".to_string());
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable fuzzy, set scope to Description, search for "import"
+        state.toggle_fuzzy();
+        state.set_search_scope(SearchScope::Description);
+        state.search_state_mut().set_query("import");
+        state.update_filtered_issues();
+
+        // Should match only the second issue (description match)
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "Task");
+    }
+
+    #[test]
+    fn test_fuzzy_search_scope_all() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Feature XYZ".to_string();
+        issues[0].description = Some("Simple description".to_string());
+        issues[1].title = "Task ABC".to_string();
+        issues[1].description = Some("Contains XYZ".to_string());
+        issues[2].title = "Other".to_string();
+        issues[2].description = Some("Nothing here".to_string());
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable fuzzy, set scope to All, search for "xyz"
+        state.toggle_fuzzy();
+        state.set_search_scope(SearchScope::All);
+        state.search_state_mut().set_query("xyz");
+        state.update_filtered_issues();
+
+        // Should match both issues (one in title, one in description)
+        assert_eq!(state.result_count(), 2);
+    }
+
+    #[test]
+    fn test_fuzzy_case_insensitive() {
+        let mut issues = create_test_issues();
+        issues[0].title = "UPPERCASE TEST".to_string();
+        issues[1].title = "lowercase test".to_string();
+        issues[2].title = "MiXeD CaSe TeSt".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable fuzzy and search for "test" (should be case-insensitive)
+        state.toggle_fuzzy();
+        state.search_state_mut().set_query("test");
+        state.update_filtered_issues();
+
+        // Should match all three issues
+        assert_eq!(state.result_count(), 3);
+    }
+
+    #[test]
+    fn test_fuzzy_disabled_uses_substring() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Implementation details".to_string();
+        issues[1].title = "Other task".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Don't enable fuzzy, search for "impl" (exact substring required)
+        state.search_state_mut().set_query("impl");
+        state.update_filtered_issues();
+
+        // Should match the first issue with substring matching (case-insensitive)
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "Implementation details");
+    }
+
+    #[test]
+    fn test_fuzzy_notes_search() {
+        let mut issues = create_test_issues();
+
+        // Add notes with searchable content
+        issues[0].notes.push(Note {
+            timestamp: chrono::Utc::now(),
+            author: "test".to_string(),
+            content: "Important milestone reached".to_string(),
+        });
+        issues[1].notes.push(Note {
+            timestamp: chrono::Utc::now(),
+            author: "test".to_string(),
+            content: "Normal note".to_string(),
+        });
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable fuzzy, set scope to Notes, search for "milstn" (typo of milestone)
+        state.toggle_fuzzy();
+        state.set_search_scope(SearchScope::Notes);
+        state.search_state_mut().set_query("milstn");
+        state.update_filtered_issues();
+
+        // Should match the first issue with fuzzy matching
+        assert_eq!(state.result_count(), 1);
+    }
+
+    #[test]
+    fn test_fuzzy_no_match() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Feature implementation".to_string();
+        issues[1].title = "Bug fix".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable fuzzy and search for something completely unrelated
+        state.toggle_fuzzy();
+        state.search_state_mut().set_query("zzzzzzz");
+        state.update_filtered_issues();
+
+        // Should match nothing
+        assert_eq!(state.result_count(), 0);
     }
 }
