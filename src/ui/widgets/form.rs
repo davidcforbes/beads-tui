@@ -1688,4 +1688,139 @@ mod tests {
         field.value = "bug fix".to_string();
         assert!(!field.validate());
     }
+
+    #[test]
+    fn test_insert_char_triggers_validation() {
+        // Test that insert_char() calls validation and shows errors in real-time
+        let fields = vec![FormField::text("title", "Title").required()];
+        let mut state = FormState::new(fields);
+
+        // Initially empty, should have no error
+        assert_eq!(state.focused_field().unwrap().error, None);
+
+        // Insert a character - validation should run and clear any error
+        state.insert_char('H');
+        assert_eq!(state.focused_field().unwrap().value, "H");
+        assert_eq!(state.focused_field().unwrap().error, None);
+
+        // Delete the character - should trigger validation and show error
+        state.delete_char();
+        assert_eq!(state.focused_field().unwrap().value, "");
+        assert!(state.focused_field().unwrap().error.is_some());
+        assert!(state
+            .focused_field()
+            .unwrap()
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("required"));
+    }
+
+    #[test]
+    fn test_delete_char_triggers_validation() {
+        // Test that delete_char() calls validation
+        let fields = vec![FormField::text("title", "Title").required()];
+        let mut state = FormState::new(fields);
+
+        // Add some valid content
+        state.insert_char('H');
+        state.insert_char('i');
+        assert_eq!(state.focused_field().unwrap().value, "Hi");
+        assert_eq!(state.focused_field().unwrap().error, None);
+
+        // Delete one char - still valid
+        state.delete_char();
+        assert_eq!(state.focused_field().unwrap().value, "H");
+        assert_eq!(state.focused_field().unwrap().error, None);
+
+        // Delete last char - should show error
+        state.delete_char();
+        assert_eq!(state.focused_field().unwrap().value, "");
+        assert!(state.focused_field().unwrap().error.is_some());
+    }
+
+    #[test]
+    fn test_validation_clears_errors_when_input_becomes_valid() {
+        // Test that validation clears errors when the input becomes valid
+        let fields =
+            vec![FormField::text("estimate", "Estimate")
+                .with_validation(ValidationRule::PositiveInteger)];
+        let mut state = FormState::new(fields);
+
+        // Enter invalid input
+        state.insert_char('-');
+        state.insert_char('5');
+        assert_eq!(state.focused_field().unwrap().value, "-5");
+        assert!(state.focused_field().unwrap().error.is_some());
+
+        // Delete to make it valid
+        state.move_cursor_to_start();
+        state.delete_char(); // This won't delete because cursor at start
+        assert_eq!(state.cursor_position(), 0);
+
+        // Move cursor and delete the '-'
+        state.move_cursor_right();
+        state.delete_char();
+        assert_eq!(state.focused_field().unwrap().value, "5");
+        assert_eq!(state.focused_field().unwrap().error, None);
+    }
+
+    #[test]
+    fn test_validation_on_rapid_input() {
+        // Test that rapid typing triggers validation on each character
+        let fields = vec![
+            FormField::text("label", "Label").with_validation(ValidationRule::NoSpaces),
+        ];
+        let mut state = FormState::new(fields);
+
+        // Type valid characters rapidly
+        for c in "bug-fix".chars() {
+            state.insert_char(c);
+        }
+        assert_eq!(state.focused_field().unwrap().value, "bug-fix");
+        assert_eq!(state.focused_field().unwrap().error, None);
+
+        // Add a space (invalid)
+        state.insert_char(' ');
+        assert_eq!(state.focused_field().unwrap().value, "bug-fix ");
+        assert!(state.focused_field().unwrap().error.is_some());
+        assert!(state
+            .focused_field()
+            .unwrap()
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("spaces"));
+    }
+
+    #[test]
+    fn test_validation_preserves_errors_across_fields() {
+        // Test that validation errors are preserved when switching fields
+        let fields = vec![
+            FormField::text("title", "Title").required(),
+            FormField::text("assignee", "Assignee"),
+        ];
+        let mut state = FormState::new(fields);
+
+        // Leave first field empty (error)
+        state.focus_next();
+
+        // Manually validate to set the error
+        state.fields[0].validate();
+
+        // Check the first field has an error
+        assert!(state.fields[0].error.is_some());
+
+        // Type in second field
+        state.insert_char('A');
+        assert_eq!(state.focused_field().unwrap().value, "A");
+
+        // First field should still have its error
+        assert!(state.fields[0].error.is_some());
+        assert!(state.fields[0]
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("required"));
+    }
 }
