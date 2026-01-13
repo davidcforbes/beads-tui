@@ -16,6 +16,7 @@ pub mod form;
 pub mod gantt_chart;
 pub mod help_overlay;
 pub mod inline_metadata;
+pub mod issue_history;
 pub mod issue_list;
 pub mod kanban_card;
 pub mod label_picker;
@@ -52,6 +53,7 @@ pub use help_overlay::{HelpOverlay, HelpOverlayPosition, KeyBinding};
 pub use inline_metadata::{
     build_metadata_spans, format_age, format_assignee, format_labels, MetadataDisplayConfig,
 };
+pub use issue_history::{IssueHistoryPanel, IssueHistoryState};
 pub use issue_list::{ColumnFilters, IssueList, IssueListState, SortColumn, SortDirection};
 pub use kanban_card::{render_kanban_card, CardMode, KanbanCardConfig};
 pub use label_picker::{LabelPicker, LabelPickerState};

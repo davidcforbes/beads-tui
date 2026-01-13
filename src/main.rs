@@ -1620,7 +1620,23 @@ fn run_app<B: ratatui::backend::Backend>(
                         app.toggle_notification_history();
                         continue;
                     }
+                    if app.show_issue_history {
+                        app.show_issue_history = false;
+                        continue;
+                    }
                     // Fall through to other Esc handlers if shortcut help is not visible
+                }
+
+                // Handle Ctrl+H for toggling issue history panel (only in Issues tab with selected issue)
+                if key.code == KeyCode::Char('h')
+                    && key.modifiers.contains(KeyModifiers::CONTROL)
+                    && app.selected_tab == 0
+                {
+                    // Only show history if an issue is selected
+                    if app.issues_view_state.selected_issue().is_some() {
+                        app.show_issue_history = !app.show_issue_history;
+                        continue;
+                    }
                 }
 
                 // Handle notification history panel events if visible
@@ -1633,6 +1649,25 @@ fn run_app<B: ratatui::backend::Backend>(
                         KeyCode::Down | KeyCode::Char('j') => {
                             let len = app.notification_history.len();
                             app.notification_history_state.select_next(len);
+                            continue;
+                        }
+                        _ => {}
+                    }
+                }
+
+                // Handle issue history panel events if visible
+                if app.show_issue_history {
+                    match key.code {
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            app.issue_history_state.select_previous();
+                            continue;
+                        }
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            // Count history events for the selected issue
+                            if let Some(issue) = app.issues_view_state.selected_issue() {
+                                let len = 2 + issue.notes.len() + if issue.updated != issue.created { 1 } else { 0 } + if issue.closed.is_some() { 1 } else { 0 };
+                                app.issue_history_state.select_next(len);
+                            }
                             continue;
                         }
                         _ => {}
@@ -1962,6 +1997,15 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
 
         let panel = NotificationHistoryPanel::new(&app.notification_history);
         f.render_stateful_widget(panel, f.size(), &mut app.notification_history_state);
+    }
+
+    // Render issue history panel if visible
+    if app.show_issue_history {
+        use ui::widgets::IssueHistoryPanel;
+
+        let selected_issue = app.issues_view_state.selected_issue();
+        let panel = IssueHistoryPanel::new(selected_issue);
+        f.render_stateful_widget(panel, f.size(), &mut app.issue_history_state);
     }
 
     // Render keyboard shortcut help overlay if visible

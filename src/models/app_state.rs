@@ -76,6 +76,10 @@ pub struct AppState {
     pub show_notification_history: bool,
     /// Notification history panel state
     pub notification_history_state: crate::ui::widgets::NotificationHistoryState,
+    /// Whether to show issue history panel
+    pub show_issue_history: bool,
+    /// Issue history panel state
+    pub issue_history_state: crate::ui::widgets::IssueHistoryState,
     /// Whether beads daemon is currently running
     pub daemon_running: bool,
     /// Application configuration
@@ -203,6 +207,8 @@ impl AppState {
             notification_history: Vec::new(),
             show_notification_history: false,
             notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
+            show_issue_history: false,
+            issue_history_state: crate::ui::widgets::IssueHistoryState::new(),
             daemon_running,
             config,
             filter_save_dialog_state: None,
@@ -745,6 +751,8 @@ mod tests {
             notification_history: Vec::new(),
             show_notification_history: false,
             notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
+            show_issue_history: false,
+            issue_history_state: crate::ui::widgets::IssueHistoryState::new(),
         }
     }
 
