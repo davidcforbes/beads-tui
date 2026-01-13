@@ -277,7 +277,6 @@ impl KanbanView {
         }
 
         // Calculate column widths
-        let column_count = visible_columns.len();
         let constraints: Vec<Constraint> = visible_columns
             .iter()
             .map(|col| Constraint::Length(col.width))
