@@ -5,6 +5,7 @@
 pub mod app_state;
 pub mod filter;
 pub mod gantt_schedule;
+pub mod issue_cache;
 pub mod kanban_config;
 pub mod labels;
 pub mod navigation;
@@ -14,6 +15,7 @@ pub mod table_config;
 
 pub use app_state::*;
 pub use filter::*;
+pub use issue_cache::{IssueCache, IssueCacheStats};
 pub use labels::*;
 pub use navigation::*;
 pub use perf::PerfStats;
