@@ -230,6 +230,135 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         }
     }
 
+    // Handle dependency dialog events if dialog is open
+    if app.dependency_dialog_state.is_open() {
+        use ui::widgets::DependencyDialogFocus;
+
+        match key_code {
+            KeyCode::Tab => {
+                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                    app.dependency_dialog_state.focus_previous();
+                } else {
+                    app.dependency_dialog_state.focus_next();
+                }
+                app.mark_dirty();
+                return;
+            }
+            KeyCode::Left => {
+                if app.dependency_dialog_state.focus() == DependencyDialogFocus::Buttons {
+                    app.dependency_dialog_state.select_previous_button();
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Right => {
+                if app.dependency_dialog_state.focus() == DependencyDialogFocus::Buttons {
+                    app.dependency_dialog_state.select_next_button();
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Up => {
+                if app.dependency_dialog_state.focus() == DependencyDialogFocus::IssueId {
+                    app.dependency_dialog_state.autocomplete_state.select_previous();
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Down => {
+                if app.dependency_dialog_state.focus() == DependencyDialogFocus::IssueId {
+                    app.dependency_dialog_state.autocomplete_state.select_next();
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Char(' ') => {
+                if app.dependency_dialog_state.focus() == DependencyDialogFocus::Type {
+                    app.dependency_dialog_state.toggle_type();
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Backspace => {
+                if app.dependency_dialog_state.focus() == DependencyDialogFocus::IssueId {
+                    app.dependency_dialog_state.autocomplete_state.delete_char();
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Char(c) => {
+                if app.dependency_dialog_state.focus() == DependencyDialogFocus::IssueId {
+                    app.dependency_dialog_state.autocomplete_state.insert_char(c);
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Enter => {
+                // Handle confirmation
+                if app.dependency_dialog_state.is_ok_selected()
+                    || app.dependency_dialog_state.focus() == DependencyDialogFocus::IssueId
+                {
+                    // Confirm selection and add dependency
+                    if let Some(target_issue_id) = app.dependency_dialog_state.selected_issue_id() {
+                        if let Some(current_issue) = app.issues_view_state.selected_issue() {
+                            let current_id = current_issue.id.clone();
+                            let dep_type = app.dependency_dialog_state.dependency_type();
+                            let (from_id, to_id) = match dep_type {
+                                ui::widgets::DependencyType::DependsOn => {
+                                    // Current depends on target (target blocks current)
+                                    (current_id.clone(), target_issue_id.clone())
+                                }
+                                ui::widgets::DependencyType::Blocks => {
+                                    // Current blocks target (target depends on current)
+                                    (target_issue_id.clone(), current_id.clone())
+                                }
+                            };
+
+                            // Call CLI to add dependency synchronously
+                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            match rt.block_on(app.beads_client.add_dependency(&from_id, &to_id)) {
+                                Ok(()) => {
+                                    tracing::info!(
+                                        "Added dependency: {} depends on {}",
+                                        from_id,
+                                        to_id
+                                    );
+                                    app.set_success(format!(
+                                        "Added dependency: {} depends on {}",
+                                        from_id, to_id
+                                    ));
+                                    // Reload issues to reflect the change
+                                    app.reload_issues();
+                                }
+                                Err(e) => {
+                                    tracing::error!("Failed to add dependency: {}", e);
+                                    app.set_error(format!("Failed to add dependency: {}", e));
+                                }
+                            }
+                        }
+                    } else {
+                        app.set_info("Please select an issue first".to_string());
+                    }
+                }
+                // Close dialog in either case
+                app.dependency_dialog_state.close();
+                app.mark_dirty();
+                return;
+            }
+            KeyCode::Esc => {
+                // Cancel dialog
+                tracing::debug!("Dependency dialog cancelled");
+                app.dependency_dialog_state.close();
+                app.mark_dirty();
+                return;
+            }
+            _ => {
+                // Ignore other keys when dialog is active
+                return;
+            }
+        }
+    }
+
     // Handle delete confirmation dialog events if active
     if app.is_delete_confirmation_visible() {
         if let Some(ref mut dialog_state) = app.delete_dialog_state {
@@ -1008,9 +1137,26 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
             app.mark_dirty();
         }
         KeyCode::Char('a') => {
-            // Add dependency
-            app.set_info("Add dependency: Not yet implemented (requires input dialog)".to_string());
-            tracing::info!("Add dependency requested");
+            // Add dependency - open dialog
+            if let Some(current_issue) = selected_issue {
+                let current_id = current_issue.id.clone();
+
+                // Get all issue IDs except the current one
+                let all_issues: Vec<String> = app
+                    .issues_view_state
+                    .search_state()
+                    .filtered_issues()
+                    .iter()
+                    .map(|issue| issue.id.clone())
+                    .filter(|id| id != &current_id)
+                    .collect();
+
+                app.dependency_dialog_state.open(all_issues);
+                app.mark_dirty();
+                tracing::info!("Add dependency dialog opened for issue: {}", current_id);
+            } else {
+                app.set_info("No issue selected".to_string());
+            }
         }
         KeyCode::Char('d') => {
             // Remove dependency
@@ -1661,6 +1807,23 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             f.render_widget(Clear, dialog_area);
             dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
         }
+    }
+
+    // Render dependency dialog overlay if open
+    if app.dependency_dialog_state.is_open() {
+        use ui::widgets::DependencyDialog;
+
+        // Get current issue title for dialog
+        let current_issue_title = app
+            .issues_view_state
+            .selected_issue()
+            .map(|issue| issue.title.as_str())
+            .unwrap_or("Unknown Issue");
+
+        let dialog = DependencyDialog::new(current_issue_title);
+
+        // Render dialog overlay
+        f.render_stateful_widget(dialog, f.size(), &mut app.dependency_dialog_state);
     }
 
     // Render notification banner if present
