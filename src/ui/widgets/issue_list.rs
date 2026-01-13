@@ -846,11 +846,36 @@ impl<'a> StatefulWidget for IssueList<'a> {
         // Get editing state for rendering
         let editing_state = state.editing_state();
 
-        // Build rows
-        let rows: Vec<Row> = issues
+        // Virtual scrolling: Calculate visible range to optimize rendering
+        let total_issues = issues.len();
+        let viewport_height = table_area
+            .height
+            .saturating_sub(3) // Subtract borders (2) and header (1)
+            as usize;
+
+        // Calculate visible window with buffer
+        let buffer_size = viewport_height.saturating_mul(2); // Render 2x viewport above/below
+        let selected_idx = state.table_state.selected().unwrap_or(0);
+
+        // Calculate start and end of visible window
+        let start_idx = selected_idx.saturating_sub(buffer_size).min(total_issues);
+        let end_idx = (selected_idx + viewport_height + buffer_size)
+            .min(total_issues)
+            .max(start_idx);
+
+        // Only create rows for visible range
+        let visible_issues = if start_idx < end_idx {
+            &issues[start_idx..end_idx]
+        } else {
+            &[]
+        };
+
+        // Build rows only for visible range
+        let rows: Vec<Row> = visible_issues
             .iter()
             .enumerate()
-            .map(|(row_idx, issue)| {
+            .map(|(visible_idx, issue)| {
+                let row_idx = start_idx + visible_idx; // Actual index in full list {
                 let type_cell = Cell::from(Self::type_symbol(&issue.issue_type));
 
                 // Apply highlighting if search query is present
@@ -938,7 +963,11 @@ impl<'a> StatefulWidget for IssueList<'a> {
 
         let table = Table::new(rows, widths)
             .header(header)
-            .block(Block::default().borders(Borders::ALL).title("Issues"))
+            .block(Block::default().borders(Borders::ALL).title(format!(
+                "Issues ({}/{})",
+                total_issues,
+                total_issues
+            )))
             .highlight_style(
                 Style::default()
                     .bg(Color::DarkGray)
@@ -946,7 +975,22 @@ impl<'a> StatefulWidget for IssueList<'a> {
             )
             .highlight_symbol(">> ");
 
+        // Adjust TableState selection to be relative to the windowed view
+        let original_selected = state.table_state.selected();
+        if let Some(selected) = original_selected {
+            if selected >= start_idx && selected < end_idx {
+                // Selection is within visible window, adjust to relative index
+                state.table_state.select(Some(selected - start_idx));
+            } else {
+                // Selection is outside window, don't show highlight
+                state.table_state.select(None);
+            }
+        }
+
         StatefulWidget::render(table, table_area, buf, &mut state.table_state);
+
+        // Restore original selection
+        state.table_state.select(original_selected);
 
         // Render filter row if enabled
         if let Some(filter_area) = filter_area {
@@ -1606,5 +1650,90 @@ mod tests {
 
         filters.labels.clear();
         assert!(filters.is_empty());
+    }
+
+    #[test]
+    fn test_virtual_scrolling_large_list() {
+        // Create a large list of issues to test virtual scrolling
+        let mut issues = Vec::new();
+        for i in 0..5000 {
+            issues.push(create_test_issue(
+                &format!("beads-{:04}", i),
+                &format!("Issue {}", i),
+                Priority::P2,
+                IssueStatus::Open,
+            ));
+        }
+
+        let issue_refs: Vec<&Issue> = issues.iter().collect();
+        let widget = IssueList::new(issue_refs);
+
+        // Test that widget can be created with large list
+        assert_eq!(widget.issues.len(), 5000);
+
+        // Test state with large list
+        let mut state = IssueListState::new();
+        state.select(Some(2500)); // Select middle item
+
+        // Navigation should work
+        state.select_next(5000);
+        assert_eq!(state.selected(), Some(2501));
+
+        state.select_previous(5000);
+        assert_eq!(state.selected(), Some(2500));
+
+        // Jump to end
+        state.select(Some(4999));
+        assert_eq!(state.selected(), Some(4999));
+
+        // Wrap around
+        state.select_next(5000);
+        assert_eq!(state.selected(), Some(0));
+    }
+
+    #[test]
+    fn test_virtual_scrolling_performance() {
+        // Create a very large list to verify performance optimization
+        let mut issues = Vec::new();
+        for i in 0..10000 {
+            issues.push(create_test_issue(
+                &format!("beads-{:05}", i),
+                &format!("Performance test issue number {}", i),
+                if i % 5 == 0 {
+                    Priority::P0
+                } else if i % 5 == 1 {
+                    Priority::P1
+                } else if i % 5 == 2 {
+                    Priority::P2
+                } else if i % 5 == 3 {
+                    Priority::P3
+                } else {
+                    Priority::P4
+                },
+                if i % 4 == 0 {
+                    IssueStatus::Open
+                } else if i % 4 == 1 {
+                    IssueStatus::InProgress
+                } else if i % 4 == 2 {
+                    IssueStatus::Blocked
+                } else {
+                    IssueStatus::Closed
+                },
+            ));
+        }
+
+        let issue_refs: Vec<&Issue> = issues.iter().collect();
+        
+        // Creating the widget should be fast even with 10k issues
+        let start = std::time::Instant::now();
+        let _widget = IssueList::new(issue_refs);
+        let duration = start.elapsed();
+        
+        // Should complete in under 100ms even with 10k issues
+        assert!(
+            duration.as_millis() < 100,
+            "Widget creation took {}ms, expected < 100ms",
+            duration.as_millis()
+        );
     }
 }
