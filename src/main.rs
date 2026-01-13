@@ -1715,8 +1715,9 @@ fn handle_help_view_event(key_code: KeyCode, app: &mut models::AppState) {
 }
 
 fn reorder_child_issue(app: &mut models::AppState, direction: i32) {
+    use crate::beads::models::Issue;
     let selected_issue = match app.issues_view_state.search_state().selected_issue() {
-        Some(issue) => issue.clone(),
+        Some(issue) => Issue::clone(issue),
         None => {
             app.set_info("No issue selected".to_string());
             return;

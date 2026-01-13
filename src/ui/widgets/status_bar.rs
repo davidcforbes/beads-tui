@@ -7,9 +7,9 @@ use ratatui::{
 };
 
 pub struct StatusBar<'a> {
-    left: Vec<Span<'a>>,
-    center: Vec<Span<'a>>,
-    right: Vec<Span<'a>>,
+    pub left: Vec<Span<'a>>,
+    pub center: Vec<Span<'a>>,
+    pub right: Vec<Span<'a>>,
 }
 
 impl<'a> StatusBar<'a> {
@@ -35,8 +35,10 @@ impl<'a> StatusBar<'a> {
         self.right = spans;
         self
     }
+}
 
-    pub fn render(&self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
+impl<'a> Widget for StatusBar<'a> {
+    fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([

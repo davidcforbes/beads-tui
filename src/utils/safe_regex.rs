@@ -39,33 +39,34 @@ pub fn validate_regex_safety(pattern: &str) -> Result<(), String> {
     // Detect patterns like (...)+ or (...)* where ... contains quantifiers
     // This catches (a+)+ style catastrophic backtracking
     let chars: Vec<char> = pattern.chars().collect();
-    let mut paren_depth = 0;
-    let mut has_quantifier_in_group = false;
+    let mut paren_stack = Vec::new();
+    let mut has_quantifier_in_current_group = false;
 
     for i in 0..chars.len() {
         match chars[i] {
             '(' if i == 0 || chars[i - 1] != '\\' => {
-                paren_depth += 1;
-                has_quantifier_in_group = false;
+                paren_stack.push(has_quantifier_in_current_group);
+                has_quantifier_in_current_group = false;
             }
             ')' if i == 0 || chars[i - 1] != '\\' => {
-                if paren_depth > 0 {
-                    paren_depth -= 1;
-
+                if let Some(prev_has_quantifier) = paren_stack.pop() {
                     // Check if next char is a quantifier and group had quantifiers
                     if i + 1 < chars.len()
                         && matches!(chars[i + 1], '+' | '*' | '?' | '{')
-                        && has_quantifier_in_group
+                        && has_quantifier_in_current_group
                     {
                         return Err(format!(
                             "Nested quantifier detected: group with quantifiers followed by {}",
                             chars[i + 1]
                         ));
                     }
+                    // A group counts as a quantifier if it is quantified
+                    let group_is_quantified = i + 1 < chars.len() && matches!(chars[i+1], '+' | '*' | '?' | '{');
+                    has_quantifier_in_current_group = prev_has_quantifier || group_is_quantified;
                 }
             }
-            '+' | '*' | '?' | '{' if paren_depth > 0 && (i == 0 || chars[i - 1] != '\\') => {
-                has_quantifier_in_group = true;
+            '+' | '*' | '?' | '{' if !paren_stack.is_empty() && (i == 0 || chars[i - 1] != '\\') => {
+                has_quantifier_in_current_group = true;
             }
             _ => {}
         }

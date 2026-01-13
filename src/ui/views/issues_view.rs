@@ -117,7 +117,7 @@ impl IssuesViewState {
     /// Enter detail view for the currently selected issue
     pub fn enter_detail_view(&mut self) {
         if let Some(issue) = self.search_state.selected_issue() {
-            self.selected_issue = Some(issue.clone());
+            self.selected_issue = Some(Issue::clone(issue));
             self.view_mode = IssuesViewMode::Detail;
         }
     }
@@ -125,7 +125,7 @@ impl IssuesViewState {
     /// Enter edit mode for the currently selected issue
     pub fn enter_edit_mode(&mut self) {
         if let Some(issue) = self.search_state.selected_issue() {
-            self.selected_issue = Some(issue.clone());
+            self.selected_issue = Some(Issue::clone(issue));
             self.editor_state = Some(IssueEditorState::new(issue));
             self.view_mode = IssuesViewMode::Edit;
         }

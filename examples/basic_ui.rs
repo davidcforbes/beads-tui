@@ -193,13 +193,22 @@ trait CustomRender {
 
 impl<'a> CustomRender for TabBar<'a> {
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        TabBar::render(self, area, buf);
+        // Use clone to get an owned version that implements Widget
+        let widget = TabBar::new(self.tabs.clone())
+            .selected(self.selected);
+        // If block was available, we'd set it too, but it's Option<Block<'a>>
+        // For simplicity in this example, just render a new one
+        Widget::render(widget, area, buf);
     }
 }
 
 impl<'a> CustomRender for StatusBar<'a> {
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        StatusBar::render(self, area, buf);
+        let widget = StatusBar::new()
+            .left(self.left.clone())
+            .center(self.center.clone())
+            .right(self.right.clone());
+        Widget::render(widget, area, buf);
     }
 }
 

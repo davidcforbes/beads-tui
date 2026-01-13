@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph, Widget, Wrap},
+    widgets::{Block, Borders, Clear, Paragraph, StatefulWidget, Widget, Wrap},
 };
 
 /// Dialog button
@@ -323,6 +323,14 @@ impl<'a> Dialog<'a> {
             width: width.min(area.width),
             height: height.min(area.height),
         }
+    }
+}
+
+impl<'a> StatefulWidget for Dialog<'a> {
+    type State = DialogState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        self.render_with_state(area, buf, state);
     }
 }
 

@@ -7,8 +7,8 @@ use ratatui::{
 };
 
 pub struct TabBar<'a> {
-    tabs: Vec<&'a str>,
-    selected: usize,
+    pub tabs: Vec<&'a str>,
+    pub selected: usize,
     block: Option<Block<'a>>,
 }
 
@@ -30,8 +30,10 @@ impl<'a> TabBar<'a> {
         self.block = Some(block);
         self
     }
+}
 
-    pub fn render(&self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
+impl<'a> Widget for TabBar<'a> {
+    fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
         let items: Vec<ListItem> = self
             .tabs
             .iter()
