@@ -10,7 +10,6 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
 };
-use std::collections::HashMap;
 
 /// State for Kanban board view
 #[derive(Debug)]
@@ -23,8 +22,6 @@ pub struct KanbanViewState {
     selected_column: usize,
     /// Selected card index within column
     selected_card: usize,
-    /// Scroll offset for each column (column_index -> scroll_offset)
-    column_scrolls: HashMap<usize, usize>,
     /// Card display mode
     card_mode: CardMode,
 }
@@ -37,7 +34,6 @@ impl KanbanViewState {
             issues,
             selected_column: 0,
             selected_card: 0,
-            column_scrolls: HashMap::new(),
             card_mode: CardMode::TwoLine,
         }
     }
