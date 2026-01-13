@@ -163,6 +163,7 @@ dependencies = [
  "predicates",
  "proptest",
  "ratatui",
+ "regex",
  "serde",
  "serde_json",
  "serde_yaml",

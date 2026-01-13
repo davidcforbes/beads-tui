@@ -10,6 +10,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
 };
+use regex::Regex;
 
 /// View type for smart views
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,6 +66,7 @@ pub struct SearchInterfaceState {
     current_view: ViewType,
     current_user: Option<String>,
     show_help: bool,
+    regex_enabled: bool,
 }
 
 /// Search scope for filtering
@@ -109,6 +111,7 @@ impl SearchInterfaceState {
             current_view: ViewType::All,
             current_user: None,
             show_help: true,
+            regex_enabled: false,
         }
     }
 
@@ -206,6 +209,17 @@ impl SearchInterfaceState {
         self.current_user.as_deref()
     }
 
+    /// Toggle regex search mode
+    pub fn toggle_regex(&mut self) {
+        self.regex_enabled = !self.regex_enabled;
+        self.update_filtered_issues();
+    }
+
+    /// Check if regex search is enabled
+    pub fn is_regex_enabled(&self) -> bool {
+        self.regex_enabled
+    }
+
     /// Set all issues
     pub fn set_issues(&mut self, issues: Vec<Issue>) {
         self.all_issues = issues;
@@ -232,7 +246,12 @@ impl SearchInterfaceState {
 
     /// Update filtered issues based on search query, scope, column filters, and view
     pub fn update_filtered_issues(&mut self) {
-        let query = self.search_state.query().to_lowercase();
+        // Don't lowercase query when regex is enabled (regex handles case-insensitivity)
+        let query = if self.regex_enabled {
+            self.search_state.query().to_string()
+        } else {
+            self.search_state.query().to_lowercase()
+        };
         let column_filters = self.list_state.column_filters();
         let filters_enabled = self.list_state.filters_enabled();
 
@@ -313,10 +332,10 @@ impl SearchInterfaceState {
     /// Check if an issue matches the search query based on scope
     fn matches_query(&self, issue: &Issue, query: &str) -> bool {
         match self.search_scope {
-            SearchScope::Title => issue.title.to_lowercase().contains(query),
+            SearchScope::Title => self.matches_text(&issue.title, query),
             SearchScope::Description => {
                 if let Some(ref desc) = issue.description {
-                    desc.to_lowercase().contains(query)
+                    self.matches_text(desc, query)
                 } else {
                     false
                 }
@@ -324,29 +343,48 @@ impl SearchInterfaceState {
             SearchScope::Notes => issue
                 .notes
                 .iter()
-                .any(|note| note.content.to_lowercase().contains(query)),
+                .any(|note| self.matches_text(&note.content, query)),
             SearchScope::All => {
-                issue.title.to_lowercase().contains(query)
+                self.matches_text(&issue.title, query)
                     || issue
                         .description
                         .as_ref()
-                        .map(|d| d.to_lowercase().contains(query))
+                        .map(|d| self.matches_text(d, query))
                         .unwrap_or(false)
-                    || issue.id.to_lowercase().contains(query)
+                    || self.matches_text(&issue.id, query)
                     || issue
                         .assignee
                         .as_ref()
-                        .map(|a| a.to_lowercase().contains(query))
+                        .map(|a| self.matches_text(a, query))
                         .unwrap_or(false)
                     || issue
                         .labels
                         .iter()
-                        .any(|l| l.to_lowercase().contains(query))
+                        .any(|l| self.matches_text(l, query))
                     || issue
                         .notes
                         .iter()
-                        .any(|note| note.content.to_lowercase().contains(query))
+                        .any(|note| self.matches_text(&note.content, query))
             }
+        }
+    }
+
+    /// Helper method to match text using either regex or substring matching
+    /// Falls back to substring matching if regex compilation fails
+    fn matches_text(&self, text: &str, query: &str) -> bool {
+        if self.regex_enabled {
+            // Try to compile and match regex
+            // Case-insensitive by default, fallback to substring if regex is invalid
+            match Regex::new(&format!("(?i){}", query)) {
+                Ok(re) => re.is_match(text),
+                Err(_) => {
+                    // Fallback to substring matching if regex is invalid
+                    text.to_lowercase().contains(&query.to_lowercase())
+                }
+            }
+        } else {
+            // Use substring matching
+            text.to_lowercase().contains(&query.to_lowercase())
         }
     }
 
@@ -516,7 +554,7 @@ impl<'a> StatefulWidget for SearchInterfaceView<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::beads::models::{IssueStatus, IssueType, Priority};
+    use crate::beads::models::{IssueStatus, IssueType, Note, Priority};
     use chrono::Utc;
 
     fn create_test_issues() -> Vec<Issue> {
@@ -2250,5 +2288,223 @@ mod tests {
         assert_eq!(state.search_state().query(), "");
         assert!(state.list_state().column_filters().status.is_empty());
         assert_eq!(state.result_count(), 3); // All issues visible
+    }
+
+    #[test]
+    fn test_regex_toggle() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Initially regex should be disabled
+        assert!(!state.is_regex_enabled());
+
+        // Toggle on
+        state.toggle_regex();
+        assert!(state.is_regex_enabled());
+
+        // Toggle off
+        state.toggle_regex();
+        assert!(!state.is_regex_enabled());
+    }
+
+    #[test]
+    fn test_regex_basic_pattern() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Test feature #123".to_string();
+        issues[1].title = "Another test case".to_string();
+        issues[2].title = "No match here".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable regex and search for pattern "test.*#\d+"
+        state.toggle_regex();
+        state.search_state_mut().set_query("test.*#\\d+");
+        state.update_filtered_issues();
+
+        // Should match only the first issue
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "Test feature #123");
+    }
+
+    #[test]
+    fn test_regex_case_insensitive() {
+        let mut issues = create_test_issues();
+        issues[0].title = "UPPERCASE TEST".to_string();
+        issues[1].title = "lowercase test".to_string();
+        issues[2].title = "MiXeD CaSe TeSt".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable regex and search for "test" (should be case-insensitive)
+        state.toggle_regex();
+        state.search_state_mut().set_query("test");
+        state.update_filtered_issues();
+
+        // Should match all three issues
+        assert_eq!(state.result_count(), 3);
+    }
+
+    #[test]
+    fn test_regex_invalid_fallback() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Test with [brackets]".to_string();
+        issues[1].title = "No brackets here".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable regex and use invalid regex pattern (unclosed bracket)
+        state.toggle_regex();
+        state.search_state_mut().set_query("[bracket");
+        state.update_filtered_issues();
+
+        // Should fallback to substring matching and find the first issue
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "Test with [brackets]");
+    }
+
+    #[test]
+    fn test_regex_search_scope_title() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Feature ABC-123".to_string();
+        issues[0].description = Some("Description XYZ-456".to_string());
+        issues[1].title = "Another task".to_string();
+        issues[1].description = Some("Contains ABC-789".to_string());
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable regex, set scope to Title, search for ABC-\d+
+        state.toggle_regex();
+        state.set_search_scope(SearchScope::Title);
+        state.search_state_mut().set_query("ABC-\\d+");
+        state.update_filtered_issues();
+
+        // Should match only the first issue (title match)
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "Feature ABC-123");
+    }
+
+    #[test]
+    fn test_regex_search_scope_description() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Feature ABC-123".to_string();
+        issues[0].description = Some("Simple description".to_string());
+        issues[1].title = "Another task".to_string();
+        issues[1].description = Some("Contains ABC-789".to_string());
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable regex, set scope to Description, search for ABC-\d+
+        state.toggle_regex();
+        state.set_search_scope(SearchScope::Description);
+        state.search_state_mut().set_query("ABC-\\d+");
+        state.update_filtered_issues();
+
+        // Should match only the second issue (description match)
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "Another task");
+    }
+
+    #[test]
+    fn test_regex_search_scope_all() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Feature ABC-123".to_string();
+        issues[0].description = Some("Simple description".to_string());
+        issues[1].title = "Another task".to_string();
+        issues[1].description = Some("Contains ABC-789".to_string());
+        issues[2].title = "Third issue".to_string();
+        issues[2].description = Some("No pattern here".to_string());
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable regex, set scope to All, search for ABC-\d+
+        state.toggle_regex();
+        state.set_search_scope(SearchScope::All);
+        state.search_state_mut().set_query("ABC-\\d+");
+        state.update_filtered_issues();
+
+        // Should match both issues (one in title, one in description)
+        assert_eq!(state.result_count(), 2);
+    }
+
+    #[test]
+    fn test_regex_special_characters() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Issue (priority: high)".to_string();
+        issues[1].title = "Task [status: open]".to_string();
+        issues[2].title = "Bug {id: 123}".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable regex and search for content in parentheses
+        state.toggle_regex();
+        state.search_state_mut().set_query("\\(.*?\\)");
+        state.update_filtered_issues();
+
+        // Should match only the first issue
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "Issue (priority: high)");
+    }
+
+    #[test]
+    fn test_regex_anchors() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Feature: new functionality".to_string();
+        issues[1].title = "Not a feature".to_string();
+        issues[2].title = "feature in middle".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable regex and search for "feature" at start of line
+        state.toggle_regex();
+        state.search_state_mut().set_query("^feature");
+        state.update_filtered_issues();
+
+        // Should match issues starting with "feature" (case-insensitive)
+        assert_eq!(state.result_count(), 2);
+    }
+
+    #[test]
+    fn test_regex_disabled_uses_substring() {
+        let mut issues = create_test_issues();
+        issues[0].title = "Test.*pattern".to_string();
+        issues[1].title = "Normal text".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Don't enable regex, search for ".*" (literal string, not regex)
+        state.search_state_mut().set_query(".*");
+        state.update_filtered_issues();
+
+        // Should match the first issue as substring match (not as regex wildcard)
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].title, "Test.*pattern");
+    }
+
+    #[test]
+    fn test_regex_notes_search() {
+        let mut issues = create_test_issues();
+        
+        // Add notes with patterns
+        issues[0].notes.push(Note {
+            timestamp: chrono::Utc::now(),
+            author: "test".to_string(),
+            content: "Note with ERROR-123 code".to_string(),
+        });
+        issues[1].notes.push(Note {
+            timestamp: chrono::Utc::now(),
+            author: "test".to_string(),
+            content: "Normal note".to_string(),
+        });
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable regex, set scope to Notes, search for ERROR-\d+
+        state.toggle_regex();
+        state.set_search_scope(SearchScope::Notes);
+        state.search_state_mut().set_query("ERROR-\\d+");
+        state.update_filtered_issues();
+
+        // Should match only the first issue
+        assert_eq!(state.result_count(), 1);
     }
 }
