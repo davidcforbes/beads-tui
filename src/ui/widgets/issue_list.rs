@@ -188,8 +188,6 @@ struct HierarchyInfo {
     prefix: String,
     /// Whether this is the last child at its level
     is_last: bool,
-    /// Child index among siblings (0-based), or None if root
-    child_index: Option<usize>,
 }
 
 /// Build a map of issue IDs to their hierarchy information
@@ -228,56 +226,48 @@ fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, H
         depth: usize,
         parent_prefixes: &[bool],
         is_last: bool,
-        child_index: Option<usize>,
         children_map: &HashMap<String, Vec<String>>,
         hierarchy_map: &mut HashMap<String, HierarchyInfo>,
     ) {
         // Build prefix for this node
         let mut prefix = String::new();
-
+        
         // Add parent prefixes
         for (i, &has_sibling_below) in parent_prefixes.iter().enumerate() {
             if i < parent_prefixes.len() {
                 prefix.push_str(if has_sibling_below { "│   " } else { "    " });
             }
         }
-
+        
         // Add this node's connector
         if depth > 0 {
             prefix.push_str(if is_last { "└── " } else { "├── " });
         }
-
-        // Add child numbering if not root
-        if let Some(idx) = child_index {
-            prefix.push_str(&format!(".{} ", idx + 1));
-        }
-
+        
         hierarchy_map.insert(
             issue_id.to_string(),
             HierarchyInfo {
                 depth,
                 prefix,
                 is_last,
-                child_index,
             },
         );
-
+        
         // Process children
         if let Some(children) = children_map.get(issue_id) {
             let child_count = children.len();
             for (idx, child_id) in children.iter().enumerate() {
                 let child_is_last = idx == child_count - 1;
-
+                
                 // Build new parent prefixes for children
                 let mut new_prefixes = parent_prefixes.to_vec();
                 new_prefixes.push(!is_last);
-
+                
                 build_tree(
                     child_id,
                     depth + 1,
                     &new_prefixes,
                     child_is_last,
-                    Some(idx),
                     children_map,
                     hierarchy_map,
                 );
@@ -288,7 +278,7 @@ fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, H
     // Build tree for each root
     for (idx, root_id) in roots.iter().enumerate() {
         let is_last_root = idx == roots.len() - 1;
-        build_tree(root_id, 0, &[], is_last_root, None, &children_map, &mut hierarchy_map);
+        build_tree(root_id, 0, &[], is_last_root, &children_map, &mut hierarchy_map);
     }
     
     hierarchy_map
@@ -834,6 +824,15 @@ impl<'a> IssueList<'a> {
         }
     }
 
+    fn status_symbol(status: &IssueStatus) -> &'static str {
+        match status {
+            IssueStatus::Open => "○",
+            IssueStatus::InProgress => "◐",
+            IssueStatus::Blocked => "◩",
+            IssueStatus::Closed => "✓",
+        }
+    }
+
     /// Format a date for display in table cells
     fn format_date(date: &chrono::DateTime<chrono::Utc>) -> String {
         use chrono::Local;
@@ -879,9 +878,9 @@ impl<'a> IssueList<'a> {
                     issue.title.clone()
                 };
 
-                // Add tree prefix if this issue is in the hierarchy
+                // Add tree prefix and status symbol if this issue is in the hierarchy
                 let title_with_tree = if let Some(hierarchy_info) = hierarchy_map.get(&issue.id) {
-                    format!("{}{}", hierarchy_info.prefix, title_text)
+                    format!("{}{} {}", hierarchy_info.prefix, Self::status_symbol(&issue.status), title_text)
                 } else {
                     title_text
                 };
@@ -2032,14 +2031,11 @@ mod tests {
         let parent_info = hierarchy_map.get("parent").unwrap();
         assert_eq!(parent_info.depth, 0);
         assert_eq!(parent_info.prefix, ""); // Root has no prefix
-        assert_eq!(parent_info.child_index, None); // Root has no index
-
-        // Child should be at depth 1 with tree prefix and numbering
+        
+        // Child should be at depth 1 with tree prefix
         let child_info = hierarchy_map.get("child").unwrap();
         assert_eq!(child_info.depth, 1);
         assert!(child_info.prefix.contains("└──") || child_info.prefix.contains("├──"));
-        assert!(child_info.prefix.contains(".1")); // First child should have .1
-        assert_eq!(child_info.child_index, Some(0)); // First child has index 0
     }
 
     #[test]
@@ -2124,22 +2120,14 @@ mod tests {
         assert_eq!(hierarchy_map.get("child1").unwrap().depth, 1);
         assert_eq!(hierarchy_map.get("child2").unwrap().depth, 1);
         assert_eq!(hierarchy_map.get("child3").unwrap().depth, 1);
-
-        // Check child numbering
-        let child1_info = hierarchy_map.get("child1").unwrap();
-        assert!(child1_info.prefix.contains(".1")); // First child
-        assert_eq!(child1_info.child_index, Some(0));
-        assert!(child1_info.prefix.contains("├──")); // Not last
-
-        let child2_info = hierarchy_map.get("child2").unwrap();
-        assert!(child2_info.prefix.contains(".2")); // Second child
-        assert_eq!(child2_info.child_index, Some(1));
-        assert!(child2_info.prefix.contains("├──")); // Not last
-
-        let child3_info = hierarchy_map.get("child3").unwrap();
-        assert!(child3_info.prefix.contains(".3")); // Third child
-        assert_eq!(child3_info.child_index, Some(2));
-        assert!(child3_info.prefix.contains("└──")); // Last child
+        
+        // Last child should have └── prefix
+        let child3_prefix = &hierarchy_map.get("child3").unwrap().prefix;
+        assert!(child3_prefix.contains("└──"));
+        
+        // Other children should have ├── prefix
+        let child1_prefix = &hierarchy_map.get("child1").unwrap().prefix;
+        assert!(child1_prefix.contains("├──"));
     }
 
     #[test]
@@ -2205,17 +2193,12 @@ mod tests {
         assert_eq!(hierarchy_map.get("root").unwrap().depth, 0);
         assert_eq!(hierarchy_map.get("level1").unwrap().depth, 1);
         assert_eq!(hierarchy_map.get("level2").unwrap().depth, 2);
-
-        // Check child numbering
-        let level1_info = hierarchy_map.get("level1").unwrap();
-        assert!(level1_info.prefix.contains(".1")); // First child of root
-        assert_eq!(level1_info.child_index, Some(0));
-
-        let level2_info = hierarchy_map.get("level2").unwrap();
-        assert!(level2_info.prefix.contains(".1")); // First child of level1
-        assert_eq!(level2_info.child_index, Some(0));
+        
+        // Check prefixes contain tree characters
+        let level2_prefix = &hierarchy_map.get("level2").unwrap().prefix;
+        assert!(level2_prefix.contains("└──") || level2_prefix.contains("├──"));
         // Should have indentation from parent levels
-        assert!(level2_info.prefix.len() > 4);
+        assert!(level2_prefix.len() > 4);
     }
 
     #[test]
