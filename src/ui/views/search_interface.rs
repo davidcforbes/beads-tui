@@ -14,7 +14,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, StatefulWidget, Widget},
 };
-use regex::Regex;
+use crate::utils::safe_regex_match;
 
 /// View type for smart views
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -645,15 +645,12 @@ impl SearchInterfaceState {
             // Use fuzzy matching - returns Some(score) if there's a match
             self.fuzzy_matcher.fuzzy_match(text, query).is_some()
         } else if self.regex_enabled {
-            // Try to compile and match regex
-            // Case-insensitive by default, fallback to substring if regex is invalid
-            match Regex::new(&format!("(?i){}", query)) {
-                Ok(re) => re.is_match(text),
-                Err(_) => {
-                    // Fallback to substring matching if regex is invalid
-                    text.to_lowercase().contains(&query.to_lowercase())
-                }
-            }
+            // Use safe regex matching with DoS protection
+            // Returns None if regex is unsafe or invalid, then fallback to substring
+            safe_regex_match(query, text, true).unwrap_or_else(|| {
+                // Fallback to substring matching if regex is unsafe or invalid
+                text.to_lowercase().contains(&query.to_lowercase())
+            })
         } else {
             // Use substring matching
             text.to_lowercase().contains(&query.to_lowercase())
