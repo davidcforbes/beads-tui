@@ -29,8 +29,9 @@ Provide a small harness in `tests/support/` with helpers for:
 
 ### Snapshot Backend
 Use a test backend for ratatui and a snapshot library such as `insta`.
-Store snapshots under `tests/ui/snapshots/` and include size and theme in
-snapshot names.
+Store snapshots under `tests/snapshots/` and include size and theme in
+snapshot names. Update snapshots only when `INSTA_UPDATE=always` is set
+or when the test scripts pass the update flag.
 
 ### CLI Isolation
 Default to direct storage mode to avoid cross-test interference:
@@ -47,6 +48,7 @@ Add a separate test run that enables the daemon for coverage.
 | `BEADS_TUI_TEST_MODE` | Disable animations and timing-dependent UI |
 | `BEADS_TUI_SNAPSHOT_DIR` | Override snapshot output location |
 | `BEADS_TUI_FIXTURE` | Fixture name for scripts and harness helpers |
+| `INSTA_UPDATE` | Control snapshot updates (`always` to rewrite) |
 
 ## Directory Layout
 

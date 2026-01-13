@@ -1,5 +1,4 @@
-mod common;
-use common::TestHarness;
+use crate::common::TestHarness;
 
 #[tokio::test]
 async fn test_memory_spike_large_descriptions() {

@@ -1,5 +1,4 @@
-mod common;
-use common::TestHarness;
+use crate::common::TestHarness;
 use std::process::Command;
 use std::thread;
 use std::time::Duration;

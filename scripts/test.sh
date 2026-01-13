@@ -77,7 +77,7 @@ Examples:
 Test Suites:
   unit            Unit tests (cargo test --lib)
   integration     Integration tests (cargo test --test)
-  snapshot        Snapshot tests (cargo test --lib snapshot)
+  snapshot        Snapshot tests (cargo test --test integration ui_snapshots)
   property        Property-based tests (cargo test --lib proptest)
   all             All test suites (default)
 EOF
@@ -133,6 +133,7 @@ fi
 if [ "$UPDATE_SNAPSHOTS" = true ]; then
     info "Snapshot update mode enabled"
     export UPDATE_SNAPSHOTS=1
+    export INSTA_UPDATE=always
 fi
 
 # Build base cargo command
@@ -169,8 +170,8 @@ case $SUITE in
 
     snapshot)
         section "Running Snapshot Tests"
-        info "Command: cargo $CARGO_ARGS --lib snapshot"
-        if ! cargo $CARGO_ARGS --lib snapshot; then
+        info "Command: cargo $CARGO_ARGS --test integration ui_snapshots"
+        if ! cargo $CARGO_ARGS --test integration ui_snapshots; then
             EXIT_CODE=1
         fi
         ;;
@@ -203,7 +204,7 @@ case $SUITE in
 
         # Snapshot tests
         info "3/4 - Snapshot tests"
-        if ! cargo $CARGO_ARGS --lib snapshot; then
+        if ! cargo $CARGO_ARGS --test integration ui_snapshots; then
             EXIT_CODE=1
         fi
         echo ""

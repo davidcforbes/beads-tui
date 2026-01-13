@@ -1,7 +1,6 @@
 //! Integration tests for beads-tui
 
-mod common;
-use common::TestHarness;
+use crate::common::TestHarness;
 use beads_tui::beads::BeadsClient;
 use std::process::Command;
 

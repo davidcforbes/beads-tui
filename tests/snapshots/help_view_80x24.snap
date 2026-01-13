@@ -1,0 +1,28 @@
+---
+source: tests/integration/ui_snapshots.rs
+expression: rendered
+---
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           Help & Keyboard Shortcuts                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+┌Global────────────────────────────────────────────────────────────────────────┐
+│Global Shortcuts                                                              │
+│                                                                              │
+│q         - Quit application                                                  │
+│Tab       - Next tab                                                          │
+│Shift+Tab - Previous tab                                                      │
+│1-5       - Jump to tab directly                                              │
+│?         - Toggle help                                                       │
+│Ctrl+C    - Force quit                                                        │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘

@@ -91,6 +91,7 @@ if ($Fixture) {
 if ($UpdateSnapshots) {
     Write-Info "Snapshot update mode enabled"
     $env:UPDATE_SNAPSHOTS = "1"
+    $env:INSTA_UPDATE = "always"
 }
 
 # Build base cargo command
@@ -127,7 +128,7 @@ switch ($Suite) {
 
     "snapshot" {
         Write-Section "Running Snapshot Tests"
-        $snapshotArgs = $cargoArgs + @("--lib", "snapshot")
+        $snapshotArgs = $cargoArgs + @("--test", "integration", "ui_snapshots")
         Write-Info "Command: cargo $($snapshotArgs -join ' ')"
         & cargo @snapshotArgs
         if ($LASTEXITCODE -ne 0) { $exitCode = 1 }
@@ -163,7 +164,7 @@ switch ($Suite) {
 
         # Snapshot tests
         Write-Info "3/4 - Snapshot tests"
-        $snapshotArgs = $cargoArgs + @("--lib", "snapshot")
+        $snapshotArgs = $cargoArgs + @("--test", "integration", "ui_snapshots")
         & cargo @snapshotArgs
         if ($LASTEXITCODE -ne 0) { $exitCode = 1 }
 
@@ -183,6 +184,7 @@ if ($Fixture) {
 }
 if ($UpdateSnapshots) {
     Remove-Item Env:\UPDATE_SNAPSHOTS -ErrorAction SilentlyContinue
+    Remove-Item Env:\INSTA_UPDATE -ErrorAction SilentlyContinue
 }
 
 # Summary

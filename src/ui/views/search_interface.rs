@@ -489,10 +489,23 @@ impl SearchInterfaceState {
         &self.filter_menu_state
     }
 
-    /// Set all issues
+    /// Set all issues - preserves selection by issue ID across external updates
     pub fn set_issues(&mut self, issues: Vec<Issue>) {
+        // Save currently selected issue ID before updating
+        let selected_issue_id = self.selected_issue().map(|issue| issue.id.clone());
+
+        // Update issues and regenerate filtered list
         self.all_issues = issues;
         self.update_filtered_issues();
+
+        // Restore selection by finding the same issue ID in the new filtered list
+        if let Some(issue_id) = selected_issue_id {
+            let new_index = self.filtered_issues
+                .iter()
+                .position(|issue| issue.id == issue_id);
+
+            self.list_state.select(new_index);
+        }
     }
 
     /// Clear all filters and reset to default view
