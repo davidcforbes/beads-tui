@@ -1,9 +1,10 @@
 /// Application state management
 use crate::beads::BeadsClient;
 use crate::ui::views::{
-    compute_label_stats, DatabaseStats, DatabaseStatus, DatabaseViewState, DependenciesViewState,
-    GanttViewState, HelpSection, IssuesViewState, KanbanViewState, LabelStats,
-    LabelsViewState, PertViewState,
+    compute_label_stats, BondingInterfaceState, DatabaseStats, DatabaseStatus, DatabaseViewState,
+    DependenciesViewState, Formula, FormulaBrowserState, GanttViewState, HelpSection,
+    HistoryOpsState, IssuesViewState, KanbanViewState, LabelStats, LabelsViewState, PertViewState,
+    PourWizardState, WispManagerState,
 };
 use crate::ui::widgets::DialogState;
 
@@ -38,10 +39,18 @@ pub struct AppState {
     pub pert_view_state: PertViewState,
     pub gantt_view_state: GanttViewState,
     pub kanban_view_state: KanbanViewState,
-    pub label_stats: Vec<LabelStats>,
     pub database_stats: DatabaseStats,
     pub database_status: DatabaseStatus,
     pub database_view_state: DatabaseViewState,
+    pub formulas: Vec<Formula>,
+    pub formula_browser_state: FormulaBrowserState,
+    pub pour_wizard_state: Option<PourWizardState>,
+    pub wisp_manager_state: WispManagerState,
+    pub bonding_interface_state: BondingInterfaceState,
+    pub history_ops_state: HistoryOpsState,
+    pub molecular_tabs: Vec<&'static str>,
+    pub selected_molecular_tab: usize,
+    pub label_stats: Vec<LabelStats>,
     /// Dirty flag to track whether UI needs redrawing
     dirty: bool,
     /// Performance profiling statistics
@@ -83,10 +92,33 @@ impl AppState {
         // Check daemon status
         let daemon_running = Self::check_daemon_status_sync(&beads_client);
 
+        let formulas = vec![
+            Formula {
+                name: "Feature".to_string(),
+                description: "Standard feature template with estimate and labels".to_string(),
+                variables: vec!["title".to_string(), "description".to_string(), "estimate".to_string()],
+            },
+            Formula {
+                name: "Bug".to_string(),
+                description: "Bug report template with steps to reproduce and priority".to_string(),
+                variables: vec!["title".to_string(), "repro_steps".to_string(), "priority".to_string()],
+            },
+            Formula {
+                name: "Chore".to_string(),
+                description: "Maintenance task or internal improvement".to_string(),
+                variables: vec!["title".to_string(), "details".to_string()],
+            },
+            Formula {
+                name: "Release".to_string(),
+                description: "Release checklist and deployment steps".to_string(),
+                variables: vec!["version".to_string(), "date".to_string()],
+            },
+        ];
+
         Self {
             should_quit: false,
             selected_tab: 0,
-            tabs: vec!["Issues", "Dependencies", "Labels", "PERT", "Gantt", "Kanban", "Database", "Help"],
+            tabs: vec!["Issues", "Dependencies", "Labels", "PERT", "Gantt", "Kanban", "Molecular", "Database", "Help"],
             beads_client,
             issues_view_state: IssuesViewState::new(issues.clone()),
             dependencies_view_state: DependenciesViewState::new(),
@@ -98,6 +130,14 @@ impl AppState {
             database_stats,
             database_status: DatabaseStatus::Ready,
             database_view_state: DatabaseViewState::new(),
+            formulas,
+            formula_browser_state: FormulaBrowserState::new(),
+            pour_wizard_state: None,
+            wisp_manager_state: WispManagerState::new(),
+            bonding_interface_state: BondingInterfaceState::new(),
+            history_ops_state: HistoryOpsState::new(),
+            molecular_tabs: vec!["Formulas", "Wisps", "Bonds", "Squash/Burn"],
+            selected_molecular_tab: 0,
             dirty: true, // Initial render required
             perf_stats: PerfStats::new(),
             show_perf_stats: false,
@@ -284,7 +324,7 @@ mod tests {
         AppState {
             should_quit: false,
             selected_tab: 0,
-            tabs: vec!["Issues", "Dependencies", "Labels", "PERT", "Gantt", "Kanban", "Database", "Help"],
+            tabs: vec!["Issues", "Dependencies", "Labels", "PERT", "Gantt", "Kanban", "Molecular", "Database", "Help"],
             beads_client: BeadsClient::new(),
             issues_view_state: IssuesViewState::new(vec![]),
             dependencies_view_state: DependenciesViewState::new(),
@@ -293,6 +333,14 @@ mod tests {
             gantt_view_state: GanttViewState::new(vec![]),
             kanban_view_state: KanbanViewState::new(vec![]),
             database_view_state: DatabaseViewState::new(),
+            formulas: vec![],
+            formula_browser_state: FormulaBrowserState::new(),
+            pour_wizard_state: None,
+            wisp_manager_state: WispManagerState::new(),
+            bonding_interface_state: BondingInterfaceState::new(),
+            history_ops_state: HistoryOpsState::new(),
+            molecular_tabs: vec![],
+            selected_molecular_tab: 0,
             label_stats: vec![],
             database_stats: DatabaseStats {
                 total_issues: 0,
@@ -338,7 +386,7 @@ mod tests {
     #[test]
     fn test_next_tab_wraps_around() {
         let mut state = create_test_app_state();
-        state.selected_tab = 7; // Last tab (Help)
+        state.selected_tab = 8; // Last tab (Help)
 
         state.next_tab();
         assert_eq!(state.selected_tab, 0); // Wraps to first tab
@@ -360,7 +408,7 @@ mod tests {
         state.selected_tab = 0; // First tab
 
         state.previous_tab();
-        assert_eq!(state.selected_tab, 7); // Wraps to last tab
+        assert_eq!(state.selected_tab, 8); // Wraps to last tab
     }
 
     // Dirty flag tests
@@ -578,7 +626,7 @@ mod tests {
         let state = AppState::default();
         assert!(!state.should_quit);
         assert_eq!(state.selected_tab, 0);
-        assert_eq!(state.tabs.len(), 8);
+        assert_eq!(state.tabs.len(), 9);
     }
 
     #[test]
@@ -586,7 +634,7 @@ mod tests {
         let mut state = create_test_app_state();
 
         // Navigate through all tabs
-        for i in 1..8 {
+        for i in 1..9 {
             state.next_tab();
             assert_eq!(state.selected_tab, i);
         }
@@ -599,17 +647,17 @@ mod tests {
     #[test]
     fn test_previous_tab_multiple_times() {
         let mut state = create_test_app_state();
-        state.selected_tab = 7; // Start at last tab
+        state.selected_tab = 8; // Start at last tab
 
         // Navigate backward through all tabs
-        for i in (0..7).rev() {
+        for i in (0..8).rev() {
             state.previous_tab();
             assert_eq!(state.selected_tab, i);
         }
 
         // Previous should wrap to last
         state.previous_tab();
-        assert_eq!(state.selected_tab, 7);
+        assert_eq!(state.selected_tab, 8);
     }
 
     #[test]
@@ -880,15 +928,16 @@ mod tests {
     #[test]
     fn test_tabs_count() {
         let state = create_test_app_state();
-        assert_eq!(state.tabs.len(), 8);
+        assert_eq!(state.tabs.len(), 9);
         assert_eq!(state.tabs[0], "Issues");
         assert_eq!(state.tabs[1], "Dependencies");
         assert_eq!(state.tabs[2], "Labels");
         assert_eq!(state.tabs[3], "PERT");
         assert_eq!(state.tabs[4], "Gantt");
         assert_eq!(state.tabs[5], "Kanban");
-        assert_eq!(state.tabs[6], "Database");
-        assert_eq!(state.tabs[7], "Help");
+        assert_eq!(state.tabs[6], "Molecular");
+        assert_eq!(state.tabs[7], "Database");
+        assert_eq!(state.tabs[8], "Help");
     }
 
     #[test]

@@ -2,6 +2,7 @@
 
 use crate::beads::models::{Issue, IssueStatus};
 use crate::ui::widgets::{IssueList, IssueListState, SearchInput, SearchInputState};
+use chrono::{Duration, Utc};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
@@ -21,6 +22,10 @@ pub enum ViewType {
     Blocked,
     /// My issues (assigned to current user)
     MyIssues,
+    /// Recently updated issues (within last 7 days)
+    Recently,
+    /// Stale issues (not updated in 30+ days)
+    Stale,
 }
 
 impl ViewType {
@@ -31,12 +36,21 @@ impl ViewType {
             Self::Ready => "Ready",
             Self::Blocked => "Blocked",
             Self::MyIssues => "My Issues",
+            Self::Recently => "Recently Updated",
+            Self::Stale => "Stale",
         }
     }
 
     /// Get all view types
     pub fn all() -> Vec<ViewType> {
-        vec![Self::All, Self::Ready, Self::Blocked, Self::MyIssues]
+        vec![
+            Self::All,
+            Self::Ready,
+            Self::Blocked,
+            Self::MyIssues,
+            Self::Recently,
+            Self::Stale,
+        ]
     }
 }
 
@@ -130,6 +144,11 @@ impl SearchInterfaceState {
         &self.filtered_issues
     }
 
+    /// Get all issues
+    pub fn all_issues(&self) -> &[Issue] {
+        &self.all_issues
+    }
+
     /// Get search scope
     pub fn search_scope(&self) -> SearchScope {
         self.search_scope
@@ -169,7 +188,9 @@ impl SearchInterfaceState {
             ViewType::All => ViewType::Ready,
             ViewType::Ready => ViewType::Blocked,
             ViewType::Blocked => ViewType::MyIssues,
-            ViewType::MyIssues => ViewType::All,
+            ViewType::MyIssues => ViewType::Recently,
+            ViewType::Recently => ViewType::Stale,
+            ViewType::Stale => ViewType::All,
         };
         self.update_filtered_issues();
     }
@@ -254,6 +275,19 @@ impl SearchInterfaceState {
                 } else {
                     false
                 }
+            }
+            ViewType::Recently => {
+                // Recently: updated within the last 7 days
+                let seven_days_ago = Utc::now() - Duration::days(7);
+                issue.updated >= seven_days_ago
+            }
+            ViewType::Stale => {
+                // Stale: not updated in 30+ days and still open
+                let thirty_days_ago = Utc::now() - Duration::days(30);
+                issue.updated < thirty_days_ago
+                    && (issue.status == IssueStatus::Open
+                        || issue.status == IssueStatus::InProgress
+                        || issue.status == IssueStatus::Blocked)
             }
         }
     }
@@ -1510,11 +1544,13 @@ mod tests {
     #[test]
     fn test_view_type_all() {
         let all_views = ViewType::all();
-        assert_eq!(all_views.len(), 4);
+        assert_eq!(all_views.len(), 6);
         assert_eq!(all_views[0], ViewType::All);
         assert_eq!(all_views[1], ViewType::Ready);
         assert_eq!(all_views[2], ViewType::Blocked);
         assert_eq!(all_views[3], ViewType::MyIssues);
+        assert_eq!(all_views[4], ViewType::Recently);
+        assert_eq!(all_views[5], ViewType::Stale);
     }
 
     #[test]
@@ -1570,6 +1606,12 @@ mod tests {
 
         state.next_view();
         assert_eq!(state.current_view(), ViewType::MyIssues);
+
+        state.next_view();
+        assert_eq!(state.current_view(), ViewType::Recently);
+
+        state.next_view();
+        assert_eq!(state.current_view(), ViewType::Stale);
 
         state.next_view();
         assert_eq!(state.current_view(), ViewType::All);
@@ -1790,5 +1832,250 @@ mod tests {
 
         // "Alice" != "alice", so no matches
         assert_eq!(state.result_count(), 0);
+    }
+
+    // ========== Recently and Stale Views Tests ==========
+
+    #[test]
+    fn test_recently_view_shows_recent_updates() {
+        let mut issues = create_test_issues();
+
+        // Set beads-001 to be updated 3 days ago
+        let three_days_ago = Utc::now() - Duration::days(3);
+        issues[0].updated = three_days_ago;
+
+        // Set beads-002 to be updated 10 days ago (not recent)
+        let ten_days_ago = Utc::now() - Duration::days(10);
+        issues[1].updated = ten_days_ago;
+
+        // beads-003 has default updated time (recent)
+
+        let mut state = SearchInterfaceState::new(issues);
+        state.set_view(ViewType::Recently);
+
+        // Should show beads-001 (3 days) and beads-003 (recent)
+        assert_eq!(state.result_count(), 2);
+
+        let ids: Vec<&str> = state.filtered_issues().iter().map(|i| i.id.as_str()).collect();
+        assert!(ids.contains(&"beads-001"));
+        assert!(ids.contains(&"beads-003"));
+        assert!(!ids.contains(&"beads-002"));
+    }
+
+    #[test]
+    fn test_recently_view_boundary_exactly_seven_days() {
+        let mut issues = create_test_issues();
+
+        // Set beads-001 to be updated 6 days ago (clearly within recently)
+        let six_days_ago = Utc::now() - Duration::days(6);
+        issues[0].updated = six_days_ago;
+
+        let mut state = SearchInterfaceState::new(issues);
+        state.set_view(ViewType::Recently);
+
+        // Should include issues updated within last 7 days
+        let ids: Vec<&str> = state.filtered_issues().iter().map(|i| i.id.as_str()).collect();
+        assert!(ids.contains(&"beads-001"));
+    }
+
+    #[test]
+    fn test_stale_view_shows_old_open_issues() {
+        let mut issues = create_test_issues();
+
+        // Set beads-001 to be updated 45 days ago (stale)
+        let forty_five_days_ago = Utc::now() - Duration::days(45);
+        issues[0].updated = forty_five_days_ago;
+        issues[0].status = IssueStatus::Open;
+
+        // Set beads-002 to be updated 20 days ago (not stale)
+        let twenty_days_ago = Utc::now() - Duration::days(20);
+        issues[1].updated = twenty_days_ago;
+        issues[1].status = IssueStatus::Open;
+
+        // Set beads-003 to be updated 50 days ago but closed (should not show)
+        let fifty_days_ago = Utc::now() - Duration::days(50);
+        issues[2].updated = fifty_days_ago;
+        issues[2].status = IssueStatus::Closed;
+
+        let mut state = SearchInterfaceState::new(issues);
+        state.set_view(ViewType::Stale);
+
+        // Should only show beads-001 (45 days old and open)
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-001");
+    }
+
+    #[test]
+    fn test_stale_view_includes_in_progress_and_blocked() {
+        let mut issues = create_test_issues();
+
+        let forty_days_ago = Utc::now() - Duration::days(40);
+
+        // Stale InProgress issue
+        issues[0].updated = forty_days_ago;
+        issues[0].status = IssueStatus::InProgress;
+
+        // Stale Blocked issue
+        issues[1].updated = forty_days_ago;
+        issues[1].status = IssueStatus::Blocked;
+
+        // Recent issue (not stale)
+        issues[2].updated = Utc::now() - Duration::days(5);
+        issues[2].status = IssueStatus::Open;
+
+        let mut state = SearchInterfaceState::new(issues);
+        state.set_view(ViewType::Stale);
+
+        // Should show both InProgress and Blocked stale issues
+        assert_eq!(state.result_count(), 2);
+
+        let ids: Vec<&str> = state.filtered_issues().iter().map(|i| i.id.as_str()).collect();
+        assert!(ids.contains(&"beads-001"));
+        assert!(ids.contains(&"beads-002"));
+        assert!(!ids.contains(&"beads-003"));
+    }
+
+    #[test]
+    fn test_stale_view_excludes_closed_issues() {
+        let mut issues = create_test_issues();
+
+        let forty_days_ago = Utc::now() - Duration::days(40);
+
+        // All updated 40 days ago, but only one is open
+        issues[0].updated = forty_days_ago;
+        issues[0].status = IssueStatus::Closed;
+
+        issues[1].updated = forty_days_ago;
+        issues[1].status = IssueStatus::Closed;
+
+        issues[2].updated = forty_days_ago;
+        issues[2].status = IssueStatus::Open;
+
+        let mut state = SearchInterfaceState::new(issues);
+        state.set_view(ViewType::Stale);
+
+        // Should only show the open one
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-003");
+    }
+
+    #[test]
+    fn test_stale_view_boundary_exactly_thirty_days() {
+        let mut issues = create_test_issues();
+
+        // Set beads-001 to be updated 31 days ago (clearly stale)
+        let thirty_one_days_ago = Utc::now() - Duration::days(31);
+        issues[0].updated = thirty_one_days_ago;
+        issues[0].status = IssueStatus::Open;
+
+        // Set beads-002 to be 29 days ago (not stale yet)
+        let twenty_nine_days_ago = Utc::now() - Duration::days(29);
+        issues[1].updated = twenty_nine_days_ago;
+        issues[1].status = IssueStatus::Open;
+
+        let mut state = SearchInterfaceState::new(issues);
+        state.set_view(ViewType::Stale);
+
+        // 31+ days should be included, but 29 days should NOT
+        let ids: Vec<&str> = state.filtered_issues().iter().map(|i| i.id.as_str()).collect();
+        assert!(ids.contains(&"beads-001"));
+        assert!(!ids.contains(&"beads-002"));
+    }
+
+    #[test]
+    fn test_view_cycle_includes_new_views() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Start at All
+        assert_eq!(state.current_view(), ViewType::All);
+
+        // Cycle: All -> Ready
+        state.next_view();
+        assert_eq!(state.current_view(), ViewType::Ready);
+
+        // Cycle: Ready -> Blocked
+        state.next_view();
+        assert_eq!(state.current_view(), ViewType::Blocked);
+
+        // Cycle: Blocked -> MyIssues
+        state.next_view();
+        assert_eq!(state.current_view(), ViewType::MyIssues);
+
+        // Cycle: MyIssues -> Recently
+        state.next_view();
+        assert_eq!(state.current_view(), ViewType::Recently);
+
+        // Cycle: Recently -> Stale
+        state.next_view();
+        assert_eq!(state.current_view(), ViewType::Stale);
+
+        // Cycle: Stale -> All (back to start)
+        state.next_view();
+        assert_eq!(state.current_view(), ViewType::All);
+    }
+
+    #[test]
+    fn test_recently_and_stale_are_mutually_exclusive() {
+        let mut issues = create_test_issues();
+
+        // Issue that is both not recently updated and stale
+        let forty_days_ago = Utc::now() - Duration::days(40);
+        issues[0].updated = forty_days_ago;
+        issues[0].status = IssueStatus::Open;
+
+        let mut state_recently = SearchInterfaceState::new(issues.clone());
+        state_recently.set_view(ViewType::Recently);
+
+        let mut state_stale = SearchInterfaceState::new(issues);
+        state_stale.set_view(ViewType::Stale);
+
+        // Should be in Stale but not Recently
+        assert_eq!(state_recently.result_count(), 2); // beads-002 and beads-003 are recent
+        assert_eq!(state_stale.result_count(), 1); // Only beads-001 is stale
+    }
+
+    #[test]
+    fn test_recently_view_with_search_filter() {
+        let mut issues = create_test_issues();
+
+        // Make beads-001 recent and matches "search"
+        issues[0].updated = Utc::now() - Duration::days(3);
+        issues[0].title = "Implement search feature".to_string();
+
+        // Make beads-002 recent but doesn't match "filter"
+        issues[1].updated = Utc::now() - Duration::days(2);
+        issues[1].title = "Add export functionality".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+        state.set_view(ViewType::Recently);
+        state.search_state_mut().set_query("search");
+        state.update_filtered_issues();
+
+        // Should show only beads-001 (recent AND matches "search")
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-001");
+    }
+
+    #[test]
+    fn test_viewtype_display_names() {
+        assert_eq!(ViewType::All.display_name(), "All Issues");
+        assert_eq!(ViewType::Ready.display_name(), "Ready");
+        assert_eq!(ViewType::Blocked.display_name(), "Blocked");
+        assert_eq!(ViewType::MyIssues.display_name(), "My Issues");
+        assert_eq!(ViewType::Recently.display_name(), "Recently Updated");
+        assert_eq!(ViewType::Stale.display_name(), "Stale");
+    }
+
+    #[test]
+    fn test_viewtype_all_includes_new_views() {
+        let all_views = ViewType::all();
+        assert_eq!(all_views.len(), 6);
+        assert!(all_views.contains(&ViewType::All));
+        assert!(all_views.contains(&ViewType::Ready));
+        assert!(all_views.contains(&ViewType::Blocked));
+        assert!(all_views.contains(&ViewType::MyIssues));
+        assert!(all_views.contains(&ViewType::Recently));
+        assert!(all_views.contains(&ViewType::Stale));
     }
 }
