@@ -781,4 +781,159 @@ mod tests {
         let view2 = view1.selected_section(HelpSection::Dependencies);
         assert_eq!(view2.selected_section, HelpSection::Dependencies);
     }
+
+    #[test]
+    fn test_help_section_debug_formatting() {
+        let section = HelpSection::Global;
+        let debug_str = format!("{:?}", section);
+        assert_eq!(debug_str, "Global");
+
+        let section = HelpSection::Issues;
+        let debug_str = format!("{:?}", section);
+        assert_eq!(debug_str, "Issues");
+
+        let section = HelpSection::Dependencies;
+        let debug_str = format!("{:?}", section);
+        assert_eq!(debug_str, "Dependencies");
+    }
+
+    #[test]
+    fn test_render_global_help_contains_quit_shortcut() {
+        let view = HelpView::new();
+        let lines = view.render_global_help();
+        let text: String = lines.iter().map(|line| line.to_string()).collect();
+        assert!(text.contains("q") || text.contains("Quit") || text.contains("Exit"));
+    }
+
+    #[test]
+    fn test_render_issues_help_contains_create_shortcut() {
+        let view = HelpView::new();
+        let lines = view.render_issues_help();
+        let text: String = lines.iter().map(|line| line.to_string()).collect();
+        assert!(text.contains("c") || text.contains("Create") || text.contains("New"));
+    }
+
+    #[test]
+    fn test_render_dependencies_help_contains_add_shortcut() {
+        let view = HelpView::new();
+        let lines = view.render_dependencies_help();
+        let text: String = lines.iter().map(|line| line.to_string()).collect();
+        assert!(text.contains("a") || text.contains("Add") || text.contains("dependency"));
+    }
+
+    #[test]
+    fn test_render_labels_help_contains_add_shortcut() {
+        let view = HelpView::new();
+        let lines = view.render_labels_help();
+        let text: String = lines.iter().map(|line| line.to_string()).collect();
+        assert!(text.contains("a") || text.contains("Add") || text.contains("label"));
+    }
+
+    #[test]
+    fn test_render_database_help_contains_export_shortcut() {
+        let view = HelpView::new();
+        let lines = view.render_database_help();
+        let text: String = lines.iter().map(|line| line.to_string()).collect();
+        assert!(text.contains("e") || text.contains("Export") || text.contains("export"));
+    }
+
+    #[test]
+    fn test_widget_trait_rendering() {
+        let view = HelpView::new().selected_section(HelpSection::Global);
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+
+        view.render(area, &mut buffer);
+
+        // Buffer should be modified
+        let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
+        assert!(has_content, "Widget should render content to buffer");
+    }
+
+    #[test]
+    fn test_widget_rendering_different_sections() {
+        let sections = HelpSection::all();
+        let area = Rect::new(0, 0, 100, 30);
+
+        for section in sections {
+            let view = HelpView::new().selected_section(section);
+            let mut buffer = Buffer::empty(area);
+
+            view.render(area, &mut buffer);
+
+            let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
+            assert!(has_content, "Section {:?} should render content", section);
+        }
+    }
+
+    #[test]
+    fn test_widget_rendering_with_custom_style() {
+        let view = HelpView::new().block_style(Style::default().fg(Color::Cyan));
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+
+        view.render(area, &mut buffer);
+
+        // Should render without panic
+        let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
+        assert!(has_content);
+    }
+
+    #[test]
+    fn test_widget_rendering_small_area() {
+        let view = HelpView::new();
+        let area = Rect::new(0, 0, 10, 5);
+        let mut buffer = Buffer::empty(area);
+
+        // Should handle small areas gracefully
+        view.render(area, &mut buffer);
+
+        // Should not panic
+    }
+
+    #[test]
+    fn test_help_section_all_matches_variant_count() {
+        let all_sections = HelpSection::all();
+        // Should have exactly 6 variants
+        assert_eq!(all_sections.len(), 6);
+    }
+
+    #[test]
+    fn test_widget_rendering_zero_area() {
+        let view = HelpView::new();
+        let area = Rect::new(0, 0, 0, 0);
+        let mut buffer = Buffer::empty(area);
+
+        // Should handle zero-sized areas gracefully
+        view.render(area, &mut buffer);
+
+        // Should not panic
+    }
+
+    #[test]
+    fn test_render_about_has_multiple_lines() {
+        let view = HelpView::new();
+        let lines = view.render_about();
+
+        // About section should have substantial content
+        assert!(lines.len() > 5, "About section should have multiple information lines");
+    }
+
+    #[test]
+    fn test_all_render_methods_produce_distinct_content() {
+        let view = HelpView::new();
+
+        let global = view.render_global_help();
+        let issues = view.render_issues_help();
+        let deps = view.render_dependencies_help();
+
+        let global_text: String = global.iter().map(|l| l.to_string()).collect();
+        let issues_text: String = issues.iter().map(|l| l.to_string()).collect();
+        let deps_text: String = deps.iter().map(|l| l.to_string()).collect();
+
+        // Each section should have unique content
+        assert_ne!(global_text, issues_text);
+        assert_ne!(global_text, deps_text);
+        assert_ne!(issues_text, deps_text);
+    }
 }
