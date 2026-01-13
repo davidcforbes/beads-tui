@@ -2099,6 +2099,316 @@ pub fn validate(&mut self) -> Result<(), String> {
 
 ---
 
+## Loading & Placeholder Widgets
+
+### SkeletonText
+
+Placeholder widget for text content while loading.
+
+#### Purpose
+Show placeholder content that mimics text lines during data loading.
+
+#### Use Cases
+- Loading states for text-heavy views
+- Placeholder for descriptions or comments
+- Progressive content loading
+
+#### Key Methods
+
+```rust
+pub fn new() -> Self
+pub fn width_percent(mut self, percent: u16) -> Self
+pub fn animate(mut self, animate: bool) -> Self
+pub fn animation(mut self, instant: std::time::Instant) -> Self
+pub fn style(mut self, style: Style) -> Self
+```
+
+#### Usage Example
+
+```rust
+use std::time::Instant;
+
+// Basic skeleton text
+let skeleton = SkeletonText::new()
+    .width_percent(80);
+
+frame.render_widget(skeleton, area);
+
+// With animation
+let skeleton = SkeletonText::new()
+    .width_percent(70)
+    .animation(Instant::now());
+
+frame.render_widget(skeleton, area);
+
+// Custom style (no animation)
+let skeleton = SkeletonText::new()
+    .style(Style::default().fg(Color::Gray));
+
+frame.render_widget(skeleton, area);
+```
+
+#### Styling/Configuration
+- **Width**: Percentage of available width (default: 80%)
+- **Animation**: Shimmer effect with varying brightness (default: enabled)
+- **Style**: Custom style overrides animation
+- **Appearance**: Uses ▓ character for placeholder content
+
+---
+
+### SkeletonList
+
+Placeholder widget for list items while loading.
+
+#### Purpose
+Display multiple skeleton lines that mimic list structure.
+
+#### Use Cases
+- Loading states for issue lists
+- Placeholder for file listings
+- Any list-based loading state
+
+#### Key Methods
+
+```rust
+pub fn new(count: usize) -> Self
+pub fn width_percent(mut self, percent: u16) -> Self
+pub fn vary_widths(mut self, vary: bool) -> Self
+pub fn animate(mut self, animate: bool) -> Self
+pub fn animation(mut self, instant: std::time::Instant) -> Self
+pub fn block(mut self, block: Block<'static>) -> Self
+```
+
+#### Usage Example
+
+```rust
+// Basic skeleton list with 5 items
+let skeleton = SkeletonList::new(5)
+    .width_percent(90);
+
+frame.render_widget(skeleton, area);
+
+// With varying widths for natural look
+let skeleton = SkeletonList::new(10)
+    .vary_widths(true)
+    .animation(Instant::now());
+
+frame.render_widget(skeleton, area);
+
+// With borders
+let skeleton = SkeletonList::new(8)
+    .block(Block::default()
+        .borders(Borders::ALL)
+        .title("Loading..."));
+
+frame.render_widget(skeleton, area);
+```
+
+#### Styling/Configuration
+- **Count**: Number of skeleton items to display
+- **Width**: Base percentage of available width (default: 90%)
+- **Vary Widths**: Natural variation (60-100%) between items (default: true)
+- **Animation**: Synchronized shimmer effect (default: enabled)
+- **Block**: Optional border and title
+
+---
+
+### SkeletonTable
+
+Placeholder widget for table rows while loading.
+
+#### Purpose
+Show skeleton structure mimicking table layout with columns.
+
+#### Use Cases
+- Loading states for issue tables
+- Placeholder for data grids
+- Database query results loading
+
+#### Key Methods
+
+```rust
+pub fn new(rows: usize, columns: usize) -> Self
+pub fn column_widths(mut self, widths: Vec<u16>) -> Self
+pub fn show_header(mut self, show: bool) -> Self
+pub fn animate(mut self, animate: bool) -> Self
+pub fn animation(mut self, instant: std::time::Instant) -> Self
+pub fn block(mut self, block: Block<'static>) -> Self
+```
+
+#### Usage Example
+
+```rust
+// Basic table with 10 rows and 4 columns
+let skeleton = SkeletonTable::new(10, 4)
+    .show_header(true);
+
+frame.render_widget(skeleton, area);
+
+// With custom column widths
+let skeleton = SkeletonTable::new(15, 3)
+    .column_widths(vec![30, 50, 20])  // Percentages
+    .animation(Instant::now());
+
+frame.render_widget(skeleton, area);
+
+// Without header
+let skeleton = SkeletonTable::new(8, 5)
+    .show_header(false)
+    .block(Block::default()
+        .borders(Borders::ALL)
+        .title("Loading Issues..."));
+
+frame.render_widget(skeleton, area);
+```
+
+#### Styling/Configuration
+- **Rows**: Number of data rows to display
+- **Columns**: Number of columns
+- **Column Widths**: Percentage widths (default: equal distribution)
+- **Show Header**: Display header row with bold style (default: true)
+- **Animation**: Shimmer effect on all cells (default: enabled)
+- **Block**: Optional border and title
+
+---
+
+### SkeletonTree
+
+Placeholder widget for tree structure while loading.
+
+#### Purpose
+Display skeleton mimicking hierarchical tree with indentation.
+
+#### Use Cases
+- Loading states for dependency trees
+- Placeholder for file system trees
+- Any hierarchical data loading
+
+#### Key Methods
+
+```rust
+pub fn new(nodes: usize) -> Self
+pub fn max_depth(mut self, depth: usize) -> Self
+pub fn show_indicators(mut self, show: bool) -> Self
+pub fn animate(mut self, animate: bool) -> Self
+pub fn animation(mut self, instant: std::time::Instant) -> Self
+pub fn block(mut self, block: Block<'static>) -> Self
+```
+
+#### Usage Example
+
+```rust
+// Basic tree with 8 nodes
+let skeleton = SkeletonTree::new(8)
+    .max_depth(3);
+
+frame.render_widget(skeleton, area);
+
+// With expand/collapse indicators
+let skeleton = SkeletonTree::new(12)
+    .max_depth(4)
+    .show_indicators(true)
+    .animation(Instant::now());
+
+frame.render_widget(skeleton, area);
+
+// Without indicators
+let skeleton = SkeletonTree::new(10)
+    .max_depth(2)
+    .show_indicators(false)
+    .block(Block::default()
+        .borders(Borders::ALL)
+        .title("Loading Dependencies..."));
+
+frame.render_widget(skeleton, area);
+```
+
+#### Styling/Configuration
+- **Nodes**: Number of tree nodes to display
+- **Max Depth**: Maximum indentation level (default: 3)
+- **Show Indicators**: Display ▼/▶ expand/collapse indicators (default: true)
+- **Animation**: Shimmer effect on all nodes (default: enabled)
+- **Block**: Optional border and title
+
+#### Tree Structure
+- Pseudo-random depth distribution for natural appearance
+- Two-space indentation per level
+- Varying widths for realistic look
+- Indicators alternate between expanded (▼) and collapsed (▶)
+
+---
+
+### SkeletonAnimation
+
+Animation state helper for skeleton widgets.
+
+#### Purpose
+Manages shimmer animation timing for skeleton widgets.
+
+#### Usage Example
+
+```rust
+use std::time::Instant;
+
+// Create animation from current time
+let start_time = Instant::now();
+let animation = SkeletonAnimation::from_instant(start_time);
+
+// Use with multiple skeleton widgets for synchronized animation
+let text_skeleton = SkeletonText::new().animation(start_time);
+let list_skeleton = SkeletonList::new(5).animation(start_time);
+let table_skeleton = SkeletonTable::new(10, 3).animation(start_time);
+
+// All widgets will have synchronized shimmer effect
+```
+
+#### Animation Details
+- **Frame Rate**: ~150ms per frame (6.7 fps)
+- **Cycle**: 8 frames creating smooth shimmer
+- **Colors**: RGB brightness ranges from 60 to 90
+- **Synchronization**: Same timestamp = same animation phase
+
+---
+
+### Integration Example
+
+Complete example showing skeleton widgets in a loading state:
+
+```rust
+use std::time::Instant;
+use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::widgets::{Block, Borders};
+
+fn render_loading_state(frame: &mut Frame, area: Rect, start_time: Instant) {
+    // Split layout
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Min(0),
+        ])
+        .split(area);
+
+    // Header skeleton
+    let header = SkeletonText::new()
+        .width_percent(60)
+        .animation(start_time);
+    frame.render_widget(header, chunks[0]);
+
+    // Content skeleton (could be list, table, or tree)
+    let content = SkeletonTable::new(15, 4)
+        .column_widths(vec![20, 40, 20, 20])
+        .animation(start_time)
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title("Loading Issues..."));
+
+    frame.render_widget(content, chunks[1]);
+}
+```
+
+---
+
 ## Conclusion
 
 This widget library provides a comprehensive set of components for building terminal user interfaces in Rust. All widgets follow consistent patterns for state management, styling, and user interaction, making them easy to learn and compose together.
