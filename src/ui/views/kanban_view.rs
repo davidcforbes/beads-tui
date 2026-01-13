@@ -33,6 +33,12 @@ pub enum ColumnEditMode {
     WipLimit,
 }
 
+impl Default for ColumnManagerState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ColumnManagerState {
     /// Create a new column manager state
     pub fn new() -> Self {

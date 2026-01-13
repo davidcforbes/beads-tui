@@ -550,7 +550,7 @@ impl IssueEditorState {
         for (field_id, section) in &self.field_sections {
             grouped
                 .entry(*section)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(field_id.clone());
         }
 
