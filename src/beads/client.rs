@@ -75,6 +75,9 @@ impl BeadsClient {
         if let Some(s) = status {
             args.push("--status".to_string());
             args.push(s.to_string());
+        } else {
+            // When no status is specified, include all issues including closed ones
+            args.push("--all".to_string());
         }
 
         if let Some(l) = limit {

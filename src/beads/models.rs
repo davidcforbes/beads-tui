@@ -36,6 +36,7 @@ pub struct Issue {
 #[serde(rename_all = "lowercase")]
 pub enum IssueStatus {
     Open,
+    #[serde(alias = "in_progress")]
     InProgress,
     Blocked,
     Closed,
