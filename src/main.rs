@@ -79,7 +79,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
     let key_code = key.code;
 
     // Handle notification dismissal with Esc
-    if app.notification.is_some() && key_code == KeyCode::Esc {
+    if !app.notifications.is_empty() && key_code == KeyCode::Esc {
         app.clear_notification();
         return;
     }
@@ -1117,7 +1117,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 /// Handle keyboard events for the Dependencies view
 fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState) {
     // Handle notification dismissal with Esc
-    if app.notification.is_some() && key_code == KeyCode::Esc {
+    if !app.notifications.is_empty() && key_code == KeyCode::Esc {
         app.clear_notification();
         return;
     }
@@ -1271,7 +1271,7 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
 /// Handle keyboard events for the Labels view
 fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
     // Handle notification dismissal with Esc
-    if app.notification.is_some() && key_code == KeyCode::Esc {
+    if !app.notifications.is_empty() && key_code == KeyCode::Esc {
         app.clear_notification();
         return;
     }
@@ -1357,7 +1357,7 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
 /// Handle keyboard events for the Database view
 fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
     // Handle notification dismissal with Esc
-    if app.notification.is_some() && key_code == KeyCode::Esc {
+    if !app.notifications.is_empty() && key_code == KeyCode::Esc {
         app.clear_notification();
         return;
     }
@@ -1485,7 +1485,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
 /// Handle keyboard events for the Help view
 fn handle_help_view_event(key_code: KeyCode, app: &mut models::AppState) {
     // Handle notification dismissal with Esc
-    if app.notification.is_some() && key_code == KeyCode::Esc {
+    if !app.notifications.is_empty() && key_code == KeyCode::Esc {
         app.clear_notification();
         return;
     }
@@ -1920,10 +1920,10 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         f.render_stateful_widget(dialog, f.size(), &mut app.dependency_dialog_state);
     }
 
-    // Render toast notification if present
-    if let Some(ref notification) = app.notification {
-        let toast = ui::widgets::Toast::new(notification);
-        f.render_widget(toast, f.size());
+    // Render toast notifications if present
+    if !app.notifications.is_empty() {
+        let toast_stack = ui::widgets::ToastStack::new(&app.notifications);
+        f.render_widget(toast_stack, f.size());
     }
 
     // Render keyboard shortcut help overlay if visible

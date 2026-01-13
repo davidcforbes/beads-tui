@@ -19,6 +19,7 @@ pub enum ToastPosition {
 }
 
 /// Toast notification widget configuration
+#[derive(Clone)]
 pub struct ToastConfig {
     /// Position on screen
     pub position: ToastPosition,
@@ -237,11 +238,45 @@ impl<'a> Widget for ToastStack<'a> {
             return;
         }
 
-        // For now, just render the most recent notification
-        // In the future, this could stack multiple notifications
-        let toast = Toast::new(&self.notifications[self.notifications.len() - 1])
-            .config(self.config);
-        toast.render(area, buf);
+        // Render up to 5 most recent notifications, stacked vertically
+        const MAX_VISIBLE_NOTIFICATIONS: usize = 5;
+        const NOTIFICATION_HEIGHT: u16 = 3; // Height of each notification
+        const NOTIFICATION_SPACING: u16 = 1; // Gap between notifications
+
+        let visible_count = self.notifications.len().min(MAX_VISIBLE_NOTIFICATIONS);
+        
+        // Start from the oldest visible notification
+        let start_idx = self.notifications.len().saturating_sub(visible_count);
+        
+        for (i, notification) in self.notifications[start_idx..].iter().enumerate() {
+            // Calculate vertical offset for this notification
+            let y_offset = match self.config.position {
+                ToastPosition::Top => {
+                    // Stack downward from the top
+                    i as u16 * (NOTIFICATION_HEIGHT + NOTIFICATION_SPACING)
+                }
+                ToastPosition::Bottom => {
+                    // Stack upward from the bottom
+                    let total_stack_height = visible_count as u16 * (NOTIFICATION_HEIGHT + NOTIFICATION_SPACING);
+                    area.height.saturating_sub(total_stack_height) +
+                        (i as u16 * (NOTIFICATION_HEIGHT + NOTIFICATION_SPACING))
+                }
+            };
+
+            // Create a custom area for this notification
+            let notification_area = Rect {
+                x: area.x,
+                y: area.y + y_offset,
+                width: area.width,
+                height: area.height.saturating_sub(y_offset),
+            };
+
+            // Only render if there's enough space
+            if notification_area.height >= NOTIFICATION_HEIGHT {
+                let toast = Toast::new(notification).config(self.config.clone());
+                toast.render(notification_area, buf);
+            }
+        }
     }
 }
 
