@@ -514,6 +514,205 @@ impl<'a> CreateIssueForm<'a> {
         self.show_help = show;
         self
     }
+
+    /// Render the preview panel showing formatted issue data
+    fn render_preview(&self, area: Rect, buf: &mut Buffer, state: &CreateIssueFormState) {
+        // Create main layout with help text at bottom
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Min(20),   // Preview area
+                Constraint::Length(3), // Help text
+            ])
+            .split(area);
+
+        // Build preview content
+        let mut lines = vec![
+            Line::from(vec![
+                Span::styled("Issue Preview", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            ]),
+            Line::from(""),
+        ];
+
+        // Get form values
+        let title = state.form_state().get_value("title").unwrap_or("");
+        let issue_type = state.form_state().get_value("type").unwrap_or("");
+        let priority = state.form_state().get_value("priority").unwrap_or("");
+        let status = state.form_state().get_value("status").unwrap_or("");
+        let assignee = state.form_state().get_value("assignee").unwrap_or("");
+        let labels = state.form_state().get_value("labels").unwrap_or("");
+        let description = state.form_state().get_value("description").unwrap_or("");
+        let due_date = state.form_state().get_value("due_date").unwrap_or("");
+        let defer_date = state.form_state().get_value("defer_date").unwrap_or("");
+        let time_estimate = state.form_state().get_value("time_estimate").unwrap_or("");
+        let parent = state.form_state().get_value("parent").unwrap_or("");
+        let dependencies = state.form_state().get_value("dependencies").unwrap_or("");
+        let design = state.form_state().get_value("design").unwrap_or("");
+        let acceptance = state.form_state().get_value("acceptance").unwrap_or("");
+        let notes = state.form_state().get_value("notes").unwrap_or("");
+
+        // Summary section
+        lines.push(Line::from(vec![
+            Span::styled("Summary", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        ]));
+        if !title.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("  Title: ", Style::default().fg(Color::Gray)),
+                Span::raw(title),
+            ]));
+        }
+        if !issue_type.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("  Type: ", Style::default().fg(Color::Gray)),
+                Span::styled(issue_type, Style::default().fg(Color::Cyan)),
+            ]));
+        }
+        if !priority.is_empty() {
+            let priority_color = if priority.contains("P0") || priority.contains("P1") {
+                Color::Red
+            } else if priority.contains("P2") {
+                Color::Yellow
+            } else {
+                Color::Gray
+            };
+            lines.push(Line::from(vec![
+                Span::styled("  Priority: ", Style::default().fg(Color::Gray)),
+                Span::styled(priority, Style::default().fg(priority_color)),
+            ]));
+        }
+        if !status.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("  Status: ", Style::default().fg(Color::Gray)),
+                Span::styled(status, Style::default().fg(Color::Green)),
+            ]));
+        }
+        lines.push(Line::from(""));
+
+        // Scheduling section
+        if !due_date.is_empty() || !defer_date.is_empty() || !time_estimate.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("Scheduling", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            ]));
+            if !due_date.is_empty() {
+                lines.push(Line::from(vec![
+                    Span::styled("  Due Date: ", Style::default().fg(Color::Gray)),
+                    Span::raw(due_date),
+                ]));
+            }
+            if !defer_date.is_empty() {
+                lines.push(Line::from(vec![
+                    Span::styled("  Defer Date: ", Style::default().fg(Color::Gray)),
+                    Span::raw(defer_date),
+                ]));
+            }
+            if !time_estimate.is_empty() {
+                lines.push(Line::from(vec![
+                    Span::styled("  Time Estimate: ", Style::default().fg(Color::Gray)),
+                    Span::raw(time_estimate),
+                ]));
+            }
+            lines.push(Line::from(""));
+        }
+
+        // Relationships section
+        if !parent.is_empty() || !dependencies.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("Relationships", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            ]));
+            if !parent.is_empty() {
+                lines.push(Line::from(vec![
+                    Span::styled("  Parent: ", Style::default().fg(Color::Gray)),
+                    Span::styled(parent, Style::default().fg(Color::Magenta)),
+                ]));
+            }
+            if !dependencies.is_empty() {
+                lines.push(Line::from(vec![
+                    Span::styled("  Dependencies: ", Style::default().fg(Color::Gray)),
+                    Span::styled(dependencies, Style::default().fg(Color::Magenta)),
+                ]));
+            }
+            lines.push(Line::from(""));
+        }
+
+        // Labels section
+        if !assignee.is_empty() || !labels.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("Labels", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            ]));
+            if !assignee.is_empty() {
+                lines.push(Line::from(vec![
+                    Span::styled("  Assignee: ", Style::default().fg(Color::Gray)),
+                    Span::raw(assignee),
+                ]));
+            }
+            if !labels.is_empty() {
+                lines.push(Line::from(vec![
+                    Span::styled("  Labels: ", Style::default().fg(Color::Gray)),
+                    Span::styled(labels, Style::default().fg(Color::Blue)),
+                ]));
+            }
+            lines.push(Line::from(""));
+        }
+
+        // Text section
+        if !description.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("Description", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            ]));
+            for line in description.lines() {
+                lines.push(Line::from(format!("  {}", line)));
+            }
+            lines.push(Line::from(""));
+        }
+        if !design.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("Design", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            ]));
+            for line in design.lines() {
+                lines.push(Line::from(format!("  {}", line)));
+            }
+            lines.push(Line::from(""));
+        }
+        if !acceptance.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("Acceptance Criteria", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            ]));
+            for line in acceptance.lines() {
+                lines.push(Line::from(format!("  {}", line)));
+            }
+            lines.push(Line::from(""));
+        }
+        if !notes.is_empty() {
+            lines.push(Line::from(vec![
+                Span::styled("Notes", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            ]));
+            for line in notes.lines() {
+                lines.push(Line::from(format!("  {}", line)));
+            }
+        }
+
+        // Render preview panel
+        let preview = Paragraph::new(lines)
+            .block(Block::default().borders(Borders::ALL).title(" Issue Preview "))
+            .alignment(Alignment::Left);
+        preview.render(chunks[0], buf);
+
+        // Render help text
+        let help_lines = vec![Line::from(vec![
+            Span::styled("Ctrl+P", Style::default().fg(Color::Magenta)),
+            Span::raw(" Back to Form  "),
+            Span::styled("Ctrl+S", Style::default().fg(Color::Green)),
+            Span::raw(" Submit  "),
+            Span::styled("Esc", Style::default().fg(Color::Red)),
+            Span::raw(" Cancel"),
+        ])];
+
+        let help = Paragraph::new(help_lines)
+            .block(Block::default().borders(Borders::ALL).title("Help"))
+            .alignment(Alignment::Center);
+
+        help.render(chunks[1], buf);
+    }
 }
 
 impl<'a> Default for CreateIssueForm<'a> {
@@ -526,6 +725,12 @@ impl<'a> StatefulWidget for CreateIssueForm<'a> {
     type State = CreateIssueFormState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        // Check if in preview mode
+        if state.is_preview_mode() {
+            self.render_preview(area, buf, state);
+            return;
+        }
+
         // Create main layout
         let chunks = if self.show_help {
             Layout::default()
@@ -561,6 +766,8 @@ impl<'a> StatefulWidget for CreateIssueForm<'a> {
                 Span::raw(" Next field  "),
                 Span::styled("Shift+Tab/↑", Style::default().fg(Color::Yellow)),
                 Span::raw(" Previous field  "),
+                Span::styled("Ctrl+P", Style::default().fg(Color::Magenta)),
+                Span::raw(" Preview  "),
                 Span::styled("Ctrl+S", Style::default().fg(Color::Green)),
                 Span::raw(" Submit  "),
                 Span::styled("Esc", Style::default().fg(Color::Red)),

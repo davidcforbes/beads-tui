@@ -987,6 +987,12 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         IssuesViewMode::Create => {
             // Create mode: form controls
             if let Some(create_form_state) = issues_state.create_form_state_mut() {
+                // Check for Ctrl+P first (toggle preview)
+                if key_code == KeyCode::Char('p') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                    create_form_state.toggle_preview();
+                    return;
+                }
+
                 let form = create_form_state.form_state_mut();
 
                 // Check for Ctrl+L first (before generic Char handler)
