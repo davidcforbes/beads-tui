@@ -1687,7 +1687,7 @@ mod tests {
         assert_eq!(state.result_count(), 2);
 
         // Enable column filters
-        state.list_state_mut().set_filters_enabled(true);
+        state.list_state_mut().toggle_filters();
 
         // Filter by priority P2
         let filters = state.list_state_mut().column_filters_mut();

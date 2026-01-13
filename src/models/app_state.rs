@@ -292,6 +292,7 @@ mod tests {
             pert_view_state: PertViewState::new(vec![]),
             gantt_view_state: GanttViewState::new(vec![]),
             kanban_view_state: KanbanViewState::new(vec![]),
+            database_view_state: DatabaseViewState::new(),
             label_stats: vec![],
             database_stats: DatabaseStats {
                 total_issues: 0,
