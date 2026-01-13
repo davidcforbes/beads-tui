@@ -1890,42 +1890,10 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         f.render_stateful_widget(dialog, f.size(), &mut app.dependency_dialog_state);
     }
 
-    // Render notification banner if present
+    // Render toast notification if present
     if let Some(ref notification) = app.notification {
-        let area = f.size();
-        let notification_area = Rect {
-            x: 0,
-            y: 0,
-            width: area.width,
-            height: 3,
-        };
-
-        // Determine colors and icon based on notification type
-        let (bg_color, border_color, icon) = match notification.notification_type {
-            models::NotificationType::Error => (Color::Red, Color::Red, "✖"),
-            models::NotificationType::Success => (Color::Green, Color::Green, "✓"),
-            models::NotificationType::Info => (Color::Blue, Color::Blue, "ℹ"),
-            models::NotificationType::Warning => (Color::Yellow, Color::Yellow, "⚠"),
-        };
-
-        let notification_text = Paragraph::new(format!(
-            " {} {} (Press Esc to dismiss)",
-            icon, notification.message
-        ))
-        .style(
-            Style::default()
-                .fg(Color::White)
-                .bg(bg_color)
-                .add_modifier(Modifier::BOLD),
-        )
-        .block(Block::default().borders(Borders::ALL).border_style(
-            Style::default()
-                .fg(border_color)
-                .add_modifier(Modifier::BOLD),
-        ));
-
-        f.render_widget(Clear, notification_area);
-        f.render_widget(notification_text, notification_area);
+        let toast = ui::widgets::Toast::new(notification);
+        f.render_widget(toast, f.size());
     }
 }
 
