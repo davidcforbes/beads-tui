@@ -711,6 +711,12 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
             } else {
                 // List mode: navigation and quick actions
                 match key_code {
+                    KeyCode::Up if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        reorder_child_issue(app, -1);
+                    }
+                    KeyCode::Down if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        reorder_child_issue(app, 1);
+                    }
                     KeyCode::Char('j') | KeyCode::Down => {
                         let len = issues_state.search_state().filtered_issues().len();
                         issues_state
@@ -1226,7 +1232,19 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             if let Some(data) = app.issues_view_state.save_create() {
                                 // Create a tokio runtime to execute the async call
                                 let rt = tokio::runtime::Runtime::new().unwrap();
-                                let client = &app.beads_client;
+                                let client = app.beads_client.clone();
+
+                                let mut dependency_targets: Vec<String> = Vec::new();
+                                if let Some(parent) = data.parent.clone() {
+                                    if !dependency_targets.contains(&parent) {
+                                        dependency_targets.push(parent);
+                                    }
+                                }
+                                for dep in data.dependencies.clone() {
+                                    if !dependency_targets.contains(&dep) {
+                                        dependency_targets.push(dep);
+                                    }
+                                }
 
                                 // Build create params
                                 let mut params = beads::models::CreateIssueParams::new(
@@ -1248,6 +1266,24 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 
                                         // Clear any previous errors
                                         app.clear_error();
+
+                                        if !dependency_targets.is_empty() {
+                                            let mut failures = Vec::new();
+                                            for dep_id in &dependency_targets {
+                                                if dep_id == &issue_id {
+                                                    continue;
+                                                }
+                                                if let Err(e) = rt.block_on(client.add_dependency(&issue_id, dep_id)) {
+                                                    failures.push(format!("{dep_id}: {e}"));
+                                                }
+                                            }
+                                            if !failures.is_empty() {
+                                                app.set_error(format!(
+                                                    "Issue created, but dependencies failed: {}",
+                                                    failures.join(", ")
+                                                ));
+                                            }
+                                        }
 
                                         // Reload issues list
                                         app.reload_issues();
@@ -1674,6 +1710,103 @@ fn handle_help_view_event(key_code: KeyCode, app: &mut models::AppState) {
             app.previous_help_section();
         }
         _ => {}
+    }
+}
+
+fn reorder_child_issue(app: &mut models::AppState, direction: i32) {
+    let selected_issue = match app.issues_view_state.search_state().selected_issue() {
+        Some(issue) => issue.clone(),
+        None => {
+            app.set_info("No issue selected".to_string());
+            return;
+        }
+    };
+
+    let all_issues = app.issues_view_state.all_issues();
+    let parent = all_issues
+        .iter()
+        .find(|issue| issue.blocks.contains(&selected_issue.id));
+
+    let parent = match parent {
+        Some(issue) => issue,
+        None => {
+            app.set_info("Selected issue has no parent".to_string());
+            return;
+        }
+    };
+
+    let mut new_order = parent.blocks.clone();
+    let current_idx = match new_order.iter().position(|id| id == &selected_issue.id) {
+        Some(idx) => idx,
+        None => {
+            app.set_error("Selected issue not found in parent blocks".to_string());
+            return;
+        }
+    };
+
+    if new_order.len() < 2 {
+        app.set_info("Parent has only one child".to_string());
+        return;
+    }
+
+    let target_idx = if direction < 0 {
+        if current_idx == 0 {
+            app.set_info("Already at the top".to_string());
+            return;
+        }
+        current_idx - 1
+    } else {
+        if current_idx + 1 >= new_order.len() {
+            app.set_info("Already at the bottom".to_string());
+            return;
+        }
+        current_idx + 1
+    };
+
+    new_order.swap(current_idx, target_idx);
+
+    let parent_id = parent.id.clone();
+    let current_children = parent.blocks.clone();
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let client = &app.beads_client;
+
+    let mut removed: Vec<String> = Vec::new();
+    for child_id in &current_children {
+        if let Err(e) = rt.block_on(client.remove_dependency(child_id, &parent_id)) {
+            for restored_id in &removed {
+                let _ = rt.block_on(client.add_dependency(restored_id, &parent_id));
+            }
+            app.set_error(format!("Failed to reorder children: {e}"));
+            return;
+        }
+        removed.push(child_id.clone());
+    }
+
+    let mut added: Vec<String> = Vec::new();
+    for child_id in &new_order {
+        if let Err(e) = rt.block_on(client.add_dependency(child_id, &parent_id)) {
+            for added_id in &added {
+                let _ = rt.block_on(client.remove_dependency(added_id, &parent_id));
+            }
+            for restored_id in &current_children {
+                let _ = rt.block_on(client.add_dependency(restored_id, &parent_id));
+            }
+            app.set_error(format!("Failed to reorder children: {e}"));
+            return;
+        }
+        added.push(child_id.clone());
+    }
+
+    app.set_success(format!("Reordered children under {}", parent_id));
+    app.reload_issues();
+
+    let search_state = app.issues_view_state.search_state_mut();
+    if let Some(idx) = search_state
+        .filtered_issues()
+        .iter()
+        .position(|issue| issue.id == selected_issue.id)
+    {
+        search_state.list_state_mut().select(Some(idx));
     }
 }
 

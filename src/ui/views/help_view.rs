@@ -177,6 +177,10 @@ impl<'a> HelpView<'a> {
                 Span::styled("<", Style::default().fg(Color::Green)),
                 Span::raw("         - Outdent issue (promote to parent level)"),
             ]),
+            Line::from(vec![
+                Span::styled("Ctrl+Up/Down", Style::default().fg(Color::Green)),
+                Span::raw(" - Reorder child within parent"),
+            ]),
         ]
     }
 

@@ -348,25 +348,25 @@ impl SearchInterfaceState {
 
     /// Apply an IssueFilter to current state
     pub fn apply_filter(&mut self, filter: &IssueFilter) {
-        // Apply column filters
+        // Apply column filters using setter methods to maintain cache
         {
             let col_filters = self.list_state.column_filters_mut();
             col_filters.clear();
 
             if let Some(ref status) = filter.status {
-                col_filters.status = status.to_string();
+                col_filters.set_status(status.to_string());
             }
             if let Some(ref priority) = filter.priority {
                 col_filters.priority = priority.to_string();
             }
             if let Some(ref issue_type) = filter.issue_type {
-                col_filters.type_filter = issue_type.to_string();
+                col_filters.set_type_filter(issue_type.to_string());
             }
             
             // Handle assignee - if filter.assignee is None, set no_assignee
             col_filters.no_assignee = filter.assignee.is_none();
 
-            col_filters.labels = filter.labels.clone();
+            col_filters.set_labels(filter.labels.clone());
             col_filters.label_match_mode = match filter.label_logic {
                 LogicOp::And => LabelMatchMode::All,
                 LogicOp::Or => LabelMatchMode::Any,

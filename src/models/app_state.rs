@@ -119,6 +119,10 @@ impl AppState {
 
         // Compute label statistics
         let label_stats = compute_label_stats(&issues);
+        let label_picker_labels: Vec<String> = label_stats
+            .iter()
+            .map(|stat| stat.name.clone())
+            .collect();
 
         // Create database stats
         let database_stats = DatabaseStats {
@@ -227,7 +231,7 @@ impl AppState {
             show_label_picker: false,
             priority_selector_state: crate::ui::widgets::SelectorState::new(),
             status_selector_state: crate::ui::widgets::SelectorState::new(),
-            label_picker_state: crate::ui::widgets::LabelPickerState::new(vec![]),
+            label_picker_state: crate::ui::widgets::LabelPickerState::new(label_picker_labels),
             column_manager_state: None,
             daemon_running,
             config,
@@ -267,6 +271,12 @@ impl AppState {
 
         // Update label statistics
         self.label_stats = compute_label_stats(&issues);
+        self.label_picker_state.set_available_labels(
+            self.label_stats
+                .iter()
+                .map(|stat| stat.name.clone())
+                .collect(),
+        );
 
         // Update database stats
         self.database_stats.total_issues = issues.len();
@@ -1384,3 +1394,4 @@ mod tests {
         }
     }
 }
+

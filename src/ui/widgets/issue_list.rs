@@ -49,8 +49,8 @@ pub enum LabelMatchMode {
     All,
 }
 
-/// Column filter
-#[derive(Debug, Clone, Default)]
+/// Column filter with cached lowercase versions for performance
+#[derive(Debug, Clone)]
 pub struct ColumnFilters {
     pub id: String,
     pub title: String,
@@ -61,9 +61,66 @@ pub struct ColumnFilters {
     pub no_labels: bool,
     pub labels: Vec<String>,
     pub label_match_mode: LabelMatchMode,
+    // Cached lowercase versions to avoid repeated allocations
+    cached_id_lower: String,
+    cached_title_lower: String,
+    cached_status_lower: String,
+    cached_type_lower: String,
+    cached_labels_lower: Vec<String>,
+}
+
+impl Default for ColumnFilters {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            title: String::new(),
+            status: String::new(),
+            priority: String::new(),
+            type_filter: String::new(),
+            no_assignee: false,
+            no_labels: false,
+            labels: Vec::new(),
+            label_match_mode: LabelMatchMode::Any,
+            cached_id_lower: String::new(),
+            cached_title_lower: String::new(),
+            cached_status_lower: String::new(),
+            cached_type_lower: String::new(),
+            cached_labels_lower: Vec::new(),
+        }
+    }
 }
 
 impl ColumnFilters {
+    /// Update ID filter and refresh cache
+    pub fn set_id(&mut self, id: String) {
+        self.cached_id_lower = id.to_lowercase();
+        self.id = id;
+    }
+
+    /// Update title filter and refresh cache
+    pub fn set_title(&mut self, title: String) {
+        self.cached_title_lower = title.to_lowercase();
+        self.title = title;
+    }
+
+    /// Update status filter and refresh cache
+    pub fn set_status(&mut self, status: String) {
+        self.cached_status_lower = status.to_lowercase();
+        self.status = status;
+    }
+
+    /// Update type filter and refresh cache
+    pub fn set_type_filter(&mut self, type_filter: String) {
+        self.cached_type_lower = type_filter.to_lowercase();
+        self.type_filter = type_filter;
+    }
+
+    /// Update labels filter and refresh cache
+    pub fn set_labels(&mut self, labels: Vec<String>) {
+        self.cached_labels_lower = labels.iter().map(|l| l.to_lowercase()).collect();
+        self.labels = labels;
+    }
+
     pub fn clear(&mut self) {
         self.id.clear();
         self.title.clear();
@@ -74,6 +131,12 @@ impl ColumnFilters {
         self.no_labels = false;
         self.labels.clear();
         self.label_match_mode = LabelMatchMode::Any;
+        // Clear caches
+        self.cached_id_lower.clear();
+        self.cached_title_lower.clear();
+        self.cached_status_lower.clear();
+        self.cached_type_lower.clear();
+        self.cached_labels_lower.clear();
     }
 
     pub fn is_empty(&self) -> bool {
@@ -87,7 +150,7 @@ impl ColumnFilters {
             && self.labels.is_empty()
     }
 
-    /// Check if an issue matches the current filters
+    /// Check if an issue matches the current filters (optimized with cached lowercase strings)
     pub fn matches(&self, issue: &Issue) -> bool {
         // If all filters are empty, match everything
         if self.is_empty() {
@@ -95,10 +158,18 @@ impl ColumnFilters {
         }
 
         // Check ID filter (substring match, case-insensitive)
+        // Use cached lowercase if available, otherwise compute it (for backwards compatibility)
         if !self.id.is_empty() {
             let id_lower = issue.id.to_lowercase();
-            let filter_lower = self.id.to_lowercase();
-            if !id_lower.contains(&filter_lower) {
+            // Use cache if populated, otherwise fall back to computing (for tests)
+            let temp_lower;
+            let filter_lower = if !self.cached_id_lower.is_empty() {
+                &self.cached_id_lower
+            } else {
+                temp_lower = self.id.to_lowercase();
+                &temp_lower
+            };
+            if !id_lower.contains(filter_lower) {
                 return false;
             }
         }
@@ -106,8 +177,14 @@ impl ColumnFilters {
         // Check title filter (substring match, case-insensitive)
         if !self.title.is_empty() {
             let title_lower = issue.title.to_lowercase();
-            let filter_lower = self.title.to_lowercase();
-            if !title_lower.contains(&filter_lower) {
+            let temp_lower;
+            let filter_lower = if !self.cached_title_lower.is_empty() {
+                &self.cached_title_lower
+            } else {
+                temp_lower = self.title.to_lowercase();
+                &temp_lower
+            };
+            if !title_lower.contains(filter_lower) {
                 return false;
             }
         }
@@ -115,8 +192,14 @@ impl ColumnFilters {
         // Check status filter (exact match, case-insensitive)
         if !self.status.is_empty() {
             let status_str = issue.status.to_string().to_lowercase();
-            let filter_lower = self.status.to_lowercase();
-            if status_str != filter_lower {
+            let temp_lower;
+            let filter_lower = if !self.cached_status_lower.is_empty() {
+                &self.cached_status_lower
+            } else {
+                temp_lower = self.status.to_lowercase();
+                &temp_lower
+            };
+            if status_str != *filter_lower {
                 return false;
             }
         }
@@ -132,8 +215,14 @@ impl ColumnFilters {
         // Check type filter (exact match, case-insensitive)
         if !self.type_filter.is_empty() {
             let type_str = issue.issue_type.to_string().to_lowercase();
-            let filter_lower = self.type_filter.to_lowercase();
-            if type_str != filter_lower {
+            let temp_lower;
+            let filter_lower = if !self.cached_type_lower.is_empty() {
+                &self.cached_type_lower
+            } else {
+                temp_lower = self.type_filter.to_lowercase();
+                &temp_lower
+            };
+            if type_str != *filter_lower {
                 return false;
             }
         }
@@ -150,20 +239,28 @@ impl ColumnFilters {
 
         // Check specific labels filter (with AND/OR logic)
         if !self.labels.is_empty() {
+            let temp_labels_lower;
+            let labels_lower = if !self.cached_labels_lower.is_empty() {
+                &self.cached_labels_lower
+            } else {
+                temp_labels_lower = self.labels.iter().map(|l| l.to_lowercase()).collect::<Vec<_>>();
+                &temp_labels_lower
+            };
+
             let matches = match self.label_match_mode {
                 LabelMatchMode::Any => {
                     // OR logic: issue must have at least one of the specified labels
-                    self.labels.iter().any(|filter_label| {
+                    labels_lower.iter().any(|filter_label_lower| {
                         issue.labels.iter().any(|issue_label| {
-                            issue_label.to_lowercase().contains(&filter_label.to_lowercase())
+                            issue_label.to_lowercase().contains(filter_label_lower)
                         })
                     })
                 }
                 LabelMatchMode::All => {
                     // AND logic: issue must have all of the specified labels
-                    self.labels.iter().all(|filter_label| {
+                    labels_lower.iter().all(|filter_label_lower| {
                         issue.labels.iter().any(|issue_label| {
-                            issue_label.to_lowercase().contains(&filter_label.to_lowercase())
+                            issue_label.to_lowercase().contains(filter_label_lower)
                         })
                     })
                 }
@@ -188,25 +285,6 @@ struct HierarchyInfo {
     prefix: String,
     /// Whether this is the last child at its level
     is_last: bool,
-}
-
-/// Compute a hash of the issue list structure for caching
-/// Based on issue IDs and their blocks relationships
-fn compute_hierarchy_hash(issues: &[&Issue]) -> u64 {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-
-    let mut hasher = DefaultHasher::new();
-
-    for issue in issues {
-        issue.id.hash(&mut hasher);
-        // Hash blocks relationships to detect dependency changes
-        for blocked_id in &issue.blocks {
-            blocked_id.hash(&mut hasher);
-        }
-    }
-
-    hasher.finish()
 }
 
 /// Build a map of issue IDs to their hierarchy information
@@ -319,8 +397,6 @@ pub struct IssueListState {
     table_config: TableConfig,
     /// Focused column for resize/reorder operations (index in visible columns)
     focused_column: Option<usize>,
-    /// Cached hierarchy map for rendering performance (issue_hash, hierarchy_map)
-    cached_hierarchy: Option<(u64, std::collections::HashMap<String, HierarchyInfo>)>,
 }
 
 impl Default for IssueListState {
@@ -342,7 +418,6 @@ impl IssueListState {
             column_filters: ColumnFilters::default(),
             table_config: TableConfig::default(),
             focused_column: None,
-            cached_hierarchy: None,
         }
     }
 
@@ -1075,24 +1150,8 @@ impl<'a> StatefulWidget for IssueList<'a> {
             Self::sort_issues(&mut issues, state.sort_column, state.sort_direction);
         }
 
-        // Build or retrieve cached hierarchy map for tree rendering
-        let current_hash = compute_hierarchy_hash(&issues);
-        let hierarchy_map = if let Some((cached_hash, ref cached_map)) = state.cached_hierarchy {
-            if cached_hash == current_hash {
-                // Reuse cached hierarchy
-                cached_map.clone()
-            } else {
-                // Hash changed, rebuild and cache
-                let new_map = build_hierarchy_map(&issues);
-                state.cached_hierarchy = Some((current_hash, new_map.clone()));
-                new_map
-            }
-        } else {
-            // No cache, build and cache
-            let new_map = build_hierarchy_map(&issues);
-            state.cached_hierarchy = Some((current_hash, new_map.clone()));
-            new_map
-        };
+        // Build hierarchy map for tree rendering
+        let hierarchy_map = build_hierarchy_map(&issues);
 
         // Build header from TableConfig
         let sort_indicator = match state.sort_direction {

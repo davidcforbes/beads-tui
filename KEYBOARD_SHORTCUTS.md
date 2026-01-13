@@ -20,6 +20,9 @@
 - `x`: Close selected issue
 - `o`: Reopen selected issue
 - `r`: Quick edit title
+- `>`: Indent issue (make child of previous)
+- `<`: Outdent issue (promote to parent level)
+- `Ctrl+Up`/`Ctrl+Down`: Reorder child within parent
 - `/`: Focus search bar
 - `Esc`: Clear search / focus
 - `Ctrl+S`: Save current filter
