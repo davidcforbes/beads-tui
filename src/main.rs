@@ -1161,17 +1161,40 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
         KeyCode::Char('d') => {
             // Remove dependency
             if let Some(issue) = selected_issue {
+                let current_id = issue.id.clone();
                 match app.dependencies_view_state.focus() {
                     ui::views::DependencyFocus::Dependencies => {
                         if let Some(selected_idx) = app.dependencies_view_state.selected_dependency()
                         {
                             if selected_idx < issue.dependencies.len() {
                                 let dep_id = issue.dependencies[selected_idx].clone();
-                                app.set_info(format!(
-                                    "Remove dependency '{}': Not yet implemented",
-                                    dep_id
-                                ));
-                                tracing::info!("Remove dependency requested: {}", dep_id);
+
+                                // Remove dependency: current_id depends on dep_id
+                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                match rt.block_on(
+                                    app.beads_client.remove_dependency(&current_id, &dep_id),
+                                ) {
+                                    Ok(()) => {
+                                        tracing::info!(
+                                            "Removed dependency: {} no longer depends on {}",
+                                            current_id,
+                                            dep_id
+                                        );
+                                        app.set_success(format!(
+                                            "Removed dependency: {} no longer depends on {}",
+                                            current_id, dep_id
+                                        ));
+                                        // Reload issues to reflect the change
+                                        app.reload_issues();
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Failed to remove dependency: {}", e);
+                                        app.set_error(format!(
+                                            "Failed to remove dependency: {}",
+                                            e
+                                        ));
+                                    }
+                                }
                             }
                         }
                     }
@@ -1179,11 +1202,33 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
                         if let Some(selected_idx) = app.dependencies_view_state.selected_block() {
                             if selected_idx < issue.blocks.len() {
                                 let blocked_id = issue.blocks[selected_idx].clone();
-                                app.set_info(format!(
-                                    "Remove block relationship with '{}': Not yet implemented",
-                                    blocked_id
-                                ));
-                                tracing::info!("Remove block requested: {}", blocked_id);
+
+                                // Remove dependency: blocked_id depends on current_id
+                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                match rt.block_on(
+                                    app.beads_client.remove_dependency(&blocked_id, &current_id),
+                                ) {
+                                    Ok(()) => {
+                                        tracing::info!(
+                                            "Removed dependency: {} no longer depends on {}",
+                                            blocked_id,
+                                            current_id
+                                        );
+                                        app.set_success(format!(
+                                            "Removed dependency: {} no longer depends on {}",
+                                            blocked_id, current_id
+                                        ));
+                                        // Reload issues to reflect the change
+                                        app.reload_issues();
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Failed to remove dependency: {}", e);
+                                        app.set_error(format!(
+                                            "Failed to remove dependency: {}",
+                                            e
+                                        ));
+                                    }
+                                }
                             }
                         }
                     }
