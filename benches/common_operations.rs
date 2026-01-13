@@ -1,8 +1,8 @@
 use beads_tui::beads::models::{Issue, IssueStatus, IssueType, Priority};
 use beads_tui::beads::parser::parse_issue_list;
 use beads_tui::ui::widgets::issue_list::{IssueList, IssueListState, SortColumn, SortDirection};
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
 use chrono::Utc;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
 /// Create a test issue for benchmarking
 fn create_test_issue(id: u32) -> Issue {
@@ -150,43 +150,31 @@ fn bench_issue_list_sorting(c: &mut Criterion) {
         let issue_refs: Vec<&Issue> = issues.iter().collect();
 
         // Benchmark sort by priority
-        group.bench_with_input(
-            BenchmarkId::new("by_priority", size),
-            size,
-            |b, _| {
-                b.iter(|| {
-                    let list = IssueList::new(issue_refs.clone())
-                        .with_sort(SortColumn::Priority, SortDirection::Ascending);
-                    black_box(list)
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("by_priority", size), size, |b, _| {
+            b.iter(|| {
+                let list = IssueList::new(issue_refs.clone())
+                    .with_sort(SortColumn::Priority, SortDirection::Ascending);
+                black_box(list)
+            });
+        });
 
         // Benchmark sort by title
-        group.bench_with_input(
-            BenchmarkId::new("by_title", size),
-            size,
-            |b, _| {
-                b.iter(|| {
-                    let list = IssueList::new(issue_refs.clone())
-                        .with_sort(SortColumn::Title, SortDirection::Ascending);
-                    black_box(list)
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("by_title", size), size, |b, _| {
+            b.iter(|| {
+                let list = IssueList::new(issue_refs.clone())
+                    .with_sort(SortColumn::Title, SortDirection::Ascending);
+                black_box(list)
+            });
+        });
 
         // Benchmark sort by updated
-        group.bench_with_input(
-            BenchmarkId::new("by_updated", size),
-            size,
-            |b, _| {
-                b.iter(|| {
-                    let list = IssueList::new(issue_refs.clone())
-                        .with_sort(SortColumn::Updated, SortDirection::Descending);
-                    black_box(list)
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("by_updated", size), size, |b, _| {
+            b.iter(|| {
+                let list = IssueList::new(issue_refs.clone())
+                    .with_sort(SortColumn::Updated, SortDirection::Descending);
+                black_box(list)
+            });
+        });
     }
 
     group.finish();
@@ -197,9 +185,11 @@ fn bench_parse_list_output(c: &mut Criterion) {
     let mut group = c.benchmark_group("parse_json_list");
 
     // Generate JSON output from issues
-    let sample_outputs = [(10, generate_json_output(10)),
+    let sample_outputs = [
+        (10, generate_json_output(10)),
         (100, generate_json_output(100)),
-        (500, generate_json_output(500))];
+        (500, generate_json_output(500)),
+    ];
 
     for (size, output) in sample_outputs.iter() {
         group.bench_with_input(BenchmarkId::from_parameter(size), output, |b, output| {

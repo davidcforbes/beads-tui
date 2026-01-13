@@ -28,7 +28,7 @@ This reference reflects the current key handling in `src/main.rs`.
 | `r` | Edit title inline |
 | `f` | Toggle quick filters |
 | `/` | Focus search input |
-| `v` | Cycle list view |
+| `v` | Cycle issue view (All/Ready/Blocked/My Issues/Recently/Stale) |
 | `Esc` | Clear search |
 | `Alt+Shift+Left` | Shrink focused column |
 | `Alt+Shift+Right` | Grow focused column |
@@ -104,6 +104,69 @@ This reference reflects the current key handling in `src/main.rs`.
 | `e` | Edit label (not yet implemented) |
 | `s` | Show stats summary |
 | `/` | Search labels (not yet implemented) |
+
+## Molecular View (Global)
+
+| Key | Action |
+| --- | --- |
+| `[` | Previous molecular sub-tab |
+| `]` | Next molecular sub-tab |
+
+## Molecular View (Formula Browser)
+
+| Key | Action |
+| --- | --- |
+| `j` / `Down` | Move selection down |
+| `k` / `Up` | Move selection up |
+| `/` | Focus formula search |
+| `Enter` | Open pour wizard for selected formula |
+| `Esc` | Clear formula search |
+
+## Molecular View (Formula Search)
+
+| Key | Action |
+| --- | --- |
+| Type | Insert characters |
+| `Backspace` | Delete character |
+| `Enter` / `Esc` | Exit search |
+
+## Molecular View (Pour Wizard)
+
+| Key | Action |
+| --- | --- |
+| `Enter` | Advance step / finish |
+| `Shift+Backspace` | Previous step |
+| `Tab` / `Down` | Next field |
+| `Shift+Tab` / `Up` | Previous field |
+| Type | Insert characters |
+| `Backspace` / `Delete` | Delete character |
+| `Esc` | Cancel wizard |
+
+## Molecular View (Wisp Manager)
+
+| Key | Action |
+| --- | --- |
+| `j` / `Down` | Move selection down |
+| `k` / `Up` | Move selection up |
+| `n` | Create wisp (not yet implemented) |
+| `d` | Dissolve wisp (not yet implemented) |
+
+## Molecular View (Bonding Interface)
+
+| Key | Action |
+| --- | --- |
+| `j` / `Down` | Move selection down |
+| `k` / `Up` | Move selection up |
+| `Tab` | Toggle focus |
+| `t` | Cycle bond type |
+| `Enter` | Create bond (not yet implemented) |
+
+## Molecular View (Squash/Burn)
+
+| Key | Action |
+| --- | --- |
+| `s` | Squash history (not yet implemented) |
+| `b` | Burn history (not yet implemented) |
 
 ## Database View (Normal)
 

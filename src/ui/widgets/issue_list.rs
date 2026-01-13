@@ -46,6 +46,8 @@ pub struct ColumnFilters {
     pub status: String,
     pub priority: String,
     pub type_filter: String,
+    pub no_assignee: bool,
+    pub no_labels: bool,
 }
 
 impl ColumnFilters {
@@ -55,6 +57,8 @@ impl ColumnFilters {
         self.status.clear();
         self.priority.clear();
         self.type_filter.clear();
+        self.no_assignee = false;
+        self.no_labels = false;
     }
 
     pub fn is_empty(&self) -> bool {
@@ -63,6 +67,8 @@ impl ColumnFilters {
             && self.status.is_empty()
             && self.priority.is_empty()
             && self.type_filter.is_empty()
+            && !self.no_assignee
+            && !self.no_labels
     }
 
     /// Check if an issue matches the current filters
@@ -114,6 +120,16 @@ impl ColumnFilters {
             if type_str != filter_lower {
                 return false;
             }
+        }
+
+        // Check no-assignee filter
+        if self.no_assignee && issue.assignee.is_some() {
+            return false;
+        }
+
+        // Check no-labels filter
+        if self.no_labels && !issue.labels.is_empty() {
+            return false;
         }
 
         true
@@ -1260,5 +1276,121 @@ mod tests {
         let issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
         let list = IssueList::new(vec![&issue]).row_height(0);
         assert_eq!(list.row_height, 1); // Clamped to minimum 1
+    }
+
+    // Empty/null filter tests
+    #[test]
+    fn test_column_filters_no_assignee() {
+        let mut issue_with_assignee = create_test_issue("beads-001", "Test 1", Priority::P2, IssueStatus::Open);
+        issue_with_assignee.assignee = Some("user1".to_string());
+
+        let issue_no_assignee = create_test_issue("beads-002", "Test 2", Priority::P2, IssueStatus::Open);
+
+        let mut filters = ColumnFilters::default();
+        filters.no_assignee = true;
+
+        // Should match issue with no assignee
+        assert!(filters.matches(&issue_no_assignee));
+
+        // Should not match issue with assignee
+        assert!(!filters.matches(&issue_with_assignee));
+    }
+
+    #[test]
+    fn test_column_filters_no_labels() {
+        let mut issue_with_labels = create_test_issue("beads-001", "Test 1", Priority::P2, IssueStatus::Open);
+        issue_with_labels.labels = vec!["bug".to_string(), "frontend".to_string()];
+
+        let issue_no_labels = create_test_issue("beads-002", "Test 2", Priority::P2, IssueStatus::Open);
+
+        let mut filters = ColumnFilters::default();
+        filters.no_labels = true;
+
+        // Should match issue with no labels
+        assert!(filters.matches(&issue_no_labels));
+
+        // Should not match issue with labels
+        assert!(!filters.matches(&issue_with_labels));
+    }
+
+    #[test]
+    fn test_column_filters_no_assignee_and_no_labels() {
+        let mut issue_has_both = create_test_issue("beads-001", "Test 1", Priority::P2, IssueStatus::Open);
+        issue_has_both.assignee = Some("user1".to_string());
+        issue_has_both.labels = vec!["bug".to_string()];
+
+        let mut issue_no_assignee = create_test_issue("beads-002", "Test 2", Priority::P2, IssueStatus::Open);
+        issue_no_assignee.labels = vec!["bug".to_string()];
+
+        let mut issue_no_labels = create_test_issue("beads-003", "Test 3", Priority::P2, IssueStatus::Open);
+        issue_no_labels.assignee = Some("user1".to_string());
+
+        let issue_has_neither = create_test_issue("beads-004", "Test 4", Priority::P2, IssueStatus::Open);
+
+        let mut filters = ColumnFilters::default();
+        filters.no_assignee = true;
+        filters.no_labels = true;
+
+        // Should only match issue with neither assignee nor labels
+        assert!(filters.matches(&issue_has_neither));
+
+        // Should not match issues with assignee or labels
+        assert!(!filters.matches(&issue_has_both));
+        assert!(!filters.matches(&issue_no_assignee));
+        assert!(!filters.matches(&issue_no_labels));
+    }
+
+    #[test]
+    fn test_column_filters_clear_resets_empty_filters() {
+        let mut filters = ColumnFilters::default();
+        filters.no_assignee = true;
+        filters.no_labels = true;
+        filters.status = "Open".to_string();
+
+        filters.clear();
+
+        assert!(!filters.no_assignee);
+        assert!(!filters.no_labels);
+        assert!(filters.status.is_empty());
+    }
+
+    #[test]
+    fn test_column_filters_is_empty_with_empty_filters() {
+        let mut filters = ColumnFilters::default();
+        assert!(filters.is_empty());
+
+        // Setting no_assignee should make it non-empty
+        filters.no_assignee = true;
+        assert!(!filters.is_empty());
+
+        filters.no_assignee = false;
+        assert!(filters.is_empty());
+
+        // Setting no_labels should make it non-empty
+        filters.no_labels = true;
+        assert!(!filters.is_empty());
+    }
+
+    #[test]
+    fn test_column_filters_combined_with_other_filters() {
+        let issue1 = create_test_issue("beads-001", "Feature request", Priority::P2, IssueStatus::Open);
+
+        let mut issue2 = create_test_issue("beads-002", "Bug fix", Priority::P1, IssueStatus::Open);
+        issue2.assignee = Some("user1".to_string());
+
+        let issue3 = create_test_issue("beads-003", "Feature request", Priority::P2, IssueStatus::Closed);
+
+        let mut filters = ColumnFilters::default();
+        filters.no_assignee = true;
+        filters.status = "Open".to_string();
+
+        // Should match issue1 (no assignee AND status is Open)
+        assert!(filters.matches(&issue1));
+
+        // Should not match issue2 (has assignee)
+        assert!(!filters.matches(&issue2));
+
+        // Should not match issue3 (status is not Open)
+        assert!(!filters.matches(&issue3));
     }
 }

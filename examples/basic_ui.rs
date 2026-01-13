@@ -238,9 +238,10 @@ fn render_issues_tab(f: &mut ratatui::Frame, area: Rect, app: &App) {
 
 fn render_dependencies_tab(f: &mut ratatui::Frame, area: Rect) {
     let text = vec![
-        Line::from(vec![
-            Span::styled("Dependencies View", Style::default().fg(Color::Cyan)),
-        ]),
+        Line::from(vec![Span::styled(
+            "Dependencies View",
+            Style::default().fg(Color::Cyan),
+        )]),
         Line::from(""),
         Line::from("This tab would show:"),
         Line::from("• Issue dependency trees"),
@@ -259,9 +260,10 @@ fn render_dependencies_tab(f: &mut ratatui::Frame, area: Rect) {
 
 fn render_labels_tab(f: &mut ratatui::Frame, area: Rect) {
     let text = vec![
-        Line::from(vec![
-            Span::styled("Labels View", Style::default().fg(Color::Green)),
-        ]),
+        Line::from(vec![Span::styled(
+            "Labels View",
+            Style::default().fg(Color::Green),
+        )]),
         Line::from(""),
         Line::from("This tab would show:"),
         Line::from("• All available labels"),
