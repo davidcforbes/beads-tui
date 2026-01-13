@@ -143,6 +143,8 @@ pub struct KanbanViewState {
     card_mode: CardMode,
     /// Column manager overlay state
     column_manager: ColumnManagerState,
+    /// Horizontal scroll offset in columns
+    horizontal_scroll: usize,
 }
 
 impl KanbanViewState {
@@ -155,6 +157,7 @@ impl KanbanViewState {
             selected_card: 0,
             card_mode: CardMode::TwoLine,
             column_manager: ColumnManagerState::new(),
+            horizontal_scroll: 0,
         }
     }
 
@@ -368,6 +371,78 @@ impl KanbanViewState {
     /// Get mutable reference to column manager (for input handling)
     pub fn column_manager_mut(&mut self) -> &mut ColumnManagerState {
         &mut self.column_manager
+    }
+
+    /// Increase width of selected column
+    pub fn increase_column_width(&mut self) {
+        let visible_columns = self.visible_columns();
+        if let Some(column) = visible_columns.get(self.selected_column) {
+            let column_id = column.id.clone();
+            if let Some(col) = self.config.get_column_mut(&column_id) {
+                let new_width = col.width + 5;
+                col.set_width(new_width);
+            }
+        }
+    }
+
+    /// Decrease width of selected column
+    pub fn decrease_column_width(&mut self) {
+        let visible_columns = self.visible_columns();
+        if let Some(column) = visible_columns.get(self.selected_column) {
+            let column_id = column.id.clone();
+            if let Some(col) = self.config.get_column_mut(&column_id) {
+                let new_width = col.width.saturating_sub(5);
+                col.set_width(new_width);
+            }
+        }
+    }
+
+    /// Scroll horizontally left
+    pub fn scroll_left(&mut self) {
+        self.horizontal_scroll = self.horizontal_scroll.saturating_sub(1);
+    }
+
+    /// Scroll horizontally right
+    pub fn scroll_right(&mut self) {
+        let visible_columns = self.visible_columns();
+        if self.horizontal_scroll < visible_columns.len().saturating_sub(1) {
+            self.horizontal_scroll += 1;
+        }
+    }
+
+    /// Ensure the selected column is visible within the current scroll view
+    pub fn ensure_selected_column_visible(&mut self, viewport_width: u16) {
+        let visible_columns = self.visible_columns();
+        
+        // Calculate which columns fit in viewport starting from horizontal_scroll
+        let mut accumulated_width = 0u16;
+        let mut visible_range_end = self.horizontal_scroll;
+        
+        for idx in self.horizontal_scroll..visible_columns.len() {
+            if let Some(col) = visible_columns.get(idx) {
+                accumulated_width += col.width;
+                if accumulated_width <= viewport_width {
+                    visible_range_end = idx;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        // If selected column is before scroll position, scroll left to it
+        if self.selected_column < self.horizontal_scroll {
+            self.horizontal_scroll = self.selected_column;
+        }
+        
+        // If selected column is after visible range, scroll right to show it
+        if self.selected_column > visible_range_end {
+            self.horizontal_scroll = self.selected_column;
+        }
+    }
+
+    /// Get horizontal scroll offset
+    pub fn horizontal_scroll(&self) -> usize {
+        self.horizontal_scroll
     }
 
     /// Get visible columns
@@ -646,30 +721,72 @@ impl KanbanView {
             area
         };
 
-        // Calculate column widths
-        let constraints: Vec<Constraint> = visible_columns
+        // Calculate which columns to render based on horizontal scroll
+        let scroll_offset = state.horizontal_scroll();
+        let viewport_width = columns_area.width;
+        
+        // Determine visible columns that fit in viewport
+        let mut columns_to_render = Vec::new();
+        let mut accumulated_width = 0u16;
+        
+        for (idx, col) in visible_columns.iter().enumerate().skip(scroll_offset) {
+            if accumulated_width + col.width <= viewport_width {
+                columns_to_render.push((idx, col, col.width));
+                accumulated_width += col.width;
+            } else {
+                break;
+            }
+        }
+
+        // Create layout constraints for visible columns only
+        let constraints: Vec<Constraint> = columns_to_render
             .iter()
-            .map(|col| Constraint::Length(col.width))
+            .map(|(_, _, width)| Constraint::Length(*width))
             .collect();
 
-        let columns_layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(constraints)
-            .split(columns_area);
+        if !constraints.is_empty() {
+            let columns_layout = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints(constraints)
+                .split(columns_area);
 
-        // Render each column
-        for (col_idx, (column, column_area)) in visible_columns
-            .iter()
-            .zip(columns_layout.iter())
-            .enumerate()
-        {
-            Self::render_column(
-                *column_area,
-                buf,
-                column,
-                state,
-                col_idx,
-                col_idx == state.selected_column,
+            // Render each visible column
+            for ((col_idx, column, _), column_area) in columns_to_render
+                .iter()
+                .zip(columns_layout.iter())
+            {
+                Self::render_column(
+                    *column_area,
+                    buf,
+                    column,
+                    state,
+                    *col_idx,
+                    *col_idx == state.selected_column,
+                );
+            }
+        }
+
+        // Show scroll indicators if needed
+        if scroll_offset > 0 {
+            // Left scroll indicator
+            let indicator = " ◀ ";
+            buf.set_string(
+                columns_area.x,
+                columns_area.y,
+                indicator,
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            );
+        }
+        
+        if scroll_offset + columns_to_render.len() < visible_columns.len() {
+            // Right scroll indicator
+            let indicator = " ▶ ";
+            let x = columns_area.x + viewport_width.saturating_sub(indicator.len() as u16);
+            buf.set_string(
+                x,
+                columns_area.y,
+                indicator,
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
             );
         }
 
@@ -863,14 +980,15 @@ impl KanbanView {
             Style::default().fg(Color::DarkGray)
         };
 
-        // Add sort indicator to title
+        // Add sort indicator and active marker to title
         let sort_indicator = match column.card_sort {
             CardSort::Priority => " [↓P]",
             CardSort::Title => " [↓A]",
             CardSort::Created => " [↓C]",
             CardSort::Updated => " [↓U]",
         };
-        let title = format!(" {}{} ", column.label, sort_indicator);
+        let active_marker = if is_selected { "◆ " } else { "" };
+        let title = format!(" {}{}{} ", active_marker, column.label, sort_indicator);
         let block = Block::default()
             .title(title)
             .borders(Borders::ALL)
