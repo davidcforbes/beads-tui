@@ -10,6 +10,7 @@ use ratatui::{
 };
 
 /// Generic selector state for managing selection
+#[derive(Debug)]
 pub struct SelectorState {
     list_state: ListState,
     is_open: bool,

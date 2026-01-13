@@ -80,6 +80,8 @@ pub struct AppState {
     pub show_issue_history: bool,
     /// Issue history panel state
     pub issue_history_state: crate::ui::widgets::IssueHistoryState,
+    /// Priority selector state for batch priority updates
+    pub priority_selector_state: crate::ui::widgets::SelectorState,
     /// Whether beads daemon is currently running
     pub daemon_running: bool,
     /// Application configuration
@@ -209,6 +211,7 @@ impl AppState {
             notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
             show_issue_history: false,
             issue_history_state: crate::ui::widgets::IssueHistoryState::new(),
+            priority_selector_state: crate::ui::widgets::SelectorState::new(),
             daemon_running,
             config,
             filter_save_dialog_state: None,
@@ -753,6 +756,7 @@ mod tests {
             notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
             show_issue_history: false,
             issue_history_state: crate::ui::widgets::IssueHistoryState::new(),
+            priority_selector_state: crate::ui::widgets::SelectorState::new(),
         }
     }
 

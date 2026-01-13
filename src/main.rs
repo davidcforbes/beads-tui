@@ -816,6 +816,12 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         // Toggle filter quick select menu
                         issues_state.search_state_mut().toggle_filter_menu();
                     }
+                    KeyCode::Char('p') => {
+                        // Open priority selector for selected issue
+                        if issues_state.selected_issue().is_some() {
+                            app.priority_selector_state.toggle();
+                        }
+                    }
                     KeyCode::Char('/') => {
                         issues_state
                             .search_state_mut()
@@ -1674,6 +1680,57 @@ fn run_app<B: ratatui::backend::Backend>(
                     }
                 }
 
+                // Handle priority selector events if open
+                if app.priority_selector_state.is_open() {
+                    match key.code {
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            app.priority_selector_state.select_previous(5); // 5 priority levels
+                            continue;
+                        }
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            app.priority_selector_state.select_next(5);
+                            continue;
+                        }
+                        KeyCode::Enter => {
+                            // Apply selected priority to current issue
+                            if let Some(selected_idx) = app.priority_selector_state.selected() {
+                                use crate::beads::models::Priority;
+                                use crate::beads::client::IssueUpdate;
+                                let priorities = vec![Priority::P0, Priority::P1, Priority::P2, Priority::P3, Priority::P4];
+                                if let Some(&new_priority) = priorities.get(selected_idx) {
+                                    if let Some(issue) = app.issues_view_state.selected_issue() {
+                                        let issue_id = issue.id.clone();
+
+                                        // Update priority via beads client
+                                        let rt = tokio::runtime::Runtime::new().unwrap();
+                                        let client = &app.beads_client;
+                                        let update = IssueUpdate::new().priority(new_priority);
+
+                                        match rt.block_on(client.update_issue(&issue_id, update)) {
+                                            Ok(()) => {
+                                                app.set_success(format!("Updated priority to {} for issue {}", new_priority, issue_id));
+                                                app.reload_issues();
+                                            }
+                                            Err(e) => {
+                                                app.set_error(format!("Failed to update priority: {}", e));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            app.priority_selector_state.close();
+                            continue;
+                        }
+                        KeyCode::Esc => {
+                            app.priority_selector_state.close();
+                            continue;
+                        }
+                        _ => {
+                            continue;
+                        }
+                    }
+                }
+
                 // Global key bindings
                 match key.code {
                     KeyCode::Char('q') => {
@@ -2006,6 +2063,28 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         let selected_issue = app.issues_view_state.selected_issue();
         let panel = IssueHistoryPanel::new(selected_issue);
         f.render_stateful_widget(panel, f.size(), &mut app.issue_history_state);
+    }
+
+    // Render priority selector if open
+    if app.priority_selector_state.is_open() {
+        use ratatui::widgets::Clear;
+        use ui::widgets::PrioritySelector;
+
+        // Get current priority of selected issue
+        let current_priority = app
+            .issues_view_state
+            .selected_issue()
+            .map(|issue| issue.priority)
+            .unwrap_or(beads::models::Priority::P2);
+
+        // Create a centered rect for the selector
+        let area = f.size();
+        let selector_area = centered_rect(40, 30, area);
+
+        // Clear and render selector
+        f.render_widget(Clear, selector_area);
+        let selector = PrioritySelector::new(current_priority);
+        f.render_stateful_widget(selector, selector_area, &mut app.priority_selector_state);
     }
 
     // Render keyboard shortcut help overlay if visible
