@@ -23,8 +23,21 @@ use ratatui::{
 use std::io;
 use std::time::Instant;
 use ui::views::{DatabaseView, DependenciesView, HelpView, IssuesView, LabelsView};
+use clap::Parser;
+
+/// Interactive terminal UI for Beads issue management
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    /// Path to beads repository (defaults to current directory)
+    #[arg(short, long)]
+    path: Option<String>,
+}
 
 fn main() -> Result<()> {
+    // Parse CLI arguments (handles --version, --help automatically)
+    let _cli = Cli::parse();
+
     // Setup panic hook to restore terminal on panic
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -1124,7 +1137,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     };
     let title_line = Line::from(vec![
         Span::styled(
-            "Beads-TUI v0.1.0",
+            format!("Beads-TUI v{}", env!("CARGO_PKG_VERSION")),
             Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
