@@ -1,7 +1,7 @@
 //! Kanban board view for visual issue management
 
 use crate::beads::models::{Issue, IssueStatus, Priority};
-use crate::models::kanban_config::{ColumnDefinition, ColumnId, GroupingMode, KanbanConfig};
+use crate::models::kanban_config::{CardSort, ColumnDefinition, ColumnId, GroupingMode, KanbanConfig};
 use crate::ui::widgets::kanban_card::{render_kanban_card, CardMode, KanbanCardConfig};
 use ratatui::{
     buffer::Buffer,
