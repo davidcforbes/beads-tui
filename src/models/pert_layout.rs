@@ -155,6 +155,36 @@ impl PertGraph {
         graph
     }
 
+    /// Check if adding a dependency would create a cycle
+    /// Returns true if adding the dependency would create a cycle
+    /// from_id: issue that will depend on to_id
+    /// to_id: issue that from_id will depend on (blocker)
+    pub fn would_create_cycle(issues: &[Issue], from_id: &str, to_id: &str) -> bool {
+        // Create a temporary issue set with the proposed dependency added
+        let mut temp_issues: Vec<Issue> = issues.to_vec();
+
+        // Find the from_id issue and add the dependency
+        if let Some(issue) = temp_issues.iter_mut().find(|i| i.id == from_id) {
+            // Check if dependency already exists
+            if issue.dependencies.contains(&to_id.to_string()) {
+                return false; // Already exists, no cycle will be created
+            }
+            issue.dependencies.push(to_id.to_string());
+        } else {
+            // from_id doesn't exist, can't create cycle
+            return false;
+        }
+
+        // Check if to_id exists
+        if !temp_issues.iter().any(|i| i.id == to_id) {
+            return false; // to_id doesn't exist, can't create cycle
+        }
+
+        // Create temporary graph and check for cycles
+        let graph = Self::new(&temp_issues, 1.0);
+        graph.cycle_detection.has_cycle
+    }
+
     /// Detect cycles in the graph using DFS
     fn detect_cycles(&mut self) {
         let mut visited = HashSet::new();
@@ -1587,5 +1617,141 @@ mod tests {
 
         assert_eq!(filtered.nodes.len(), 1); // Only A
         assert!(filtered.nodes.contains_key("A"));
+    }
+
+    #[test]
+    fn test_would_create_cycle_simple() {
+        // A -> B -> C
+        let issue_a = create_test_issue("A", "Task A");
+        let mut issue_b = create_test_issue("B", "Task B");
+        let mut issue_c = create_test_issue("C", "Task C");
+
+        issue_b.dependencies = vec!["A".to_string()];
+        issue_c.dependencies = vec!["B".to_string()];
+
+        let issues = vec![issue_a, issue_b, issue_c];
+
+        // Adding C -> A would create a cycle (A -> B -> C -> A)
+        assert!(PertGraph::would_create_cycle(&issues, "A", "C"));
+
+        // Adding A -> B (already exists) should not create a cycle
+        assert!(!PertGraph::would_create_cycle(&issues, "B", "A"));
+
+        // Adding B -> C (already exists) should not create a cycle
+        assert!(!PertGraph::would_create_cycle(&issues, "C", "B"));
+    }
+
+    #[test]
+    fn test_would_create_cycle_self_loop() {
+        let issue = create_test_issue("A", "Task A");
+        let issues = vec![issue];
+
+        // Adding A -> A would create a self-loop cycle
+        assert!(PertGraph::would_create_cycle(&issues, "A", "A"));
+    }
+
+    #[test]
+    fn test_would_create_cycle_valid_addition() {
+        // A -> B
+        let issue_a = create_test_issue("A", "Task A");
+        let mut issue_b = create_test_issue("B", "Task B");
+        let issue_c = create_test_issue("C", "Task C");
+
+        issue_b.dependencies = vec!["A".to_string()];
+
+        let issues = vec![issue_a, issue_b, issue_c];
+
+        // Adding B -> C is valid (doesn't create cycle)
+        assert!(!PertGraph::would_create_cycle(&issues, "C", "B"));
+
+        // Adding C -> A is valid (doesn't create cycle)
+        assert!(!PertGraph::would_create_cycle(&issues, "A", "C"));
+
+        // Adding C -> B is valid (doesn't create cycle)
+        assert!(!PertGraph::would_create_cycle(&issues, "C", "B"));
+    }
+
+    #[test]
+    fn test_would_create_cycle_complex() {
+        // Complex graph: A -> B, A -> C, B -> D, C -> D
+        let issue_a = create_test_issue("A", "Task A");
+        let mut issue_b = create_test_issue("B", "Task B");
+        let mut issue_c = create_test_issue("C", "Task C");
+        let mut issue_d = create_test_issue("D", "Task D");
+
+        issue_b.dependencies = vec!["A".to_string()];
+        issue_c.dependencies = vec!["A".to_string()];
+        issue_d.dependencies = vec!["B".to_string(), "C".to_string()];
+
+        let issues = vec![issue_a, issue_b, issue_c, issue_d];
+
+        // Adding D -> A would create a cycle
+        assert!(PertGraph::would_create_cycle(&issues, "A", "D"));
+
+        // Adding D -> B (already exists) should not create a cycle
+        assert!(!PertGraph::would_create_cycle(&issues, "D", "B"));
+
+        // Adding A -> D is valid (doesn't create cycle, just adds another path)
+        // Wait, A already has paths to D through B and C, but A -> D wouldn't create a cycle
+        // because there's no path from D back to A
+        assert!(!PertGraph::would_create_cycle(&issues, "D", "A"));
+    }
+
+    #[test]
+    fn test_would_create_cycle_nonexistent_nodes() {
+        let issue = create_test_issue("A", "Task A");
+        let issues = vec![issue];
+
+        // Adding dependency with nonexistent nodes should return false (no cycle)
+        assert!(!PertGraph::would_create_cycle(&issues, "A", "NONEXISTENT"));
+        assert!(!PertGraph::would_create_cycle(&issues, "NONEXISTENT", "A"));
+        assert!(!PertGraph::would_create_cycle(
+            &issues,
+            "NONEXISTENT1",
+            "NONEXISTENT2"
+        ));
+    }
+
+    #[test]
+    fn test_would_create_cycle_existing_dependency() {
+        // A -> B
+        let issue_a = create_test_issue("A", "Task A");
+        let mut issue_b = create_test_issue("B", "Task B");
+
+        issue_b.dependencies = vec!["A".to_string()];
+
+        let issues = vec![issue_a, issue_b];
+
+        // Adding the same dependency again should not create a cycle
+        assert!(!PertGraph::would_create_cycle(&issues, "B", "A"));
+    }
+
+    #[test]
+    fn test_would_create_cycle_long_path() {
+        // A -> B -> C -> D -> E
+        let issue_a = create_test_issue("A", "Task A");
+        let mut issue_b = create_test_issue("B", "Task B");
+        let mut issue_c = create_test_issue("C", "Task C");
+        let mut issue_d = create_test_issue("D", "Task D");
+        let mut issue_e = create_test_issue("E", "Task E");
+
+        issue_b.dependencies = vec!["A".to_string()];
+        issue_c.dependencies = vec!["B".to_string()];
+        issue_d.dependencies = vec!["C".to_string()];
+        issue_e.dependencies = vec!["D".to_string()];
+
+        let issues = vec![issue_a, issue_b, issue_c, issue_d, issue_e];
+
+        // Adding E -> A would create a cycle
+        assert!(PertGraph::would_create_cycle(&issues, "A", "E"));
+
+        // Adding E -> B would create a cycle
+        assert!(PertGraph::would_create_cycle(&issues, "B", "E"));
+
+        // Adding E -> C would create a cycle
+        assert!(PertGraph::would_create_cycle(&issues, "C", "E"));
+
+        // Adding A -> E is valid (doesn't create cycle)
+        assert!(!PertGraph::would_create_cycle(&issues, "E", "A"));
     }
 }

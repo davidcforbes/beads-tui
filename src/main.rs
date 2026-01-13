@@ -314,25 +314,44 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 }
                             };
 
-                            // Call CLI to add dependency synchronously
-                            let rt = tokio::runtime::Runtime::new().unwrap();
-                            match rt.block_on(app.beads_client.add_dependency(&from_id, &to_id)) {
-                                Ok(()) => {
-                                    tracing::info!(
-                                        "Added dependency: {} depends on {}",
-                                        from_id,
-                                        to_id
-                                    );
-                                    app.set_success(format!(
-                                        "Added dependency: {} depends on {}",
-                                        from_id, to_id
-                                    ));
-                                    // Reload issues to reflect the change
-                                    app.reload_issues();
-                                }
-                                Err(e) => {
-                                    tracing::error!("Failed to add dependency: {}", e);
-                                    app.set_error(format!("Failed to add dependency: {}", e));
+                            // Check if this would create a cycle
+                            let all_issues: Vec<beads::Issue> = app
+                                .issues_view_state
+                                .search_state()
+                                .filtered_issues()
+                                .to_vec();
+
+                            if models::PertGraph::would_create_cycle(&all_issues, &from_id, &to_id) {
+                                app.set_error(format!(
+                                    "Cannot add dependency: would create a cycle. {} → {} would form a circular dependency.",
+                                    from_id, to_id
+                                ));
+                                tracing::warn!(
+                                    "Prevented cycle: {} depends on {} would create cycle",
+                                    from_id,
+                                    to_id
+                                );
+                            } else {
+                                // Call CLI to add dependency synchronously
+                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                match rt.block_on(app.beads_client.add_dependency(&from_id, &to_id)) {
+                                    Ok(()) => {
+                                        tracing::info!(
+                                            "Added dependency: {} depends on {}",
+                                            from_id,
+                                            to_id
+                                        );
+                                        app.set_success(format!(
+                                            "Added dependency: {} depends on {}",
+                                            from_id, to_id
+                                        ));
+                                        // Reload issues to reflect the change
+                                        app.reload_issues();
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Failed to add dependency: {}", e);
+                                        app.set_error(format!("Failed to add dependency: {}", e));
+                                    }
                                 }
                             }
                         }
