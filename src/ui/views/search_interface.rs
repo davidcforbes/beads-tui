@@ -2120,4 +2120,135 @@ mod tests {
         assert!(all_views.contains(&ViewType::Recently));
         assert!(all_views.contains(&ViewType::Stale));
     }
+
+    #[test]
+    fn test_clear_all_filters_resets_search_text() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Set a search query
+        state.search_state_mut().set_query("test query");
+        assert_eq!(state.search_state().query(), "test query");
+
+        // Clear all filters
+        state.clear_all_filters();
+
+        // Search text should be cleared
+        assert_eq!(state.search_state().query(), "");
+    }
+
+    #[test]
+    fn test_clear_all_filters_resets_view() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Change to a different view
+        state.set_view(ViewType::Ready);
+        assert_eq!(state.current_view(), ViewType::Ready);
+
+        // Clear all filters
+        state.clear_all_filters();
+
+        // View should be reset to All
+        assert_eq!(state.current_view(), ViewType::All);
+    }
+
+    #[test]
+    fn test_clear_all_filters_resets_search_scope() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Change search scope
+        state.set_search_scope(SearchScope::Title);
+        assert_eq!(state.search_scope(), SearchScope::Title);
+
+        // Clear all filters
+        state.clear_all_filters();
+
+        // Search scope should be reset to All
+        assert_eq!(state.search_scope(), SearchScope::All);
+    }
+
+    #[test]
+    fn test_clear_all_filters_clears_column_filters() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Enable and set some column filters
+        state.list_state_mut().toggle_filters();
+        state.list_state_mut().column_filters_mut().status = "Open".to_string();
+        state.list_state_mut().column_filters_mut().priority = "P1".to_string();
+
+        // Verify filters are set
+        assert!(state.list_state().filters_enabled());
+        assert!(!state.list_state().column_filters().status.is_empty());
+        assert!(!state.list_state().column_filters().priority.is_empty());
+
+        // Clear all filters
+        state.clear_all_filters();
+
+        // Column filters should be cleared (filter values reset to empty strings)
+        assert!(state.list_state().column_filters().status.is_empty());
+        assert!(state.list_state().column_filters().priority.is_empty());
+        assert!(state.list_state().column_filters().type_filter.is_empty());
+    }
+
+    #[test]
+    fn test_clear_all_filters_updates_filtered_issues() {
+        let mut issues = create_test_issues();
+
+        // Make beads-001 match a specific search and view
+        issues[0].status = IssueStatus::Open;
+        issues[0].dependencies = vec![];
+        issues[0].title = "Unique search term".to_string();
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Apply filters that limit results
+        state.set_view(ViewType::Ready);
+        state.search_state_mut().set_query("Unique");
+        state.update_filtered_issues();
+
+        // Should show only beads-001
+        assert_eq!(state.result_count(), 1);
+
+        // Clear all filters
+        state.clear_all_filters();
+
+        // Should now show all 3 issues
+        assert_eq!(state.result_count(), 3);
+    }
+
+    #[test]
+    fn test_clear_all_filters_comprehensive() {
+        let mut issues = create_test_issues();
+        issues[0].status = IssueStatus::Open;
+        issues[1].status = IssueStatus::Blocked;
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Set up multiple filters
+        state.set_view(ViewType::Ready);
+        state.set_search_scope(SearchScope::Title);
+        state.search_state_mut().set_query("feature");
+        state.list_state_mut().toggle_filters();
+        state.list_state_mut().column_filters_mut().status = "Open".to_string();
+        state.update_filtered_issues();
+
+        // Verify filters are applied
+        assert_eq!(state.current_view(), ViewType::Ready);
+        assert_eq!(state.search_scope(), SearchScope::Title);
+        assert!(!state.search_state().query().is_empty());
+        assert!(state.list_state().filters_enabled());
+
+        // Clear all filters
+        state.clear_all_filters();
+
+        // All filters should be reset
+        assert_eq!(state.current_view(), ViewType::All);
+        assert_eq!(state.search_scope(), SearchScope::All);
+        assert_eq!(state.search_state().query(), "");
+        assert!(state.list_state().column_filters().status.is_empty());
+        assert_eq!(state.result_count(), 3); // All issues visible
+    }
 }
