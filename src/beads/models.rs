@@ -666,4 +666,309 @@ mod tests {
             let _deserialized: DependencyType = serde_json::from_str(&json).unwrap();
         }
     }
+
+    // Debug trait tests
+    #[test]
+    fn test_issue_status_debug() {
+        let status = IssueStatus::InProgress;
+        let debug_str = format!("{:?}", status);
+        assert_eq!(debug_str, "InProgress");
+    }
+
+    #[test]
+    fn test_priority_debug() {
+        let priority = Priority::P2;
+        let debug_str = format!("{:?}", priority);
+        assert_eq!(debug_str, "P2");
+    }
+
+    #[test]
+    fn test_issue_type_debug() {
+        let issue_type = IssueType::Feature;
+        let debug_str = format!("{:?}", issue_type);
+        assert_eq!(debug_str, "Feature");
+    }
+
+    #[test]
+    fn test_dependency_type_debug() {
+        let dep_type = DependencyType::Blocks;
+        let debug_str = format!("{:?}", dep_type);
+        assert_eq!(debug_str, "Blocks");
+    }
+
+    #[test]
+    fn test_note_debug() {
+        let note = Note {
+            timestamp: Utc::now(),
+            author: "author".to_string(),
+            content: "content".to_string(),
+        };
+        let debug_str = format!("{:?}", note);
+        assert!(debug_str.contains("Note"));
+        assert!(debug_str.contains("author"));
+        assert!(debug_str.contains("content"));
+    }
+
+    #[test]
+    fn test_label_debug() {
+        let label = Label {
+            name: "bug".to_string(),
+            count: 5,
+        };
+        let debug_str = format!("{:?}", label);
+        assert!(debug_str.contains("Label"));
+        assert!(debug_str.contains("bug"));
+    }
+
+    #[test]
+    fn test_dependency_debug() {
+        let dep = Dependency {
+            from: "beads-001".to_string(),
+            to: "beads-002".to_string(),
+            dependency_type: DependencyType::Blocks,
+        };
+        let debug_str = format!("{:?}", dep);
+        assert!(debug_str.contains("Dependency"));
+        assert!(debug_str.contains("beads-001"));
+        assert!(debug_str.contains("beads-002"));
+    }
+
+    #[test]
+    fn test_issue_stats_debug() {
+        let stats = IssueStats {
+            total_issues: 100,
+            open: 30,
+            in_progress: 20,
+            blocked: 10,
+            closed: 40,
+            ready_to_work: 15,
+            avg_lead_time_hours: 48.5,
+        };
+        let debug_str = format!("{:?}", stats);
+        assert!(debug_str.contains("IssueStats"));
+        assert!(debug_str.contains("100"));
+    }
+
+    #[test]
+    fn test_create_issue_params_debug() {
+        let params = CreateIssueParams::new("Test", IssueType::Task, Priority::P2);
+        let debug_str = format!("{:?}", params);
+        assert!(debug_str.contains("CreateIssueParams"));
+        assert!(debug_str.contains("Test"));
+    }
+
+    #[test]
+    fn test_issue_debug() {
+        let now = Utc::now();
+        let issue = Issue {
+            id: "beads-001".to_string(),
+            title: "Test".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P2,
+            issue_type: IssueType::Task,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec![],
+            blocks: vec![],
+            created: now,
+            updated: now,
+            closed: None,
+            notes: vec![],
+        };
+        let debug_str = format!("{:?}", issue);
+        assert!(debug_str.contains("Issue"));
+        assert!(debug_str.contains("beads-001"));
+    }
+
+    // Issue struct tests
+    #[test]
+    fn test_issue_creation_with_all_fields() {
+        let now = Utc::now();
+        let note = Note {
+            timestamp: now,
+            author: "author".to_string(),
+            content: "note content".to_string(),
+        };
+        let issue = Issue {
+            id: "beads-test".to_string(),
+            title: "Test Issue".to_string(),
+            status: IssueStatus::InProgress,
+            priority: Priority::P1,
+            issue_type: IssueType::Feature,
+            description: Some("Description".to_string()),
+            assignee: Some("developer".to_string()),
+            labels: vec!["frontend".to_string(), "urgent".to_string()],
+            dependencies: vec!["beads-001".to_string()],
+            blocks: vec!["beads-002".to_string()],
+            created: now,
+            updated: now,
+            closed: None,
+            notes: vec![note],
+        };
+
+        assert_eq!(issue.id, "beads-test");
+        assert_eq!(issue.title, "Test Issue");
+        assert_eq!(issue.status, IssueStatus::InProgress);
+        assert_eq!(issue.priority, Priority::P1);
+        assert_eq!(issue.issue_type, IssueType::Feature);
+        assert_eq!(issue.description.as_deref(), Some("Description"));
+        assert_eq!(issue.assignee.as_deref(), Some("developer"));
+        assert_eq!(issue.labels.len(), 2);
+        assert_eq!(issue.dependencies.len(), 1);
+        assert_eq!(issue.blocks.len(), 1);
+        assert_eq!(issue.notes.len(), 1);
+        assert!(issue.closed.is_none());
+    }
+
+    #[test]
+    fn test_issue_creation_minimal_fields() {
+        let now = Utc::now();
+        let issue = Issue {
+            id: "beads-minimal".to_string(),
+            title: "Minimal Issue".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P3,
+            issue_type: IssueType::Task,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec![],
+            blocks: vec![],
+            created: now,
+            updated: now,
+            closed: None,
+            notes: vec![],
+        };
+
+        assert_eq!(issue.id, "beads-minimal");
+        assert!(issue.description.is_none());
+        assert!(issue.assignee.is_none());
+        assert!(issue.labels.is_empty());
+        assert!(issue.dependencies.is_empty());
+        assert!(issue.blocks.is_empty());
+        assert!(issue.notes.is_empty());
+        assert!(issue.closed.is_none());
+    }
+
+    #[test]
+    fn test_issue_with_closed_timestamp() {
+        let now = Utc::now();
+        let closed_time = now + chrono::Duration::hours(2);
+        let issue = Issue {
+            id: "beads-closed".to_string(),
+            title: "Closed Issue".to_string(),
+            status: IssueStatus::Closed,
+            priority: Priority::P2,
+            issue_type: IssueType::Bug,
+            description: None,
+            assignee: None,
+            labels: vec![],
+            dependencies: vec![],
+            blocks: vec![],
+            created: now,
+            updated: closed_time,
+            closed: Some(closed_time),
+            notes: vec![],
+        };
+
+        assert_eq!(issue.status, IssueStatus::Closed);
+        assert!(issue.closed.is_some());
+        assert_eq!(issue.closed.unwrap(), closed_time);
+    }
+
+    #[test]
+    fn test_note_creation() {
+        let now = Utc::now();
+        let note = Note {
+            timestamp: now,
+            author: "test_author".to_string(),
+            content: "This is a test note".to_string(),
+        };
+
+        assert_eq!(note.author, "test_author");
+        assert_eq!(note.content, "This is a test note");
+        assert_eq!(note.timestamp, now);
+    }
+
+    #[test]
+    fn test_label_default_count() {
+        let label = Label {
+            name: "feature".to_string(),
+            count: 0,
+        };
+        assert_eq!(label.count, 0);
+    }
+
+    #[test]
+    fn test_issue_stats_all_fields() {
+        let stats = IssueStats {
+            total_issues: 100,
+            open: 25,
+            in_progress: 15,
+            blocked: 10,
+            closed: 50,
+            ready_to_work: 20,
+            avg_lead_time_hours: 72.5,
+        };
+
+        assert_eq!(stats.total_issues, 100);
+        assert_eq!(stats.open, 25);
+        assert_eq!(stats.in_progress, 15);
+        assert_eq!(stats.blocked, 10);
+        assert_eq!(stats.closed, 50);
+        assert_eq!(stats.ready_to_work, 20);
+        assert_eq!(stats.avg_lead_time_hours, 72.5);
+    }
+
+    #[test]
+    fn test_dependency_with_depends_on_type() {
+        let dep = Dependency {
+            from: "beads-A".to_string(),
+            to: "beads-B".to_string(),
+            dependency_type: DependencyType::DependsOn,
+        };
+        assert_eq!(dep.dependency_type, DependencyType::DependsOn);
+        assert_eq!(dep.dependency_type.to_string(), "depends_on");
+    }
+
+    #[test]
+    fn test_create_issue_params_multiple_labels() {
+        let labels = vec![
+            "bug".to_string(),
+            "urgent".to_string(),
+            "frontend".to_string(),
+        ];
+        let params = CreateIssueParams::new("Test", IssueType::Bug, Priority::P0)
+            .with_labels(&labels);
+        assert_eq!(params.labels.len(), 3);
+        assert_eq!(params.labels[2], "frontend");
+    }
+
+    #[test]
+    fn test_issue_clone() {
+        let now = Utc::now();
+        let issue = Issue {
+            id: "beads-clone".to_string(),
+            title: "Clone Test".to_string(),
+            status: IssueStatus::Open,
+            priority: Priority::P2,
+            issue_type: IssueType::Task,
+            description: Some("Description".to_string()),
+            assignee: None,
+            labels: vec!["test".to_string()],
+            dependencies: vec![],
+            blocks: vec![],
+            created: now,
+            updated: now,
+            closed: None,
+            notes: vec![],
+        };
+
+        let cloned = issue.clone();
+        assert_eq!(issue.id, cloned.id);
+        assert_eq!(issue.title, cloned.title);
+        assert_eq!(issue.status, cloned.status);
+        assert_eq!(issue.labels, cloned.labels);
+    }
 }
