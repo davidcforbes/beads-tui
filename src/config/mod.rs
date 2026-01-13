@@ -1,5 +1,5 @@
 /// Configuration management for beads-tui
-use crate::models::{KanbanConfig, TableConfig};
+use crate::models::{KanbanConfig, SavedFilter, TableConfig};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -16,6 +16,8 @@ pub struct Config {
     pub table: TableConfig,
     #[serde(default)]
     pub kanban: KanbanConfig,
+    #[serde(default)]
+    pub filters: Vec<SavedFilter>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,7 +110,47 @@ impl Config {
 
         Ok(config_dir.config_dir().join("config.yaml"))
     }
+
+    /// Add a saved filter
+    pub fn add_filter(&mut self, filter: SavedFilter) {
+        self.filters.push(filter);
+    }
+
+    /// Remove a saved filter by name
+    /// Returns true if a filter was removed, false if not found
+    pub fn remove_filter(&mut self, name: &str) -> bool {
+        let len_before = self.filters.len();
+        self.filters.retain(|f| f.name != name);
+        self.filters.len() < len_before
+    }
+
+    /// Update a saved filter by name
+    /// Returns true if the filter was updated, false if not found
+    pub fn update_filter(&mut self, name: &str, filter: SavedFilter) -> bool {
+        if let Some(existing) = self.filters.iter_mut().find(|f| f.name == name) {
+            *existing = filter;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Get a filter by name
+    pub fn get_filter(&self, name: &str) -> Option<&SavedFilter> {
+        self.filters.iter().find(|f| f.name == name)
+    }
+
+    /// Get all saved filters
+    pub fn saved_filters(&self) -> &[SavedFilter] {
+        &self.filters
+    }
+
+    /// Get a filter by hotkey
+    pub fn get_filter_by_hotkey(&self, key: char) -> Option<&SavedFilter> {
+        self.filters.iter().find(|f| f.hotkey == Some(key))
+    }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -245,5 +287,222 @@ theme:
         assert!(yaml.contains("false"));
         assert!(yaml.contains("refresh_interval_secs"));
         assert!(yaml.contains("120"));
+    }
+
+    #[test]
+    fn test_add_filter() {
+        use crate::models::IssueFilter;
+
+        let mut config = Config::default();
+        assert_eq!(config.saved_filters().len(), 0);
+
+        let filter = SavedFilter {
+            name: "Test Filter".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('1'),
+        };
+
+        config.add_filter(filter.clone());
+        assert_eq!(config.saved_filters().len(), 1);
+        assert_eq!(config.saved_filters()[0].name, "Test Filter");
+    }
+
+    #[test]
+    fn test_remove_filter() {
+        use crate::models::IssueFilter;
+
+        let mut config = Config::default();
+        
+        let filter1 = SavedFilter {
+            name: "Filter 1".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('1'),
+        };
+        let filter2 = SavedFilter {
+            name: "Filter 2".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('2'),
+        };
+
+        config.add_filter(filter1);
+        config.add_filter(filter2);
+        assert_eq!(config.saved_filters().len(), 2);
+
+        // Remove existing filter
+        assert!(config.remove_filter("Filter 1"));
+        assert_eq!(config.saved_filters().len(), 1);
+        assert_eq!(config.saved_filters()[0].name, "Filter 2");
+
+        // Try to remove non-existent filter
+        assert!(!config.remove_filter("Filter 1"));
+        assert_eq!(config.saved_filters().len(), 1);
+    }
+
+    #[test]
+    fn test_update_filter() {
+        use crate::models::IssueFilter;
+
+        let mut config = Config::default();
+
+        let filter = SavedFilter {
+            name: "Original".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('1'),
+        };
+
+        config.add_filter(filter);
+        assert_eq!(config.saved_filters()[0].hotkey, Some('1'));
+
+        // Update existing filter
+        let updated = SavedFilter {
+            name: "Original".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('2'),
+        };
+        assert!(config.update_filter("Original", updated));
+        assert_eq!(config.saved_filters()[0].hotkey, Some('2'));
+
+        // Try to update non-existent filter
+        let another = SavedFilter {
+            name: "NonExistent".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('3'),
+        };
+        assert!(!config.update_filter("NonExistent", another));
+    }
+
+    #[test]
+    fn test_get_filter() {
+        use crate::models::IssueFilter;
+
+        let mut config = Config::default();
+
+        let filter = SavedFilter {
+            name: "Test".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('1'),
+        };
+
+        config.add_filter(filter);
+
+        // Get existing filter
+        let found = config.get_filter("Test");
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "Test");
+
+        // Try to get non-existent filter
+        assert!(config.get_filter("NonExistent").is_none());
+    }
+
+    #[test]
+    fn test_get_filter_by_hotkey() {
+        use crate::models::IssueFilter;
+
+        let mut config = Config::default();
+
+        let filter1 = SavedFilter {
+            name: "Filter 1".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('1'),
+        };
+        let filter2 = SavedFilter {
+            name: "Filter 2".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('2'),
+        };
+        let filter3 = SavedFilter {
+            name: "Filter 3".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: None,
+        };
+
+        config.add_filter(filter1);
+        config.add_filter(filter2);
+        config.add_filter(filter3);
+
+        // Get filter by existing hotkey
+        let found = config.get_filter_by_hotkey('1');
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "Filter 1");
+
+        let found = config.get_filter_by_hotkey('2');
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "Filter 2");
+
+        // Try to get filter by non-existent hotkey
+        assert!(config.get_filter_by_hotkey('3').is_none());
+    }
+
+    #[test]
+    fn test_saved_filters() {
+        use crate::models::IssueFilter;
+
+        let mut config = Config::default();
+
+        let filter1 = SavedFilter {
+            name: "Filter 1".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('1'),
+        };
+        let filter2 = SavedFilter {
+            name: "Filter 2".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('2'),
+        };
+
+        config.add_filter(filter1);
+        config.add_filter(filter2);
+
+        let filters = config.saved_filters();
+        assert_eq!(filters.len(), 2);
+        assert_eq!(filters[0].name, "Filter 1");
+        assert_eq!(filters[1].name, "Filter 2");
+    }
+
+    #[test]
+    fn test_config_with_filters_serialization() {
+        use crate::models::IssueFilter;
+
+        let mut config = Config::default();
+
+        let filter = SavedFilter {
+            name: "Test Filter".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('1'),
+        };
+
+        config.add_filter(filter);
+
+        let yaml = serde_yaml::to_string(&config).unwrap();
+        assert!(yaml.contains("filters"));
+        assert!(yaml.contains("Test Filter"));
+    }
+
+    #[test]
+    fn test_config_with_filters_deserialization() {
+        let yaml = r#"
+theme:
+  name: dark
+behavior:
+  auto_refresh: true
+  refresh_interval_secs: 60
+filters:
+  - name: "High Priority"
+    filter:
+      status: null
+      priority: P1
+      issue_type: null
+      assignee: null
+      labels: []
+      label_logic: And
+      search_text: null
+      use_regex: false
+      use_fuzzy: false
+    hotkey: "1"
+"#;
+        let config: Config = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(config.filters.len(), 1);
+        assert_eq!(config.filters[0].name, "High Priority");
+        assert_eq!(config.filters[0].hotkey, Some('1'));
     }
 }

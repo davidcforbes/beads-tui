@@ -1,14 +1,25 @@
 /// Filter models for issue list filtering
 use crate::beads::models::{IssueStatus, IssueType, Priority};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum LogicOp {
+    #[default]
+    And,
+    Or,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct IssueFilter {
     pub status: Option<IssueStatus>,
     pub priority: Option<Priority>,
     pub issue_type: Option<IssueType>,
     pub assignee: Option<String>,
     pub labels: Vec<String>,
+    pub label_logic: LogicOp,
     pub search_text: Option<String>,
+    pub use_regex: bool,
+    pub use_fuzzy: bool,
 }
 
 impl IssueFilter {
@@ -30,7 +41,7 @@ impl IssueFilter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SavedFilter {
     pub name: String,
     pub filter: IssueFilter,
@@ -49,7 +60,10 @@ mod tests {
         assert!(filter.issue_type.is_none());
         assert!(filter.assignee.is_none());
         assert!(filter.labels.is_empty());
+        assert_eq!(filter.label_logic, LogicOp::And);
         assert!(filter.search_text.is_none());
+        assert!(!filter.use_regex);
+        assert!(!filter.use_fuzzy);
     }
 
     #[test]
