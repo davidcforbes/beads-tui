@@ -1,7 +1,7 @@
 /// Application state management
 use crate::beads::BeadsClient;
 use crate::ui::views::{
-    compute_label_stats, DatabaseStats, DatabaseStatus, DependenciesViewState,
+    compute_label_stats, DatabaseStats, DatabaseStatus, DatabaseViewState, DependenciesViewState,
     GanttViewState, HelpSection, IssuesViewState, KanbanViewState, LabelStats,
     LabelsViewState, PertViewState,
 };
@@ -41,6 +41,7 @@ pub struct AppState {
     pub label_stats: Vec<LabelStats>,
     pub database_stats: DatabaseStats,
     pub database_status: DatabaseStatus,
+    pub database_view_state: DatabaseViewState,
     /// Dirty flag to track whether UI needs redrawing
     dirty: bool,
     /// Performance profiling statistics
@@ -96,6 +97,7 @@ impl AppState {
             label_stats,
             database_stats,
             database_status: DatabaseStatus::Ready,
+            database_view_state: DatabaseViewState::new(),
             dirty: true, // Initial render required
             perf_stats: PerfStats::new(),
             show_perf_stats: false,

@@ -425,6 +425,12 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             .search_state_mut()
                             .set_focused(true);
                     }
+                    KeyCode::Char('v') => {
+                        // Cycle to next view
+                        issues_state.search_state_mut().next_view();
+                        let view_name = issues_state.search_state().current_view().display_name();
+                        tracing::info!("Switched to view: {}", view_name);
+                    }
                     KeyCode::Esc => {
                         issues_state.search_state_mut().clear_search();
                     }
@@ -877,29 +883,92 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
         return;
     }
 
+    // Handle input mode
+    if app.database_view_state.is_input_focused {
+        match key_code {
+            KeyCode::Char(c) => {
+                app.database_view_state.input_value.push(c);
+                app.mark_dirty();
+            }
+            KeyCode::Backspace => {
+                app.database_view_state.input_value.pop();
+                app.mark_dirty();
+            }
+            KeyCode::Enter => {
+                let prompt = app.database_view_state.input_prompt.clone();
+                let filename = app.database_view_state.finish_input();
+                
+                let rt = tokio::runtime::Runtime::new().unwrap();
+
+                if prompt.contains("Export") {
+                    app.database_view_state.add_sync_log(format!("Exporting to {}...", filename));
+                    app.database_view_state.start_operation("Exporting".to_string());
+                    app.mark_dirty();
+                    let client = &app.beads_client;
+                    match rt.block_on(client.export_issues(&filename)) {
+                        Ok(_) => app.set_success(format!("Exported to {}", filename)),
+                        Err(e) => app.set_error(format!("Export failed: {}", e)),
+                    }
+                } else if prompt.contains("Import") {
+                    app.database_view_state.add_sync_log(format!("Importing from {}...", filename));
+                    app.database_view_state.start_operation("Importing".to_string());
+                    app.mark_dirty();
+                    let client = &app.beads_client;
+                    match rt.block_on(client.import_issues(&filename)) {
+                        Ok(_) => app.set_success(format!("Imported from {}", filename)),
+                        Err(e) => app.set_error(format!("Import failed: {}", e)),
+                    }
+                }
+                app.database_view_state.finish_operation();
+                app.mark_dirty();
+            }
+            KeyCode::Esc => {
+                app.database_view_state.cancel_input();
+                app.mark_dirty();
+            }
+            _ => {}
+        }
+        return;
+    }
+
+    // Mode switching
+    if key_code == KeyCode::Char('/') {
+        use ui::views::DatabaseViewMode;
+        let modes = DatabaseViewMode::all();
+        let current_idx = modes.iter().position(|m| *m == app.database_view_state.mode).unwrap_or(0);
+        let next_idx = (current_idx + 1) % modes.len();
+        app.database_view_state.set_mode(modes[next_idx]);
+        app.mark_dirty();
+        return;
+    }
+
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let client = &app.beads_client;
 
     match key_code {
         KeyCode::Char('r') => {
             // Refresh database status
             tracing::info!("Refreshing database status");
+            app.database_view_state.add_sync_log("Refreshing status...".to_string());
             app.reload_issues();
         }
         KeyCode::Char('d') => {
             // Toggle daemon (start/stop)
             tracing::info!("Toggling daemon");
+            app.database_view_state.add_daemon_log("Toggling daemon...".to_string());
 
+            let client = &app.beads_client;
             if app.daemon_running {
                 // Stop daemon
                 match rt.block_on(client.stop_daemon()) {
                     Ok(_) => {
                         tracing::info!("Daemon stopped successfully");
                         app.daemon_running = false;
+                        app.database_view_state.add_daemon_log("Daemon stopped.".to_string());
                         app.mark_dirty();
                     }
                     Err(e) => {
                         tracing::error!("Failed to stop daemon: {:?}", e);
+                        app.database_view_state.add_daemon_log(format!("Failed to stop: {}", e));
                         app.set_error(format!("Failed to stop daemon: {e}"));
                     }
                 }
@@ -909,10 +978,12 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     Ok(_) => {
                         tracing::info!("Daemon started successfully");
                         app.daemon_running = true;
+                        app.database_view_state.add_daemon_log("Daemon started.".to_string());
                         app.mark_dirty();
                     }
                     Err(e) => {
                         tracing::error!("Failed to start daemon: {:?}", e);
+                        app.database_view_state.add_daemon_log(format!("Failed to start: {}", e));
                         app.set_error(format!("Failed to start daemon: {e}"));
                     }
                 }
@@ -921,55 +992,47 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
         KeyCode::Char('s') => {
             // Sync database with remote
             tracing::info!("Syncing database with remote");
+            app.database_view_state.add_sync_log("Starting sync...".to_string());
+            app.database_view_state.start_operation("Syncing database".to_string());
+            app.mark_dirty();
 
+            let client = &app.beads_client;
             match rt.block_on(client.sync_database()) {
                 Ok(output) => {
                     tracing::info!("Database synced successfully: {}", output);
+                    app.database_view_state.add_sync_log(format!("Sync success: {output}"));
                     app.reload_issues();
                 }
                 Err(e) => {
                     tracing::error!("Failed to sync database: {:?}", e);
+                    app.database_view_state.add_sync_log(format!("Sync failed: {e}"));
                     app.set_error(format!("Failed to sync database: {e}"));
                 }
             }
+            app.database_view_state.finish_operation();
+            app.mark_dirty();
         }
         KeyCode::Char('e') => {
             // Export issues to file
-            tracing::info!("Exporting issues to beads_export.jsonl");
-
-            match rt.block_on(client.export_issues("beads_export.jsonl")) {
-                Ok(_) => {
-                    tracing::info!("Issues exported successfully");
-                    app.set_success("Issues exported to beads_export.jsonl".to_string());
-                }
-                Err(e) => {
-                    tracing::error!("Failed to export issues: {:?}", e);
-                    app.set_error(format!("Failed to export issues: {e}"));
-                }
-            }
+            app.database_view_state.start_input("Export Filename".to_string(), "beads_export.jsonl".to_string());
+            app.mark_dirty();
         }
         KeyCode::Char('i') => {
             // Import issues from file
-            tracing::info!("Importing issues from beads_import.jsonl");
-
-            match rt.block_on(client.import_issues("beads_import.jsonl")) {
-                Ok(_) => {
-                    tracing::info!("Issues imported successfully");
-                    app.reload_issues();
-                }
-                Err(e) => {
-                    tracing::error!("Failed to import issues: {:?}", e);
-                    app.set_error(format!("Failed to import issues: {e}"));
-                }
-            }
+            app.database_view_state.start_input("Import Filename".to_string(), "beads_import.jsonl".to_string());
+            app.mark_dirty();
         }
         KeyCode::Char('v') => {
             // Verify database integrity
             tracing::info!("Verifying database integrity");
+            app.database_view_state.add_sync_log("Verifying integrity...".to_string());
 
+            let client = &app.beads_client;
             match rt.block_on(client.verify_database()) {
                 Ok(output) => {
                     tracing::info!("Database verification result: {}", output);
+                    app.database_view_state.add_sync_log(format!("Integrity check: {output}"));
+                    app.database_view_state.set_integrity_report(output.clone());
                     if output.contains("error") {
                         app.set_error(format!("Database check: {output}"));
                     } else if output.contains("issue") || output.contains("warning") {
@@ -992,6 +1055,13 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             app.dialog_state = Some(ui::widgets::DialogState::new());
             app.pending_action = Some("compact_database".to_string());
             app.mark_dirty();
+        }
+        KeyCode::Char('k') => {
+            // Kill all (force)
+            tracing::info!("Kill all beads processes requested");
+            app.database_view_state.add_sync_log("Killing all beads processes...".to_string());
+            // No direct client method for killall, could use shell
+            app.set_warning("Killall not yet implemented via API".to_string());
         }
         _ => {}
     }
@@ -1241,7 +1311,11 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 .status(app.database_status)
                 .stats(app.database_stats.clone())
                 .daemon_running(app.daemon_running);
-            f.render_widget(database_view, tabs_chunks[1]);
+            f.render_stateful_widget(
+                database_view,
+                tabs_chunks[1],
+                &mut app.database_view_state,
+            );
         }
         _ => {
             // Help view (tab 7 and beyond)

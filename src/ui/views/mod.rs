@@ -15,7 +15,7 @@ pub mod pert_view;
 pub mod search_interface;
 
 pub use create_issue::{CreateIssueData, CreateIssueForm, CreateIssueFormState};
-pub use database_view::{DatabaseStats, DatabaseStatus, DatabaseView};
+pub use database_view::{DatabaseStats, DatabaseStatus, DatabaseView, DatabaseViewMode, DatabaseViewState};
 pub use dependencies_view::{DependenciesView, DependenciesViewState, DependencyFocus};
 pub use description_editor::{DescriptionEditorState, DescriptionEditorView, EditorMode};
 pub use gantt_view::{GanttView, GanttViewState};
@@ -26,4 +26,4 @@ pub use issues_view::{IssuesView, IssuesViewMode, IssuesViewState};
 pub use kanban_view::{KanbanView, KanbanViewState};
 pub use labels_view::{compute_label_stats, LabelStats, LabelsView, LabelsViewState};
 pub use pert_view::{PertView, PertViewState};
-pub use search_interface::{SearchInterfaceState, SearchInterfaceView, SearchScope};
+pub use search_interface::{SearchInterfaceState, SearchInterfaceView, SearchScope, ViewType};

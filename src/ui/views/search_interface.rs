@@ -1,6 +1,6 @@
 //! Search interface view with search input and results
 
-use crate::beads::models::Issue;
+use crate::beads::models::{Issue, IssueStatus};
 use crate::ui::widgets::{IssueList, IssueListState, SearchInput, SearchInputState};
 use ratatui::{
     buffer::Buffer,
@@ -10,6 +10,36 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
 };
 
+/// View type for smart views
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ViewType {
+    /// All issues
+    All,
+    /// Ready issues (open, no blockers)
+    Ready,
+    /// Blocked issues
+    Blocked,
+    /// My issues (assigned to current user)
+    MyIssues,
+}
+
+impl ViewType {
+    /// Get display name for the view
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::All => "All Issues",
+            Self::Ready => "Ready",
+            Self::Blocked => "Blocked",
+            Self::MyIssues => "My Issues",
+        }
+    }
+
+    /// Get all view types
+    pub fn all() -> Vec<ViewType> {
+        vec![Self::All, Self::Ready, Self::Blocked, Self::MyIssues]
+    }
+}
+
 /// Search interface state
 #[derive(Debug)]
 pub struct SearchInterfaceState {
@@ -18,6 +48,8 @@ pub struct SearchInterfaceState {
     all_issues: Vec<Issue>,
     filtered_issues: Vec<Issue>,
     search_scope: SearchScope,
+    current_view: ViewType,
+    current_user: Option<String>,
     show_help: bool,
 }
 
@@ -60,8 +92,17 @@ impl SearchInterfaceState {
             all_issues: issues.clone(),
             filtered_issues: issues,
             search_scope: SearchScope::All,
+            current_view: ViewType::All,
+            current_user: None,
             show_help: true,
         }
+    }
+
+    /// Create a new search interface state with a specific user
+    pub fn with_user(issues: Vec<Issue>, user: Option<String>) -> Self {
+        let mut state = Self::new(issues);
+        state.current_user = user;
+        state
     }
 
     /// Get search input state
@@ -111,13 +152,46 @@ impl SearchInterfaceState {
         self.update_filtered_issues();
     }
 
+    /// Get current view
+    pub fn current_view(&self) -> ViewType {
+        self.current_view
+    }
+
+    /// Set current view
+    pub fn set_view(&mut self, view: ViewType) {
+        self.current_view = view;
+        self.update_filtered_issues();
+    }
+
+    /// Cycle to next view
+    pub fn next_view(&mut self) {
+        self.current_view = match self.current_view {
+            ViewType::All => ViewType::Ready,
+            ViewType::Ready => ViewType::Blocked,
+            ViewType::Blocked => ViewType::MyIssues,
+            ViewType::MyIssues => ViewType::All,
+        };
+        self.update_filtered_issues();
+    }
+
+    /// Set current user for MyIssues view
+    pub fn set_current_user(&mut self, user: Option<String>) {
+        self.current_user = user;
+        self.update_filtered_issues();
+    }
+
+    /// Get current user
+    pub fn current_user(&self) -> Option<&str> {
+        self.current_user.as_deref()
+    }
+
     /// Set all issues
     pub fn set_issues(&mut self, issues: Vec<Issue>) {
         self.all_issues = issues;
         self.update_filtered_issues();
     }
 
-    /// Update filtered issues based on search query, scope, and column filters
+    /// Update filtered issues based on search query, scope, column filters, and view
     pub fn update_filtered_issues(&mut self) {
         let query = self.search_state.query().to_lowercase();
         let column_filters = self.list_state.column_filters();
@@ -127,21 +201,24 @@ impl SearchInterfaceState {
             .all_issues
             .iter()
             .filter(|issue| {
-                // First apply search query filter
+                // First apply view-specific filter
+                let matches_view = self.matches_view(issue);
+
+                // Then apply search query filter
                 let matches_search = if query.is_empty() {
                     true
                 } else {
                     self.matches_query(issue, &query)
                 };
 
-                // Then apply column filters if enabled
+                // Finally apply column filters if enabled
                 let matches_filters = if !filters_enabled {
                     true
                 } else {
                     column_filters.matches(issue)
                 };
 
-                matches_search && matches_filters
+                matches_view && matches_search && matches_filters
             })
             .cloned()
             .collect();
@@ -154,6 +231,29 @@ impl SearchInterfaceState {
                 } else {
                     Some(0)
                 });
+            }
+        }
+    }
+
+    /// Check if an issue matches the current view
+    fn matches_view(&self, issue: &Issue) -> bool {
+        match self.current_view {
+            ViewType::All => true,
+            ViewType::Ready => {
+                // Ready: status is open and no dependencies (no blockers)
+                issue.status == IssueStatus::Open && issue.dependencies.is_empty()
+            }
+            ViewType::Blocked => {
+                // Blocked: status is blocked
+                issue.status == IssueStatus::Blocked
+            }
+            ViewType::MyIssues => {
+                // MyIssues: assigned to current user
+                if let Some(ref user) = self.current_user {
+                    issue.assignee.as_ref().map_or(false, |a| a == user)
+                } else {
+                    false
+                }
             }
         }
     }
@@ -258,7 +358,11 @@ impl<'a> SearchInterfaceView<'a> {
     fn render_search_bar(&self, area: Rect, buf: &mut Buffer, state: &mut SearchInterfaceState) {
         let search_block = Block::default()
             .borders(Borders::ALL)
-            .title(format!("Search [{}]", state.search_scope().display_name()))
+            .title(format!(
+                "Search [{}] - View: {}",
+                state.search_scope().display_name(),
+                state.current_view().display_name()
+            ))
             .style(self.block_style);
 
         let search_input = SearchInput::new().block(search_block);
@@ -293,7 +397,7 @@ impl<'a> SearchInterfaceView<'a> {
 
     fn render_help_bar(&self, area: Rect, buf: &mut Buffer) {
         let help_text =
-            "/ Focus Search | Tab: Cycle Scope | Esc: Clear | j/k: Navigate | Enter: View | ?:Toggle Help";
+            "/ Focus Search | Tab: Cycle Scope | v: Cycle View | Esc: Clear | j/k: Navigate | Enter: View | ?: Toggle Help";
 
         let line = Line::from(Span::styled(help_text, self.help_style));
         let paragraph = Paragraph::new(line);
@@ -1390,6 +1494,301 @@ mod tests {
         let issues = vec![];
         let state = SearchInterfaceState::new(issues);
 
+        assert_eq!(state.result_count(), 0);
+    }
+
+    // ========== Smart Views Tests ==========
+
+    #[test]
+    fn test_view_type_display_name() {
+        assert_eq!(ViewType::All.display_name(), "All Issues");
+        assert_eq!(ViewType::Ready.display_name(), "Ready");
+        assert_eq!(ViewType::Blocked.display_name(), "Blocked");
+        assert_eq!(ViewType::MyIssues.display_name(), "My Issues");
+    }
+
+    #[test]
+    fn test_view_type_all() {
+        let all_views = ViewType::all();
+        assert_eq!(all_views.len(), 4);
+        assert_eq!(all_views[0], ViewType::All);
+        assert_eq!(all_views[1], ViewType::Ready);
+        assert_eq!(all_views[2], ViewType::Blocked);
+        assert_eq!(all_views[3], ViewType::MyIssues);
+    }
+
+    #[test]
+    fn test_view_type_clone_and_copy() {
+        let view1 = ViewType::Ready;
+        let view2 = view1; // Copy
+        assert_eq!(view1, view2);
+    }
+
+    #[test]
+    fn test_view_type_eq() {
+        assert_eq!(ViewType::All, ViewType::All);
+        assert_eq!(ViewType::Ready, ViewType::Ready);
+        assert_eq!(ViewType::Blocked, ViewType::Blocked);
+        assert_eq!(ViewType::MyIssues, ViewType::MyIssues);
+
+        assert_ne!(ViewType::All, ViewType::Ready);
+        assert_ne!(ViewType::Blocked, ViewType::MyIssues);
+    }
+
+    #[test]
+    fn test_default_view_is_all() {
+        let issues = create_test_issues();
+        let state = SearchInterfaceState::new(issues);
+
+        assert_eq!(state.current_view(), ViewType::All);
+    }
+
+    #[test]
+    fn test_set_view() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_view(ViewType::Ready);
+        assert_eq!(state.current_view(), ViewType::Ready);
+
+        state.set_view(ViewType::Blocked);
+        assert_eq!(state.current_view(), ViewType::Blocked);
+    }
+
+    #[test]
+    fn test_next_view_cycles() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        assert_eq!(state.current_view(), ViewType::All);
+
+        state.next_view();
+        assert_eq!(state.current_view(), ViewType::Ready);
+
+        state.next_view();
+        assert_eq!(state.current_view(), ViewType::Blocked);
+
+        state.next_view();
+        assert_eq!(state.current_view(), ViewType::MyIssues);
+
+        state.next_view();
+        assert_eq!(state.current_view(), ViewType::All);
+    }
+
+    #[test]
+    fn test_ready_view_filters_open_no_dependencies() {
+        let mut issues = create_test_issues();
+        // beads-001: Open, no dependencies
+        // beads-002: InProgress (should be filtered out)
+        // beads-003: Open, no dependencies
+
+        // Add a dependency to beads-003
+        issues[2].dependencies.push("beads-001".to_string());
+
+        let mut state = SearchInterfaceState::new(issues);
+        state.set_view(ViewType::Ready);
+
+        // Only beads-001 should match (open + no dependencies)
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-001");
+    }
+
+    #[test]
+    fn test_blocked_view_filters_by_status() {
+        let mut issues = create_test_issues();
+        // Set beads-002 to Blocked status
+        issues[1].status = IssueStatus::Blocked;
+
+        let mut state = SearchInterfaceState::new(issues);
+        state.set_view(ViewType::Blocked);
+
+        // Only beads-002 should match
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-002");
+    }
+
+    #[test]
+    fn test_my_issues_view_filters_by_assignee() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::with_user(issues, Some("alice".to_string()));
+
+        state.set_view(ViewType::MyIssues);
+
+        // Only beads-001 is assigned to alice
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-001");
+        assert_eq!(state.filtered_issues()[0].assignee, Some("alice".to_string()));
+    }
+
+    #[test]
+    fn test_my_issues_view_with_no_user_returns_nothing() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_view(ViewType::MyIssues);
+
+        // No current user, so no matches
+        assert_eq!(state.result_count(), 0);
+    }
+
+    #[test]
+    fn test_set_current_user() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        assert_eq!(state.current_user(), None);
+
+        state.set_current_user(Some("bob".to_string()));
+        assert_eq!(state.current_user(), Some("bob"));
+
+        state.set_current_user(None);
+        assert_eq!(state.current_user(), None);
+    }
+
+    #[test]
+    fn test_my_issues_view_updates_when_user_changes() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_view(ViewType::MyIssues);
+        assert_eq!(state.result_count(), 0); // No user
+
+        state.set_current_user(Some("alice".to_string()));
+        assert_eq!(state.result_count(), 1); // Alice has 1 issue
+
+        state.set_current_user(Some("bob".to_string()));
+        assert_eq!(state.result_count(), 1); // Bob has 1 issue
+    }
+
+    #[test]
+    fn test_view_filter_combines_with_search() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Set to Ready view (beads-001 and beads-003)
+        state.set_view(ViewType::Ready);
+        assert_eq!(state.result_count(), 2);
+
+        // Now search for "search" - should only match beads-001
+        state.search_state_mut().set_query("search");
+        state.update_filtered_issues();
+
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-001");
+    }
+
+    #[test]
+    fn test_view_filter_combines_with_column_filters() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Set to Ready view (beads-001 and beads-003)
+        state.set_view(ViewType::Ready);
+        assert_eq!(state.result_count(), 2);
+
+        // Enable column filters
+        state.list_state_mut().set_filters_enabled(true);
+
+        // Filter by priority P2
+        let filters = state.list_state_mut().column_filters_mut();
+        filters.priority = "P2".to_string();
+        state.update_filtered_issues();
+
+        // Only beads-001 should match (Ready + P2)
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-001");
+    }
+
+    #[test]
+    fn test_all_view_shows_all_issues() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_view(ViewType::All);
+
+        assert_eq!(state.result_count(), 3);
+    }
+
+    #[test]
+    fn test_ready_view_with_no_ready_issues() {
+        let mut issues = create_test_issues();
+        // Make all issues not ready
+        issues[0].status = IssueStatus::Closed;
+        issues[1].status = IssueStatus::InProgress;
+        issues[2].dependencies.push("beads-001".to_string());
+
+        let mut state = SearchInterfaceState::new(issues);
+        state.set_view(ViewType::Ready);
+
+        assert_eq!(state.result_count(), 0);
+    }
+
+    #[test]
+    fn test_blocked_view_with_no_blocked_issues() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::new(issues);
+
+        state.set_view(ViewType::Blocked);
+
+        assert_eq!(state.result_count(), 0);
+    }
+
+    #[test]
+    fn test_with_user_constructor() {
+        let issues = create_test_issues();
+        let state = SearchInterfaceState::with_user(issues, Some("charlie".to_string()));
+
+        assert_eq!(state.current_user(), Some("charlie"));
+        assert_eq!(state.current_view(), ViewType::All);
+    }
+
+    #[test]
+    fn test_view_change_updates_filters() {
+        let mut issues = create_test_issues();
+        issues[1].status = IssueStatus::Blocked;
+
+        let mut state = SearchInterfaceState::new(issues);
+
+        // Start with All view
+        assert_eq!(state.result_count(), 3);
+
+        // Switch to Blocked
+        state.set_view(ViewType::Blocked);
+        assert_eq!(state.result_count(), 1);
+
+        // Switch to Ready
+        state.set_view(ViewType::Ready);
+        assert_eq!(state.result_count(), 2);
+
+        // Switch back to All
+        state.set_view(ViewType::All);
+        assert_eq!(state.result_count(), 3);
+    }
+
+    #[test]
+    fn test_ready_view_with_multiple_dependencies() {
+        let mut issues = create_test_issues();
+        issues[0].dependencies.push("beads-x".to_string());
+        issues[0].dependencies.push("beads-y".to_string());
+
+        let mut state = SearchInterfaceState::new(issues);
+        state.set_view(ViewType::Ready);
+
+        // beads-001 has dependencies, so not ready
+        // beads-002 is InProgress, so not ready
+        // beads-003 is Open with no dependencies, so ready
+        assert_eq!(state.result_count(), 1);
+        assert_eq!(state.filtered_issues()[0].id, "beads-003");
+    }
+
+    #[test]
+    fn test_my_issues_case_sensitive_matching() {
+        let issues = create_test_issues();
+        let mut state = SearchInterfaceState::with_user(issues, Some("Alice".to_string()));
+
+        state.set_view(ViewType::MyIssues);
+
+        // "Alice" != "alice", so no matches
         assert_eq!(state.result_count(), 0);
     }
 }

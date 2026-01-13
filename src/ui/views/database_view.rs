@@ -5,8 +5,32 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Widget, Wrap},
+    widgets::{Block, Borders, Paragraph, StatefulWidget, Widget, Wrap},
 };
+
+/// Database view modes
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DatabaseViewMode {
+    Dashboard,
+    Sync,
+    Maintenance,
+    Daemon,
+}
+
+impl DatabaseViewMode {
+    pub fn all() -> Vec<Self> {
+        vec![Self::Dashboard, Self::Sync, Self::Maintenance, Self::Daemon]
+    }
+
+    pub fn display_name(&self) -> &str {
+        match self {
+            Self::Dashboard => "Dashboard",
+            Self::Sync => "Sync",
+            Self::Maintenance => "Maintenance",
+            Self::Daemon => "Daemon",
+        }
+    }
+}
 
 /// Database operation status
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,6 +84,92 @@ pub struct DatabaseStats {
     pub last_sync: Option<String>,
 }
 
+use crate::ui::widgets::LoadingIndicator;
+
+/// Database view state
+#[derive(Debug)]
+pub struct DatabaseViewState {
+    pub mode: DatabaseViewMode,
+    pub sync_logs: Vec<String>,
+    pub daemon_logs: Vec<String>,
+    pub integrity_report: Option<String>,
+    pub active_operation: Option<String>,
+    pub operation_progress: Option<f64>,
+    pub is_input_focused: bool,
+    pub input_value: String,
+    pub input_prompt: String,
+}
+
+impl Default for DatabaseViewState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DatabaseViewState {
+    pub fn new() -> Self {
+        Self {
+            mode: DatabaseViewMode::Dashboard,
+            sync_logs: Vec::new(),
+            daemon_logs: Vec::new(),
+            integrity_report: None,
+            active_operation: None,
+            operation_progress: None,
+            is_input_focused: false,
+            input_value: String::new(),
+            input_prompt: String::new(),
+        }
+    }
+
+    pub fn set_mode(&mut self, mode: DatabaseViewMode) {
+        self.mode = mode;
+    }
+
+    pub fn add_sync_log(&mut self, log: String) {
+        self.sync_logs.push(log);
+    }
+
+    pub fn add_daemon_log(&mut self, log: String) {
+        self.daemon_logs.push(log);
+    }
+
+    pub fn set_integrity_report(&mut self, report: String) {
+        self.integrity_report = Some(report);
+    }
+
+    pub fn start_operation(&mut self, name: String) {
+        self.active_operation = Some(name);
+        self.operation_progress = None;
+    }
+
+    pub fn update_progress(&mut self, progress: f64) {
+        self.operation_progress = Some(progress);
+    }
+
+    pub fn finish_operation(&mut self) {
+        self.active_operation = None;
+        self.operation_progress = None;
+    }
+
+    pub fn start_input(&mut self, prompt: String, default: String) {
+        self.is_input_focused = true;
+        self.input_prompt = prompt;
+        self.input_value = default;
+    }
+
+    pub fn finish_input(&mut self) -> String {
+        self.is_input_focused = false;
+        let val = self.input_value.clone();
+        self.input_value.clear();
+        val
+    }
+
+    pub fn cancel_input(&mut self) {
+        self.is_input_focused = false;
+        self.input_value.clear();
+    }
+}
+
 /// Database view widget
 pub struct DatabaseView<'a> {
     status: DatabaseStatus,
@@ -103,6 +213,154 @@ impl<'a> DatabaseView<'a> {
     pub fn block_style(mut self, style: Style) -> Self {
         self.block_style = style;
         self
+    }
+
+    fn render_dashboard(&self, area: Rect, buf: &mut Buffer) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(7),  // Status
+                Constraint::Length(11), // Statistics
+                Constraint::Min(0),     // Hints
+            ])
+            .split(area);
+
+        // Render status
+        let status_lines = self.render_status();
+        let status = Paragraph::new(status_lines)
+            .style(Style::default().fg(Color::White))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Status")
+                    .style(self.block_style),
+            );
+        status.render(chunks[0], buf);
+
+        // Render statistics
+        let stats_lines = self.render_statistics();
+        let stats = Paragraph::new(stats_lines)
+            .style(Style::default().fg(Color::White))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Statistics")
+                    .style(self.block_style),
+            );
+        stats.render(chunks[1], buf);
+    }
+
+    fn render_sync(&self, area: Rect, buf: &mut Buffer, state: &DatabaseViewState) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(if state.active_operation.is_some() { 3 } else { 0 }),
+                Constraint::Min(0),
+            ])
+            .split(area);
+
+        // Render progress if active
+        if let Some(ref op) = state.active_operation {
+            let indicator = if let Some(p) = state.operation_progress {
+                LoadingIndicator::with_progress(op, p)
+            } else {
+                LoadingIndicator::new(op)
+            };
+            indicator.render(chunks[0], buf);
+        }
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title("Sync Log")
+            .style(self.block_style);
+        
+        let logs: Vec<Line> = state.sync_logs.iter().rev().map(|l| Line::from(l.as_str())).collect();
+        let p = if logs.is_empty() {
+            Paragraph::new("No recent activity.").style(Style::default().fg(Color::DarkGray))
+        } else {
+            Paragraph::new(logs)
+        };
+        
+        p.block(block).render(chunks[1], buf);
+    }
+
+    fn render_maintenance(&self, area: Rect, buf: &mut Buffer, state: &DatabaseViewState) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(6), // Controls
+                Constraint::Min(0),    // Integrity Report
+            ])
+            .split(area);
+
+        let ops_block = Block::default()
+            .borders(Borders::ALL)
+            .title("Database Maintenance")
+            .style(self.block_style);
+        
+        let ops = vec![
+            Line::from(vec![Span::styled("i", Style::default().fg(Color::Green)), Span::raw(" - Import Issues")]),
+            Line::from(vec![Span::styled("e", Style::default().fg(Color::Green)), Span::raw(" - Export Issues")]),
+            Line::from(vec![Span::styled("v", Style::default().fg(Color::Green)), Span::raw(" - Verify Integrity")]),
+            Line::from(vec![Span::styled("c", Style::default().fg(Color::Green)), Span::raw(" - Compact Database (Destructive History)")]),
+        ];
+        
+        Paragraph::new(ops).block(ops_block).render(chunks[0], buf);
+
+        let report_block = Block::default()
+            .borders(Borders::ALL)
+            .title("Integrity Report")
+            .style(self.block_style);
+        
+        let report = state.integrity_report.as_deref().unwrap_or("No report available. Run 'v' to verify.");
+        Paragraph::new(report)
+            .block(report_block)
+            .wrap(Wrap { trim: true })
+            .render(chunks[1], buf);
+    }
+
+    fn render_daemon(&self, area: Rect, buf: &mut Buffer, state: &DatabaseViewState) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(6), // Status & Controls
+                Constraint::Min(0),    // Logs
+            ])
+            .split(area);
+
+        let status_block = Block::default()
+            .borders(Borders::ALL)
+            .title("Daemon Management")
+            .style(self.block_style);
+        
+        let status = if self.daemon_running {
+            Span::styled("Running", Style::default().fg(Color::Green))
+        } else {
+            Span::styled("Stopped", Style::default().fg(Color::Red))
+        };
+        
+        let lines = vec![
+            Line::from(vec![Span::raw("Current Status: "), status]),
+            Line::from(""),
+            Line::from(vec![Span::styled("d", Style::default().fg(Color::Green)), Span::raw(" - Start/Stop Daemon")]),
+            Line::from(vec![Span::styled("k", Style::default().fg(Color::Red)), Span::raw(" - Kill All beads processes (Force)")]),
+        ];
+        
+        Paragraph::new(lines).block(status_block).render(chunks[0], buf);
+
+        let log_block = Block::default()
+            .borders(Borders::ALL)
+            .title("Daemon Logs")
+            .style(self.block_style);
+        
+        let logs: Vec<Line> = state.daemon_logs.iter().rev().map(|l| Line::from(l.as_str())).collect();
+        let p = if logs.is_empty() {
+            Paragraph::new("No recent daemon logs.").style(Style::default().fg(Color::DarkGray))
+        } else {
+            Paragraph::new(logs)
+        };
+        
+        p.block(log_block).render(chunks[1], buf);
     }
 
     fn render_status(&self) -> Vec<Line<'static>> {
@@ -201,46 +459,6 @@ impl<'a> DatabaseView<'a> {
             ]),
         ]
     }
-
-    fn render_operations(&self) -> Vec<Line<'static>> {
-        vec![
-            Line::from(Span::styled(
-                "Available Operations",
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD),
-            )),
-            Line::from(""),
-            Line::from(vec![
-                Span::styled("s", Style::default().fg(Color::Green)),
-                Span::raw("         - Sync database with remote"),
-            ]),
-            Line::from(vec![
-                Span::styled("i", Style::default().fg(Color::Green)),
-                Span::raw("         - Import issues from file"),
-            ]),
-            Line::from(vec![
-                Span::styled("e", Style::default().fg(Color::Green)),
-                Span::raw("         - Export issues to file"),
-            ]),
-            Line::from(vec![
-                Span::styled("d", Style::default().fg(Color::Green)),
-                Span::raw("         - Start/stop daemon"),
-            ]),
-            Line::from(vec![
-                Span::styled("r", Style::default().fg(Color::Green)),
-                Span::raw("         - Refresh status"),
-            ]),
-            Line::from(vec![
-                Span::styled("v", Style::default().fg(Color::Green)),
-                Span::raw("         - Verify database integrity"),
-            ]),
-            Line::from(vec![
-                Span::styled("c", Style::default().fg(Color::Green)),
-                Span::raw("         - Compact database"),
-            ]),
-        ]
-    }
 }
 
 impl<'a> Default for DatabaseView<'a> {
@@ -249,55 +467,90 @@ impl<'a> Default for DatabaseView<'a> {
     }
 }
 
-impl<'a> Widget for DatabaseView<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        // Create layout: status + statistics + operations
+impl<'a> StatefulWidget for DatabaseView<'a> {
+    type State = DatabaseViewState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        // Create layout: tabs (3) + content (fill) + help (1)
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(7),  // Status
-                Constraint::Length(11), // Statistics
-                Constraint::Min(12),    // Operations
+                Constraint::Length(3), // Sub-tabs
+                Constraint::Min(0),    // Mode Content
+                Constraint::Length(1), // Navigation hints
             ])
             .split(area);
 
-        // Render status
-        let status_lines = self.render_status();
-        let status = Paragraph::new(status_lines)
-            .style(Style::default().fg(Color::White))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Status")
-                    .style(self.block_style),
-            );
-        status.render(chunks[0], buf);
+        // Render Sub-tabs
+        let tabs: Vec<Line> = DatabaseViewMode::all().iter().map(|m| {
+            let style = if state.mode == *m {
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            Line::from(Span::styled(format!(" {} ", m.display_name()), style))
+        }).collect();
+        
+        let tab_bar = Paragraph::new(tabs)
+            .block(Block::default().borders(Borders::ALL).title("Database Operations"));
+        // Note: Simple paragraph representation of tabs for now, could use Tabs widget
+        tab_bar.render(chunks[0], buf);
 
-        // Render statistics
-        let stats_lines = self.render_statistics();
-        let stats = Paragraph::new(stats_lines)
-            .style(Style::default().fg(Color::White))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Statistics")
-                    .style(self.block_style),
-            );
-        stats.render(chunks[1], buf);
+        // Render Content based on mode
+        match state.mode {
+            DatabaseViewMode::Dashboard => self.render_dashboard(chunks[1], buf),
+            DatabaseViewMode::Sync => self.render_sync(chunks[1], buf, state),
+            DatabaseViewMode::Maintenance => self.render_maintenance(chunks[1], buf, state),
+            DatabaseViewMode::Daemon => self.render_daemon(chunks[1], buf, state),
+        }
 
-        // Render operations
-        let ops_lines = self.render_operations();
-        let ops = Paragraph::new(ops_lines)
-            .style(Style::default().fg(Color::White))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Operations")
-                    .style(self.block_style),
-            )
-            .wrap(Wrap { trim: true });
-        ops.render(chunks[2], buf);
+        // Render Help
+        let help = Paragraph::new("[/]: Switch Modes | s: Sync | r: Refresh")
+            .style(Style::default().fg(Color::DarkGray));
+        help.render(chunks[2], buf);
+
+        // Render input overlay if active
+        if state.is_input_focused {
+            let input_area = centered_rect(60, 20, area);
+            let input_block = Block::default()
+                .borders(Borders::ALL)
+                .title(state.input_prompt.clone())
+                .style(Style::default().fg(Color::Yellow));
+            
+            let input_p = Paragraph::new(state.input_value.clone())
+                .block(input_block);
+            
+            // Clear area before rendering input
+            let clear_area = input_area;
+            for y in clear_area.top()..clear_area.bottom() {
+                for x in clear_area.left()..clear_area.right() {
+                    buf.get_mut(x, y).set_symbol(" ");
+                }
+            }
+            input_p.render(input_area, buf);
+        }
     }
+}
+
+/// Helper to create a centered rect (duplicate of main.rs helper, consider moving to common)
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }
 
 /// Format byte size to human-readable format
