@@ -11,6 +11,17 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget},
 };
 
+/// Edit mode for Gantt view
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditMode {
+    /// Editing start date
+    StartDate,
+    /// Editing due date
+    DueDate,
+    /// Editing time estimate
+    Estimate,
+}
+
 /// State for Gantt chart view
 #[derive(Debug)]
 pub struct GanttViewState {
@@ -22,6 +33,10 @@ pub struct GanttViewState {
     config: GanttChartConfig,
     /// Timeline zoom level
     zoom: ZoomLevel,
+    /// Vertical scroll offset (swim lanes)
+    vertical_scroll: usize,
+    /// Edit mode for selected issue
+    edit_mode: Option<EditMode>,
 }
 
 impl GanttViewState {
@@ -32,6 +47,8 @@ impl GanttViewState {
             selected_issue: 0,
             config: GanttChartConfig::default(),
             zoom: ZoomLevel::Weeks,
+            vertical_scroll: 0,
+            edit_mode: None,
         }
     }
 
@@ -95,6 +112,9 @@ impl GanttViewState {
 
     /// Toggle grouping mode
     pub fn cycle_grouping(&mut self) {
+        // Preserve selected issue ID before regrouping
+        let selected_id = self.selected_issue().map(|i| i.id.clone());
+
         self.config.grouping = match self.config.grouping {
             GroupingMode::None => GroupingMode::Status,
             GroupingMode::Status => GroupingMode::Priority,
@@ -102,6 +122,90 @@ impl GanttViewState {
             GroupingMode::Assignee => GroupingMode::Type,
             GroupingMode::Type => GroupingMode::None,
         };
+
+        // Try to restore selection to same issue after regrouping
+        if let Some(id) = selected_id {
+            if let Some(new_idx) = self.issues.iter().position(|i| i.id == id) {
+                self.selected_issue = new_idx;
+            }
+        }
+    }
+
+    /// Pan timeline forward (to the right)
+    pub fn pan_forward(&mut self) {
+        self.config.timeline.pan_forward();
+    }
+
+    /// Pan timeline backward (to the left)
+    pub fn pan_backward(&mut self) {
+        self.config.timeline.pan_backward();
+    }
+
+    /// Scroll down through swim lanes
+    pub fn scroll_down(&mut self) {
+        self.vertical_scroll = self.vertical_scroll.saturating_add(1);
+    }
+
+    /// Scroll up through swim lanes
+    pub fn scroll_up(&mut self) {
+        self.vertical_scroll = self.vertical_scroll.saturating_sub(1);
+    }
+
+    /// Get current vertical scroll offset
+    pub fn vertical_scroll(&self) -> usize {
+        self.vertical_scroll
+    }
+
+    /// Start editing the start date of selected issue
+    pub fn start_edit_start_date(&mut self) {
+        if self.selected_issue().is_some() {
+            self.edit_mode = Some(EditMode::StartDate);
+        }
+    }
+
+    /// Start editing the due date of selected issue
+    pub fn start_edit_due_date(&mut self) {
+        if self.selected_issue().is_some() {
+            self.edit_mode = Some(EditMode::DueDate);
+        }
+    }
+
+    /// Start editing the estimate of selected issue
+    pub fn start_edit_estimate(&mut self) {
+        if self.selected_issue().is_some() {
+            self.edit_mode = Some(EditMode::Estimate);
+        }
+    }
+
+    /// Cancel edit mode
+    pub fn cancel_edit(&mut self) {
+        self.edit_mode = None;
+    }
+
+    /// Get current edit mode
+    pub fn edit_mode(&self) -> Option<EditMode> {
+        self.edit_mode
+    }
+
+    /// Check if currently editing
+    pub fn is_editing(&self) -> bool {
+        self.edit_mode.is_some()
+    }
+
+    /// Update the selected issue with new schedule data
+    /// Returns Ok(issue_id) if successful, or Err with error message
+    /// The caller is responsible for calling `bd update` with the returned ID and refreshing the issue list
+    pub fn apply_edit(&mut self, _new_start: Option<chrono::DateTime<chrono::Utc>>,
+                       _new_due: Option<chrono::DateTime<chrono::Utc>>,
+                       _new_estimate: Option<String>) -> Result<String, String> {
+        let issue_id = self.selected_issue()
+            .map(|i| i.id.clone())
+            .ok_or("No issue selected")?;
+
+        self.edit_mode = None;
+
+        // Return the issue ID so caller can update via bd CLI
+        Ok(issue_id)
     }
 
     /// Get the Gantt configuration
@@ -149,13 +253,31 @@ impl GanttView {
 
     /// Render the Gantt chart with state
     pub fn render_with_state(area: Rect, buf: &mut Buffer, state: &GanttViewState) {
-        if state.issues.is_empty() {
-            let block = Block::default()
-                .title("Gantt Chart")
-                .borders(Borders::ALL);
-            let inner = block.inner(area);
-            block.render(area, buf);
+        // Build title with edit mode indicator
+        let title = if let Some(edit_mode) = state.edit_mode() {
+            let mode_str = match edit_mode {
+                EditMode::StartDate => "EDIT: Start Date",
+                EditMode::DueDate => "EDIT: Due Date",
+                EditMode::Estimate => "EDIT: Estimate",
+            };
+            format!("Gantt Chart - {} (Enter to apply, Esc to cancel)", mode_str)
+        } else {
+            "Gantt Chart".to_string()
+        };
 
+        let block = Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .style(if state.is_editing() {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default().fg(Color::White)
+            });
+
+        let inner = block.inner(area);
+        block.render(area, buf);
+
+        if state.issues.is_empty() {
             let text = Line::from("No issues to display");
             let paragraph = Paragraph::new(text).style(Style::default().fg(Color::Yellow));
             paragraph.render(inner, buf);
@@ -177,7 +299,7 @@ impl GanttView {
             .config(state.config.clone())
             .selected(selected_id);
 
-        gantt.render(area, buf);
+        gantt.render(inner, buf);
     }
 }
 
@@ -286,5 +408,164 @@ mod tests {
         // Reduce issues - selection should adjust
         state.set_issues(vec![create_test_issue("TEST-1", "Issue 1")]);
         assert_eq!(state.selected_issue, 0);
+    }
+
+    #[test]
+    fn test_pan_timeline() {
+        let mut state = GanttViewState::new(vec![]);
+        let initial_start = state.config.timeline.viewport_start;
+        let initial_end = state.config.timeline.viewport_end;
+
+        // Pan forward
+        state.pan_forward();
+        assert!(state.config.timeline.viewport_start > initial_start);
+        assert!(state.config.timeline.viewport_end > initial_end);
+
+        // Pan backward
+        state.pan_backward();
+        assert_eq!(state.config.timeline.viewport_start, initial_start);
+        assert_eq!(state.config.timeline.viewport_end, initial_end);
+    }
+
+    #[test]
+    fn test_vertical_scroll() {
+        let mut state = GanttViewState::new(vec![]);
+        assert_eq!(state.vertical_scroll(), 0);
+
+        // Scroll down
+        state.scroll_down();
+        assert_eq!(state.vertical_scroll(), 1);
+
+        state.scroll_down();
+        assert_eq!(state.vertical_scroll(), 2);
+
+        // Scroll up
+        state.scroll_up();
+        assert_eq!(state.vertical_scroll(), 1);
+
+        // Scroll up past zero (should saturate at 0)
+        state.scroll_up();
+        state.scroll_up();
+        assert_eq!(state.vertical_scroll(), 0);
+    }
+
+    #[test]
+    fn test_edit_mode() {
+        let mut state = GanttViewState::new(vec![create_test_issue("TEST-1", "Issue 1")]);
+        assert!(!state.is_editing());
+        assert_eq!(state.edit_mode(), None);
+
+        // Start editing start date
+        state.start_edit_start_date();
+        assert!(state.is_editing());
+        assert_eq!(state.edit_mode(), Some(EditMode::StartDate));
+
+        // Cancel edit
+        state.cancel_edit();
+        assert!(!state.is_editing());
+        assert_eq!(state.edit_mode(), None);
+
+        // Start editing due date
+        state.start_edit_due_date();
+        assert_eq!(state.edit_mode(), Some(EditMode::DueDate));
+
+        // Apply edit clears mode and returns issue ID
+        let result = state.apply_edit(None, None, None);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "TEST-1");
+        assert!(!state.is_editing());
+    }
+
+    #[test]
+    fn test_edit_mode_requires_selection() {
+        let mut state = GanttViewState::new(vec![]);
+        assert!(!state.is_editing());
+
+        // Can't edit without selection
+        state.start_edit_start_date();
+        assert!(!state.is_editing());
+
+        state.start_edit_due_date();
+        assert!(!state.is_editing());
+
+        state.start_edit_estimate();
+        assert!(!state.is_editing());
+    }
+
+    #[test]
+    fn test_grouping_preserves_selection() {
+        let mut state = GanttViewState::new(vec![
+            create_test_issue("TEST-1", "Issue 1"),
+            create_test_issue("TEST-2", "Issue 2"),
+            create_test_issue("TEST-3", "Issue 3"),
+        ]);
+
+        // Select second issue
+        state.next_issue();
+        assert_eq!(state.selected_issue, 1);
+        let selected_id = state.selected_issue().unwrap().id.clone();
+
+        // Change grouping mode
+        state.cycle_grouping();
+
+        // Selection should be preserved
+        assert_eq!(state.selected_issue().unwrap().id, selected_id);
+    }
+
+    #[test]
+    fn test_selection_stability_during_pan() {
+        let mut state = GanttViewState::new(vec![
+            create_test_issue("TEST-1", "Issue 1"),
+            create_test_issue("TEST-2", "Issue 2"),
+        ]);
+
+        // Select second issue
+        state.next_issue();
+        assert_eq!(state.selected_issue, 1);
+
+        // Pan timeline
+        state.pan_forward();
+        state.pan_backward();
+
+        // Selection should remain stable
+        assert_eq!(state.selected_issue, 1);
+    }
+
+    #[test]
+    fn test_selection_stability_during_zoom() {
+        let mut state = GanttViewState::new(vec![
+            create_test_issue("TEST-1", "Issue 1"),
+            create_test_issue("TEST-2", "Issue 2"),
+        ]);
+
+        // Select second issue
+        state.next_issue();
+        assert_eq!(state.selected_issue, 1);
+
+        // Zoom in and out
+        state.zoom_in();
+        state.zoom_out();
+
+        // Selection should remain stable
+        assert_eq!(state.selected_issue, 1);
+    }
+
+    #[test]
+    fn test_selection_stability_during_scroll() {
+        let mut state = GanttViewState::new(vec![
+            create_test_issue("TEST-1", "Issue 1"),
+            create_test_issue("TEST-2", "Issue 2"),
+        ]);
+
+        // Select second issue
+        state.next_issue();
+        assert_eq!(state.selected_issue, 1);
+
+        // Scroll vertically
+        state.scroll_down();
+        state.scroll_up();
+
+        // Selection should remain stable
+        assert_eq!(state.selected_issue, 1);
     }
 }
