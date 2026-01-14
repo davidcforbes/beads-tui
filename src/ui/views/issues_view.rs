@@ -23,6 +23,8 @@ pub enum IssuesViewMode {
     Edit,
     /// Create mode for creating a new issue
     Create,
+    /// Split-screen mode showing list on left and detail on right
+    SplitScreen,
 }
 
 /// Issues view state
@@ -119,6 +121,23 @@ impl IssuesViewState {
         if let Some(issue) = self.search_state.selected_issue() {
             self.selected_issue = Some(Issue::clone(issue));
             self.view_mode = IssuesViewMode::Detail;
+        }
+    }
+
+    /// Enter split-screen view
+    pub fn enter_split_screen(&mut self) {
+        if let Some(issue) = self.search_state.selected_issue() {
+            self.selected_issue = Some(Issue::clone(issue));
+        }
+        self.view_mode = IssuesViewMode::SplitScreen;
+    }
+
+    /// Update selected issue in split-screen mode
+    pub fn update_split_screen_detail(&mut self) {
+        if self.view_mode == IssuesViewMode::SplitScreen {
+            if let Some(issue) = self.search_state.selected_issue() {
+                self.selected_issue = Some(Issue::clone(issue));
+            }
         }
     }
 
@@ -253,6 +272,35 @@ impl<'a> IssuesView<'a> {
             StatefulWidget::render(create_form, area, buf, create_form_state);
         }
     }
+
+    fn render_split_screen_mode(&self, area: Rect, buf: &mut Buffer, state: &mut IssuesViewState) {
+        use ratatui::layout::{Constraint, Direction, Layout};
+
+        // Split the area into left (list) and right (detail) panels
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(40), // Left panel (list)
+                Constraint::Percentage(60), // Right panel (detail)
+            ])
+            .split(area);
+
+        // Render the list on the left with compact view showing Priority + last 6 chars
+        let mut search_view = SearchInterfaceView::new().block_style(self.block_style);
+        if let Some(theme) = self.theme {
+            search_view = search_view.theme(theme);
+        }
+        StatefulWidget::render(search_view, chunks[0], buf, &mut state.search_state);
+
+        // Render the detail view on the right
+        if let Some(issue) = &state.selected_issue {
+            let mut detail_view = IssueDetailView::new(issue);
+            if let Some(theme) = self.theme {
+                detail_view = detail_view.theme(theme);
+            }
+            Widget::render(detail_view, chunks[1], buf);
+        }
+    }
 }
 
 impl<'a> Default for IssuesView<'a> {
@@ -270,6 +318,7 @@ impl<'a> StatefulWidget for IssuesView<'a> {
             IssuesViewMode::Detail => self.render_detail_mode(area, buf, state),
             IssuesViewMode::Edit => self.render_edit_mode(area, buf, state),
             IssuesViewMode::Create => self.render_create_mode(area, buf, state),
+            IssuesViewMode::SplitScreen => self.render_split_screen_mode(area, buf, state),
         }
     }
 }

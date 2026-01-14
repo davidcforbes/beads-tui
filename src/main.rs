@@ -944,6 +944,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     KeyCode::Enter => {
                         issues_state.enter_detail_view();
                     }
+                    KeyCode::Char('v') => {
+                        // Toggle split-screen view
+                        issues_state.enter_split_screen();
+                    }
                     KeyCode::Char('e') => {
                         issues_state.enter_edit_mode();
                     }
@@ -1312,6 +1316,60 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 KeyCode::Char('e') => {
                     issues_state.return_to_list();
+                    issues_state.enter_edit_mode();
+                }
+                _ => {}
+            }
+        }
+        IssuesViewMode::SplitScreen => {
+            // Split-screen mode: list navigation with live detail updates
+            match key_code {
+                KeyCode::Esc | KeyCode::Char('q') => {
+                    issues_state.return_to_list();
+                }
+                KeyCode::Char('j') | KeyCode::Down => {
+                    let len = issues_state.search_state().filtered_issues().len();
+                    issues_state
+                        .search_state_mut()
+                        .list_state_mut()
+                        .select_next(len);
+                    // Update detail panel with newly selected issue
+                    issues_state.update_split_screen_detail();
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    let len = issues_state.search_state().filtered_issues().len();
+                    issues_state
+                        .search_state_mut()
+                        .list_state_mut()
+                        .select_previous(len);
+                    // Update detail panel with newly selected issue
+                    issues_state.update_split_screen_detail();
+                }
+                KeyCode::Char('g') => {
+                    // Go to top
+                    issues_state
+                        .search_state_mut()
+                        .list_state_mut()
+                        .select(Some(0));
+                    issues_state.update_split_screen_detail();
+                }
+                KeyCode::Char('G') => {
+                    // Go to bottom
+                    let len = issues_state.search_state().filtered_issues().len();
+                    if len > 0 {
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .select(Some(len - 1));
+                        issues_state.update_split_screen_detail();
+                    }
+                }
+                KeyCode::Enter => {
+                    // Go to full detail view
+                    issues_state.enter_detail_view();
+                }
+                KeyCode::Char('e') => {
+                    // Enter edit mode
                     issues_state.enter_edit_mode();
                 }
                 _ => {}
@@ -3138,6 +3196,9 @@ fn get_action_hints(app: &models::AppState) -> String {
                 ui::views::IssuesViewMode::Detail => {
                     "e: Edit | d: Delete | Esc: Back to list".to_string()
                 }
+                ui::views::IssuesViewMode::SplitScreen => {
+                    "↑/↓/j/k: Navigate | Enter: Full view | e: Edit | Esc/q: Back to list | ?: Help".to_string()
+                }
             }
         }
         1 => {
@@ -3302,6 +3363,20 @@ fn get_context_help_content(
                         ("Shift+Tab", "Move to previous field"),
                         ("Ctrl+S", "Create issue"),
                         ("Esc", "Cancel creation"),
+                        ("?", "Show all keyboard shortcuts"),
+                    ],
+                ),
+                ui::views::IssuesViewMode::SplitScreen => (
+                    "Split-Screen View Help".to_string(),
+                    "List and Detail View".to_string(),
+                    vec![
+                        ("↑/↓ or j/k", "Navigate through issues"),
+                        ("g", "Go to top"),
+                        ("G", "Go to bottom"),
+                        ("Enter", "Go to full detail view"),
+                        ("e", "Edit selected issue"),
+                        ("v", "Return to list view"),
+                        ("Esc/q", "Back to list view"),
                         ("?", "Show all keyboard shortcuts"),
                     ],
                 ),
