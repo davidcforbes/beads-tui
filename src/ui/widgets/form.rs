@@ -585,13 +585,25 @@ impl FormState {
             .canonicalize()
             .map_err(|_| "File not found or inaccessible".to_string())?;
 
-        // Verify it's actually a file (not a directory or other special file)
-        if !canonical_path.is_file() {
+        // Open file first to get atomic handle, then verify metadata
+        // This eliminates TOCTOU race condition between is_file() check and read
+        let file = fs::File::open(&canonical_path)
+            .map_err(|_| "Failed to open file: permission denied".to_string())?;
+
+        // Verify it's actually a file using the file handle's metadata
+        let metadata = file
+            .metadata()
+            .map_err(|_| "Failed to read file metadata".to_string())?;
+
+        if !metadata.is_file() {
             return Err("Path is not a regular file".to_string());
         }
 
-        // Read file content - use canonical path to ensure we read what we validated
-        let content = fs::read_to_string(&canonical_path).map_err(|_| {
+        // Read file content using the validated file handle
+        use std::io::Read;
+        let mut content = String::new();
+        let mut file = file; // Make mutable for reading
+        file.read_to_string(&mut content).map_err(|_| {
             "Failed to read file: permission denied or file is not UTF-8".to_string()
         })?;
 

@@ -493,7 +493,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                         client
                                             .relate_issues(&current_id_clone, &target_id_clone)
                                             .await
-                                            .map_err(|e| crate::tasks::error::TaskError::BeadsOperation(e.to_string()))?;
+                                            .map_err(|e| crate::tasks::error::TaskError::ClientError(e.to_string()))?;
                                         Ok(crate::tasks::handle::TaskOutput::Success(
                                             format!("Linked issues: {} <-> {}", current_id_clone, target_id_clone),
                                         ))
