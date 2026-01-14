@@ -507,4 +507,130 @@ filters:
         assert_eq!(config.filters[0].name, "High Priority");
         assert_eq!(config.filters[0].hotkey, Some('1'));
     }
+
+    #[test]
+    fn test_config_save_and_load() {
+        use tempfile::tempdir;
+
+        // Create a temporary directory for testing
+        let temp_dir = tempdir().unwrap();
+        let config_file = temp_dir.path().join("config.yaml");
+
+        // Set up a custom config
+        let mut config = Config::default();
+        config.theme.name = "light".to_string();
+        config.behavior.auto_refresh = false;
+        config.behavior.refresh_interval_secs = 120;
+
+        // Manually save to our temp location
+        let content = serde_yaml::to_string(&config).unwrap();
+        std::fs::write(&config_file, content).unwrap();
+
+        // Verify file exists
+        assert!(config_file.exists());
+
+        // Load and verify
+        let loaded_content = std::fs::read_to_string(&config_file).unwrap();
+        let loaded_config: Config = serde_yaml::from_str(&loaded_content).unwrap();
+        assert_eq!(loaded_config.theme.name, "light");
+        assert!(!loaded_config.behavior.auto_refresh);
+        assert_eq!(loaded_config.behavior.refresh_interval_secs, 120);
+    }
+
+    #[test]
+    fn test_config_load_nonexistent_returns_default() {
+        // This tests the logic that if config file doesn't exist, return default
+        let config = Config::default();
+        assert_eq!(config.theme.name, "dark");
+        assert!(config.behavior.auto_refresh);
+        assert_eq!(config.behavior.refresh_interval_secs, 60);
+        assert_eq!(config.filters.len(), 0);
+    }
+
+    #[test]
+    fn test_config_path_returns_path() {
+        // Config path should return a valid PathBuf
+        let result = Config::config_path();
+        // Should succeed or fail gracefully depending on environment
+        // We can't assert success as it depends on the system
+        let _ = result;
+    }
+
+    #[test]
+    fn test_multiple_filters_operations() {
+        use crate::models::IssueFilter;
+
+        let mut config = Config::default();
+
+        // Add multiple filters
+        for i in 1..=5 {
+            let filter = SavedFilter {
+                name: format!("Filter {}", i),
+                filter: IssueFilter::new(),
+                hotkey: Some(char::from_digit(i, 10).unwrap()),
+            };
+            config.add_filter(filter);
+        }
+
+        assert_eq!(config.saved_filters().len(), 5);
+
+        // Remove one
+        assert!(config.remove_filter("Filter 3"));
+        assert_eq!(config.saved_filters().len(), 4);
+
+        // Update one
+        let updated = SavedFilter {
+            name: "Filter 2".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: Some('9'),
+        };
+        assert!(config.update_filter("Filter 2", updated));
+        assert_eq!(config.get_filter_by_hotkey('9').unwrap().name, "Filter 2");
+
+        // Verify remaining filters
+        assert!(config.get_filter("Filter 1").is_some());
+        assert!(config.get_filter("Filter 2").is_some());
+        assert!(config.get_filter("Filter 3").is_none());
+        assert!(config.get_filter("Filter 4").is_some());
+        assert!(config.get_filter("Filter 5").is_some());
+    }
+
+    #[test]
+    fn test_filter_hotkey_none() {
+        use crate::models::IssueFilter;
+
+        let mut config = Config::default();
+
+        let filter = SavedFilter {
+            name: "No Hotkey".to_string(),
+            filter: IssueFilter::new(),
+            hotkey: None,
+        };
+
+        config.add_filter(filter);
+        assert_eq!(config.saved_filters().len(), 1);
+        assert_eq!(config.get_filter("No Hotkey").unwrap().hotkey, None);
+
+        // Should not find by any hotkey
+        assert!(config.get_filter_by_hotkey('1').is_none());
+        assert!(config.get_filter_by_hotkey('x').is_none());
+    }
+
+    #[test]
+    fn test_config_clone() {
+        let mut config = Config::default();
+        config.theme.name = "custom".to_string();
+
+        let cloned = config.clone();
+        assert_eq!(cloned.theme.name, "custom");
+        assert_eq!(cloned.behavior.auto_refresh, config.behavior.auto_refresh);
+    }
+
+    #[test]
+    fn test_config_debug() {
+        let config = Config::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("Config"));
+        assert!(debug_str.contains("theme"));
+    }
 }

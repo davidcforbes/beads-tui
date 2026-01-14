@@ -75,7 +75,6 @@ pub fn parse_labels(json: &str) -> Result<Vec<Label>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
 
     #[test]
     fn test_parse_create_response() {
