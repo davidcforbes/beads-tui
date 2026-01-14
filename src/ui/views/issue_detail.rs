@@ -15,6 +15,7 @@ pub struct IssueDetailView<'a> {
     issue: &'a Issue,
     show_dependencies: bool,
     show_notes: bool,
+    theme: Option<&'a crate::ui::themes::Theme>,
 }
 
 impl<'a> IssueDetailView<'a> {
@@ -24,6 +25,7 @@ impl<'a> IssueDetailView<'a> {
             issue,
             show_dependencies: true,
             show_notes: true,
+            theme: None,
         }
     }
 
@@ -39,14 +41,10 @@ impl<'a> IssueDetailView<'a> {
         self
     }
 
-    fn priority_color(priority: &Priority) -> Color {
-        match priority {
-            Priority::P0 => Color::Red,
-            Priority::P1 => Color::LightRed,
-            Priority::P2 => Color::Yellow,
-            Priority::P3 => Color::Blue,
-            Priority::P4 => Color::Gray,
-        }
+    /// Set theme
+    pub fn theme(mut self, theme: &'a crate::ui::themes::Theme) -> Self {
+        self.theme = Some(theme);
+        self
     }
 
     fn priority_description(priority: &Priority) -> &'static str {
@@ -56,15 +54,6 @@ impl<'a> IssueDetailView<'a> {
             Priority::P2 => "Medium",
             Priority::P3 => "Low",
             Priority::P4 => "Backlog",
-        }
-    }
-
-    fn status_color(status: &IssueStatus) -> Color {
-        match status {
-            IssueStatus::Open => Color::Green,
-            IssueStatus::InProgress => Color::Cyan,
-            IssueStatus::Blocked => Color::Red,
-            IssueStatus::Closed => Color::Gray,
         }
     }
 
