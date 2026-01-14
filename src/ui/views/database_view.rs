@@ -57,12 +57,22 @@ impl DatabaseStatus {
     }
 
     /// Get color for the status
-    pub fn color(&self) -> Color {
+    pub fn color(&self, theme: &crate::ui::themes::Theme) -> Color {
         match self {
-            Self::Ready => Color::Green,
-            Self::Syncing => Color::Yellow,
-            Self::Error => Color::Red,
-            Self::Offline => Color::Gray,
+            Self::Ready => theme.success,
+            Self::Syncing => theme.warning,
+            Self::Error => theme.error,
+            Self::Offline => theme.muted,
+        }
+    }
+
+    /// Get symbol for the status
+    pub fn symbol(&self) -> &'static str {
+        match self {
+            Self::Ready => "✓",
+            Self::Syncing => "⏳",
+            Self::Error => "✗",
+            Self::Offline => "⊘",
         }
     }
 }
@@ -176,6 +186,7 @@ pub struct DatabaseView<'a> {
     stats: DatabaseStats,
     daemon_running: bool,
     block_style: Style,
+    theme: Option<&'a crate::ui::themes::Theme>,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
@@ -187,6 +198,7 @@ impl<'a> DatabaseView<'a> {
             stats: DatabaseStats::default(),
             daemon_running: false,
             block_style: Style::default().fg(Color::Cyan),
+            theme: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -212,6 +224,12 @@ impl<'a> DatabaseView<'a> {
     /// Set block style
     pub fn block_style(mut self, style: Style) -> Self {
         self.block_style = style;
+        self
+    }
+
+    /// Set theme
+    pub fn theme(mut self, theme: &'a crate::ui::themes::Theme) -> Self {
+        self.theme = Some(theme);
         self
     }
 

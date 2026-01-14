@@ -68,6 +68,16 @@ impl<'a> IssueDetailView<'a> {
     }
 
     fn render_header(&self, area: Rect, buf: &mut Buffer) {
+        use crate::ui::themes::Theme;
+
+        let default_theme = Theme::default();
+        let theme_ref = self.theme.unwrap_or(&default_theme);
+
+        let status_symbol = Theme::status_symbol(&self.issue.status);
+        let status_color = theme_ref.status_color(&self.issue.status);
+        let priority_symbol = Theme::priority_symbol(&self.issue.priority);
+        let priority_color = theme_ref.priority_color(&self.issue.priority);
+
         let header_lines = vec![
             Line::from(vec![
                 Span::styled(Self::type_symbol(&self.issue.issue_type), Style::default()),
@@ -87,18 +97,19 @@ impl<'a> IssueDetailView<'a> {
             Line::from(vec![
                 Span::styled("Status: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
-                    format!("{:?}", self.issue.status),
-                    Style::default().fg(Self::status_color(&self.issue.status)),
+                    format!("{} {:?}", status_symbol, self.issue.status),
+                    Style::default().fg(status_color),
                 ),
                 Span::raw("  "),
                 Span::styled("Priority: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
                     format!(
-                        "{} ({})",
+                        "{} {} ({})",
+                        priority_symbol,
                         self.issue.priority,
                         Self::priority_description(&self.issue.priority)
                     ),
-                    Style::default().fg(Self::priority_color(&self.issue.priority)),
+                    Style::default().fg(priority_color),
                 ),
                 Span::raw("  "),
                 Span::styled("Type: ", Style::default().fg(Color::DarkGray)),
@@ -135,6 +146,16 @@ impl<'a> IssueDetailView<'a> {
     }
 
     fn render_metadata(&self, area: Rect, buf: &mut Buffer) {
+        use crate::ui::themes::Theme;
+
+        let default_theme = Theme::default();
+        let theme_ref = self.theme.unwrap_or(&default_theme);
+
+        let status_symbol = Theme::status_symbol(&self.issue.status);
+        let status_color = theme_ref.status_color(&self.issue.status);
+        let priority_symbol = Theme::priority_symbol(&self.issue.priority);
+        let priority_color = theme_ref.priority_color(&self.issue.priority);
+
         let mut metadata_lines = vec![
             Line::from(vec![
                 Span::styled("ID: ", Style::default().fg(Color::DarkGray)),
@@ -147,19 +168,20 @@ impl<'a> IssueDetailView<'a> {
             Line::from(vec![
                 Span::styled("Status: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
-                    format!("{:?}", self.issue.status),
-                    Style::default().fg(Self::status_color(&self.issue.status)),
+                    format!("{} {:?}", status_symbol, self.issue.status),
+                    Style::default().fg(status_color),
                 ),
             ]),
             Line::from(vec![
                 Span::styled("Priority: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
                     format!(
-                        "{} ({})",
+                        "{} {} ({})",
+                        priority_symbol,
                         self.issue.priority,
                         Self::priority_description(&self.issue.priority)
                     ),
-                    Style::default().fg(Self::priority_color(&self.issue.priority)),
+                    Style::default().fg(priority_color),
                 ),
             ]),
         ];
