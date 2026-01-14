@@ -272,6 +272,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 app.pending_action = None;
                 return;
             }
+            KeyCode::Char('q') | KeyCode::Char('?') => {
+                // Let '?' and 'q' fall through to be handled globally
+                // Dialog remains open but user can still get help or quit
+            }
             _ => {
                 // Ignore other keys when dialog is active
                 return;
@@ -348,6 +352,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 cm_state.move_down();
                 return;
             }
+            KeyCode::Char('q') | KeyCode::Char('?') => {
+                // Let '?' and 'q' fall through to be handled globally
+            }
             _ => {
                 // Ignore other keys when column manager is active
                 return;
@@ -377,6 +384,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
             KeyCode::Backspace => {
                 dialog_state.delete_char();
                 return;
+            }
+            KeyCode::Char('q') | KeyCode::Char('?') => {
+                // Let '?' and 'q' fall through to be handled globally
+                // (must be before general Char(c) pattern)
             }
             KeyCode::Char(c) => {
                 dialog_state.insert_char(c);
@@ -481,6 +492,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     app.mark_dirty();
                 }
                 return;
+            }
+            KeyCode::Char('q') | KeyCode::Char('?') => {
+                // Let '?' and 'q' fall through to be handled globally
+                // (must be before general Char(c) pattern)
             }
             KeyCode::Char(c) => {
                 if app.dependency_dialog_state.focus() == DependencyDialogFocus::IssueId {
@@ -637,6 +652,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     app.cancel_delete_filter();
                     return;
                 }
+                KeyCode::Char('q') | KeyCode::Char('?') => {
+                    // Let '?' and 'q' fall through to be handled globally
+                }
                 _ => {
                     // Ignore other keys when dialog is active
                     return;
@@ -684,6 +702,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     tracing::debug!("Dependency removal cancelled");
                     app.cancel_remove_dependency();
                     return;
+                }
+                KeyCode::Char('q') | KeyCode::Char('?') => {
+                    // Let '?' and 'q' fall through to be handled globally
                 }
                 _ => {
                     // Ignore other keys when dialog is active
@@ -2102,8 +2123,11 @@ fn run_app<B: ratatui::backend::Backend>(
                     continue;
                 }
 
-                // Check for keyboard shortcut help toggle ('?')
-                if key.code == KeyCode::Char('?') && key.modifiers.is_empty() {
+                // Check for keyboard shortcut help toggle ('?' or Shift+/)
+                // Accept with or without SHIFT modifier to handle different terminal behaviors
+                if key.code == KeyCode::Char('?')
+                    && (key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT)
+                {
                     if app.is_shortcut_help_visible() {
                         app.hide_shortcut_help();
                     } else {
@@ -2265,6 +2289,9 @@ fn run_app<B: ratatui::backend::Backend>(
                             app.priority_selector_state.close();
                             continue;
                         }
+                        KeyCode::Char('q') | KeyCode::Char('?') => {
+                            // Let '?' and 'q' fall through to global handlers
+                        }
                         _ => {
                             continue;
                         }
@@ -2415,6 +2442,9 @@ fn run_app<B: ratatui::backend::Backend>(
                         KeyCode::Esc => {
                             app.status_selector_state.close();
                             continue;
+                        }
+                        KeyCode::Char('q') | KeyCode::Char('?') => {
+                            // Let '?' and 'q' fall through to global handlers
                         }
                         _ => {
                             continue;
