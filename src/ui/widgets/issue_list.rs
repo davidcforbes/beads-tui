@@ -909,25 +909,6 @@ impl<'a> IssueList<'a> {
         });
     }
 
-    fn priority_color(priority: &Priority) -> Color {
-        match priority {
-            Priority::P0 => Color::Red,
-            Priority::P1 => Color::LightRed,
-            Priority::P2 => Color::Yellow,
-            Priority::P3 => Color::Blue,
-            Priority::P4 => Color::Gray,
-        }
-    }
-
-    fn status_color(status: &IssueStatus) -> Color {
-        match status {
-            IssueStatus::Open => Color::Green,
-            IssueStatus::InProgress => Color::Cyan,
-            IssueStatus::Blocked => Color::Red,
-            IssueStatus::Closed => Color::Gray,
-        }
-    }
-
     fn type_symbol(issue_type: &IssueType) -> &'static str {
         match issue_type {
             IssueType::Bug => "🐛",
@@ -965,6 +946,7 @@ impl<'a> IssueList<'a> {
         wrap_width: usize,
         row_height: u16,
         hierarchy_map: &std::collections::HashMap<String, HierarchyInfo>,
+        theme: Option<&'b crate::ui::themes::Theme>,
     ) -> Cell<'b> {
         use crate::models::table_config::ColumnId;
 
@@ -1039,15 +1021,29 @@ impl<'a> IssueList<'a> {
                 }
             }
 
-            ColumnId::Status => Cell::from(Span::styled(
-                format!("{:?}", issue.status),
-                Style::default().fg(Self::status_color(&issue.status)),
-            )),
+            ColumnId::Status => {
+                use crate::ui::themes::Theme;
+                let default_theme = Theme::default();
+                let theme_ref = theme.unwrap_or(&default_theme);
+                let symbol = Theme::status_symbol(&issue.status);
+                let color = theme_ref.status_color(&issue.status);
+                Cell::from(Span::styled(
+                    format!("{} {:?}", symbol, issue.status),
+                    Style::default().fg(color),
+                ))
+            }
 
-            ColumnId::Priority => Cell::from(Span::styled(
-                format!("{:?}", issue.priority),
-                Style::default().fg(Self::priority_color(&issue.priority)),
-            )),
+            ColumnId::Priority => {
+                use crate::ui::themes::Theme;
+                let default_theme = Theme::default();
+                let theme_ref = theme.unwrap_or(&default_theme);
+                let symbol = Theme::priority_symbol(&issue.priority);
+                let color = theme_ref.priority_color(&issue.priority);
+                Cell::from(Span::styled(
+                    format!("{} {:?}", symbol, issue.priority),
+                    Style::default().fg(color),
+                ))
+            }
 
             ColumnId::Assignee => {
                 let text = issue.assignee.as_deref().unwrap_or("-");
@@ -1290,6 +1286,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
                             wrap_width,
                             row_height_to_use,
                             &hierarchy_map,
+                            self.theme,
                         )
                     })
                     .collect();

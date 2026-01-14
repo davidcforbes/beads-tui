@@ -1,5 +1,6 @@
 ---
 source: tests/integration/ui_snapshots.rs
+assertion_line: 55
 expression: rendered
 ---
 ┌Search [All] - View: All Issues─Search────────────────────────────────────────┐
@@ -8,9 +9,9 @@ expression: rendered
 Showing all 3 issues  [Scope: All]                                              
 ┌Issues (3/3)──────────────────────────────────────────────────────────────────┐
 │   ID              Title                Status Prior Type   Assig Labels Updat│
-│>> beads-100       ○ Add state selector Open   P1    ✨      alex  ui, st 2026-│
-│   beads-101       ◐ Fix label validati InProg P0    🐛      sam   bug, l 2026-│
-│   beads-102       ✓ Document workflow  Closed P2    📋      -     docs   2026-│
+│>> beads-100       ○ Add state selector ○ Open ● P1  ✨      alex  ui, st 2026-│
+│   beads-101       ◐ Fix label validati ◐ InPr ◆ P0  🐛      sam   bug, l 2026-│
+│   beads-102       ✓ Document workflow  ✓ Clos ○ P2  📋      -     docs   2026-│
 │                                                                              │
 │                                                                              │
 │                                                                              │

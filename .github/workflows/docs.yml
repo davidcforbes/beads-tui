@@ -1,0 +1,124 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'book.toml'
+      - 'src/**/*.rs'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'book.toml'
+      - 'src/**/*.rs'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-book:
+    name: Build mdBook
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mdBook
+        run: |
+          mkdir -p ~/mdbook
+          curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.37/mdbook-v0.4.37-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C ~/mdbook
+          echo "$HOME/mdbook" >> $GITHUB_PATH
+
+      - name: Build book
+        run: mdbook build
+
+      - name: Upload book artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: book
+          path: book/
+
+  build-rustdoc:
+    name: Build Rust API Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-doc-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build documentation
+        run: cargo doc --no-deps --all-features
+
+      - name: Upload rustdoc artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustdoc
+          path: target/doc/
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: [build-book, build-rustdoc]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+      - name: Download book artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: book
+          path: public
+
+      - name: Download rustdoc artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rustdoc
+          path: public/api
+
+      - name: Create index redirect
+        run: |
+          cat > public/index.html <<EOF
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Redirecting to beads-tui Documentation</title>
+            <meta http-equiv="refresh" content="0; URL=./beads-tui/">
+          </head>
+          <body>
+            <p>Redirecting to <a href="./beads-tui/">beads-tui Documentation</a>...</p>
+          </body>
+          </html>
+          EOF
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          cname: beads-tui.davidforbes.dev
+          force_orphan: true
