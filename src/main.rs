@@ -153,7 +153,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 }
                                 Err(e) => {
                                     tracing::error!("Failed to compact database: {:?}", e);
-                                    app.set_error(format!("Failed to compact database: {e}"));
+                                    app.set_error(format!(
+                                        "Failed to compact database: {e}\n\nTry:\n• Run 'bd doctor' to diagnose issues\n• Check available disk space\n• Restart the application"
+                                    ));
                                 }
                             }
                         }
@@ -469,7 +471,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                             }
                                             Err(e) => {
                                                 tracing::error!("Failed to add dependency: {}", e);
-                                                app.set_error(format!("Failed to add dependency: {}", e));
+                                                app.set_error(format!(
+                                                    "Failed to add dependency: {}\n\nCommon causes:\n• Dependency would create a cycle\n• Invalid issue ID format\n• Issue not found",
+                                                    e
+                                                ));
                                             }
                                         }
                                     }
@@ -1152,7 +1157,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                         }
                                         Err(e) => {
                                             tracing::error!("Failed to update issue: {:?}", e);
-                                            app.set_error(format!("Failed to update issue: {e}"));
+                                            app.set_error(format!(
+                                                "Failed to update issue: {e}\n\nStay in edit mode to fix and retry.\nVerify your changes and try again."
+                                            ));
                                             // Stay in edit mode so user can fix and retry
                                         }
                                     }
@@ -1316,7 +1323,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                     }
                                     Err(e) => {
                                         tracing::error!("Failed to create issue: {:?}", e);
-                                        app.set_error(format!("Failed to create issue: {e}"));
+                                        app.set_error(format!(
+                                            "Failed to create issue: {e}\n\nStay in create mode to fix and retry.\nCheck that all required fields are filled correctly."
+                                        ));
                                         // Stay in create mode so user can fix and retry
                                     }
                                 }
@@ -1605,7 +1614,9 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     }
                     Err(e) => {
                         tracing::error!("Failed to stop daemon: {:?}", e);
-                        app.set_error(format!("Failed to stop daemon: {e}"));
+                        app.set_error(format!(
+                            "Failed to stop daemon: {e}\n\nThe daemon may not be running or may be unresponsive.\nCheck 'bd doctor' for status."
+                        ));
                     }
                 }
             } else {
@@ -1618,7 +1629,9 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     }
                     Err(e) => {
                         tracing::error!("Failed to start daemon: {:?}", e);
-                        app.set_error(format!("Failed to start daemon: {e}"));
+                        app.set_error(format!(
+                            "Failed to start daemon: {e}\n\nTry:\n• Check if daemon is already running\n• Verify beads is installed correctly\n• Run 'bd doctor' for diagnostics"
+                        ));
                     }
                 }
             }
@@ -1634,7 +1647,9 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 }
                 Err(e) => {
                     tracing::error!("Failed to sync database: {:?}", e);
-                    app.set_error(format!("Failed to sync database: {e}"));
+                    app.set_error(format!(
+                        "Failed to sync database: {e}\n\nTry:\n• Check network connectivity\n• Verify git remote is configured\n• Run 'bd doctor' to diagnose issues"
+                    ));
                 }
             }
         }
