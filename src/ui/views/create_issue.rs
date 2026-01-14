@@ -112,6 +112,22 @@ impl CreateIssueFormState {
         }
     }
 
+    /// Update field visibility based on current section
+    fn update_field_visibility(&mut self) {
+        let visible_fields: Vec<String> = self.current_section_fields()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        for field in self.form_state.fields_mut() {
+            field.hidden = !visible_fields.contains(&field.id);
+        }
+
+        // Reset focus to first visible field of the section
+        if let Some(idx) = self.form_state.fields().iter().position(|f| !f.hidden) {
+            self.form_state.set_focused_index(idx);
+        }
+    }
+
     /// Create a new create issue form state
     pub fn new() -> Self {
         let fields = vec![
@@ -232,11 +248,13 @@ impl CreateIssueFormState {
                 .with_validation(ValidationRule::MaxLength(1048576)),
         ];
 
-        Self {
+        let mut state = Self {
             form_state: FormState::new(fields),
             current_section: FormSection::Summary,
             show_preview: false,
-        }
+        };
+        state.update_field_visibility();
+        state
     }
 
     /// Get the current section
@@ -247,6 +265,7 @@ impl CreateIssueFormState {
     /// Set the current section
     pub fn set_section(&mut self, section: FormSection) {
         self.current_section = section;
+        self.update_field_visibility();
     }
 
     /// Navigate to the next section
@@ -258,6 +277,7 @@ impl CreateIssueFormState {
             .unwrap_or(0);
         let next_idx = (current_idx + 1) % sections.len();
         self.current_section = sections[next_idx];
+        self.update_field_visibility();
     }
 
     /// Navigate to the previous section
@@ -273,6 +293,7 @@ impl CreateIssueFormState {
             current_idx - 1
         };
         self.current_section = sections[prev_idx];
+        self.update_field_visibility();
     }
 
     /// Toggle preview mode
@@ -286,7 +307,7 @@ impl CreateIssueFormState {
     }
 
     /// Get fields for the current section
-    pub fn current_section_fields(&self) -> Vec<&str> {
+    pub fn current_section_fields(&self) -> Vec<&'static str> {
         match self.current_section {
             FormSection::Summary => vec!["title", "type", "priority", "status"],
             FormSection::Scheduling => vec!["due_date", "defer_date", "time_estimate"],
@@ -560,6 +581,7 @@ impl CreateIssueFormState {
         ]);
         self.current_section = FormSection::Summary;
         self.show_preview = false;
+        self.update_field_visibility();
     }
 }
 

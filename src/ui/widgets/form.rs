@@ -69,6 +69,8 @@ pub struct FormField {
     pub validation_rules: Vec<ValidationRule>,
     /// File path if loaded from file
     pub loaded_from_file: Option<String>,
+    /// Is field hidden
+    pub hidden: bool,
 }
 
 impl FormField {
@@ -86,6 +88,7 @@ impl FormField {
             options: Vec::new(),
             validation_rules: Vec::new(),
             loaded_from_file: None,
+            hidden: false,
         }
     }
 
@@ -103,6 +106,7 @@ impl FormField {
             options: Vec::new(),
             validation_rules: Vec::new(),
             loaded_from_file: None,
+            hidden: false,
         }
     }
 
@@ -120,6 +124,7 @@ impl FormField {
             options: Vec::new(),
             validation_rules: Vec::new(),
             loaded_from_file: None,
+            hidden: false,
         }
     }
 
@@ -137,6 +142,7 @@ impl FormField {
             options,
             validation_rules: Vec::new(),
             loaded_from_file: None,
+            hidden: false,
         }
     }
 
@@ -154,12 +160,19 @@ impl FormField {
             options: Vec::new(),
             validation_rules: Vec::new(),
             loaded_from_file: None,
+            hidden: false,
         }
     }
 
     /// Set field as required
     pub fn required(mut self) -> Self {
         self.required = true;
+        self
+    }
+
+    /// Set field as hidden
+    pub fn hidden(mut self) -> Self {
+        self.hidden = true;
         self
     }
 
@@ -397,17 +410,33 @@ impl FormState {
 
     /// Move focus to next field
     pub fn focus_next(&mut self) {
-        if self.focused_index < self.fields.len().saturating_sub(1) {
-            self.focused_index += 1;
-            self.cursor_position = 0;
+        let mut next_index = self.focused_index + 1;
+        while next_index < self.fields.len() {
+            if !self.fields[next_index].hidden {
+                self.focused_index = next_index;
+                self.cursor_position = 0;
+                return;
+            }
+            next_index += 1;
         }
     }
 
     /// Move focus to previous field
     pub fn focus_previous(&mut self) {
-        if self.focused_index > 0 {
-            self.focused_index -= 1;
-            self.cursor_position = 0;
+        if self.focused_index == 0 {
+            return;
+        }
+        let mut prev_index = self.focused_index - 1;
+        loop {
+            if !self.fields[prev_index].hidden {
+                self.focused_index = prev_index;
+                self.cursor_position = 0;
+                return;
+            }
+            if prev_index == 0 {
+                break;
+            }
+            prev_index -= 1;
         }
     }
 
@@ -734,21 +763,32 @@ impl<'a> StatefulWidget for Form<'a> {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        if state.fields.is_empty() {
-            let empty_msg = Paragraph::new("No fields defined").style(
-                Style::default()
-                    .fg(Color::DarkGray)
-                    .add_modifier(Modifier::ITALIC),
-            );
-            empty_msg.render(inner, buf);
+        // Filter visible fields
+        let visible_indices: Vec<usize> = state
+            .fields
+            .iter()
+            .enumerate()
+            .filter(|(_, f)| !f.hidden)
+            .map(|(i, _)| i)
+            .collect();
+
+        if visible_indices.is_empty() {
+            if state.fields.is_empty() {
+                let empty_msg = Paragraph::new("No fields defined").style(
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
+                );
+                empty_msg.render(inner, buf);
+            }
             return;
         }
 
-        // Calculate layout for fields
-        let constraints: Vec<Constraint> = state
-            .fields
+        // Calculate layout for visible fields
+        let constraints: Vec<Constraint> = visible_indices
             .iter()
-            .map(|f| {
+            .map(|&i| {
+                let f = &state.fields[i];
                 if f.field_type == FieldType::TextArea {
                     Constraint::Min(5)
                 } else {
@@ -762,10 +802,11 @@ impl<'a> StatefulWidget for Form<'a> {
             .constraints(constraints)
             .split(inner);
 
-        // Render each field
-        for (i, field) in state.fields.iter().enumerate() {
-            let chunk = &chunks[i];
-            let is_focused = i == state.focused_index;
+        // Render visible fields
+        for (chunk_idx, &field_idx) in visible_indices.iter().enumerate() {
+            let field = &state.fields[field_idx];
+            let chunk = &chunks[chunk_idx];
+            let is_focused = field_idx == state.focused_index;
 
             // Determine field style
             let field_style = if field.error.is_some() {
