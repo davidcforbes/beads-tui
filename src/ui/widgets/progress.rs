@@ -19,6 +19,7 @@ pub struct Spinner {
     frame_duration: Duration,
     style: Style,
     label: Option<String>,
+    show_elapsed: bool,
 }
 
 impl Default for Spinner {
@@ -35,6 +36,7 @@ impl Spinner {
             frame_duration: Duration::from_millis(80),
             style: Style::default().fg(Color::Cyan),
             label: None,
+            show_elapsed: true,
         }
     }
 
@@ -50,6 +52,12 @@ impl Spinner {
         self
     }
 
+    /// Set whether to show elapsed time
+    pub fn show_elapsed(mut self, show: bool) -> Self {
+        self.show_elapsed = show;
+        self
+    }
+
     /// Get the current frame index
     fn current_frame(&self) -> usize {
         let elapsed = self.start_time.elapsed();
@@ -60,6 +68,24 @@ impl Spinner {
     /// Get the current spinner character
     pub fn frame_char(&self) -> &'static str {
         SPINNER_FRAMES[self.current_frame()]
+    }
+
+    /// Get elapsed time since spinner started
+    pub fn elapsed(&self) -> Duration {
+        self.start_time.elapsed()
+    }
+
+    /// Format elapsed time for display (e.g., "2.3s", "1m 5s")
+    fn format_elapsed(&self) -> String {
+        let elapsed = self.elapsed();
+        let secs = elapsed.as_secs();
+        if secs < 60 {
+            format!("{}.{}s", secs, elapsed.subsec_millis() / 100)
+        } else {
+            let mins = secs / 60;
+            let remaining_secs = secs % 60;
+            format!("{}m {}s", mins, remaining_secs)
+        }
     }
 }
 
@@ -72,9 +98,19 @@ impl Widget for Spinner {
         let frame = self.frame_char();
         let mut spans = vec![Span::styled(frame, self.style)];
 
-        if let Some(label) = self.label {
+        if let Some(ref label) = self.label {
             spans.push(Span::raw(" "));
             spans.push(Span::raw(label));
+        }
+
+        // Show elapsed time if enabled
+        if self.show_elapsed {
+            let elapsed_str = self.format_elapsed();
+            spans.push(Span::raw(" "));
+            spans.push(Span::styled(
+                format!("({})", elapsed_str),
+                Style::default().fg(Color::DarkGray),
+            ));
         }
 
         let line = Line::from(spans);
@@ -213,12 +249,13 @@ impl Widget for LoadingIndicator {
                 .style(self.style);
             progress_bar.render(area, buf);
         } else {
-            // Show spinner with message
+            // Show spinner with message and elapsed time
             let spinner = Spinner {
                 start_time: self.start_time,
                 frame_duration: Duration::from_millis(80),
                 style: self.style.fg(Color::Cyan),
                 label: Some(self.message),
+                show_elapsed: true,
             };
             spinner.render(area, buf);
         }
@@ -246,6 +283,32 @@ mod tests {
         let spinner = Spinner::new();
         let frame = spinner.frame_char();
         assert!(SPINNER_FRAMES.contains(&frame));
+    }
+
+    #[test]
+    fn test_spinner_elapsed() {
+        use std::thread::sleep;
+        let spinner = Spinner::new();
+        sleep(Duration::from_millis(100));
+        let elapsed = spinner.elapsed();
+        assert!(elapsed.as_millis() >= 100);
+    }
+
+    #[test]
+    fn test_spinner_show_elapsed() {
+        let spinner1 = Spinner::new();
+        assert!(spinner1.show_elapsed);
+
+        let spinner2 = Spinner::new().show_elapsed(false);
+        assert!(!spinner2.show_elapsed);
+    }
+
+    #[test]
+    fn test_spinner_format_elapsed() {
+        let spinner = Spinner::new();
+        let formatted = spinner.format_elapsed();
+        // Should be in format "X.Xs" for short durations
+        assert!(formatted.ends_with('s'));
     }
 
     #[test]

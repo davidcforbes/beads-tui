@@ -26,7 +26,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame, Terminal,
 };
-use std::io;
+use std::io::{self, Write};
 use std::sync::Arc;
 use std::time::Instant;
 use ui::views::{DatabaseView, DependenciesView, HelpView, IssuesView, LabelsView};
@@ -36,8 +36,20 @@ fn main() -> Result<()> {
     // Setup panic hook to restore terminal on panic
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        let _ = disable_raw_mode();
-        let _ = execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
+        // Try multiple times to restore terminal state
+        for _ in 0..3 {
+            if disable_raw_mode().is_ok() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+
+        // Try to restore screen state
+        let mut stdout = io::stdout();
+        let _ = execute!(stdout, LeaveAlternateScreen, DisableMouseCapture);
+        let _ = stdout.flush();
+
+        // Call original panic handler
         default_panic(info);
     }));
 
@@ -81,12 +93,22 @@ fn main() -> Result<()> {
 // App struct moved to models::AppState
 
 /// Handle keyboard events for the Issues view
+///
+/// ESC KEY HIERARCHY (highest to lowest priority):
+/// 1. Dismiss notifications
+/// 2. Close undo/redo history overlay
+/// 3. Cancel active dialogs (delete, dependency, filter save, column manager)
+/// 4. Close selectors/pickers (priority, label, status)
+/// 5. Exit search/filter modes
+/// 6. Cancel edit/create modes
+/// 7. Return from detail view to list
+/// Each handler returns early, so only the highest-priority applicable action is taken.
 fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
     use ui::views::IssuesViewMode;
 
     let key_code = key.code;
 
-    // Handle notification dismissal with Esc
+    // ESC Priority 1: Dismiss notifications (highest)
     if !app.notifications.is_empty() && key_code == KeyCode::Esc {
         app.clear_notification();
         return;
@@ -114,7 +136,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         return;
     }
 
-    // Handle Esc to close undo history overlay
+    // ESC Priority 2: Close undo history overlay
     if app.is_undo_history_visible() && key_code == KeyCode::Esc {
         app.hide_undo_history();
         return;
@@ -199,7 +221,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 return;
             }
             KeyCode::Esc => {
-                // Cancel dialog
+                // ESC Priority 3: Cancel dialog
                 tracing::debug!("Dialog cancelled");
                 app.dialog_state = None;
                 app.pending_action = None;

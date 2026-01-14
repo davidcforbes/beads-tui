@@ -496,11 +496,22 @@ impl FormState {
     /// Validate all fields
     pub fn validate(&mut self) -> bool {
         let mut all_valid = true;
-        for field in &mut self.fields {
+        let mut first_error_index: Option<usize> = None;
+
+        for (i, field) in self.fields.iter_mut().enumerate() {
             if !field.validate() {
                 all_valid = false;
+                if first_error_index.is_none() {
+                    first_error_index = Some(i);
+                }
             }
         }
+
+        // Auto-focus first field with error
+        if let Some(error_idx) = first_error_index {
+            self.focused_index = error_idx;
+        }
+
         all_valid
     }
 
@@ -960,6 +971,33 @@ mod tests {
         state.set_value("title", "Test Issue".to_string());
         assert!(state.validate());
         assert!(!state.has_errors());
+    }
+
+    #[test]
+    fn test_validation_auto_focuses_first_error() {
+        let fields = vec![
+            FormField::text("title", "Title"),
+            FormField::text("description", "Description").required(),
+            FormField::text("assignee", "Assignee").required(),
+        ];
+        let mut state = FormState::new(fields);
+
+        // Start with focus on first field
+        assert_eq!(state.focused_index, 0);
+
+        // Validate - should fail and focus second field (first error)
+        assert!(!state.validate());
+        assert_eq!(state.focused_index, 1);
+
+        // Fill second field, validate again - should focus third field
+        state.set_value("description", "Test".to_string());
+        assert!(!state.validate());
+        assert_eq!(state.focused_index, 2);
+
+        // Fill third field, validate - should succeed and keep focus
+        state.set_value("assignee", "User".to_string());
+        assert!(state.validate());
+        assert_eq!(state.focused_index, 2); // Focus doesn't change on success
     }
 
     #[test]
