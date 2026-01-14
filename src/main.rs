@@ -2176,6 +2176,15 @@ fn run_app<B: ratatui::backend::Backend>(
                         app.toggle_notification_history();
                         continue;
                     }
+                    KeyCode::F(1) => {
+                        // Toggle context-sensitive help
+                        if app.is_context_help_visible() {
+                            app.hide_context_help();
+                        } else {
+                            app.show_context_help();
+                        }
+                        continue;
+                    }
                     KeyCode::Char('1') => {
                         app.selected_tab = 0;
                         app.mark_dirty();
@@ -2361,8 +2370,15 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         }
     }
 
-    // Status bar with optional performance stats or action hints
-    let status_text = if app.show_perf_stats {
+    // Status bar with optional performance stats, loading indicator, or action hints
+    let status_text = if let Some(ref spinner) = app.loading_spinner {
+        // Show loading indicator using Spinner widget
+        let label = app.loading_message.as_ref().map(|s| s.as_str()).unwrap_or("Loading...");
+        let spinner_text = format!("{} {}", spinner.frame_char(), label);
+        Paragraph::new(spinner_text)
+            .style(Style::default().fg(Color::Cyan))
+            .block(Block::default().borders(Borders::ALL).title("Loading"))
+    } else if app.show_perf_stats {
         let perf_info = app.perf_stats.format_stats();
         let mut lines: Vec<Line> = perf_info
             .lines()

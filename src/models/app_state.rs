@@ -113,6 +113,10 @@ pub struct AppState {
     pub show_shortcut_help: bool,
     /// Whether context-sensitive help overlay is visible
     pub show_context_help: bool,
+    /// Loading spinner widget (None if not loading)
+    pub loading_spinner: Option<crate::ui::widgets::Spinner>,
+    /// Loading operation message
+    pub loading_message: Option<String>,
 }
 
 impl AppState {
@@ -249,6 +253,8 @@ impl AppState {
             dependency_removal_dialog_state: None,
             show_shortcut_help: false,
             show_context_help: false,
+            loading_spinner: None,
+            loading_message: None,
         }
     }
 
@@ -735,6 +741,125 @@ impl AppState {
         self.show_context_help
     }
 
+    /// Get context-sensitive help content based on current view and focus
+    pub fn get_context_help_content(&self) -> (String, Vec<crate::ui::widgets::KeyBinding>) {
+        use crate::ui::widgets::KeyBinding;
+
+        match self.selected_tab {
+            0 => {
+                // Issues view
+                let title = "Issues View Help".to_string();
+                let bindings = vec![
+                    KeyBinding::new("↑/↓ or j/k", "Navigate issues"),
+                    KeyBinding::new("←/→ or h/l", "Navigate columns"),
+                    KeyBinding::new("Enter", "View/edit issue details"),
+                    KeyBinding::new("n", "Create new issue"),
+                    KeyBinding::new("e", "Edit selected issue"),
+                    KeyBinding::new("d", "Delete selected issue"),
+                    KeyBinding::new("c", "Close selected issue"),
+                    KeyBinding::new("/", "Search issues"),
+                    KeyBinding::new("f", "Quick filters"),
+                    KeyBinding::new("Ctrl+S", "Save current filter"),
+                    KeyBinding::new("F1-F11", "Apply saved filter"),
+                    KeyBinding::new("Space", "Toggle column sort"),
+                    KeyBinding::new("Tab", "Cycle view modes"),
+                    KeyBinding::new("Esc", "Cancel/return to list"),
+                ];
+                (title, bindings)
+            }
+            1 => {
+                // Dependencies view
+                let title = "Dependencies View Help".to_string();
+                let bindings = vec![
+                    KeyBinding::new("↑/↓ or j/k", "Navigate dependencies"),
+                    KeyBinding::new("Tab", "Switch between Dependencies/Blocks"),
+                    KeyBinding::new("a", "Add dependency"),
+                    KeyBinding::new("d", "Remove dependency"),
+                    KeyBinding::new("Enter", "View issue details"),
+                    KeyBinding::new("g", "Show dependency graph"),
+                    KeyBinding::new("Esc", "Return to issues"),
+                ];
+                (title, bindings)
+            }
+            2 => {
+                // Labels view
+                let title = "Labels View Help".to_string();
+                let bindings = vec![
+                    KeyBinding::new("↑/↓ or j/k", "Navigate labels"),
+                    KeyBinding::new("Enter", "Select/apply label"),
+                    KeyBinding::new("a", "Add new label"),
+                    KeyBinding::new("d", "Delete label"),
+                    KeyBinding::new("/", "Search labels"),
+                    KeyBinding::new("Esc", "Return to issues"),
+                ];
+                (title, bindings)
+            }
+            3 => {
+                // PERT view
+                let title = "PERT Chart View Help".to_string();
+                let bindings = vec![
+                    KeyBinding::new("↑/↓ or j/k", "Navigate nodes"),
+                    KeyBinding::new("+/-", "Zoom in/out"),
+                    KeyBinding::new("c", "Configure chart settings"),
+                    KeyBinding::new("Enter", "View node details"),
+                    KeyBinding::new("Esc", "Return to issues"),
+                ];
+                (title, bindings)
+            }
+            4 => {
+                // Gantt view
+                let title = "Gantt Chart View Help".to_string();
+                let bindings = vec![
+                    KeyBinding::new("↑/↓ or j/k", "Navigate tasks"),
+                    KeyBinding::new("+/-", "Zoom timeline in/out"),
+                    KeyBinding::new("g", "Change grouping mode"),
+                    KeyBinding::new("c", "Configure chart settings"),
+                    KeyBinding::new("Enter", "View task details"),
+                    KeyBinding::new("Esc", "Return to issues"),
+                ];
+                (title, bindings)
+            }
+            _ => {
+                // Default/unknown view
+                let title = "Help".to_string();
+                let bindings = vec![
+                    KeyBinding::new("1-5", "Switch tabs"),
+                    KeyBinding::new("F1", "Context help (this overlay)"),
+                    KeyBinding::new("q", "Quit application"),
+                    KeyBinding::new("N", "Notification history"),
+                ];
+                (title, bindings)
+            }
+        }
+    }
+
+    /// Start showing a loading indicator with the given message
+    pub fn start_loading<S: Into<String>>(&mut self, message: S) {
+        use crate::ui::widgets::Spinner;
+        use ratatui::style::{Color, Style};
+
+        let msg = message.into();
+        self.loading_message = Some(msg.clone());
+        self.loading_spinner = Some(
+            Spinner::new()
+                .label(msg)
+                .style(Style::default().fg(Color::Cyan)),
+        );
+        self.mark_dirty();
+    }
+
+    /// Stop showing the loading indicator
+    pub fn stop_loading(&mut self) {
+        self.loading_spinner = None;
+        self.loading_message = None;
+        self.mark_dirty();
+    }
+
+    /// Check if a loading operation is in progress
+    pub fn is_loading(&self) -> bool {
+        self.loading_spinner.is_some()
+    }
+
     /// Save table configuration from issues view to config and persist to disk
     pub fn save_table_config(&mut self) -> Result<(), String> {
         // Copy table config from issues view state to app config
@@ -826,6 +951,8 @@ mod tests {
             dependency_removal_dialog_state: None,
             show_shortcut_help: false,
             show_context_help: false,
+            loading_spinner: None,
+            loading_message: None,
             notification_history: VecDeque::new(),
             show_notification_history: false,
             notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
