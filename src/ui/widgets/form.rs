@@ -61,6 +61,8 @@ pub struct FormField {
     pub error: Option<String>,
     /// Field placeholder text
     pub placeholder: Option<String>,
+    /// Help text (shown with F1)
+    pub help_text: Option<String>,
     /// Available options for selector fields
     pub options: Vec<String>,
     /// Validation rules for this field
@@ -80,6 +82,7 @@ impl FormField {
             required: false,
             error: None,
             placeholder: None,
+            help_text: None,
             options: Vec::new(),
             validation_rules: Vec::new(),
             loaded_from_file: None,
@@ -96,6 +99,7 @@ impl FormField {
             required: false,
             error: None,
             placeholder: None,
+            help_text: None,
             options: Vec::new(),
             validation_rules: Vec::new(),
             loaded_from_file: None,
@@ -112,6 +116,7 @@ impl FormField {
             required: false,
             error: None,
             placeholder: None,
+            help_text: None,
             options: Vec::new(),
             validation_rules: Vec::new(),
             loaded_from_file: None,
@@ -128,6 +133,7 @@ impl FormField {
             required: false,
             error: None,
             placeholder: None,
+            help_text: None,
             options,
             validation_rules: Vec::new(),
             loaded_from_file: None,
@@ -144,6 +150,7 @@ impl FormField {
             required: false,
             error: None,
             placeholder: None,
+            help_text: None,
             options: Vec::new(),
             validation_rules: Vec::new(),
             loaded_from_file: None,
@@ -159,6 +166,12 @@ impl FormField {
     /// Set placeholder text
     pub fn placeholder<S: Into<String>>(mut self, placeholder: S) -> Self {
         self.placeholder = Some(placeholder.into());
+        self
+    }
+
+    /// Set help text (shown when user presses F1)
+    pub fn help_text<S: Into<String>>(mut self, help_text: S) -> Self {
+        self.help_text = Some(help_text.into());
         self
     }
 
@@ -326,6 +339,7 @@ pub struct FormState {
     fields: Vec<FormField>,
     focused_index: usize,
     cursor_position: usize,
+    showing_help: bool,
 }
 
 impl FormState {
@@ -335,6 +349,7 @@ impl FormState {
             fields,
             focused_index: 0,
             cursor_position: 0,
+            showing_help: false,
         }
     }
 
@@ -525,6 +540,21 @@ impl FormState {
         for field in &mut self.fields {
             field.error = None;
         }
+    }
+
+    /// Toggle help display for the focused field
+    pub fn toggle_help(&mut self) {
+        self.showing_help = !self.showing_help;
+    }
+
+    /// Check if help is currently being shown
+    pub fn is_showing_help(&self) -> bool {
+        self.showing_help
+    }
+
+    /// Hide help display
+    pub fn hide_help(&mut self) {
+        self.showing_help = false;
     }
 
     /// Load content from a file into the currently focused field
@@ -821,6 +851,31 @@ impl<'a> StatefulWidget for Form<'a> {
                             buf,
                         );
                     }
+                }
+            }
+        }
+
+        // Show help text for focused field if help is toggled
+        if state.showing_help {
+            if let Some(focused_field) = state.focused_field() {
+                if let Some(ref help_text) = focused_field.help_text {
+                    // Render help text at bottom of form area
+                    let help_area = Rect {
+                        x: inner.x,
+                        y: inner.y + inner.height.saturating_sub(2),
+                        width: inner.width,
+                        height: 2,
+                    };
+
+                    let help_paragraph = Paragraph::new(vec![
+                        Line::from(Span::styled(
+                            format!("Help (F1 to hide): {}", help_text),
+                            Style::default().fg(Color::Yellow).add_modifier(Modifier::ITALIC),
+                        )),
+                    ])
+                    .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow)));
+
+                    help_paragraph.render(help_area, buf);
                 }
             }
         }
@@ -1917,5 +1972,38 @@ mod tests {
         // First field should still have its error
         assert!(state.fields[0].error.is_some());
         assert!(state.fields[0].error.as_ref().unwrap().contains("required"));
+    }
+
+    #[test]
+    fn test_form_field_help_text() {
+        let field = FormField::text("date", "Date")
+            .help_text("Format: YYYY-MM-DD");
+        assert_eq!(field.help_text, Some("Format: YYYY-MM-DD".to_string()));
+    }
+
+    #[test]
+    fn test_form_state_help_toggle() {
+        let fields = vec![
+            FormField::text("title", "Title")
+                .help_text("Enter the issue title"),
+        ];
+        let mut state = FormState::new(fields);
+
+        assert!(!state.is_showing_help());
+        state.toggle_help();
+        assert!(state.is_showing_help());
+        state.toggle_help();
+        assert!(!state.is_showing_help());
+    }
+
+    #[test]
+    fn test_form_state_hide_help() {
+        let fields = vec![FormField::text("title", "Title")];
+        let mut state = FormState::new(fields);
+
+        state.toggle_help();
+        assert!(state.is_showing_help());
+        state.hide_help();
+        assert!(!state.is_showing_help());
     }
 }

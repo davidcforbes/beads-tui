@@ -182,20 +182,25 @@ impl CreateIssueFormState {
             // Scheduling section
             FormField::text("due_date", "Due Date")
                 .placeholder("YYYY-MM-DD (optional)")
+                .help_text("Press F1: Enter a date in YYYY-MM-DD format (e.g., 2024-12-31). This is when the issue should be completed.")
                 .with_validation(ValidationRule::MaxLength(32)),
             FormField::text("defer_date", "Defer Date")
                 .placeholder("YYYY-MM-DD (optional)")
+                .help_text("Press F1: Enter a date in YYYY-MM-DD format. Issue will be hidden from ready list until this date.")
                 .with_validation(ValidationRule::MaxLength(32)),
             FormField::text("time_estimate", "Time Estimate")
                 .placeholder("e.g., 2h, 3d, 1w (optional)")
+                .help_text("Press F1: Estimate format: 2h (2 hours), 3d (3 days), 1w (1 week). Used for planning and tracking.")
                 .with_validation(ValidationRule::MaxLength(32)),
             // Relationships section
             FormField::text("parent", "Parent Issue")
                 .placeholder("beads-xxx (optional)")
+                .help_text("Press F1: Enter parent issue ID (e.g., beads-abc123). This issue will be part of the parent epic/feature.")
                 .with_validation(ValidationRule::BeadsIdFormat)
                 .with_validation(ValidationRule::MaxLength(64)),
             FormField::text("dependencies", "Dependencies")
                 .placeholder("comma-separated beads-xxx (optional)")
+                .help_text("Press F1: Enter comma-separated issue IDs that this issue depends on. This issue will be blocked until dependencies are resolved.")
                 .with_validation(ValidationRule::MaxLength(2048)),
             // Labels section
             {
@@ -504,20 +509,25 @@ impl CreateIssueFormState {
             // Scheduling section
             FormField::text("due_date", "Due Date")
                 .placeholder("YYYY-MM-DD (optional)")
+                .help_text("Press F1: Enter a date in YYYY-MM-DD format (e.g., 2024-12-31). This is when the issue should be completed.")
                 .with_validation(ValidationRule::MaxLength(32)),
             FormField::text("defer_date", "Defer Date")
                 .placeholder("YYYY-MM-DD (optional)")
+                .help_text("Press F1: Enter a date in YYYY-MM-DD format. Issue will be hidden from ready list until this date.")
                 .with_validation(ValidationRule::MaxLength(32)),
             FormField::text("time_estimate", "Time Estimate")
                 .placeholder("e.g., 2h, 3d, 1w (optional)")
+                .help_text("Press F1: Estimate format: 2h (2 hours), 3d (3 days), 1w (1 week). Used for planning and tracking.")
                 .with_validation(ValidationRule::MaxLength(32)),
             // Relationships section
             FormField::text("parent", "Parent Issue")
                 .placeholder("beads-xxx (optional)")
+                .help_text("Press F1: Enter parent issue ID (e.g., beads-abc123). This issue will be part of the parent epic/feature.")
                 .with_validation(ValidationRule::BeadsIdFormat)
                 .with_validation(ValidationRule::MaxLength(64)),
             FormField::text("dependencies", "Dependencies")
                 .placeholder("comma-separated beads-xxx (optional)")
+                .help_text("Press F1: Enter comma-separated issue IDs that this issue depends on. This issue will be blocked until dependencies are resolved.")
                 .with_validation(ValidationRule::MaxLength(2048)),
             // Labels section
             {
