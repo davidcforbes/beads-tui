@@ -14,7 +14,7 @@ expression: rendered
 │1-5       - Jump to tab directly                                              │
 │?         - Toggle help                                                       │
 │Ctrl+C    - Force quit                                                        │
-│                                                                              │
+│Ctrl+Z    - Undo last operation                                               │
 │                                                                              │
 │                                                                              │
 │                                                                              │
