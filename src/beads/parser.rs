@@ -73,6 +73,7 @@ pub fn parse_labels(json: &str) -> Result<Vec<Label>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
 
     #[test]
     fn test_parse_create_response() {
@@ -86,5 +87,163 @@ mod tests {
         let output = "Created beads-tui-xyz789: Another Test";
         let id = parse_create_response(output).unwrap();
         assert_eq!(id, "beads-tui-xyz789");
+    }
+
+    #[test]
+    fn test_parse_create_response_tmp_id() {
+        let output = "✓ Created issue: .tmpXYZ123-abc";
+        let id = parse_create_response(output).unwrap();
+        assert_eq!(id, ".tmpXYZ123-abc");
+    }
+
+    #[test]
+    fn test_parse_create_response_with_colon() {
+        let output = "✓ Created issue: beads-tui-test123:";
+        let id = parse_create_response(output).unwrap();
+        assert_eq!(id, "beads-tui-test123");
+    }
+
+    #[test]
+    fn test_parse_create_response_failure() {
+        let output = "Error: Something went wrong";
+        let result = parse_create_response(output);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_issue_list_array() {
+        let json = r#"[
+            {
+                "id": "beads-1",
+                "title": "Test 1",
+                "status": "open",
+                "priority": "P1",
+                "type": "bug",
+                "created": "2026-01-01T00:00:00Z",
+                "updated": "2026-01-01T00:00:00Z"
+            },
+            {
+                "id": "beads-2",
+                "title": "Test 2",
+                "status": "closed",
+                "priority": "P2",
+                "type": "feature",
+                "created": "2026-01-01T00:00:00Z",
+                "updated": "2026-01-01T00:00:00Z"
+            }
+        ]"#;
+
+        let issues = parse_issue_list(json).unwrap();
+        assert_eq!(issues.len(), 2);
+        assert_eq!(issues[0].id, "beads-1");
+        assert_eq!(issues[1].id, "beads-2");
+    }
+
+    #[test]
+    fn test_parse_issue_list_single_object() {
+        let json = r#"{
+            "id": "beads-1",
+            "title": "Test",
+            "status": "open",
+            "priority": "P1",
+            "type": "bug",
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z"
+        }"#;
+
+        let issues = parse_issue_list(json).unwrap();
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].id, "beads-1");
+    }
+
+    #[test]
+    fn test_parse_issue_list_empty() {
+        let json = "[]";
+        let issues = parse_issue_list(json).unwrap();
+        assert_eq!(issues.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_issue_list_invalid_json() {
+        let json = "not valid json";
+        let result = parse_issue_list(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_issue() {
+        let json = r#"{
+            "id": "beads-1",
+            "title": "Test",
+            "status": "open",
+            "priority": "P1",
+            "type": "bug",
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z"
+        }"#;
+
+        let issue = parse_issue(json).unwrap();
+        assert_eq!(issue.id, "beads-1");
+        assert_eq!(issue.title, "Test");
+        assert_eq!(issue.status, IssueStatus::Open);
+        assert_eq!(issue.priority, Priority::P1);
+        assert_eq!(issue.issue_type, IssueType::Bug);
+    }
+
+    #[test]
+    fn test_parse_issue_invalid() {
+        let json = "{}";
+        let result = parse_issue(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_stats() {
+        let json = r#"{
+            "total": 100,
+            "open": 20,
+            "closed": 70,
+            "blocked": 5,
+            "in_progress": 5
+        }"#;
+
+        let stats = parse_stats(json).unwrap();
+        assert_eq!(stats.total_issues, 100);
+        assert_eq!(stats.open, 20);
+        assert_eq!(stats.closed, 70);
+    }
+
+    #[test]
+    fn test_parse_stats_invalid() {
+        let json = "{}";
+        let result = parse_stats(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_labels() {
+        let json = r#"[
+            {"name": "bug", "count": 10},
+            {"name": "feature", "count": 5}
+        ]"#;
+
+        let labels = parse_labels(json).unwrap();
+        assert_eq!(labels.len(), 2);
+        assert_eq!(labels[0].name, "bug");
+        assert_eq!(labels[1].name, "feature");
+    }
+
+    #[test]
+    fn test_parse_labels_empty() {
+        let json = "[]";
+        let labels = parse_labels(json).unwrap();
+        assert_eq!(labels.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_labels_invalid_json() {
+        let json = "not json";
+        let result = parse_labels(json);
+        assert!(result.is_err());
     }
 }
