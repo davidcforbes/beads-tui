@@ -146,6 +146,7 @@ impl<'a> Dialog<'a> {
             ],
             width: 50,
             height: 10,
+            theme: None,
         }
     }
 
@@ -161,6 +162,7 @@ impl<'a> Dialog<'a> {
             ],
             width: 50,
             height: 10,
+            theme: None,
         }
     }
 
@@ -173,6 +175,7 @@ impl<'a> Dialog<'a> {
             buttons: vec![DialogButton::new("OK", "ok")],
             width: 50,
             height: 10,
+            theme: None,
         }
     }
 
@@ -185,6 +188,7 @@ impl<'a> Dialog<'a> {
             buttons: vec![DialogButton::new("OK", "ok")],
             width: 50,
             height: 10,
+            theme: None,
         }
     }
 
@@ -197,6 +201,7 @@ impl<'a> Dialog<'a> {
             buttons: vec![DialogButton::new("OK", "ok")],
             width: 50,
             height: 10,
+            theme: None,
         }
     }
 
@@ -209,6 +214,7 @@ impl<'a> Dialog<'a> {
             buttons: vec![DialogButton::new("OK", "ok")],
             width: 50,
             height: 10,
+            theme: None,
         }
     }
 
@@ -233,6 +239,12 @@ impl<'a> Dialog<'a> {
     /// Set dialog height
     pub fn height(mut self, height: u16) -> Self {
         self.height = height;
+        self
+    }
+
+    /// Set theme
+    pub fn theme(mut self, theme: &'a crate::ui::themes::Theme) -> Self {
+        self.theme = Some(theme);
         self
     }
 
