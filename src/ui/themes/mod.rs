@@ -283,14 +283,14 @@ impl Theme {
         }
     }
 
-    /// Get symbol for issue status (static, theme-independent)
+    /// Get symbol for issue status (ASCII-safe)
     pub fn status_symbol(status: &crate::beads::models::IssueStatus) -> &'static str {
         use crate::beads::models::IssueStatus;
         match status {
-            IssueStatus::Open => "○",
-            IssueStatus::InProgress => "◐",
-            IssueStatus::Blocked => "◩",
-            IssueStatus::Closed => "✓",
+            IssueStatus::Open => "o",
+            IssueStatus::InProgress => "*",
+            IssueStatus::Blocked => "#",
+            IssueStatus::Closed => "+",
         }
     }
 

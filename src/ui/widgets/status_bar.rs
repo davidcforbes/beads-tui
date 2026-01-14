@@ -50,7 +50,7 @@ impl<'a> Widget for StatusBar<'a> {
 
         // Left section - context
         let left_para = Paragraph::new(Line::from(self.left.clone()))
-            .style(Style::default().fg(Color::Gray))
+            .style(Style::default().fg(Color::White))
             .block(Block::default().borders(Borders::ALL));
         Widget::render(left_para, chunks[0], buf);
 
@@ -63,7 +63,7 @@ impl<'a> Widget for StatusBar<'a> {
 
         // Right section - stats
         let right_para = Paragraph::new(Line::from(self.right.clone()))
-            .style(Style::default().fg(Color::Gray))
+            .style(Style::default().fg(Color::White))
             .alignment(Alignment::Right)
             .block(Block::default().borders(Borders::ALL));
         Widget::render(right_para, chunks[2], buf);

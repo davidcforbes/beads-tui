@@ -2,23 +2,28 @@
 use super::{error::*, models::*};
 use serde_json::Value;
 
-/// Parse a list of issues from JSON output
+/// Parse a list of issues from JSON output (optimized to avoid clones)
 pub fn parse_issue_list(json: &str) -> Result<Vec<Issue>> {
-    let value: Value =
-        serde_json::from_str(json).map_err(|e| BeadsError::Json(e, json.to_string()))?;
-
-    if let Some(issues_array) = value.as_array() {
-        issues_array
-            .iter()
-            .map(|v| {
-                serde_json::from_value(v.clone()).map_err(|e| BeadsError::Json(e, v.to_string()))
-            })
-            .collect()
-    } else if let Ok(issue) = serde_json::from_value::<Issue>(value.clone()) {
-        // Single issue returned
-        Ok(vec![issue])
-    } else {
-        Ok(vec![])
+    // Try to deserialize directly as Vec<Issue> first (most common case)
+    match serde_json::from_str::<Vec<Issue>>(json) {
+        Ok(issues) => return Ok(issues),
+        Err(vec_err) => {
+            // Fall back to single issue
+            match serde_json::from_str::<Issue>(json) {
+                Ok(issue) => return Ok(vec![issue]),
+                Err(issue_err) => {
+                    // Check if it's valid JSON at all (empty array/object is ok)
+                    if let Ok(value) = serde_json::from_str::<Value>(json) {
+                        // Valid JSON but not issues - return empty
+                        if value.is_array() || value.is_object() {
+                            return Ok(vec![]);
+                        }
+                    }
+                    // Invalid JSON - return error from Vec attempt
+                    return Err(BeadsError::Json(vec_err, json.to_string()));
+                }
+            }
+        }
     }
 }
 

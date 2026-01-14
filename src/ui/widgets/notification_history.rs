@@ -93,13 +93,13 @@ impl<'a> NotificationHistoryPanel<'a> {
         }
     }
 
-    /// Get notification type indicator and color
+    /// Get notification type indicator and color (ASCII-safe)
     fn get_type_indicator(notification_type: &NotificationType) -> (&'static str, Color) {
         match notification_type {
-            NotificationType::Info => ("ℹ", Color::Cyan),
-            NotificationType::Success => ("✓", Color::Green),
-            NotificationType::Warning => ("⚠", Color::Yellow),
-            NotificationType::Error => ("✗", Color::Red),
+            NotificationType::Info => ("i", Color::Cyan),
+            NotificationType::Success => ("+", Color::Green),
+            NotificationType::Warning => ("!", Color::Yellow),
+            NotificationType::Error => ("x", Color::Red),
         }
     }
 }
@@ -266,22 +266,22 @@ mod tests {
     fn test_get_type_indicator() {
         let (indicator, color) =
             NotificationHistoryPanel::<'_>::get_type_indicator(&NotificationType::Info);
-        assert_eq!(indicator, "ℹ");
+        assert_eq!(indicator, "i");
         assert_eq!(color, Color::Cyan);
 
         let (indicator, color) =
             NotificationHistoryPanel::<'_>::get_type_indicator(&NotificationType::Success);
-        assert_eq!(indicator, "✓");
+        assert_eq!(indicator, "+");
         assert_eq!(color, Color::Green);
 
         let (indicator, color) =
             NotificationHistoryPanel::<'_>::get_type_indicator(&NotificationType::Warning);
-        assert_eq!(indicator, "⚠");
+        assert_eq!(indicator, "!");
         assert_eq!(color, Color::Yellow);
 
         let (indicator, color) =
             NotificationHistoryPanel::<'_>::get_type_indicator(&NotificationType::Error);
-        assert_eq!(indicator, "✗");
+        assert_eq!(indicator, "x");
         assert_eq!(color, Color::Red);
     }
 
