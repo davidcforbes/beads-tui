@@ -4,5 +4,7 @@
 //! Supports persistent undo history and memory-efficient command storage.
 
 mod command;
+mod issue_commands;
 
 pub use command::{Command, CommandError, CommandMetadata, CommandResult};
+pub use issue_commands::IssueUpdateCommand;
