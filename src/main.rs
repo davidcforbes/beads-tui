@@ -152,27 +152,23 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         } else if let Some(issue_id) = action.strip_prefix("close:") {
                             tracing::info!("Confirmed close for issue: {}", issue_id);
 
-                            // Capture current status for undo before closing
-                            let _old_status = app
-                                .issues_view_state
-                                .search_state()
-                                .selected_issue()
-                                .map(|issue| issue.status.to_string());
+                            // Execute close via command for undo support (close = status change to Closed)
+                            use crate::beads::models::IssueStatus;
+                            let client = Arc::new(app.beads_client.clone());
+                            let update = crate::beads::client::IssueUpdate::new().status(IssueStatus::Closed);
+                            let command = Box::new(IssueUpdateCommand::new(
+                                client,
+                                issue_id.to_string(),
+                                update,
+                            ));
 
-                            // Show loading indicator
                             app.start_loading(format!("Closing issue {}...", issue_id));
 
-                            let client = &app.beads_client;
-
-                            match runtime::RUNTIME.block_on(client.close_issue(issue_id, None)) {
+                            match app.execute_command(command) {
                                 Ok(()) => {
-                                    tracing::info!("Successfully closed issue: {}", issue_id);
-
-                                    // TODO: Wrap close_issue in IssueCloseCommand for undo support (beads-tui-37lyg)
-                                    // Note: old_status captured but not used until command wrapper implemented
-
-                                    app.reload_issues();
                                     app.stop_loading();
+                                    tracing::info!("Successfully closed issue: {} (undo with Ctrl+Z)", issue_id);
+                                    app.reload_issues();
                                 }
                                 Err(e) => {
                                     app.stop_loading();
@@ -811,23 +807,22 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 let issue_id = issue.id.clone();
                                 tracing::info!("Saving title edit for {}: {}", issue_id, new_title);
 
-                                // Create IssueUpdate with only title
-                                let update =
-                                    crate::beads::client::IssueUpdate::new().title(new_title);
-
-                                // Execute the update
-                                // Using global runtime instead of creating new runtime
-                                let client = app.beads_client.clone();
+                                // Update title via command (undoable)
+                                let client = Arc::new(app.beads_client.clone());
+                                let update = beads::client::IssueUpdate::new().title(new_title.clone());
+                                let command = Box::new(IssueUpdateCommand::new(
+                                    client,
+                                    issue_id.clone(),
+                                    update,
+                                ));
 
                                 app.start_loading("Updating title...");
 
-                                match runtime::RUNTIME
-                                    .block_on(client.update_issue(&issue_id, update))
-                                {
+                                match app.execute_command(command) {
                                     Ok(()) => {
                                         app.stop_loading();
                                         tracing::info!(
-                                            "Successfully updated title for: {}",
+                                            "Successfully updated title for: {} (undo with Ctrl+Z)",
                                             issue_id
                                         );
                                         app.reload_issues();
@@ -942,19 +937,22 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             let _old_status = issue.status.to_string();
                             tracing::info!("Reopening issue: {}", issue_id);
 
-                            // Create a tokio runtime to execute the async call
-                            // Using global runtime instead of creating new runtime
-                            let client = app.beads_client.clone();
+                            // Execute reopen via command for undo support (reopen = status change to Open)
+                            use crate::beads::models::IssueStatus;
+                            let client = Arc::new(app.beads_client.clone());
+                            let update = crate::beads::client::IssueUpdate::new().status(IssueStatus::Open);
+                            let command = Box::new(IssueUpdateCommand::new(
+                                client,
+                                issue_id.clone(),
+                                update,
+                            ));
 
                             app.start_loading("Reopening issue...");
 
-                            match runtime::RUNTIME.block_on(client.reopen_issue(&issue_id)) {
+                            match app.execute_command(command) {
                                 Ok(()) => {
                                     app.stop_loading();
-                                    tracing::info!("Successfully reopened issue: {}", issue_id);
-
-                                    // TODO: Wrap reopen_issue in IssueReopenCommand for undo support (beads-tui-37lyg)
-                                    // Note: old_status captured but not used until command wrapper implemented
+                                    tracing::info!("Successfully reopened issue: {} (undo with Ctrl+Z)", issue_id);
 
                                     // Reload issues list
                                     app.reload_issues();
@@ -1393,19 +1391,21 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                         editor_state.save();
                                         issues_state.return_to_list();
 
-                                        // Create a tokio runtime to execute the async call
-                                        // Using global runtime instead of creating new runtime
-                                        let client = app.beads_client.clone();
+                                        // Update issue via command (undoable)
+                                        let client = Arc::new(app.beads_client.clone());
+                                        let command = Box::new(IssueUpdateCommand::new(
+                                            client,
+                                            issue_id.clone(),
+                                            update,
+                                        ));
 
                                         app.start_loading("Updating issue...");
 
-                                        match runtime::RUNTIME
-                                            .block_on(client.update_issue(&issue_id, update))
-                                        {
+                                        match app.execute_command(command) {
                                             Ok(()) => {
                                                 app.stop_loading();
                                                 tracing::info!(
-                                                    "Successfully updated issue: {}",
+                                                    "Successfully updated issue: {} (undo with Ctrl+Z)",
                                                     issue_id
                                                 );
 
@@ -2267,7 +2267,6 @@ fn run_app<B: ratatui::backend::Backend>(
                         KeyCode::Enter => {
                             // Apply selected priority to current issue
                             if let Some(selected_idx) = app.priority_selector_state.selected() {
-                                use crate::beads::client::IssueUpdate;
                                 use crate::beads::models::Priority;
                                 let priorities = [
                                     Priority::P0,
@@ -2374,21 +2373,22 @@ fn run_app<B: ratatui::backend::Backend>(
                                 let issue_id = issue.id.clone();
                                 let new_labels = app.label_picker_state.selected_labels().to_vec();
 
-                                // Update labels via beads client
-                                use crate::beads::client::IssueUpdate;
-                                // Using global runtime instead of creating new runtime
-                                let client = app.beads_client.clone();
-                                let update = IssueUpdate::new().labels(new_labels.clone());
+                                // Update labels via command (undoable)
+                                let client = Arc::new(app.beads_client.clone());
+                                let update = beads::client::IssueUpdate::new().labels(new_labels.clone());
+                                let command = Box::new(IssueUpdateCommand::new(
+                                    client,
+                                    issue_id.clone(),
+                                    update,
+                                ));
 
                                 app.start_loading("Updating labels...");
 
-                                match runtime::RUNTIME
-                                    .block_on(client.update_issue(&issue_id, update))
-                                {
+                                match app.execute_command(command) {
                                     Ok(()) => {
                                         app.stop_loading();
                                         app.set_success(format!(
-                                            "Updated labels for issue {} ({})",
+                                            "Updated labels for issue {} ({}) (undo with Ctrl+Z)",
                                             issue_id,
                                             if new_labels.is_empty() {
                                                 "removed all".to_string()
@@ -2427,7 +2427,6 @@ fn run_app<B: ratatui::backend::Backend>(
                         KeyCode::Enter => {
                             // Apply selected status to current issue
                             if let Some(selected_idx) = app.status_selector_state.selected() {
-                                use crate::beads::client::IssueUpdate;
                                 use crate::beads::models::IssueStatus;
                                 let statuses = [
                                     IssueStatus::Open,
@@ -2438,20 +2437,22 @@ fn run_app<B: ratatui::backend::Backend>(
                                     if let Some(issue) = app.issues_view_state.selected_issue() {
                                         let issue_id = issue.id.clone();
 
-                                        // Update status via beads client
-                                        // Using global runtime instead of creating new runtime
-                                        let client = app.beads_client.clone();
-                                        let update = IssueUpdate::new().status(new_status);
+                                        // Update status via command (undoable)
+                                        let client = Arc::new(app.beads_client.clone());
+                                        let update = beads::client::IssueUpdate::new().status(new_status);
+                                        let command = Box::new(IssueUpdateCommand::new(
+                                            client,
+                                            issue_id.clone(),
+                                            update,
+                                        ));
 
                                         app.start_loading("Updating status...");
 
-                                        match runtime::RUNTIME
-                                            .block_on(client.update_issue(&issue_id, update))
-                                        {
+                                        match app.execute_command(command) {
                                             Ok(()) => {
                                                 app.stop_loading();
                                                 app.set_success(format!(
-                                                    "Updated status to {} for issue {}",
+                                                    "Updated status to {} for issue {} (undo with Ctrl+Z)",
                                                     new_status, issue_id
                                                 ));
                                                 app.reload_issues();
