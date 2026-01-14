@@ -753,6 +753,7 @@ impl SearchInterfaceState {
 pub struct SearchInterfaceView<'a> {
     block_style: Style,
     help_style: Style,
+    theme: Option<&'a crate::ui::themes::Theme>,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
@@ -762,6 +763,7 @@ impl<'a> SearchInterfaceView<'a> {
         Self {
             block_style: Style::default().fg(Color::Cyan),
             help_style: Style::default().fg(Color::DarkGray),
+            theme: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -775,6 +777,12 @@ impl<'a> SearchInterfaceView<'a> {
     /// Set help style
     pub fn help_style(mut self, style: Style) -> Self {
         self.help_style = style;
+        self
+    }
+
+    /// Set theme
+    pub fn theme(mut self, theme: &'a crate::ui::themes::Theme) -> Self {
+        self.theme = Some(theme);
         self
     }
 
@@ -872,7 +880,10 @@ impl<'a> StatefulWidget for SearchInterfaceView<'a> {
         } else {
             None
         };
-        let issue_list = IssueList::new(issue_refs).search_query(search_query);
+        let mut issue_list = IssueList::new(issue_refs).search_query(search_query);
+        if let Some(theme) = self.theme {
+            issue_list = issue_list.theme(theme);
+        }
 
         StatefulWidget::render(issue_list, chunks[chunk_idx], buf, &mut state.list_state);
         chunk_idx += 1;

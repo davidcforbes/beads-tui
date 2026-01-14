@@ -195,6 +195,7 @@ impl IssuesViewState {
 /// Issues view widget
 pub struct IssuesView<'a> {
     block_style: Style,
+    theme: Option<&'a crate::ui::themes::Theme>,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
@@ -203,6 +204,7 @@ impl<'a> IssuesView<'a> {
     pub fn new() -> Self {
         Self {
             block_style: Style::default().fg(Color::Cyan),
+            theme: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -213,14 +215,26 @@ impl<'a> IssuesView<'a> {
         self
     }
 
+    /// Set theme
+    pub fn theme(mut self, theme: &'a crate::ui::themes::Theme) -> Self {
+        self.theme = Some(theme);
+        self
+    }
+
     fn render_list_mode(&self, area: Rect, buf: &mut Buffer, state: &mut IssuesViewState) {
-        let search_view = SearchInterfaceView::new().block_style(self.block_style);
+        let mut search_view = SearchInterfaceView::new().block_style(self.block_style);
+        if let Some(theme) = self.theme {
+            search_view = search_view.theme(theme);
+        }
         StatefulWidget::render(search_view, area, buf, &mut state.search_state);
     }
 
     fn render_detail_mode(&self, area: Rect, buf: &mut Buffer, state: &IssuesViewState) {
         if let Some(issue) = &state.selected_issue {
-            let detail_view = IssueDetailView::new(issue);
+            let mut detail_view = IssueDetailView::new(issue);
+            if let Some(theme) = self.theme {
+                detail_view = detail_view.theme(theme);
+            }
             Widget::render(detail_view, area, buf);
         }
     }
