@@ -250,6 +250,11 @@ impl<'a> Dialog<'a> {
 
     /// Render the dialog with state
     pub fn render_with_state(self, area: Rect, buf: &mut Buffer, state: &DialogState) {
+        use crate::ui::themes::Theme;
+
+        let default_theme = Theme::default();
+        let theme_ref = self.theme.unwrap_or(&default_theme);
+
         // Calculate centered dialog position
         let dialog_rect = Self::centered_rect(self.width, self.height, area);
 
@@ -260,7 +265,7 @@ impl<'a> Dialog<'a> {
         let block = Block::default()
             .borders(Borders::ALL)
             .title(format!(" {} {} ", self.dialog_type.symbol(), self.title))
-            .border_style(Style::default().fg(self.dialog_type.color()));
+            .border_style(Style::default().fg(self.dialog_type.color(theme_ref)));
 
         let inner = block.inner(dialog_rect);
         block.render(dialog_rect, buf);
@@ -281,10 +286,10 @@ impl<'a> Dialog<'a> {
         message.render(chunks[0], buf);
 
         // Render buttons
-        self.render_buttons(chunks[1], buf, state);
+        self.render_buttons(chunks[1], buf, state, theme_ref);
     }
 
-    fn render_buttons(&self, area: Rect, buf: &mut Buffer, state: &DialogState) {
+    fn render_buttons(&self, area: Rect, buf: &mut Buffer, state: &DialogState, theme: &crate::ui::themes::Theme) {
         if self.buttons.is_empty() {
             return;
         }
@@ -310,10 +315,10 @@ impl<'a> Dialog<'a> {
             let button_style = if is_selected {
                 Style::default()
                     .fg(Color::Black)
-                    .bg(self.dialog_type.color())
+                    .bg(self.dialog_type.color(theme))
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(self.dialog_type.color())
+                Style::default().fg(self.dialog_type.color(theme))
             };
 
             let button_text = if is_selected {
