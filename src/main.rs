@@ -177,32 +177,58 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                     Ok(TaskOutput::IssueDeleted(issue_id_owned))
                                 },
                             );
-                        } else if let Some(issue_id) = action.strip_prefix("close:") {
-                            tracing::info!("Confirmed close for issue: {}", issue_id);
+                        } else if let Some(filter_idx_str) = action.strip_prefix("delete_filter:") {
+                            tracing::info!("Confirmed delete filter at index: {}", filter_idx_str);
 
-                            // Execute close via command for undo support (close = status change to Closed)
-                            use crate::beads::models::IssueStatus;
-                            let client = Arc::new(app.beads_client.clone());
-                            let update = crate::beads::client::IssueUpdate::new().status(IssueStatus::Closed);
-                            let command = Box::new(IssueUpdateCommand::new(
-                                client,
-                                issue_id.to_string(),
-                                update,
-                            ));
+                            if let Ok(i) = filter_idx_str.parse::<usize>() {
+                                app.issues_view_state.search_state_mut().delete_saved_filter(i);
+                                // Sync to config
+                                let filters = app.issues_view_state.search_state().saved_filters().to_vec();
+                                app.config.filters = filters;
+                                let _ = app.config.save();
+                                app.set_success("Filter deleted".to_string());
+                            }
+                        } else if let Some(ids) = action.strip_prefix("indent:") {
+                            let parts: Vec<&str> = ids.split(':').collect();
+                            if parts.len() == 2 {
+                                let selected_id = parts[0].to_string();
+                                let prev_id = parts[1].to_string();
+                                tracing::info!("Confirmed indent {} under {}", selected_id, prev_id);
 
-                            app.start_loading(format!("Closing issue {}...", issue_id));
+                                // Spawn background task (non-blocking)
+                                let _ = app.spawn_task(
+                                    "Indenting issue",
+                                    move |client| async move {
+                                        client.add_dependency(&selected_id, &prev_id).await?;
+                                        tracing::info!(
+                                            "Successfully indented {} under {}",
+                                            selected_id,
+                                            prev_id
+                                        );
+                                        Ok(TaskOutput::DependencyAdded)
+                                    },
+                                );
+                            }
+                        } else if let Some(ids) = action.strip_prefix("outdent:") {
+                            let parts: Vec<&str> = ids.split(':').collect();
+                            if parts.len() == 2 {
+                                let selected_id = parts[0].to_string();
+                                let parent_id = parts[1].to_string();
+                                tracing::info!("Confirmed outdent {} from parent {}", selected_id, parent_id);
 
-                            match app.execute_command(command) {
-                                Ok(()) => {
-                                    app.stop_loading();
-                                    tracing::info!("Successfully closed issue: {} (undo with Ctrl+Z)", issue_id);
-                                    app.reload_issues();
-                                }
-                                Err(e) => {
-                                    app.stop_loading();
-                                    tracing::error!("Failed to close issue: {:?}", e);
-                                    app.set_error(format!("Failed to close issue: {e}\n\nTry:\n• Verify the issue exists with 'bd show {issue_id}'\n• Check network connectivity\n• Run 'bd doctor' to diagnose issues"));
-                                }
+                                // Spawn background task (non-blocking)
+                                let _ = app.spawn_task(
+                                    "Outdenting issue",
+                                    move |client| async move {
+                                        client.remove_dependency(&selected_id, &parent_id).await?;
+                                        tracing::info!(
+                                            "Successfully outdented {} from {}",
+                                            selected_id,
+                                            parent_id
+                                        );
+                                        Ok(TaskOutput::DependencyRemoved)
+                                    },
+                                );
                             }
                         } else if action == "compact_database" {
                             tracing::info!("Confirmed compact database");
@@ -685,15 +711,18 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 return;
             }
             KeyCode::Char('d') | KeyCode::Delete => {
-                // Delete filter
+                // Delete filter with confirmation
                 if let Some(i) = issues_state.search_state().filter_menu_state().selected() {
-                    issues_state.search_state_mut().delete_saved_filter(i);
-                    // Sync to config
-                    let filters = issues_state.search_state().saved_filters().to_vec();
-                    let _ = issues_state; // Release borrow before using app
-                    app.config.filters = filters;
-                    let _ = app.config.save();
-                    app.set_success("Filter deleted".to_string());
+                    if let Some(filter) = issues_state.search_state().saved_filters().get(i) {
+                        let filter_name = filter.name.clone();
+                        tracing::info!("Requesting confirmation to delete filter: {}", filter_name);
+
+                        // Show confirmation dialog
+                        app.dialog_state = Some(ui::widgets::DialogState::new());
+                        app.pending_action = Some(format!("delete_filter:{}", i));
+
+                        tracing::debug!("Showing delete confirmation for filter: {}", filter_name);
+                    }
                 }
                 return;
             }
@@ -895,7 +924,8 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     KeyCode::Char('e') => {
                         issues_state.enter_edit_mode();
                     }
-                    KeyCode::Char('c') => {
+                    KeyCode::Char('a') | KeyCode::Char('c') => {
+                        // 'a' for add (vim convention), 'c' for create (legacy - both work)
                         issues_state.enter_create_mode();
                     }
                     KeyCode::Char('C') => {
@@ -911,17 +941,35 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         tracing::debug!("Opened column manager");
                     }
                     KeyCode::Char('x') => {
-                        // Close selected issue with confirmation
+                        // Close selected issue (undoable, no confirmation needed)
                         if let Some(issue) = issues_state.search_state().selected_issue() {
                             let issue_id = issue.id.clone();
-                            let issue_title = issue.title.clone();
-                            tracing::info!("Requesting confirmation to close issue: {}", issue_id);
+                            tracing::info!("Closing issue: {}", issue_id);
 
-                            // Show confirmation dialog
-                            app.dialog_state = Some(ui::widgets::DialogState::new());
-                            app.pending_action = Some(format!("close:{issue_id}"));
+                            // Execute close via command for undo support (close = status change to Closed)
+                            use crate::beads::models::IssueStatus;
+                            let client = Arc::new(app.beads_client.clone());
+                            let update = crate::beads::client::IssueUpdate::new().status(IssueStatus::Closed);
+                            let command = Box::new(IssueUpdateCommand::new(
+                                client,
+                                issue_id.clone(),
+                                update,
+                            ));
 
-                            tracing::debug!("Showing close confirmation for: {}", issue_title);
+                            app.start_loading(format!("Closing issue {}...", issue_id));
+
+                            match app.execute_command(command) {
+                                Ok(()) => {
+                                    app.stop_loading();
+                                    tracing::info!("Successfully closed issue: {} (undo with Ctrl+Z)", issue_id);
+                                    app.reload_issues();
+                                }
+                                Err(e) => {
+                                    app.stop_loading();
+                                    tracing::error!("Failed to close issue: {:?}", e);
+                                    app.set_error(format!("Failed to close issue: {e}\n\nTry:\n• Verify the issue exists with 'bd show {issue_id}'\n• Check network connectivity\n• Run 'bd doctor' to diagnose issues"));
+                                }
+                            }
                         }
                     }
                     KeyCode::Char('o') => {
@@ -973,8 +1021,8 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             tracing::debug!("Showing delete confirmation for: {}", issue_title);
                         }
                     }
-                    KeyCode::Char('r') => {
-                        // Start in-place editing of title
+                    KeyCode::F(2) | KeyCode::Char('n') => {
+                        // Start in-place editing of title - F2 (standard) or 'n' for name (frees 'r' for refresh)
                         if let Some(issue) = issues_state.search_state().selected_issue() {
                             let title = issue.title.clone();
                             if let Some(selected_idx) =
@@ -993,7 +1041,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         }
                     }
                     KeyCode::Char('>') => {
-                        // Indent: Make selected issue a child of the previous issue
+                        // Indent: Make selected issue a child of the previous issue (with confirmation)
                         if let Some(selected_issue) = issues_state.search_state().selected_issue() {
                             let selected_id = selected_issue.id.clone();
                             let selected_idx = issues_state.search_state().list_state().selected();
@@ -1007,26 +1055,14 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                         let prev_id = prev_issue.id.clone();
 
                                         tracing::info!(
-                                            "Indenting {} under {}",
+                                            "Requesting confirmation to indent {} under {}",
                                             selected_id,
                                             prev_id
                                         );
 
-                                        // Spawn background task (non-blocking)
-                                        let selected_id_owned = selected_id.clone();
-                                        let prev_id_owned = prev_id.clone();
-                                        let _ = app.spawn_task(
-                                            "Indenting issue",
-                                            move |client| async move {
-                                                client.add_dependency(&selected_id_owned, &prev_id_owned).await?;
-                                                tracing::info!(
-                                                    "Successfully indented {} under {}",
-                                                    selected_id_owned,
-                                                    prev_id_owned
-                                                );
-                                                Ok(TaskOutput::DependencyAdded)
-                                            },
-                                        );
+                                        // Show confirmation dialog
+                                        app.dialog_state = Some(ui::widgets::DialogState::new());
+                                        app.pending_action = Some(format!("indent:{}:{}", selected_id, prev_id));
                                     } else {
                                         app.set_error(
                                             "No previous issue to indent under".to_string(),
@@ -1052,26 +1088,14 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 
                             if let Some(parent_id) = parent_id {
                                 tracing::info!(
-                                    "Outdenting {} from parent {}",
+                                    "Requesting confirmation to outdent {} from parent {}",
                                     selected_id,
                                     parent_id
                                 );
 
-                                // Spawn background task (non-blocking)
-                                let selected_id_owned = selected_id.clone();
-                                let parent_id_owned = parent_id.clone();
-                                let _ = app.spawn_task(
-                                    "Outdenting issue",
-                                    move |client| async move {
-                                        client.remove_dependency(&selected_id_owned, &parent_id_owned).await?;
-                                        tracing::info!(
-                                            "Successfully outdented {} from {}",
-                                            selected_id_owned,
-                                            parent_id_owned
-                                        );
-                                        Ok(TaskOutput::DependencyRemoved)
-                                    },
-                                );
+                                // Show confirmation dialog
+                                app.dialog_state = Some(ui::widgets::DialogState::new());
+                                app.pending_action = Some(format!("outdent:{}:{}", selected_id, parent_id));
                             } else {
                                 app.set_error("Issue has no parent to outdent from".to_string());
                             }
@@ -1798,8 +1822,8 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             app.reload_issues();
             app.stop_loading();
         }
-        KeyCode::Char('d') => {
-            // Toggle daemon (start/stop)
+        KeyCode::Char('t') => {
+            // Toggle daemon (start/stop) - 't' for toggle (consistent with daemon concept)
             tracing::info!("Toggling daemon");
 
             if app.daemon_running {
@@ -1845,8 +1869,8 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 Ok(TaskOutput::DatabaseSynced)
             });
         }
-        KeyCode::Char('e') => {
-            // Export issues to file
+        KeyCode::Char('x') => {
+            // Export issues to file - 'x' for export (frees 'e' for edit consistency)
             tracing::info!("Exporting issues to beads_export.jsonl");
 
             // Spawn background task (non-blocking)
@@ -2585,12 +2609,8 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         }
         1 => {
             // Dependencies view
-            let all_issues: Vec<_> = app
-                .issues_view_state
-                .search_state()
-                .filtered_issues()
-                .iter()
-                .collect();
+            let issues = app.issues_view_state.search_state().filtered_issues();
+            let all_issues: Vec<_> = issues.iter().collect();
             let selected_issue = app.issues_view_state.selected_issue();
             let mut dependencies_view = DependenciesView::new(all_issues);
             if let Some(issue) = selected_issue {
@@ -2669,18 +2689,63 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 // Clear and render dialog
                 f.render_widget(Clear, dialog_area);
                 dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
-            } else if let Some(issue_id) = action.strip_prefix("close:") {
-                let message = format!("Are you sure you want to close issue {issue_id}?\nThis will mark the issue as resolved.");
-                let dialog = ui::widgets::Dialog::confirm("Confirm Close", &message)
-                    .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
+            } else if let Some(filter_idx_str) = action.strip_prefix("delete_filter:") {
+                // Get filter name for dialog
+                if let Ok(i) = filter_idx_str.parse::<usize>() {
+                    if let Some(filter) = app.issues_view_state.search_state().saved_filters().get(i) {
+                        let message = format!(
+                            "Are you sure you want to delete the filter '{}'?\n\nThis action cannot be undone.",
+                            filter.name
+                        );
+                        let dialog = ui::widgets::Dialog::confirm("Delete Filter", &message)
+                            .dialog_type(ui::widgets::DialogType::Warning)
+                            .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
 
-                // Render dialog centered on screen
-                let area = f.size();
-                let dialog_area = centered_rect(60, 30, area);
+                        // Render dialog centered on screen
+                        let area = f.size();
+                        let dialog_area = centered_rect(60, 30, area);
 
-                // Clear and render dialog
-                f.render_widget(Clear, dialog_area);
-                dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
+                        // Clear and render dialog
+                        f.render_widget(Clear, dialog_area);
+                        dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
+                    }
+                }
+            } else if let Some(ids) = action.strip_prefix("indent:") {
+                let parts: Vec<&str> = ids.split(':').collect();
+                if parts.len() == 2 {
+                    let message = format!(
+                        "Are you sure you want to indent {} under {}?\n\n{} will depend on {}",
+                        parts[0], parts[1], parts[0], parts[1]
+                    );
+                    let dialog = ui::widgets::Dialog::confirm("Confirm Indent", &message)
+                        .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
+
+                    // Render dialog centered on screen
+                    let area = f.size();
+                    let dialog_area = centered_rect(60, 30, area);
+
+                    // Clear and render dialog
+                    f.render_widget(Clear, dialog_area);
+                    dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
+                }
+            } else if let Some(ids) = action.strip_prefix("outdent:") {
+                let parts: Vec<&str> = ids.split(':').collect();
+                if parts.len() == 2 {
+                    let message = format!(
+                        "Are you sure you want to outdent {} from parent {}?\n\n{} will no longer depend on {}",
+                        parts[0], parts[1], parts[0], parts[1]
+                    );
+                    let dialog = ui::widgets::Dialog::confirm("Confirm Outdent", &message)
+                        .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
+
+                    // Render dialog centered on screen
+                    let area = f.size();
+                    let dialog_area = centered_rect(60, 30, area);
+
+                    // Clear and render dialog
+                    f.render_widget(Clear, dialog_area);
+                    dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
+                }
             } else if action == "compact_database" {
                 let message = "WARNING: Compacting will remove issue history.\nThis operation cannot be undone.\n\nContinue?";
                 let dialog = ui::widgets::Dialog::confirm("Compact Database", message)
@@ -3045,7 +3110,7 @@ fn get_action_hints(app: &models::AppState) -> String {
             let mode = app.issues_view_state.view_mode();
             match mode {
                 ui::views::IssuesViewMode::List => {
-                    "↑/↓/j/k: Navigate | Enter: View | c: Create | e: Edit | d: Delete | /: Search | f: Filter | :: Command palette | Space: Select | ?: Help".to_string()
+                    "↑/↓/j/k: Navigate | Enter: View | a/c: Create | e: Edit | F2/n: Rename | d: Delete | /: Search | f: Filter | :: Command palette | ?: Help".to_string()
                 }
                 ui::views::IssuesViewMode::Create => {
                     "Tab: Next field | Shift+Tab: Previous | Ctrl+S: Save | Esc: Cancel".to_string()
@@ -3060,7 +3125,7 @@ fn get_action_hints(app: &models::AppState) -> String {
         }
         1 => {
             // Dependencies view
-            "↑/↓/j/k: Navigate | a: Add dependency | r: Remove | Enter: View | Esc: Back | ?: Help"
+            "↑/↓/j/k: Navigate | a: Add dependency | d: Remove | Enter: View | Esc: Back | ?: Help"
                 .to_string()
         }
         2 => {
@@ -3088,7 +3153,7 @@ fn get_action_hints(app: &models::AppState) -> String {
         }
         7 => {
             // Database view
-            "↑/↓: Navigate | r: Refresh | c: Compact | v: Verify | Esc: Back | ?: Help".to_string()
+            "r: Refresh | t: Toggle daemon | x: Export | i: Import | v: Verify | c: Compact | s: Sync | Esc: Back | ?: Help".to_string()
         }
         8 => {
             // Help view

@@ -64,7 +64,8 @@ pub struct SearchInterfaceState {
     search_state: SearchInputState,
     list_state: IssueListState,
     all_issues: Vec<Issue>,
-    filtered_issues: Vec<Issue>,
+    /// Indices into all_issues for filtered results (avoids expensive cloning)
+    filtered_indices: Vec<usize>,
     search_scope: SearchScope,
     current_view: ViewType,
     current_user: Option<String>,
@@ -91,7 +92,7 @@ impl std::fmt::Debug for SearchInterfaceState {
             .field("search_state", &self.search_state)
             .field("list_state", &self.list_state)
             .field("all_issues", &self.all_issues)
-            .field("filtered_issues", &self.filtered_issues)
+            .field("filtered_indices", &self.filtered_indices)
             .field("search_scope", &self.search_scope)
             .field("current_view", &self.current_view)
             .field("current_user", &self.current_user)
@@ -138,10 +139,11 @@ impl SearchScope {
 impl SearchInterfaceState {
     /// Create a new search interface state
     pub fn new(issues: Vec<Issue>) -> Self {
+        let filtered_indices: Vec<usize> = (0..issues.len()).collect();
         Self {
             search_state: SearchInputState::new(),
             list_state: IssueListState::new(),
-            filtered_issues: issues.clone(),
+            filtered_indices,
             all_issues: issues,
             search_scope: SearchScope::All,
             current_view: ViewType::All,
@@ -189,9 +191,18 @@ impl SearchInterfaceState {
         &mut self.list_state
     }
 
-    /// Get filtered issues
-    pub fn filtered_issues(&self) -> &[Issue] {
-        &self.filtered_issues
+    /// Get filtered issues (clones for compatibility - use sparingly)
+    pub fn filtered_issues(&self) -> Vec<Issue> {
+        // Map indices to cloned issues (for compatibility with existing code)
+        self.filtered_indices
+            .iter()
+            .filter_map(|&idx| self.all_issues.get(idx).cloned())
+            .collect()
+    }
+
+    /// Get filtered issue count without cloning
+    pub fn filtered_count(&self) -> usize {
+        self.filtered_indices.len()
     }
 
     /// Get all issues
@@ -519,9 +530,14 @@ impl SearchInterfaceState {
         // Restore selection by finding the same issue ID in the new filtered list
         if let Some(issue_id) = selected_issue_id {
             let new_index = self
-                .filtered_issues
+                .filtered_indices
                 .iter()
-                .position(|issue| issue.id == issue_id);
+                .position(|&idx| {
+                    self.all_issues
+                        .get(idx)
+                        .map(|issue| issue.id == issue_id)
+                        .unwrap_or(false)
+                });
 
             self.list_state.select(new_index);
         }
@@ -575,11 +591,12 @@ impl SearchInterfaceState {
             return;
         }
 
-        // Cache miss - perform filtering and update cache
-        self.filtered_issues = self
+        // Cache miss - perform filtering and update cache (store indices to avoid expensive cloning)
+        self.filtered_indices = self
             .all_issues
             .iter()
-            .filter(|issue| {
+            .enumerate()
+            .filter(|(_, issue)| {
                 // First apply view-specific filter
                 let matches_view = self.matches_view(issue);
 
@@ -599,7 +616,7 @@ impl SearchInterfaceState {
 
                 matches_view && matches_search && matches_filters
             })
-            .cloned()
+            .map(|(idx, _)| idx)
             .collect();
 
         // Update cache values
@@ -610,8 +627,8 @@ impl SearchInterfaceState {
 
         // Reset selection if out of bounds
         if let Some(selected) = self.list_state.selected() {
-            if selected >= self.filtered_issues.len() {
-                self.list_state.select(if self.filtered_issues.is_empty() {
+            if selected >= self.filtered_indices.len() {
+                self.list_state.select(if self.filtered_indices.is_empty() {
                     None
                 } else {
                     Some(0)
@@ -735,12 +752,13 @@ impl SearchInterfaceState {
     /// Get selected issue
     pub fn selected_issue(&self) -> Option<&Issue> {
         let index = self.list_state.selected()?;
-        self.filtered_issues.get(index)
+        let idx = *self.filtered_indices.get(index)?;
+        self.all_issues.get(idx)
     }
 
     /// Get number of results
     pub fn result_count(&self) -> usize {
-        self.filtered_issues.len()
+        self.filtered_indices.len()
     }
 
     /// Clear search
@@ -875,7 +893,8 @@ impl<'a> StatefulWidget for SearchInterfaceView<'a> {
         chunk_idx += 1;
 
         // Render results list
-        let issue_refs: Vec<&Issue> = state.filtered_issues.iter().collect();
+        let issues = state.filtered_issues();
+        let issue_refs: Vec<&Issue> = issues.iter().collect();
         let search_query = if !state.search_state.query().is_empty() {
             Some(state.search_state.query().to_string())
         } else {
@@ -2306,11 +2325,8 @@ mod tests {
         // Should show beads-001 (3 days) and beads-003 (recent)
         assert_eq!(state.result_count(), 2);
 
-        let ids: Vec<&str> = state
-            .filtered_issues()
-            .iter()
-            .map(|i| i.id.as_str())
-            .collect();
+        let issues = state.filtered_issues();
+        let ids: Vec<&str> = issues.iter().map(|i| i.id.as_str()).collect();
         assert!(ids.contains(&"beads-001"));
         assert!(ids.contains(&"beads-003"));
         assert!(!ids.contains(&"beads-002"));
@@ -2328,11 +2344,8 @@ mod tests {
         state.set_view(ViewType::Recently);
 
         // Should include issues updated within last 7 days
-        let ids: Vec<&str> = state
-            .filtered_issues()
-            .iter()
-            .map(|i| i.id.as_str())
-            .collect();
+        let issues = state.filtered_issues();
+        let ids: Vec<&str> = issues.iter().map(|i| i.id.as_str()).collect();
         assert!(ids.contains(&"beads-001"));
     }
 
@@ -2387,11 +2400,8 @@ mod tests {
         // Should show both InProgress and Blocked stale issues
         assert_eq!(state.result_count(), 2);
 
-        let ids: Vec<&str> = state
-            .filtered_issues()
-            .iter()
-            .map(|i| i.id.as_str())
-            .collect();
+        let issues = state.filtered_issues();
+        let ids: Vec<&str> = issues.iter().map(|i| i.id.as_str()).collect();
         assert!(ids.contains(&"beads-001"));
         assert!(ids.contains(&"beads-002"));
         assert!(!ids.contains(&"beads-003"));
@@ -2439,11 +2449,8 @@ mod tests {
         state.set_view(ViewType::Stale);
 
         // 31+ days should be included, but 29 days should NOT
-        let ids: Vec<&str> = state
-            .filtered_issues()
-            .iter()
-            .map(|i| i.id.as_str())
-            .collect();
+        let issues = state.filtered_issues();
+        let ids: Vec<&str> = issues.iter().map(|i| i.id.as_str()).collect();
         assert!(ids.contains(&"beads-001"));
         assert!(!ids.contains(&"beads-002"));
     }
