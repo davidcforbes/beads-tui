@@ -21,6 +21,14 @@ pub enum HelpSection {
     Labels,
     /// Database view shortcuts
     Database,
+    /// Kanban view shortcuts
+    Kanban,
+    /// Gantt view shortcuts
+    Gantt,
+    /// PERT view shortcuts
+    Pert,
+    /// Search interface shortcuts
+    Search,
     /// About information
     About,
 }
@@ -34,6 +42,10 @@ impl HelpSection {
             Self::Dependencies,
             Self::Labels,
             Self::Database,
+            Self::Kanban,
+            Self::Gantt,
+            Self::Pert,
+            Self::Search,
             Self::About,
         ]
     }
@@ -46,6 +58,10 @@ impl HelpSection {
             Self::Dependencies => "Dependencies",
             Self::Labels => "Labels",
             Self::Database => "Database",
+            Self::Kanban => "Kanban",
+            Self::Gantt => "Gantt",
+            Self::Pert => "PERT",
+            Self::Search => "Search",
             Self::About => "About",
         }
     }
@@ -296,6 +312,164 @@ impl<'a> HelpView<'a> {
         ]
     }
 
+    fn render_kanban_help(&self) -> Vec<Line<'static>> {
+        vec![
+            Line::from(Span::styled(
+                "Kanban Board View Shortcuts",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("↑/↓/←/→", Style::default().fg(Color::Green)),
+                Span::raw("   - Navigate between cards"),
+            ]),
+            Line::from(vec![
+                Span::styled("j/k/h/l", Style::default().fg(Color::Green)),
+                Span::raw("   - Navigate (vim-style)"),
+            ]),
+            Line::from(vec![
+                Span::styled("Space", Style::default().fg(Color::Green)),
+                Span::raw("     - Move card to different column"),
+            ]),
+            Line::from(vec![
+                Span::styled("c", Style::default().fg(Color::Green)),
+                Span::raw("         - Configure board settings"),
+            ]),
+            Line::from(vec![
+                Span::styled("Enter", Style::default().fg(Color::Green)),
+                Span::raw("     - View/edit card details"),
+            ]),
+            Line::from(vec![
+                Span::styled("Esc", Style::default().fg(Color::Green)),
+                Span::raw("       - Go back"),
+            ]),
+        ]
+    }
+
+    fn render_gantt_help(&self) -> Vec<Line<'static>> {
+        vec![
+            Line::from(Span::styled(
+                "Gantt Chart View Shortcuts",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("↑/↓", Style::default().fg(Color::Green)),
+                Span::raw("       - Navigate through tasks"),
+            ]),
+            Line::from(vec![
+                Span::styled("j/k", Style::default().fg(Color::Green)),
+                Span::raw("       - Navigate (vim-style)"),
+            ]),
+            Line::from(vec![
+                Span::styled("+/-", Style::default().fg(Color::Green)),
+                Span::raw("       - Zoom timeline in/out"),
+            ]),
+            Line::from(vec![
+                Span::styled("g", Style::default().fg(Color::Green)),
+                Span::raw("         - Change grouping mode"),
+            ]),
+            Line::from(vec![
+                Span::styled("c", Style::default().fg(Color::Green)),
+                Span::raw("         - Configure chart settings"),
+            ]),
+            Line::from(vec![
+                Span::styled("Enter", Style::default().fg(Color::Green)),
+                Span::raw("     - View task details"),
+            ]),
+            Line::from(vec![
+                Span::styled("Esc", Style::default().fg(Color::Green)),
+                Span::raw("       - Go back"),
+            ]),
+        ]
+    }
+
+    fn render_pert_help(&self) -> Vec<Line<'static>> {
+        vec![
+            Line::from(Span::styled(
+                "PERT Chart View Shortcuts",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )),
+            Line::from(""),
+            Line::from("Project Evaluation and Review Technique"),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("↑/↓", Style::default().fg(Color::Green)),
+                Span::raw("       - Navigate through nodes"),
+            ]),
+            Line::from(vec![
+                Span::styled("j/k", Style::default().fg(Color::Green)),
+                Span::raw("       - Navigate (vim-style)"),
+            ]),
+            Line::from(vec![
+                Span::styled("+/-", Style::default().fg(Color::Green)),
+                Span::raw("       - Zoom in/out"),
+            ]),
+            Line::from(vec![
+                Span::styled("c", Style::default().fg(Color::Green)),
+                Span::raw("         - Configure chart settings"),
+            ]),
+            Line::from(vec![
+                Span::styled("Enter", Style::default().fg(Color::Green)),
+                Span::raw("     - View node details"),
+            ]),
+            Line::from(vec![
+                Span::styled("Esc", Style::default().fg(Color::Green)),
+                Span::raw("       - Go back"),
+            ]),
+        ]
+    }
+
+    fn render_search_help(&self) -> Vec<Line<'static>> {
+        vec![
+            Line::from(Span::styled(
+                "Search Interface Shortcuts",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("/", Style::default().fg(Color::Green)),
+                Span::raw("         - Focus search input"),
+            ]),
+            Line::from(vec![
+                Span::styled("Tab", Style::default().fg(Color::Green)),
+                Span::raw("       - Cycle search scope (All/Title/Description/etc)"),
+            ]),
+            Line::from(vec![
+                Span::styled("f", Style::default().fg(Color::Green)),
+                Span::raw("         - Open quick filter menu"),
+            ]),
+            Line::from(vec![
+                Span::styled("Ctrl+S", Style::default().fg(Color::Green)),
+                Span::raw("    - Save current filter"),
+            ]),
+            Line::from(vec![
+                Span::styled("F1-F11", Style::default().fg(Color::Green)),
+                Span::raw("    - Apply saved filter (1-11)"),
+            ]),
+            Line::from(vec![
+                Span::styled("Ctrl+R", Style::default().fg(Color::Green)),
+                Span::raw("    - Toggle regex mode"),
+            ]),
+            Line::from(vec![
+                Span::styled("Ctrl+F", Style::default().fg(Color::Green)),
+                Span::raw("    - Toggle fuzzy search"),
+            ]),
+            Line::from(vec![
+                Span::styled("Esc", Style::default().fg(Color::Green)),
+                Span::raw("       - Clear search or go back"),
+            ]),
+        ]
+    }
+
     fn render_about(&self) -> Vec<Line<'static>> {
         vec![
             Line::from(Span::styled(
@@ -341,6 +515,10 @@ impl<'a> HelpView<'a> {
             HelpSection::Dependencies => self.render_dependencies_help(),
             HelpSection::Labels => self.render_labels_help(),
             HelpSection::Database => self.render_database_help(),
+            HelpSection::Kanban => self.render_kanban_help(),
+            HelpSection::Gantt => self.render_gantt_help(),
+            HelpSection::Pert => self.render_pert_help(),
+            HelpSection::Search => self.render_search_help(),
             HelpSection::About => self.render_about(),
         }
     }
@@ -396,15 +574,19 @@ mod tests {
         assert_eq!(HelpSection::Dependencies.display_name(), "Dependencies");
         assert_eq!(HelpSection::Labels.display_name(), "Labels");
         assert_eq!(HelpSection::Database.display_name(), "Database");
+        assert_eq!(HelpSection::Kanban.display_name(), "Kanban");
+        assert_eq!(HelpSection::Gantt.display_name(), "Gantt");
+        assert_eq!(HelpSection::Pert.display_name(), "PERT");
+        assert_eq!(HelpSection::Search.display_name(), "Search");
         assert_eq!(HelpSection::About.display_name(), "About");
     }
 
     #[test]
     fn test_help_section_all() {
         let sections = HelpSection::all();
-        assert_eq!(sections.len(), 6);
+        assert_eq!(sections.len(), 10);
         assert_eq!(sections[0], HelpSection::Global);
-        assert_eq!(sections[5], HelpSection::About);
+        assert_eq!(sections[9], HelpSection::About);
     }
 
     #[test]
@@ -440,7 +622,11 @@ mod tests {
         assert_eq!(sections[2], HelpSection::Dependencies);
         assert_eq!(sections[3], HelpSection::Labels);
         assert_eq!(sections[4], HelpSection::Database);
-        assert_eq!(sections[5], HelpSection::About);
+        assert_eq!(sections[5], HelpSection::Kanban);
+        assert_eq!(sections[6], HelpSection::Gantt);
+        assert_eq!(sections[7], HelpSection::Pert);
+        assert_eq!(sections[8], HelpSection::Search);
+        assert_eq!(sections[9], HelpSection::About);
     }
 
     #[test]
@@ -451,6 +637,10 @@ mod tests {
         assert!(sections.contains(&HelpSection::Dependencies));
         assert!(sections.contains(&HelpSection::Labels));
         assert!(sections.contains(&HelpSection::Database));
+        assert!(sections.contains(&HelpSection::Kanban));
+        assert!(sections.contains(&HelpSection::Gantt));
+        assert!(sections.contains(&HelpSection::Pert));
+        assert!(sections.contains(&HelpSection::Search));
         assert!(sections.contains(&HelpSection::About));
     }
 
@@ -937,8 +1127,8 @@ mod tests {
     #[test]
     fn test_help_section_all_matches_variant_count() {
         let all_sections = HelpSection::all();
-        // Should have exactly 6 variants
-        assert_eq!(all_sections.len(), 6);
+        // Should have exactly 10 variants
+        assert_eq!(all_sections.len(), 10);
     }
 
     #[test]
