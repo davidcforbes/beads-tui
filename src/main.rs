@@ -106,6 +106,18 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         return;
     }
 
+    // Handle undo history overlay toggle (Ctrl+H)
+    if key_code == KeyCode::Char('h') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        app.toggle_undo_history();
+        return;
+    }
+
+    // Handle Esc to close undo history overlay
+    if app.is_undo_history_visible() && key_code == KeyCode::Esc {
+        app.hide_undo_history();
+        return;
+    }
+
     // Clear errors when entering create or edit mode
     if matches!(key_code, KeyCode::Char('c') | KeyCode::Char('e')) {
         app.clear_error();
@@ -2200,6 +2212,10 @@ fn run_app<B: ratatui::backend::Backend>(
                         app.show_issue_history = false;
                         continue;
                     }
+                    if app.is_undo_history_visible() {
+                        app.toggle_undo_history();
+                        continue;
+                    }
                     // Fall through to other Esc handlers if shortcut help is not visible
                 }
 
@@ -2974,6 +2990,10 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             .key_binding("f", "Quick filter menu")
             .key_binding("Ctrl+S", "Save current filter")
             .key_binding("F1-F11", "Apply saved filter")
+            // Undo/redo shortcuts
+            .key_binding("Ctrl+Z", "Undo last action")
+            .key_binding("Ctrl+Y", "Redo last undone action")
+            .key_binding("Ctrl+H", "Show undo/redo history")
             // View shortcuts
             .key_binding("h", "Show full help")
             .key_binding("r", "Refresh data");
@@ -3000,6 +3020,34 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         }
 
         f.render_widget(help, f.size());
+    }
+
+    // Render undo history overlay if visible
+    if app.is_undo_history_visible() {
+        use ui::widgets::{HistoryEntry, UndoHistoryView};
+
+        // Get history from undo stack
+        let history_data = app.undo_stack.history();
+        let entries: Vec<HistoryEntry> = history_data
+            .into_iter()
+            .map(|(description, timestamp, is_current, can_undo)| HistoryEntry {
+                description,
+                timestamp,
+                is_current,
+                can_undo,
+            })
+            .collect();
+
+        let history_view = UndoHistoryView::new(entries).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Undo/Redo History")
+                .title_bottom("Ctrl+H: Close | ✓: Can undo | →: Current | ○: Future"),
+        );
+
+        // Center the overlay (60% width, 70% height)
+        let area = centered_rect(60, 70, f.size());
+        f.render_widget(history_view, area);
     }
 }
 

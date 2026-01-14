@@ -836,6 +836,29 @@ impl AppState {
         self.show_context_help
     }
 
+    /// Show the undo history overlay
+    pub fn show_undo_history(&mut self) {
+        self.show_undo_history = true;
+        self.mark_dirty();
+    }
+
+    /// Hide the undo history overlay
+    pub fn hide_undo_history(&mut self) {
+        self.show_undo_history = false;
+        self.mark_dirty();
+    }
+
+    /// Toggle the undo history overlay
+    pub fn toggle_undo_history(&mut self) {
+        self.show_undo_history = !self.show_undo_history;
+        self.mark_dirty();
+    }
+
+    /// Check if undo history overlay is visible
+    pub fn is_undo_history_visible(&self) -> bool {
+        self.show_undo_history
+    }
+
     /// Get context-sensitive help content based on current view and focus
     pub fn get_context_help_content(&self) -> (String, Vec<crate::ui::widgets::KeyBinding>) {
         use crate::ui::widgets::KeyBinding;
