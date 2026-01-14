@@ -3,6 +3,7 @@
 pub mod create_issue;
 pub mod database_view;
 pub mod dependencies_view;
+pub mod dependency_graph;
 pub mod description_editor;
 pub mod gantt_view;
 pub mod help_view;
@@ -20,6 +21,7 @@ pub use database_view::{
     DatabaseStats, DatabaseStatus, DatabaseView, DatabaseViewMode, DatabaseViewState,
 };
 pub use dependencies_view::{DependenciesView, DependenciesViewState, DependencyFocus};
+pub use dependency_graph::{DependencyGraphState, DependencyGraphView};
 pub use description_editor::{DescriptionEditorState, DescriptionEditorView, EditorMode};
 pub use gantt_view::{GanttView, GanttViewState};
 pub use help_view::{HelpSection, HelpView};

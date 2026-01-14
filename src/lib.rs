@@ -5,6 +5,7 @@
 
 pub mod beads;
 pub mod config;
+pub mod graph;
 pub mod models;
 pub mod runtime;
 pub mod ui;
