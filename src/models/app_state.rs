@@ -338,6 +338,34 @@ impl AppState {
         self.mark_dirty();
     }
 
+    /// Cycle to the next theme and persist the change
+    pub fn cycle_theme(&mut self) {
+        use crate::ui::themes::{Theme, ThemeType};
+
+        let all_themes = Theme::available_themes();
+        let current_idx = all_themes
+            .iter()
+            .position(|t| *t == self.theme.theme_type)
+            .unwrap_or(0);
+        let next_idx = (current_idx + 1) % all_themes.len();
+        let next_type = all_themes[next_idx];
+
+        self.theme = Theme::new(next_type);
+        self.config.theme.name = next_type.name().to_string();
+
+        // Persist to config
+        if let Err(e) = self.config.save() {
+            tracing::error!("Failed to save theme config: {:?}", e);
+        }
+
+        self.set_success(format!(
+            "Theme: {} - {}",
+            next_type.name(),
+            next_type.description()
+        ));
+        self.mark_dirty();
+    }
+
     /// Mark the UI as dirty, requiring a redraw
     pub fn mark_dirty(&mut self) {
         self.dirty = true;

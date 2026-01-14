@@ -2130,6 +2130,12 @@ fn run_app<B: ratatui::backend::Backend>(
                     continue;
                 }
 
+                // Check for theme cycle (Ctrl+T)
+                if key.code == KeyCode::Char('t') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                    app.cycle_theme();
+                    continue;
+                }
+
                 // Check for ESC during loading operations to request cancellation
                 if key.code == KeyCode::Esc && app.is_loading() {
                     app.request_cancellation();

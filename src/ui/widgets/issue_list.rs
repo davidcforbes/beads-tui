@@ -737,6 +737,7 @@ pub struct IssueList<'a> {
     show_details: bool,
     search_query: Option<String>,
     row_height: u16,
+    theme: Option<&'a crate::ui::themes::Theme>,
 }
 
 impl<'a> IssueList<'a> {
@@ -754,7 +755,13 @@ impl<'a> IssueList<'a> {
             show_details: true,
             search_query: None,
             row_height: 1,
+            theme: None,
         }
+    }
+
+    pub fn theme(mut self, theme: &'a crate::ui::themes::Theme) -> Self {
+        self.theme = Some(theme);
+        self
     }
 
     pub fn with_sort(mut self, column: SortColumn, direction: SortDirection) -> Self {

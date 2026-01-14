@@ -259,6 +259,52 @@ impl Theme {
             ThemeType::Tritanopia,
         ]
     }
+
+    /// Get color for issue status based on theme
+    pub fn status_color(&self, status: &crate::beads::models::IssueStatus) -> Color {
+        use crate::beads::models::IssueStatus;
+        match status {
+            IssueStatus::Open => self.success,
+            IssueStatus::InProgress => self.info,
+            IssueStatus::Blocked => self.error,
+            IssueStatus::Closed => self.muted,
+        }
+    }
+
+    /// Get color for priority based on theme
+    pub fn priority_color(&self, priority: &crate::beads::models::Priority) -> Color {
+        use crate::beads::models::Priority;
+        match priority {
+            Priority::P0 => self.priority_critical,
+            Priority::P1 => self.priority_high,
+            Priority::P2 => self.priority_medium,
+            Priority::P3 => self.priority_low,
+            Priority::P4 => self.priority_backlog,
+        }
+    }
+
+    /// Get symbol for issue status (static, theme-independent)
+    pub fn status_symbol(status: &crate::beads::models::IssueStatus) -> &'static str {
+        use crate::beads::models::IssueStatus;
+        match status {
+            IssueStatus::Open => "○",
+            IssueStatus::InProgress => "◐",
+            IssueStatus::Blocked => "◩",
+            IssueStatus::Closed => "✓",
+        }
+    }
+
+    /// Get symbol for priority (static, theme-independent)
+    pub fn priority_symbol(priority: &crate::beads::models::Priority) -> &'static str {
+        use crate::beads::models::Priority;
+        match priority {
+            Priority::P0 => "◆",
+            Priority::P1 => "●",
+            Priority::P2 => "○",
+            Priority::P3 => "◇",
+            Priority::P4 => "·",
+        }
+    }
 }
 
 impl Default for Theme {
