@@ -2696,8 +2696,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         // Show loading indicator using Spinner widget
         let label = app
             .loading_message
-            .as_ref()
-            .map(|s| s.as_str())
+            .as_deref()
             .unwrap_or("Loading...");
         let spinner_text = format!("{} {}", spinner.frame_char(), label);
         Paragraph::new(spinner_text)

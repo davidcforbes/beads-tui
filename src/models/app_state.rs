@@ -12,7 +12,6 @@ use crate::ui::widgets::{
     DependencyDialogState, DialogState, FilterQuickSelectState, FilterSaveDialogState,
 };
 use std::collections::VecDeque;
-use tokio_util::sync::CancellationToken;
 
 use super::PerfStats;
 

@@ -85,7 +85,7 @@ impl CreateIssueFormState {
         use std::process::Command;
 
         let output = Command::new("git")
-            .args(&["config", "--get", "user.name"])
+            .args(["config", "--get", "user.name"])
             .output()
             .map_err(|e| format!("Failed to run git config: {}", e))?;
 
@@ -602,9 +602,12 @@ impl<'a> CreateIssueForm<'a> {
 
         // Build preview content
         let mut lines = vec![
-            Line::from(vec![
-                Span::styled("Issue Preview", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "Issue Preview",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(""),
         ];
 
@@ -626,9 +629,12 @@ impl<'a> CreateIssueForm<'a> {
         let notes = state.form_state().get_value("notes").unwrap_or("");
 
         // Summary section
-        lines.push(Line::from(vec![
-            Span::styled("Summary", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            "Summary",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]));
         if !title.is_empty() {
             lines.push(Line::from(vec![
                 Span::styled("  Title: ", Style::default().fg(Color::Gray)),
@@ -664,9 +670,12 @@ impl<'a> CreateIssueForm<'a> {
 
         // Scheduling section
         if !due_date.is_empty() || !defer_date.is_empty() || !time_estimate.is_empty() {
-            lines.push(Line::from(vec![
-                Span::styled("Scheduling", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "Scheduling",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )]));
             if !due_date.is_empty() {
                 lines.push(Line::from(vec![
                     Span::styled("  Due Date: ", Style::default().fg(Color::Gray)),
@@ -690,9 +699,12 @@ impl<'a> CreateIssueForm<'a> {
 
         // Relationships section
         if !parent.is_empty() || !dependencies.is_empty() {
-            lines.push(Line::from(vec![
-                Span::styled("Relationships", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "Relationships",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )]));
             if !parent.is_empty() {
                 lines.push(Line::from(vec![
                     Span::styled("  Parent: ", Style::default().fg(Color::Gray)),
@@ -710,9 +722,12 @@ impl<'a> CreateIssueForm<'a> {
 
         // Labels section
         if !assignee.is_empty() || !labels.is_empty() {
-            lines.push(Line::from(vec![
-                Span::styled("Labels", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "Labels",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )]));
             if !assignee.is_empty() {
                 lines.push(Line::from(vec![
                     Span::styled("  Assignee: ", Style::default().fg(Color::Gray)),
@@ -730,36 +745,48 @@ impl<'a> CreateIssueForm<'a> {
 
         // Text section
         if !description.is_empty() {
-            lines.push(Line::from(vec![
-                Span::styled("Description", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "Description",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )]));
             for line in description.lines() {
                 lines.push(Line::from(format!("  {}", line)));
             }
             lines.push(Line::from(""));
         }
         if !design.is_empty() {
-            lines.push(Line::from(vec![
-                Span::styled("Design", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "Design",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )]));
             for line in design.lines() {
                 lines.push(Line::from(format!("  {}", line)));
             }
             lines.push(Line::from(""));
         }
         if !acceptance.is_empty() {
-            lines.push(Line::from(vec![
-                Span::styled("Acceptance Criteria", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "Acceptance Criteria",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )]));
             for line in acceptance.lines() {
                 lines.push(Line::from(format!("  {}", line)));
             }
             lines.push(Line::from(""));
         }
         if !notes.is_empty() {
-            lines.push(Line::from(vec![
-                Span::styled("Notes", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "Notes",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )]));
             for line in notes.lines() {
                 lines.push(Line::from(format!("  {}", line)));
             }
@@ -767,7 +794,11 @@ impl<'a> CreateIssueForm<'a> {
 
         // Render preview panel
         let preview = Paragraph::new(lines)
-            .block(Block::default().borders(Borders::ALL).title(" Issue Preview "))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Issue Preview "),
+            )
             .alignment(Alignment::Left);
         preview.render(chunks[0], buf);
 
