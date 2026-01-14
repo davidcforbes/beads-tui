@@ -78,6 +78,11 @@ pub struct SearchInterfaceState {
     filter_menu_state: ratatui::widgets::ListState,
     /// Cached lowercase query for faster substring matching
     lowercase_query_cache: Option<String>,
+    /// Cache for filter results to avoid re-filtering on unchanged queries
+    last_filter_query: Option<String>,
+    last_filter_view: Option<ViewType>,
+    last_filters_enabled: bool,
+    last_current_user: Option<String>,
 }
 
 impl std::fmt::Debug for SearchInterfaceState {
@@ -150,6 +155,10 @@ impl SearchInterfaceState {
             filter_menu_open: false,
             filter_menu_state: ratatui::widgets::ListState::default(),
             lowercase_query_cache: None,
+            last_filter_query: None,
+            last_filter_view: None,
+            last_filters_enabled: false,
+            last_current_user: None,
         }
     }
 
@@ -220,6 +229,8 @@ impl SearchInterfaceState {
     /// Set current view
     pub fn set_view(&mut self, view: ViewType) {
         self.current_view = view;
+        // Invalidate cache since view changed
+        self.last_filter_view = None;
         self.update_filtered_issues();
     }
 
@@ -239,6 +250,8 @@ impl SearchInterfaceState {
     /// Set current user for MyIssues view
     pub fn set_current_user(&mut self, user: Option<String>) {
         self.current_user = user;
+        // Invalidate cache since user filter changed
+        self.last_filter_query = None;
         self.update_filtered_issues();
     }
 
@@ -499,6 +512,8 @@ impl SearchInterfaceState {
 
         // Update issues and regenerate filtered list
         self.all_issues = issues;
+        // Invalidate cache since underlying data changed
+        self.last_filter_query = None;
         self.update_filtered_issues();
 
         // Restore selection by finding the same issue ID in the new filtered list
@@ -547,6 +562,18 @@ impl SearchInterfaceState {
         let column_filters = self.list_state.column_filters();
         let filters_enabled = self.list_state.filters_enabled();
 
+        // Check if we can use cached results (optimization to avoid re-filtering)
+        let cache_valid = self.last_filter_query.as_ref() == Some(&query)
+            && self.last_filter_view == Some(self.current_view)
+            && self.last_filters_enabled == filters_enabled
+            && self.last_current_user == self.current_user;
+
+        if cache_valid {
+            // Cache hit - skip expensive filtering operation
+            return;
+        }
+
+        // Cache miss - perform filtering and update cache
         self.filtered_issues = self
             .all_issues
             .iter()
@@ -572,6 +599,12 @@ impl SearchInterfaceState {
             })
             .cloned()
             .collect();
+
+        // Update cache values
+        self.last_filter_query = Some(query);
+        self.last_filter_view = Some(self.current_view);
+        self.last_filters_enabled = filters_enabled;
+        self.last_current_user = self.current_user.clone();
 
         // Reset selection if out of bounds
         if let Some(selected) = self.list_state.selected() {
