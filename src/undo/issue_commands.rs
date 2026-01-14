@@ -190,6 +190,125 @@ impl Command for IssueUpdateCommand {
     }
 }
 
+/// Command for creating a new issue
+///
+/// Stores creation parameters and the ID of the created issue for undo (deletion).
+#[derive(Debug)]
+pub struct IssueCreateCommand {
+    /// Client for executing beads commands
+    client: Arc<BeadsClient>,
+    /// Title of the issue to create
+    title: String,
+    /// Type of the issue
+    issue_type: crate::beads::models::IssueType,
+    /// Priority of the issue
+    priority: crate::beads::models::Priority,
+    /// ID of the created issue (captured during execute)
+    created_id: Option<String>,
+    /// Command metadata
+    metadata: CommandMetadata,
+    /// Whether the command has been executed
+    executed: bool,
+}
+
+impl IssueCreateCommand {
+    /// Create a new issue creation command
+    ///
+    /// # Arguments
+    /// * `client` - BeadsClient for executing commands
+    /// * `title` - Title of the issue to create
+    /// * `issue_type` - Type of the issue (task, bug, feature, epic)
+    /// * `priority` - Priority of the issue (P0-P4)
+    pub fn new(
+        client: Arc<BeadsClient>,
+        title: impl Into<String>,
+        issue_type: crate::beads::models::IssueType,
+        priority: crate::beads::models::Priority,
+    ) -> Self {
+        let title = title.into();
+        let description = format!(
+            "Create {} issue: {} ({})",
+            issue_type.to_string().to_lowercase(),
+            title,
+            priority
+        );
+
+        // Estimate size: title + overhead
+        let size_bytes = title.len() + 50;
+
+        Self {
+            client,
+            title,
+            issue_type,
+            priority,
+            created_id: None,
+            metadata: CommandMetadata::new(description).with_size(size_bytes),
+            executed: false,
+        }
+    }
+}
+
+impl Command for IssueCreateCommand {
+    fn execute(&mut self) -> CommandResult<()> {
+        if self.executed {
+            return Err(CommandError::InvalidState(
+                "Command already executed".to_string(),
+            ));
+        }
+
+        // Use tokio runtime to run async code
+        let result = crate::runtime::RUNTIME.block_on(async {
+            // Create the issue
+            let issue_id = self
+                .client
+                .create_issue(&self.title, self.issue_type, self.priority)
+                .await
+                .map_err(|e| CommandError::ExecutionFailed(format!("Failed to create issue: {}", e)))?;
+
+            self.created_id = Some(issue_id);
+            Ok(())
+        });
+
+        if result.is_ok() {
+            self.executed = true;
+        }
+
+        result
+    }
+
+    fn undo(&mut self) -> CommandResult<()> {
+        if !self.executed {
+            return Err(CommandError::InvalidState("Command not executed".to_string()));
+        }
+
+        let issue_id = self
+            .created_id
+            .as_ref()
+            .ok_or_else(|| CommandError::InvalidState("No issue ID captured".to_string()))?;
+
+        // Use tokio runtime to run async code
+        let result = crate::runtime::RUNTIME.block_on(async {
+            self.client
+                .delete_issue(issue_id)
+                .await
+                .map_err(|e| CommandError::UndoFailed(format!("Failed to delete issue: {}", e)))?;
+
+            Ok(())
+        });
+
+        if result.is_ok() {
+            self.executed = false;
+            self.created_id = None;
+        }
+
+        result
+    }
+
+    fn metadata(&self) -> &CommandMetadata {
+        &self.metadata
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -272,6 +391,87 @@ mod tests {
         let client = create_test_client();
         let updates = IssueUpdate::new().title("New title".to_string());
         let mut cmd = IssueUpdateCommand::new(client, "issue-123", updates);
+
+        let result = cmd.undo();
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), CommandError::InvalidState(_)));
+    }
+
+    // IssueCreateCommand tests
+
+    #[test]
+    fn test_create_command_creation() {
+        use crate::beads::models::{IssueType, Priority};
+
+        let client = create_test_client();
+        let cmd = IssueCreateCommand::new(
+            client,
+            "Test issue",
+            IssueType::Task,
+            Priority::P2,
+        );
+
+        assert_eq!(cmd.title, "Test issue");
+        assert_eq!(cmd.issue_type, IssueType::Task);
+        assert_eq!(cmd.priority, Priority::P2);
+        assert!(!cmd.executed);
+        assert!(cmd.created_id.is_none());
+        assert!(cmd.can_undo());
+    }
+
+    #[test]
+    fn test_create_command_metadata() {
+        use crate::beads::models::{IssueType, Priority};
+
+        let client = create_test_client();
+        let cmd = IssueCreateCommand::new(
+            client,
+            "Test issue",
+            IssueType::Feature,
+            Priority::P1,
+        );
+
+        let desc = cmd.description();
+        assert!(desc.contains("Create"));
+        assert!(desc.contains("feature"));
+        assert!(desc.contains("Test issue"));
+        assert!(desc.contains("P1"));
+
+        // Size should account for title
+        assert!(cmd.size_bytes() > "Test issue".len());
+    }
+
+    #[test]
+    fn test_create_command_double_execute_fails() {
+        use crate::beads::models::{IssueType, Priority};
+
+        let client = create_test_client();
+        let mut cmd = IssueCreateCommand::new(
+            client,
+            "Test issue",
+            IssueType::Bug,
+            Priority::P0,
+        );
+
+        // Mock execution state
+        cmd.executed = true;
+
+        let result = cmd.execute();
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), CommandError::InvalidState(_)));
+    }
+
+    #[test]
+    fn test_create_command_undo_without_execute_fails() {
+        use crate::beads::models::{IssueType, Priority};
+
+        let client = create_test_client();
+        let mut cmd = IssueCreateCommand::new(
+            client,
+            "Test issue",
+            IssueType::Task,
+            Priority::P3,
+        );
 
         let result = cmd.undo();
         assert!(result.is_err());

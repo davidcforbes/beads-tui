@@ -7,4 +7,4 @@ mod command;
 mod issue_commands;
 
 pub use command::{Command, CommandError, CommandMetadata, CommandResult};
-pub use issue_commands::IssueUpdateCommand;
+pub use issue_commands::{IssueCreateCommand, IssueUpdateCommand};
