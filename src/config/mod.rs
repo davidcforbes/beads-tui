@@ -567,7 +567,8 @@ filters:
             let filter = SavedFilter {
                 name: format!("Filter {}", i),
                 filter: IssueFilter::new(),
-                hotkey: Some(char::from_digit(i, 10).unwrap()),
+                // Safe: i is guaranteed to be 1-5 from loop range
+                hotkey: Some(char::from_digit(i, 10).expect("digit 1-5 always valid")),
             };
             config.add_filter(filter);
         }

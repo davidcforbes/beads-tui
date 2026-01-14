@@ -2062,7 +2062,8 @@ fn run_app<B: ratatui::backend::Backend>(
                     if (1..=11).contains(&num) {
                         // Map F-key to hotkey char: F1='1', F2='2', ..., F9='9', F10='A', F11='B'
                         let hotkey = if num <= 9 {
-                            char::from_digit(num as u32, 10).unwrap()
+                            // Safe: num is guaranteed to be 1-9 from condition above
+                            char::from_digit(num as u32, 10).expect("digit 1-9 always valid")
                         } else if num == 10 {
                             'A'
                         } else {
