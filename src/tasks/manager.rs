@@ -1,6 +1,6 @@
 //! Task manager for spawning and tracking background tasks
 
-use super::handle::{TaskHandle, TaskId, TaskOutput, TaskResult, TaskStatus};
+use super::handle::{TaskHandle, TaskId, TaskResult, TaskStatus};
 use crate::beads::client::BeadsClient;
 use std::future::Future;
 use std::sync::Arc;

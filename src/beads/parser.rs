@@ -11,7 +11,7 @@ pub fn parse_issue_list(json: &str) -> Result<Vec<Issue>> {
             // Fall back to single issue
             match serde_json::from_str::<Issue>(json) {
                 Ok(issue) => return Ok(vec![issue]),
-                Err(issue_err) => {
+                Err(_issue_err) => {
                     // Check if it's valid JSON at all (empty array/object is ok)
                     if let Ok(value) = serde_json::from_str::<Value>(json) {
                         // Valid JSON but not issues - return empty

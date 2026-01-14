@@ -1814,7 +1814,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
     }
 
     // Using global runtime instead of creating new runtime
-    let client = app.beads_client.clone();
+    let _client = app.beads_client.clone();
 
     match key_code {
         KeyCode::Char('r') => {

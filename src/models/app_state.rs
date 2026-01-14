@@ -362,7 +362,7 @@ impl AppState {
 
     /// Cycle to the next theme and persist the change
     pub fn cycle_theme(&mut self) {
-        use crate::ui::themes::{Theme, ThemeType};
+        use crate::ui::themes::Theme;
 
         let all_themes = Theme::available_themes();
         let current_idx = all_themes

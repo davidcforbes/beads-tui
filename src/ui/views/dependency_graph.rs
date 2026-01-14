@@ -37,7 +37,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
+    widgets::{Block, Paragraph, StatefulWidget, Widget},
 };
 use std::collections::HashMap;
 
@@ -54,8 +54,6 @@ pub struct DependencyGraphState {
     selected_index: usize,
     /// List of node IDs for navigation
     node_ids: Vec<String>,
-    /// Zoom level (not yet implemented, for future enhancement)
-    zoom: f32,
 }
 
 impl Default for DependencyGraphState {
@@ -73,7 +71,6 @@ impl DependencyGraphState {
             selected_node: None,
             selected_index: 0,
             node_ids: Vec::new(),
-            zoom: 1.0,
         }
     }
 

@@ -7,9 +7,8 @@ use ratatui::{
     buffer::Buffer,
     layout::Rect,
     style::{Color, Modifier, Style},
-    text::{Line, Span},
+    text::Line,
 };
-use std::collections::HashMap;
 
 /// Options for rendering
 #[derive(Debug, Clone)]

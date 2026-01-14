@@ -6,10 +6,10 @@
 use chrono::{DateTime, Utc};
 use ratatui::{
     buffer::Buffer,
-    layout::{Constraint, Rect},
+    layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Widget},
+    widgets::{Block, List, ListItem, Widget},
 };
 
 /// Entry in the undo history

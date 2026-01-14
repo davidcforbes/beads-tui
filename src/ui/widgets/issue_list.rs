@@ -1,6 +1,6 @@
 //! Issue list widget with sorting and filtering
 
-use crate::beads::models::{Issue, IssueStatus, IssueType, Priority};
+use crate::beads::models::{Issue, IssueStatus, IssueType};
 use crate::models::table_config::TableConfig;
 use ratatui::{
     buffer::Buffer,

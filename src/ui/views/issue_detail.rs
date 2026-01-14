@@ -1,6 +1,6 @@
 //! Issue detail view
 
-use crate::beads::models::{Issue, IssueStatus, IssueType, Priority};
+use crate::beads::models::{Issue, IssueType, Priority};
 use crate::ui::widgets::{MarkdownViewer, MarkdownViewerState};
 use ratatui::{
     buffer::Buffer,
