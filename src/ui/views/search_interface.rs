@@ -141,8 +141,8 @@ impl SearchInterfaceState {
         Self {
             search_state: SearchInputState::new(),
             list_state: IssueListState::new(),
-            all_issues: issues.clone(),
-            filtered_issues: issues,
+            filtered_issues: issues.clone(),
+            all_issues: issues,
             search_scope: SearchScope::All,
             current_view: ViewType::All,
             current_user: None,
