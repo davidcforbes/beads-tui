@@ -2468,7 +2468,9 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     if app.show_notification_history {
         use ui::widgets::NotificationHistoryPanel;
 
-        let panel = NotificationHistoryPanel::new(&app.notification_history);
+        // Convert VecDeque to Vec for panel rendering
+        let notifications_vec: Vec<_> = app.notification_history.iter().cloned().collect();
+        let panel = NotificationHistoryPanel::new(&notifications_vec);
         f.render_stateful_widget(panel, f.size(), &mut app.notification_history_state);
     }
 

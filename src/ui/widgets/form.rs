@@ -25,6 +25,8 @@ pub enum ValidationRule {
     Date,
     /// Value must be a date >= now (for due dates)
     FutureDate,
+    /// Value must not exceed maximum length (in bytes)
+    MaxLength(usize),
 }
 
 /// Form field type
@@ -284,6 +286,25 @@ impl FormField {
                     None
                 }
             }
+            ValidationRule::MaxLength(max_len) => {
+                let byte_len = value.len();
+                if byte_len > *max_len {
+                    // Format max_len in human-readable form
+                    let max_str = if *max_len >= 1_048_576 {
+                        format!("{} MB", max_len / 1_048_576)
+                    } else if *max_len >= 1024 {
+                        format!("{} KB", max_len / 1024)
+                    } else {
+                        format!("{} bytes", max_len)
+                    };
+                    Some(format!(
+                        "{} exceeds maximum length of {} (current: {} bytes)",
+                        label, max_str, byte_len
+                    ))
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -403,6 +424,22 @@ impl FormState {
             if field.field_type == FieldType::Text && c == '\n' {
                 return;
             }
+
+            // Check MaxLength validation rules before inserting
+            let would_exceed_max = field.validation_rules.iter().any(|rule| {
+                if let ValidationRule::MaxLength(max_len) = rule {
+                    field.value.len() + c.len_utf8() > *max_len
+                } else {
+                    false
+                }
+            });
+
+            if would_exceed_max {
+                // Set error but don't insert the character
+                field.error = Some("Maximum length reached".to_string());
+                return;
+            }
+
             field.value.insert(cursor_pos, c);
             // Validate immediately to provide real-time feedback
             field.validate();
@@ -499,22 +536,46 @@ impl FormState {
             ));
         }
 
-        // Validate file exists
+        // Sanitize and canonicalize path to prevent path traversal attacks
         let path = Path::new(file_path);
-        if !path.exists() {
-            return Err(format!("File not found: {file_path}"));
+
+        // Canonicalize the path to resolve any ../.. or symlinks
+        let canonical_path = path.canonicalize()
+            .map_err(|_| "File not found or inaccessible".to_string())?;
+
+        // Verify it's actually a file (not a directory or other special file)
+        if !canonical_path.is_file() {
+            return Err("Path is not a regular file".to_string());
         }
 
-        if !path.is_file() {
-            return Err(format!("Path is not a file: {file_path}"));
-        }
-
-        // Read file content
-        let content = fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))?;
+        // Read file content - use canonical path to ensure we read what we validated
+        let content = fs::read_to_string(&canonical_path)
+            .map_err(|_| "Failed to read file: permission denied or file is not UTF-8".to_string())?;
 
         // Validate UTF-8 (already validated by read_to_string, but check for null bytes)
         if content.contains('\0') {
             return Err("File contains invalid UTF-8 characters".to_string());
+        }
+
+        // Check MaxLength validation rules before loading
+        let field = &self.fields[focused_idx];
+        for rule in &field.validation_rules {
+            if let ValidationRule::MaxLength(max_len) = rule {
+                if content.len() > *max_len {
+                    let max_str = if *max_len >= 1_048_576 {
+                        format!("{} MB", max_len / 1_048_576)
+                    } else if *max_len >= 1024 {
+                        format!("{} KB", max_len / 1024)
+                    } else {
+                        format!("{} bytes", max_len)
+                    };
+                    return Err(format!(
+                        "File exceeds maximum length of {} (file size: {} bytes)",
+                        max_str,
+                        content.len()
+                    ));
+                }
+            }
         }
 
         // Update field value and track file path

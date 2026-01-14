@@ -2,6 +2,7 @@
 use crate::beads::BeadsClient;
 use crate::config::Config;
 use crate::models::SavedFilter;
+use std::collections::VecDeque;
 use crate::ui::views::{
     compute_label_stats, BondingInterfaceState, DatabaseStats, DatabaseStatus, DatabaseViewState,
     DependenciesViewState, Formula, FormulaBrowserState, GanttViewState, HelpSection,
@@ -71,7 +72,7 @@ pub struct AppState {
     /// Notification queue (FIFO - oldest notifications rendered first)
     pub notifications: Vec<NotificationMessage>,
     /// Notification history (all past notifications, max 100)
-    pub notification_history: Vec<NotificationMessage>,
+    pub notification_history: VecDeque<NotificationMessage>,
     /// Whether notification history panel is visible
     pub show_notification_history: bool,
     /// Notification history panel state
@@ -223,7 +224,7 @@ impl AppState {
             dialog_state: None,
             pending_action: None,
             notifications: Vec::new(),
-            notification_history: Vec::new(),
+            notification_history: VecDeque::new(),
             show_notification_history: false,
             notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
             show_issue_history: false,
@@ -371,9 +372,9 @@ impl AppState {
         self.notifications.push(notification.clone());
 
         // Add to history (limit to 100 most recent)
-        self.notification_history.push(notification);
+        self.notification_history.push_back(notification);
         if self.notification_history.len() > 100 {
-            self.notification_history.remove(0);
+            self.notification_history.pop_front();
         }
 
         self.mark_dirty();
@@ -754,7 +755,7 @@ mod tests {
             delete_dialog_state: None,
             show_shortcut_help: false,
             show_context_help: false,
-            notification_history: Vec::new(),
+            notification_history: VecDeque::new(),
             show_notification_history: false,
             notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
             show_issue_history: false,
