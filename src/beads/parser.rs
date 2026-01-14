@@ -118,18 +118,18 @@ mod tests {
                 "title": "Test 1",
                 "status": "open",
                 "priority": "P1",
-                "type": "bug",
-                "created": "2026-01-01T00:00:00Z",
-                "updated": "2026-01-01T00:00:00Z"
+                "issue_type": "bug",
+                "created_at": "2026-01-01T00:00:00Z",
+                "updated_at": "2026-01-01T00:00:00Z"
             },
             {
                 "id": "beads-2",
                 "title": "Test 2",
                 "status": "closed",
                 "priority": "P2",
-                "type": "feature",
-                "created": "2026-01-01T00:00:00Z",
-                "updated": "2026-01-01T00:00:00Z"
+                "issue_type": "feature",
+                "created_at": "2026-01-01T00:00:00Z",
+                "updated_at": "2026-01-01T00:00:00Z"
             }
         ]"#;
 
@@ -146,9 +146,9 @@ mod tests {
             "title": "Test",
             "status": "open",
             "priority": "P1",
-            "type": "bug",
-            "created": "2026-01-01T00:00:00Z",
-            "updated": "2026-01-01T00:00:00Z"
+            "issue_type": "bug",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
         }"#;
 
         let issues = parse_issue_list(json).unwrap();
@@ -177,9 +177,9 @@ mod tests {
             "title": "Test",
             "status": "open",
             "priority": "P1",
-            "type": "bug",
-            "created": "2026-01-01T00:00:00Z",
-            "updated": "2026-01-01T00:00:00Z"
+            "issue_type": "bug",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
         }"#;
 
         let issue = parse_issue(json).unwrap();
@@ -200,17 +200,21 @@ mod tests {
     #[test]
     fn test_parse_stats() {
         let json = r#"{
-            "total": 100,
+            "total_issues": 100,
             "open": 20,
             "closed": 70,
             "blocked": 5,
-            "in_progress": 5
+            "in_progress": 5,
+            "ready_to_work": 10,
+            "avg_lead_time_hours": 24.5
         }"#;
 
         let stats = parse_stats(json).unwrap();
         assert_eq!(stats.total_issues, 100);
         assert_eq!(stats.open, 20);
         assert_eq!(stats.closed, 70);
+        assert_eq!(stats.blocked, 5);
+        assert_eq!(stats.in_progress, 5);
     }
 
     #[test]

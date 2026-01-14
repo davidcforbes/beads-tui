@@ -938,6 +938,7 @@ impl<'a> IssueList<'a> {
     }
 
     /// Get cell content for a given issue and column
+    #[allow(clippy::too_many_arguments)]
     fn get_cell_content<'b>(
         issue: &'b Issue,
         column_id: crate::models::table_config::ColumnId,
