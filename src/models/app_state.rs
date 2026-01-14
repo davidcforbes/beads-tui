@@ -105,6 +105,10 @@ pub struct AppState {
     pub delete_confirmation_filter: Option<String>,
     /// Delete confirmation dialog state
     pub delete_dialog_state: Option<DialogState>,
+    /// Pending dependency removal (issue_id, depends_on_id)
+    pub pending_dependency_removal: Option<(String, String)>,
+    /// Dependency removal confirmation dialog state
+    pub dependency_removal_dialog_state: Option<DialogState>,
     /// Whether keyboard shortcut help overlay is visible
     pub show_shortcut_help: bool,
     /// Whether context-sensitive help overlay is visible
@@ -241,6 +245,8 @@ impl AppState {
             editing_filter_name: None,
             delete_confirmation_filter: None,
             delete_dialog_state: None,
+            pending_dependency_removal: None,
+            dependency_removal_dialog_state: None,
             show_shortcut_help: false,
             show_context_help: false,
         }
@@ -635,6 +641,66 @@ impl AppState {
         self.delete_confirmation_filter.is_some()
     }
 
+    /// Show dependency removal confirmation dialog
+    pub fn show_dependency_removal_confirmation(&mut self, issue_id: &str, depends_on_id: &str) {
+        self.pending_dependency_removal = Some((issue_id.to_string(), depends_on_id.to_string()));
+        self.dependency_removal_dialog_state = Some(DialogState::new());
+        self.mark_dirty();
+    }
+
+    /// Confirm and execute dependency removal
+    pub fn confirm_remove_dependency(&mut self) -> Result<(), String> {
+        let (issue_id, depends_on_id) = self
+            .pending_dependency_removal
+            .as_ref()
+            .ok_or_else(|| "No dependency pending removal".to_string())?
+            .clone();
+
+        // Use the beads client to remove the dependency
+        use crate::runtime;
+        match runtime::RUNTIME.block_on(
+            self.beads_client.remove_dependency(&issue_id, &depends_on_id),
+        ) {
+            Ok(()) => {
+                tracing::info!(
+                    "Removed dependency: {} no longer depends on {}",
+                    issue_id,
+                    depends_on_id
+                );
+
+                // Clear confirmation state
+                self.pending_dependency_removal = None;
+                self.dependency_removal_dialog_state = None;
+
+                // Reload issues to reflect the change
+                self.reload_issues();
+
+                self.mark_dirty();
+
+                Ok(())
+            }
+            Err(e) => {
+                tracing::error!("Failed to remove dependency: {}", e);
+                Err(format!(
+                    "Failed to remove dependency: {}\n\nCommon causes:\n• Dependency does not exist\n• Invalid issue ID format\n• Network connectivity issues\n\nVerify with 'bd show <issue-id>'",
+                    e
+                ))
+            }
+        }
+    }
+
+    /// Cancel dependency removal
+    pub fn cancel_remove_dependency(&mut self) {
+        self.pending_dependency_removal = None;
+        self.dependency_removal_dialog_state = None;
+        self.mark_dirty();
+    }
+
+    /// Check if dependency removal confirmation dialog is visible
+    pub fn is_dependency_removal_confirmation_visible(&self) -> bool {
+        self.pending_dependency_removal.is_some()
+    }
+
     /// Show the keyboard shortcut help overlay
     pub fn show_shortcut_help(&mut self) {
         self.show_shortcut_help = true;
@@ -756,6 +822,8 @@ mod tests {
             editing_filter_name: None,
             delete_confirmation_filter: None,
             delete_dialog_state: None,
+            pending_dependency_removal: None,
+            dependency_removal_dialog_state: None,
             show_shortcut_help: false,
             show_context_help: false,
             notification_history: VecDeque::new(),

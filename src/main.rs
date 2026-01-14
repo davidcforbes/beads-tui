@@ -552,6 +552,54 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         }
     }
 
+    // Handle dependency removal confirmation dialog events if active
+    if app.is_dependency_removal_confirmation_visible() {
+        if let Some(ref mut dialog_state) = app.dependency_removal_dialog_state {
+            match key_code {
+                KeyCode::Left | KeyCode::Char('h') => {
+                    dialog_state.select_previous(2); // 2 buttons: Yes, No
+                    return;
+                }
+                KeyCode::Right | KeyCode::Char('l') => {
+                    dialog_state.select_next(2); // 2 buttons: Yes, No
+                    return;
+                }
+                KeyCode::Enter => {
+                    // Confirm action based on selected button
+                    let selected = dialog_state.selected_button();
+                    if selected == 0 {
+                        // Yes button - confirm removal
+                        match app.confirm_remove_dependency() {
+                            Ok(()) => {
+                                tracing::info!("Dependency removed");
+                                app.set_success("Dependency removed successfully".to_string());
+                            }
+                            Err(e) => {
+                                tracing::error!("Failed to remove dependency: {}", e);
+                                app.set_error(e);
+                            }
+                        }
+                    } else {
+                        // No button - cancel
+                        tracing::debug!("Dependency removal cancelled");
+                        app.cancel_remove_dependency();
+                    }
+                    return;
+                }
+                KeyCode::Esc => {
+                    // Cancel removal
+                    tracing::debug!("Dependency removal cancelled");
+                    app.cancel_remove_dependency();
+                    return;
+                }
+                _ => {
+                    // Ignore other keys when dialog is active
+                    return;
+                }
+            }
+        }
+    }
+
     let issues_state = &mut app.issues_view_state;
     let view_mode = issues_state.view_mode();
 
@@ -1407,7 +1455,7 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
             }
         }
         KeyCode::Char('d') => {
-            // Remove dependency
+            // Remove dependency (with confirmation)
             if let Some(issue) = selected_issue {
                 let current_id = issue.id.clone();
                 match app.dependencies_view_state.focus() {
@@ -1416,33 +1464,8 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
                         {
                             if selected_idx < issue.dependencies.len() {
                                 let dep_id = issue.dependencies[selected_idx].clone();
-
-                                // Remove dependency: current_id depends on dep_id
-                                // Using global runtime instead of creating new runtime
-                                match runtime::RUNTIME.block_on(
-                                    app.beads_client.remove_dependency(&current_id, &dep_id),
-                                ) {
-                                    Ok(()) => {
-                                        tracing::info!(
-                                            "Removed dependency: {} no longer depends on {}",
-                                            current_id,
-                                            dep_id
-                                        );
-                                        app.set_success(format!(
-                                            "Removed dependency: {} no longer depends on {}",
-                                            current_id, dep_id
-                                        ));
-                                        // Reload issues to reflect the change
-                                        app.reload_issues();
-                                    }
-                                    Err(e) => {
-                                        tracing::error!("Failed to remove dependency: {}", e);
-                                        app.set_error(format!(
-                                            "Failed to remove dependency: {}\n\nCommon causes:\n• Dependency does not exist\n• Invalid issue ID format\n• Network connectivity issues\n\nVerify with 'bd show <issue-id>'",
-                                            e
-                                        ));
-                                    }
-                                }
+                                // Show confirmation dialog before removing
+                                app.show_dependency_removal_confirmation(&current_id, &dep_id);
                             }
                         }
                     }
@@ -1450,33 +1473,8 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
                         if let Some(selected_idx) = app.dependencies_view_state.selected_block() {
                             if selected_idx < issue.blocks.len() {
                                 let blocked_id = issue.blocks[selected_idx].clone();
-
-                                // Remove dependency: blocked_id depends on current_id
-                                // Using global runtime instead of creating new runtime
-                                match runtime::RUNTIME.block_on(
-                                    app.beads_client.remove_dependency(&blocked_id, &current_id),
-                                ) {
-                                    Ok(()) => {
-                                        tracing::info!(
-                                            "Removed dependency: {} no longer depends on {}",
-                                            blocked_id,
-                                            current_id
-                                        );
-                                        app.set_success(format!(
-                                            "Removed dependency: {} no longer depends on {}",
-                                            blocked_id, current_id
-                                        ));
-                                        // Reload issues to reflect the change
-                                        app.reload_issues();
-                                    }
-                                    Err(e) => {
-                                        tracing::error!("Failed to remove dependency: {}", e);
-                                        app.set_error(format!(
-                                            "Failed to remove dependency: {}\n\nCommon causes:\n• Dependency does not exist\n• Invalid issue ID format\n• Network connectivity issues\n\nVerify with 'bd show <issue-id>'",
-                                            e
-                                        ));
-                                    }
-                                }
+                                // Show confirmation dialog before removing
+                                app.show_dependency_removal_confirmation(&blocked_id, &current_id);
                             }
                         }
                     }
@@ -2461,6 +2459,26 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         if let Some(ref dialog_state) = app.delete_dialog_state {
             let message = format!("Are you sure you want to delete the filter '{}'?\n\nThis action cannot be undone.", filter_name);
             let dialog = ui::widgets::Dialog::confirm("Delete Filter", &message)
+                .dialog_type(ui::widgets::DialogType::Warning);
+
+            // Render dialog centered on screen
+            let area = f.size();
+            let dialog_area = centered_rect(60, 30, area);
+
+            // Clear and render dialog
+            f.render_widget(Clear, dialog_area);
+            dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
+        }
+    }
+
+    // Render dependency removal confirmation dialog overlay if active
+    if let Some((issue_id, depends_on_id)) = &app.pending_dependency_removal {
+        if let Some(ref dialog_state) = app.dependency_removal_dialog_state {
+            let message = format!(
+                "Are you sure you want to remove this dependency?\n\n{} will no longer depend on {}\n\nThis action cannot be undone.",
+                issue_id, depends_on_id
+            );
+            let dialog = ui::widgets::Dialog::confirm("Remove Dependency", &message)
                 .dialog_type(ui::widgets::DialogType::Warning);
 
             // Render dialog centered on screen
