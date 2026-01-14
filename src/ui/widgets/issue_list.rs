@@ -302,12 +302,14 @@ fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, H
 
     for issue in issues {
         // For each issue that this issue blocks, add it as a child
-        for blocked_id in &issue.blocks {
-            children_map
+        if !issue.blocks.is_empty() {
+            let children = children_map
                 .entry(issue.id.clone())
-                .or_default()
-                .push(blocked_id.clone());
-            has_parent.insert(blocked_id.clone());
+                .or_default();
+            for blocked_id in &issue.blocks {
+                children.push(blocked_id.clone());
+                has_parent.insert(blocked_id.clone());
+            }
         }
     }
 
@@ -360,7 +362,9 @@ fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, H
                 let child_is_last = idx == child_count - 1;
 
                 // Build new parent prefixes for children
-                let mut new_prefixes = parent_prefixes.to_vec();
+                // Reuse the same vector to avoid allocation
+                let mut new_prefixes = Vec::with_capacity(parent_prefixes.len() + 1);
+                new_prefixes.extend_from_slice(parent_prefixes);
                 new_prefixes.push(!is_last);
 
                 build_tree(
