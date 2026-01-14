@@ -8,4 +8,5 @@ mod fuzz_interactions;
 mod memory_spike;
 mod property_tests;
 mod ui_snapshots;
+mod undo_redo;
 mod validate_fixtures;
