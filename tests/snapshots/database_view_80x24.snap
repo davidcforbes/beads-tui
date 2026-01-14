@@ -8,7 +8,7 @@ expression: rendered
 ┌Status────────────────────────────────────────────────────────────────────────┐
 │Database Status                                                               │
 │                                                                              │
-│Status:        Ready                                                          │
+│Status:        ✓ Ready                                                        │
 │Daemon:        Running                                                        │
 │Last Sync:     Never                                                          │
 └──────────────────────────────────────────────────────────────────────────────┘
