@@ -156,12 +156,19 @@ impl DependencyGraphState {
     }
 
     /// Center view on selected node
-    pub fn center_on_selected(&mut self, layout: &GraphLayout, viewport_width: u16, viewport_height: u16) {
+    pub fn center_on_selected(
+        &mut self,
+        layout: &GraphLayout,
+        viewport_width: u16,
+        viewport_height: u16,
+    ) {
         if let Some(node_id) = &self.selected_node {
             if let Some(node) = layout.get_node(node_id) {
                 // Calculate offset to center the node
-                self.offset_x = -(node.x as isize) + (viewport_width as isize / 2) - (node.width as isize / 2);
-                self.offset_y = -(node.y as isize) + (viewport_height as isize / 2) - (node.height as isize / 2);
+                self.offset_x =
+                    -(node.x as isize) + (viewport_width as isize / 2) - (node.width as isize / 2);
+                self.offset_y = -(node.y as isize) + (viewport_height as isize / 2)
+                    - (node.height as isize / 2);
             }
         }
     }
@@ -206,10 +213,7 @@ impl<'a> DependencyGraphView<'a> {
 
         // Add all issues as nodes
         for issue in self.issues {
-            nodes.insert(
-                issue.id.clone(),
-                format!("{} ({})", issue.id, issue.title),
-            );
+            nodes.insert(issue.id.clone(), format!("{} ({})", issue.id, issue.title));
         }
 
         // Add dependencies as edges

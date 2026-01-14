@@ -114,7 +114,8 @@ impl CreateIssueFormState {
 
     /// Update field visibility based on current section
     fn update_field_visibility(&mut self) {
-        let visible_fields: Vec<String> = self.current_section_fields()
+        let visible_fields: Vec<String> = self
+            .current_section_fields()
             .iter()
             .map(|s| s.to_string())
             .collect();

@@ -10,15 +10,9 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 #[derive(Debug, Clone)]
 pub enum TaskMessage {
     /// Task has completed
-    Completed {
-        id: TaskId,
-        result: TaskResult,
-    },
+    Completed { id: TaskId, result: TaskResult },
     /// Task status changed
-    StatusChanged {
-        id: TaskId,
-        status: TaskStatus,
-    },
+    StatusChanged { id: TaskId, status: TaskStatus },
 }
 
 /// Manager for background tasks
@@ -38,12 +32,7 @@ impl TaskManager {
     }
 
     /// Spawn a background task
-    pub fn spawn_task<F, Fut>(
-        &self,
-        name: &str,
-        client: BeadsClient,
-        f: F,
-    ) -> TaskHandle
+    pub fn spawn_task<F, Fut>(&self, name: &str, client: BeadsClient, f: F) -> TaskHandle
     where
         F: FnOnce(BeadsClient) -> Fut + Send + 'static,
         Fut: Future<Output = TaskResult> + Send + 'static,
@@ -168,14 +157,10 @@ mod tests {
         let manager = TaskManager::new();
         let client = BeadsClient::new();
 
-        let handle = manager.spawn_task(
-            "test task",
-            client,
-            |_client| async move {
-                sleep(Duration::from_millis(10)).await;
-                Ok(TaskOutput::Success("done".to_string()))
-            },
-        );
+        let handle = manager.spawn_task("test task", client, |_client| async move {
+            sleep(Duration::from_millis(10)).await;
+            Ok(TaskOutput::Success("done".to_string()))
+        });
 
         // Wait for task to complete
         sleep(Duration::from_millis(50)).await;
@@ -189,13 +174,9 @@ mod tests {
         let mut manager = TaskManager::new();
         let client = BeadsClient::new();
 
-        let _handle = manager.spawn_task(
-            "test task",
-            client,
-            |_client| async move {
-                Ok(TaskOutput::Success("done".to_string()))
-            },
-        );
+        let _handle = manager.spawn_task("test task", client, |_client| async move {
+            Ok(TaskOutput::Success("done".to_string()))
+        });
 
         // Wait a bit for task to execute
         sleep(Duration::from_millis(50)).await;
@@ -209,27 +190,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_multiple_tasks() {
-        let mut manager = TaskManager::new();
+        let manager = TaskManager::new();
         let client = BeadsClient::new();
 
         // Spawn multiple tasks
-        let handle1 = manager.spawn_task(
-            "task 1",
-            client.clone(),
-            |_client| async move {
-                sleep(Duration::from_millis(10)).await;
-                Ok(TaskOutput::Success("1".to_string()))
-            },
-        );
+        let handle1 = manager.spawn_task("task 1", client.clone(), |_client| async move {
+            sleep(Duration::from_millis(10)).await;
+            Ok(TaskOutput::Success("1".to_string()))
+        });
 
-        let handle2 = manager.spawn_task(
-            "task 2",
-            client,
-            |_client| async move {
-                sleep(Duration::from_millis(20)).await;
-                Ok(TaskOutput::Success("2".to_string()))
-            },
-        );
+        let handle2 = manager.spawn_task("task 2", client, |_client| async move {
+            sleep(Duration::from_millis(20)).await;
+            Ok(TaskOutput::Success("2".to_string()))
+        });
 
         // Wait for both to complete
         sleep(Duration::from_millis(100)).await;

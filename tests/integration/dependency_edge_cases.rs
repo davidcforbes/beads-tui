@@ -191,7 +191,10 @@ fn test_very_wide_graph() {
 
     assert_eq!(layout.nodes.len(), 151); // 1 root + 150 children
     assert_eq!(layout.edges.len(), 150);
-    assert!(layout.width > 0, "Very wide graph should have positive width");
+    assert!(
+        layout.width > 0,
+        "Very wide graph should have positive width"
+    );
 }
 
 #[test]
@@ -215,7 +218,10 @@ fn test_deep_hierarchy_graph() {
 
     assert_eq!(layout.nodes.len(), 120);
     assert_eq!(layout.edges.len(), 119);
-    assert!(layout.height > 0, "Deep hierarchy should have positive height");
+    assert!(
+        layout.height > 0,
+        "Deep hierarchy should have positive height"
+    );
 }
 
 #[test]

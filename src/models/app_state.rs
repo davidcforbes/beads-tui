@@ -2,8 +2,9 @@
 use crate::beads::BeadsClient;
 use crate::config::Config;
 use crate::models::SavedFilter;
-use crate::tasks::{TaskHandle, TaskId, TaskManager, TaskMessage, TaskOutput, TaskResult, TaskStatus};
-use crate::undo::UndoStack;
+use crate::tasks::{
+    TaskHandle, TaskId, TaskManager, TaskMessage, TaskOutput, TaskResult, TaskStatus,
+};
 use crate::ui::views::{
     compute_label_stats, BondingInterfaceState, DatabaseStats, DatabaseStatus, DatabaseViewState,
     DependenciesViewState, Formula, FormulaBrowserState, GanttViewState, HelpSection,
@@ -13,6 +14,7 @@ use crate::ui::views::{
 use crate::ui::widgets::{
     DependencyDialogState, DialogState, FilterQuickSelectState, FilterSaveDialogState,
 };
+use crate::undo::UndoStack;
 use std::collections::VecDeque;
 
 use super::PerfStats;
@@ -169,12 +171,13 @@ impl AppState {
         });
 
         // Load theme from config
-        let theme = if let Some(theme_type) = crate::ui::themes::ThemeType::from_name(&config.theme.name) {
-            crate::ui::themes::Theme::new(theme_type)
-        } else {
-            tracing::warn!("Unknown theme '{}', using default", config.theme.name);
-            crate::ui::themes::Theme::default()
-        };
+        let theme =
+            if let Some(theme_type) = crate::ui::themes::ThemeType::from_name(&config.theme.name) {
+                crate::ui::themes::Theme::new(theme_type)
+            } else {
+                tracing::warn!("Unknown theme '{}', using default", config.theme.name);
+                crate::ui::themes::Theme::default()
+            };
 
         let formulas = vec![
             Formula {
@@ -538,7 +541,10 @@ impl AppState {
     }
 
     /// Execute a command and add it to the undo stack
-    pub fn execute_command(&mut self, mut command: Box<dyn crate::undo::Command>) -> Result<(), String> {
+    pub fn execute_command(
+        &mut self,
+        mut command: Box<dyn crate::undo::Command>,
+    ) -> Result<(), String> {
         match command.execute() {
             Ok(()) => {
                 self.undo_stack.push(command);
@@ -1092,11 +1098,7 @@ impl AppState {
     // ========== Background Task Management ==========
 
     /// Spawn a background task
-    pub fn spawn_task<F, Fut>(
-        &mut self,
-        name: &str,
-        f: F,
-    ) -> TaskHandle
+    pub fn spawn_task<F, Fut>(&mut self, name: &str, f: F) -> TaskHandle
     where
         F: FnOnce(BeadsClient) -> Fut + Send + 'static,
         Fut: std::future::Future<Output = TaskResult> + Send + 'static,
@@ -1117,11 +1119,7 @@ impl AppState {
     }
 
     /// Spawn a background task with progress tracking
-    pub fn spawn_task_with_progress<F, Fut>(
-        &mut self,
-        name: &str,
-        f: F,
-    ) -> TaskHandle
+    pub fn spawn_task_with_progress<F, Fut>(&mut self, name: &str, f: F) -> TaskHandle
     where
         F: FnOnce(BeadsClient) -> Fut + Send + 'static,
         Fut: std::future::Future<Output = TaskResult> + Send + 'static,
@@ -1152,7 +1150,11 @@ impl AppState {
                 }
                 TaskMessage::Completed { id, result } => {
                     // Find and remove from active tasks
-                    if let Some(index) = self.active_tasks.iter().position(|h: &TaskHandle| h.id() == id) {
+                    if let Some(index) = self
+                        .active_tasks
+                        .iter()
+                        .position(|h: &TaskHandle| h.id() == id)
+                    {
                         let handle = self.active_tasks.remove(index);
 
                         // Add to completed tasks (limit to 20)

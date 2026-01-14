@@ -176,10 +176,10 @@ impl Theme {
     fn deuteranopia() -> Self {
         Self {
             theme_type: ThemeType::Deuteranopia,
-            success: Color::Blue,        // Blue instead of green
-            error: Color::Yellow,        // Yellow instead of red
-            warning: Color::Magenta,     // Magenta for warnings
-            info: Color::Cyan,           // Cyan for info
+            success: Color::Blue,    // Blue instead of green
+            error: Color::Yellow,    // Yellow instead of red
+            warning: Color::Magenta, // Magenta for warnings
+            info: Color::Cyan,       // Cyan for info
             priority_critical: Color::Yellow,
             priority_high: Color::LightYellow,
             priority_medium: Color::Cyan,
@@ -230,8 +230,8 @@ impl Theme {
             theme_type: ThemeType::Tritanopia,
             success: Color::Green,
             error: Color::Red,
-            warning: Color::Magenta,     // Magenta instead of yellow
-            info: Color::Green,          // Green instead of blue
+            warning: Color::Magenta, // Magenta instead of yellow
+            info: Color::Green,      // Green instead of blue
             priority_critical: Color::Red,
             priority_high: Color::LightRed,
             priority_medium: Color::Magenta,
@@ -322,11 +322,26 @@ mod tests {
         assert_eq!(ThemeType::from_name("dark"), Some(ThemeType::Dark));
         assert_eq!(ThemeType::from_name("Dark"), Some(ThemeType::Dark));
         assert_eq!(ThemeType::from_name("DARK"), Some(ThemeType::Dark));
-        assert_eq!(ThemeType::from_name("high-contrast"), Some(ThemeType::HighContrast));
-        assert_eq!(ThemeType::from_name("highcontrast"), Some(ThemeType::HighContrast));
-        assert_eq!(ThemeType::from_name("deuteranopia"), Some(ThemeType::Deuteranopia));
-        assert_eq!(ThemeType::from_name("protanopia"), Some(ThemeType::Protanopia));
-        assert_eq!(ThemeType::from_name("tritanopia"), Some(ThemeType::Tritanopia));
+        assert_eq!(
+            ThemeType::from_name("high-contrast"),
+            Some(ThemeType::HighContrast)
+        );
+        assert_eq!(
+            ThemeType::from_name("highcontrast"),
+            Some(ThemeType::HighContrast)
+        );
+        assert_eq!(
+            ThemeType::from_name("deuteranopia"),
+            Some(ThemeType::Deuteranopia)
+        );
+        assert_eq!(
+            ThemeType::from_name("protanopia"),
+            Some(ThemeType::Protanopia)
+        );
+        assert_eq!(
+            ThemeType::from_name("tritanopia"),
+            Some(ThemeType::Tritanopia)
+        );
         assert_eq!(ThemeType::from_name("invalid"), None);
     }
 

@@ -5,7 +5,9 @@ pub type Result<T> = std::result::Result<T, BeadsError>;
 
 #[derive(Error, Debug)]
 pub enum BeadsError {
-    #[error("IO error: {0}\nCheck file permissions and disk space. Run 'bd doctor' to diagnose issues.")]
+    #[error(
+        "IO error: {0}\nCheck file permissions and disk space. Run 'bd doctor' to diagnose issues."
+    )]
     Io(#[from] std::io::Error),
 
     #[error("JSON parsing error: {0} (Input: {1})\nThe issue database may be corrupted. Try 'bd sync' to restore from remote, or check .beads/issues.jsonl format.")]

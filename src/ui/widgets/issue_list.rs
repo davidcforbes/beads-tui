@@ -264,25 +264,24 @@ impl ColumnFilters {
             };
 
             // Pre-compute lowercase versions of issue labels to avoid O(n²) repeated conversions
-            let issue_labels_lower: Vec<String> = issue.labels.iter()
-                .map(|l| l.to_lowercase())
-                .collect();
+            let issue_labels_lower: Vec<String> =
+                issue.labels.iter().map(|l| l.to_lowercase()).collect();
 
             let matches = match self.label_match_mode {
                 LabelMatchMode::Any => {
                     // OR logic: issue must have at least one of the specified labels
                     labels_lower.iter().any(|filter_label_lower| {
-                        issue_labels_lower.iter().any(|issue_label_lower| {
-                            issue_label_lower.contains(filter_label_lower)
-                        })
+                        issue_labels_lower
+                            .iter()
+                            .any(|issue_label_lower| issue_label_lower.contains(filter_label_lower))
                     })
                 }
                 LabelMatchMode::All => {
                     // AND logic: issue must have all of the specified labels
                     labels_lower.iter().all(|filter_label_lower| {
-                        issue_labels_lower.iter().any(|issue_label_lower| {
-                            issue_label_lower.contains(filter_label_lower)
-                        })
+                        issue_labels_lower
+                            .iter()
+                            .any(|issue_label_lower| issue_label_lower.contains(filter_label_lower))
                     })
                 }
             };
@@ -321,9 +320,7 @@ fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, H
     for issue in issues {
         // For each issue that this issue blocks, add it as a child
         if !issue.blocks.is_empty() {
-            let children = children_map
-                .entry(issue.id.clone())
-                .or_default();
+            let children = children_map.entry(issue.id.clone()).or_default();
             for blocked_id in &issue.blocks {
                 children.push(blocked_id.clone());
                 has_parent.insert(blocked_id.clone());

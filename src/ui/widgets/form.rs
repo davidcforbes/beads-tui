@@ -920,13 +920,17 @@ impl<'a> StatefulWidget for Form<'a> {
                         height: 2,
                     };
 
-                    let help_paragraph = Paragraph::new(vec![
-                        Line::from(Span::styled(
-                            format!("Help (F1 to hide): {}", help_text),
-                            Style::default().fg(Color::Yellow).add_modifier(Modifier::ITALIC),
-                        )),
-                    ])
-                    .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow)));
+                    let help_paragraph = Paragraph::new(vec![Line::from(Span::styled(
+                        format!("Help (F1 to hide): {}", help_text),
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::ITALIC),
+                    ))])
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .border_style(Style::default().fg(Color::Yellow)),
+                    );
 
                     help_paragraph.render(help_area, buf);
                 }
@@ -2029,17 +2033,13 @@ mod tests {
 
     #[test]
     fn test_form_field_help_text() {
-        let field = FormField::text("date", "Date")
-            .help_text("Format: YYYY-MM-DD");
+        let field = FormField::text("date", "Date").help_text("Format: YYYY-MM-DD");
         assert_eq!(field.help_text, Some("Format: YYYY-MM-DD".to_string()));
     }
 
     #[test]
     fn test_form_state_help_toggle() {
-        let fields = vec![
-            FormField::text("title", "Title")
-                .help_text("Enter the issue title"),
-        ];
+        let fields = vec![FormField::text("title", "Title").help_text("Enter the issue title")];
         let mut state = FormState::new(fields);
 
         assert!(!state.is_showing_help());

@@ -491,19 +491,31 @@ impl<'a> DatabaseView<'a> {
             Line::from(""),
             Line::from(vec![
                 Span::styled("Total Issues:  ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{total_issues}"), Style::default().fg(theme_ref.info)),
+                Span::styled(
+                    format!("{total_issues}"),
+                    Style::default().fg(theme_ref.info),
+                ),
             ]),
             Line::from(vec![
                 Span::styled("Open:          ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{open_issues}"), Style::default().fg(theme_ref.success)),
+                Span::styled(
+                    format!("{open_issues}"),
+                    Style::default().fg(theme_ref.success),
+                ),
             ]),
             Line::from(vec![
                 Span::styled("Closed:        ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{closed_issues}"), Style::default().fg(theme_ref.muted)),
+                Span::styled(
+                    format!("{closed_issues}"),
+                    Style::default().fg(theme_ref.muted),
+                ),
             ]),
             Line::from(vec![
                 Span::styled("Blocked:       ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{blocked_issues}"), Style::default().fg(theme_ref.error)),
+                Span::styled(
+                    format!("{blocked_issues}"),
+                    Style::default().fg(theme_ref.error),
+                ),
             ]),
             Line::from(""),
             Line::from(vec![

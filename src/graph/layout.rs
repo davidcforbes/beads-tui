@@ -102,10 +102,7 @@ impl GraphLayout {
 
         for (from, to) in dependencies {
             if nodes.contains_key(&from) && nodes.contains_key(&to) {
-                out_edges
-                    .entry(from.clone())
-                    .or_default()
-                    .push(to.clone());
+                out_edges.entry(from.clone()).or_default().push(to.clone());
                 in_edges.entry(to.clone()).or_default().push(from.clone());
                 edges.push(LayoutEdge {
                     from: from.clone(),

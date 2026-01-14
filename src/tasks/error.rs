@@ -1,7 +1,7 @@
 //! Error types for background tasks
 
-use std::fmt;
 use crate::beads::error::BeadsError;
+use std::fmt;
 
 /// Task error type
 #[derive(Debug, Clone)]

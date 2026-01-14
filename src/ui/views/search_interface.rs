@@ -529,15 +529,12 @@ impl SearchInterfaceState {
 
         // Restore selection by finding the same issue ID in the new filtered list
         if let Some(issue_id) = selected_issue_id {
-            let new_index = self
-                .filtered_indices
-                .iter()
-                .position(|&idx| {
-                    self.all_issues
-                        .get(idx)
-                        .map(|issue| issue.id == issue_id)
-                        .unwrap_or(false)
-                });
+            let new_index = self.filtered_indices.iter().position(|&idx| {
+                self.all_issues
+                    .get(idx)
+                    .map(|issue| issue.id == issue_id)
+                    .unwrap_or(false)
+            });
 
             self.list_state.select(new_index);
         }

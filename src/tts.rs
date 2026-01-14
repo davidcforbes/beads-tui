@@ -35,7 +35,10 @@ impl TtsManager {
                 Some(Arc::new(Mutex::new(tts)))
             }
             Err(e) => {
-                tracing::warn!("Failed to initialize TTS: {}. Screen reader support will be disabled.", e);
+                tracing::warn!(
+                    "Failed to initialize TTS: {}. Screen reader support will be disabled.",
+                    e
+                );
                 None
             }
         };

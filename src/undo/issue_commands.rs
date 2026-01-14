@@ -31,15 +31,31 @@ impl IssueUpdateCommand {
     /// * `client` - BeadsClient for executing updates
     /// * `issue_id` - ID of the issue to update
     /// * `updates` - Field updates to apply
-    pub fn new(client: Arc<BeadsClient>, issue_id: impl Into<String>, updates: IssueUpdate) -> Self {
+    pub fn new(
+        client: Arc<BeadsClient>,
+        issue_id: impl Into<String>,
+        updates: IssueUpdate,
+    ) -> Self {
         let issue_id = issue_id.into();
         let description = Self::build_description(&issue_id, &updates);
 
         // Estimate size: issue_id + field values
         let size_bytes = issue_id.len()
-            + updates.title.as_ref().map(|s: &String| s.len()).unwrap_or(0)
-            + updates.description.as_ref().map(|s: &String| s.len()).unwrap_or(0)
-            + updates.assignee.as_ref().map(|s: &String| s.len()).unwrap_or(0)
+            + updates
+                .title
+                .as_ref()
+                .map(|s: &String| s.len())
+                .unwrap_or(0)
+            + updates
+                .description
+                .as_ref()
+                .map(|s: &String| s.len())
+                .unwrap_or(0)
+            + updates
+                .assignee
+                .as_ref()
+                .map(|s: &String| s.len())
+                .unwrap_or(0)
             + updates
                 .labels
                 .as_ref()
@@ -93,11 +109,10 @@ impl IssueUpdateCommand {
     /// Fetch current issue state to capture old values
     async fn fetch_current_state(&self) -> CommandResult<IssueUpdate> {
         // Fetch the current issue
-        let issue = self
-            .client
-            .get_issue(&self.issue_id)
-            .await
-            .map_err(|e| CommandError::ExecutionFailed(format!("Failed to fetch issue: {}", e)))?;
+        let issue =
+            self.client.get_issue(&self.issue_id).await.map_err(|e| {
+                CommandError::ExecutionFailed(format!("Failed to fetch issue: {}", e))
+            })?;
 
         // Build IssueUpdate from current values (only for fields we're updating)
         let mut old_values = IssueUpdate::new();
@@ -146,7 +161,9 @@ impl Command for IssueUpdateCommand {
             self.client
                 .update_issue(&self.issue_id, self.new_values.clone())
                 .await
-                .map_err(|e| CommandError::ExecutionFailed(format!("Failed to update issue: {}", e)))?;
+                .map_err(|e| {
+                    CommandError::ExecutionFailed(format!("Failed to update issue: {}", e))
+                })?;
 
             Ok(())
         });
@@ -160,7 +177,9 @@ impl Command for IssueUpdateCommand {
 
     fn undo(&mut self) -> CommandResult<()> {
         if !self.executed {
-            return Err(CommandError::InvalidState("Command not executed".to_string()));
+            return Err(CommandError::InvalidState(
+                "Command not executed".to_string(),
+            ));
         }
 
         let old_values = self
@@ -263,7 +282,9 @@ impl Command for IssueCreateCommand {
                 .client
                 .create_issue(&self.title, self.issue_type, self.priority)
                 .await
-                .map_err(|e| CommandError::ExecutionFailed(format!("Failed to create issue: {}", e)))?;
+                .map_err(|e| {
+                    CommandError::ExecutionFailed(format!("Failed to create issue: {}", e))
+                })?;
 
             self.created_id = Some(issue_id);
             Ok(())
@@ -278,7 +299,9 @@ impl Command for IssueCreateCommand {
 
     fn undo(&mut self) -> CommandResult<()> {
         if !self.executed {
-            return Err(CommandError::InvalidState("Command not executed".to_string()));
+            return Err(CommandError::InvalidState(
+                "Command not executed".to_string(),
+            ));
         }
 
         let issue_id = self
@@ -404,12 +427,7 @@ mod tests {
         use crate::beads::models::{IssueType, Priority};
 
         let client = create_test_client();
-        let cmd = IssueCreateCommand::new(
-            client,
-            "Test issue",
-            IssueType::Task,
-            Priority::P2,
-        );
+        let cmd = IssueCreateCommand::new(client, "Test issue", IssueType::Task, Priority::P2);
 
         assert_eq!(cmd.title, "Test issue");
         assert_eq!(cmd.issue_type, IssueType::Task);
@@ -424,12 +442,7 @@ mod tests {
         use crate::beads::models::{IssueType, Priority};
 
         let client = create_test_client();
-        let cmd = IssueCreateCommand::new(
-            client,
-            "Test issue",
-            IssueType::Feature,
-            Priority::P1,
-        );
+        let cmd = IssueCreateCommand::new(client, "Test issue", IssueType::Feature, Priority::P1);
 
         let desc = cmd.description();
         assert!(desc.contains("Create"));
@@ -446,12 +459,7 @@ mod tests {
         use crate::beads::models::{IssueType, Priority};
 
         let client = create_test_client();
-        let mut cmd = IssueCreateCommand::new(
-            client,
-            "Test issue",
-            IssueType::Bug,
-            Priority::P0,
-        );
+        let mut cmd = IssueCreateCommand::new(client, "Test issue", IssueType::Bug, Priority::P0);
 
         // Mock execution state
         cmd.executed = true;
@@ -466,12 +474,7 @@ mod tests {
         use crate::beads::models::{IssueType, Priority};
 
         let client = create_test_client();
-        let mut cmd = IssueCreateCommand::new(
-            client,
-            "Test issue",
-            IssueType::Task,
-            Priority::P3,
-        );
+        let mut cmd = IssueCreateCommand::new(client, "Test issue", IssueType::Task, Priority::P3);
 
         let result = cmd.undo();
         assert!(result.is_err());

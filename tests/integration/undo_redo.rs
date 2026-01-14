@@ -4,7 +4,6 @@
 //! Individual command and stack tests are in the unit tests.
 
 use beads_tui::undo::{Command, CommandError, CommandMetadata, CommandResult, UndoStack};
-use std::fmt;
 
 /// Simple test command that tracks execute/undo state
 #[derive(Debug)]
@@ -133,7 +132,10 @@ fn test_redo_stack_cleared_on_new_command() {
     stack.push(Box::new(cmd2));
 
     // Redo should now fail (stack was cleared)
-    assert!(!stack.can_redo(), "Redo stack should be cleared after new command");
+    assert!(
+        !stack.can_redo(),
+        "Redo stack should be cleared after new command"
+    );
 }
 
 #[test]
@@ -157,7 +159,10 @@ fn test_undo_stack_size_limit() {
 
     // 4th undo should fail
     let result = stack.undo();
-    assert!(result.is_err(), "Should not be able to undo more than 3 times");
+    assert!(
+        result.is_err(),
+        "Should not be able to undo more than 3 times"
+    );
 }
 
 #[test]
@@ -233,6 +238,6 @@ fn test_command_metadata() {
 
     assert_eq!(cmd.description(), "Test Metadata");
     assert!(cmd.can_undo()); // By default, commands are reversible
-    // Size bytes might be 0 for simple test commands
-    assert!(cmd.size_bytes() >= 0); // Should have non-negative size
+                             // Size bytes might be 0 for simple test commands
+    let _ = cmd.size_bytes(); // Verify size_bytes() is accessible
 }

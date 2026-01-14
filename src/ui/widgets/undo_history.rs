@@ -96,9 +96,15 @@ impl<'a> Widget for UndoHistoryView<'a> {
                 };
 
                 let line = Line::from(vec![
-                    Span::styled(format!("{:3} ", idx + 1), Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        format!("{:3} ", idx + 1),
+                        Style::default().fg(Color::DarkGray),
+                    ),
                     Span::styled(format!("{} ", marker), style),
-                    Span::styled(format!("[{}] ", time_str), Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        format!("[{}] ", time_str),
+                        Style::default().fg(Color::DarkGray),
+                    ),
                     Span::styled(entry.description.clone(), style),
                 ]);
 

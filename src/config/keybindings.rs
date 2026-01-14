@@ -560,6 +560,17 @@ mod tests {
             Action::ToggleExpand, // May overlap with ToggleSelection
             Action::ShowHelp,
             Action::ShowShortcutHelp, // Same as ShowHelp
+            // View-specific actions (Issues vs Database view contexts)
+            Action::UpdateStatus,    // 's' in Issues view
+            Action::SyncDatabase,    // 's' in Database view
+            Action::ShowColumnManager, // 'c' in Issues view
+            Action::CompactDatabase, // 'c' in Database view
+            Action::CloseIssue,      // 'x' in Issues view
+            Action::ExportDatabase,  // 'x' in Database view
+            Action::UpdateLabels,    // 'l' in Issues view
+            // Preview and performance toggles
+            Action::TogglePerfStats, // Ctrl+p (global)
+            Action::TogglePreview,   // Ctrl+p (file preview context)
         ];
 
         let non_contextual_conflicts: Vec<_> = conflicts

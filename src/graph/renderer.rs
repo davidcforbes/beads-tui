@@ -103,11 +103,7 @@ impl GraphRenderer {
         let y = (node.y as isize + options.offset_y) as i32;
 
         // Skip if outside viewport
-        if x < 0
-            || y < 0
-            || x >= area.width as i32
-            || y >= area.height as i32
-        {
+        if x < 0 || y < 0 || x >= area.width as i32 || y >= area.height as i32 {
             return;
         }
 
@@ -124,9 +120,18 @@ impl GraphRenderer {
         if screen_y < area.bottom() && screen_x < area.right() {
             let top_line = format!(
                 "╭{}╮",
-                "─".repeat(node.width.saturating_sub(2).min((area.right() - screen_x - 2) as usize))
+                "─".repeat(
+                    node.width
+                        .saturating_sub(2)
+                        .min((area.right() - screen_x - 2) as usize)
+                )
             );
-            buf.set_line(screen_x, screen_y, &Line::styled(top_line, style), node.width as u16);
+            buf.set_line(
+                screen_x,
+                screen_y,
+                &Line::styled(top_line, style),
+                node.width as u16,
+            );
         }
 
         // Draw box middle with text
@@ -134,7 +139,11 @@ impl GraphRenderer {
             let truncated_text = if node.text.len() > node.width.saturating_sub(2) {
                 format!("{}…", &node.text[..node.width.saturating_sub(3)])
             } else {
-                format!("{:^width$}", node.text, width = node.width.saturating_sub(2))
+                format!(
+                    "{:^width$}",
+                    node.text,
+                    width = node.width.saturating_sub(2)
+                )
             };
             let middle_line = format!("│{}│", truncated_text);
             buf.set_line(
@@ -149,7 +158,11 @@ impl GraphRenderer {
         if screen_y + 2 < area.bottom() && screen_x < area.right() {
             let bottom_line = format!(
                 "╰{}╯",
-                "─".repeat(node.width.saturating_sub(2).min((area.right() - screen_x - 2) as usize))
+                "─".repeat(
+                    node.width
+                        .saturating_sub(2)
+                        .min((area.right() - screen_x - 2) as usize)
+                )
             );
             buf.set_line(
                 screen_x,
@@ -215,8 +228,7 @@ impl GraphRenderer {
             let min_x = start_x.min(end_x);
             let max_x = start_x.max(end_x);
             for x in min_x..=max_x {
-                if x >= 0 && x < area.width as isize && mid_y >= 0 && mid_y < area.height as isize
-                {
+                if x >= 0 && x < area.width as isize && mid_y >= 0 && mid_y < area.height as isize {
                     let screen_x = (area.x as isize + x) as u16;
                     let screen_y = (area.y as isize + mid_y) as u16;
                     if screen_x < area.right() && screen_y < area.bottom() {
@@ -251,7 +263,12 @@ impl GraphRenderer {
                 let screen_x = (area.x as isize + end_x) as u16;
                 let screen_y = (area.y as isize + end_y - 1) as u16;
                 if screen_x < area.right() && screen_y < area.bottom() {
-                    buf.set_line(screen_x, screen_y, &Line::styled("▼", options.edge_style), 1);
+                    buf.set_line(
+                        screen_x,
+                        screen_y,
+                        &Line::styled("▼", options.edge_style),
+                        1,
+                    );
                 }
             }
         }
@@ -266,7 +283,7 @@ impl GraphRenderer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::layout::{LayoutOptions};
+    use crate::graph::layout::LayoutOptions;
     use std::collections::HashMap;
 
     #[test]

@@ -315,7 +315,12 @@ impl<'a> Dialog<'a> {
         // Render hint if present
         if let Some(hint_text) = self.hint {
             let hint = Paragraph::new(Line::from(vec![
-                Span::styled("Hint: ", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "Hint: ",
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::styled(hint_text, Style::default().fg(Color::Gray)),
             ]))
             .alignment(Alignment::Center);
@@ -323,7 +328,13 @@ impl<'a> Dialog<'a> {
         }
     }
 
-    fn render_buttons(&self, area: Rect, buf: &mut Buffer, state: &DialogState, theme: &crate::ui::themes::Theme) {
+    fn render_buttons(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        state: &DialogState,
+        theme: &crate::ui::themes::Theme,
+    ) {
         if self.buttons.is_empty() {
             return;
         }
@@ -1046,15 +1057,14 @@ mod tests {
         let dialog = Dialog::new("Test", "Message");
         assert!(dialog.hint.is_none());
 
-        let dialog_with_hint = Dialog::new("Test", "Message")
-            .hint("Press Tab to navigate");
+        let dialog_with_hint = Dialog::new("Test", "Message").hint("Press Tab to navigate");
         assert_eq!(dialog_with_hint.hint, Some("Press Tab to navigate"));
     }
 
     #[test]
     fn test_dialog_confirm_with_hint() {
-        let dialog = Dialog::confirm("Delete?", "Are you sure?")
-            .hint("Use Tab/Shift+Tab to select buttons");
+        let dialog =
+            Dialog::confirm("Delete?", "Are you sure?").hint("Use Tab/Shift+Tab to select buttons");
         assert_eq!(dialog.hint, Some("Use Tab/Shift+Tab to select buttons"));
         assert_eq!(dialog.buttons.len(), 2);
     }

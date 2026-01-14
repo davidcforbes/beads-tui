@@ -28,7 +28,7 @@ pub struct Issue {
     pub updated: DateTime<Utc>,
     #[serde(default)]
     pub closed: Option<DateTime<Utc>>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_notes")]
     pub notes: Vec<Note>,
 }
 
@@ -204,6 +204,45 @@ pub struct Note {
     pub timestamp: DateTime<Utc>,
     pub author: String,
     pub content: String,
+}
+
+impl Note {
+    fn legacy(content: String) -> Self {
+        Self {
+            timestamp: Utc::now(),
+            author: "legacy".to_string(),
+            content,
+        }
+    }
+}
+
+fn deserialize_notes<'de, D>(deserializer: D) -> Result<Vec<Note>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum NotesHelper {
+        Structured(Vec<Note>),
+        Strings(Vec<String>),
+        Single(String),
+    }
+
+    let helper = Option::<NotesHelper>::deserialize(deserializer)?;
+    let notes = match helper {
+        None => Vec::new(),
+        Some(NotesHelper::Structured(notes)) => notes,
+        Some(NotesHelper::Strings(items)) => items.into_iter().map(Note::legacy).collect(),
+        Some(NotesHelper::Single(item)) => {
+            if item.trim().is_empty() {
+                Vec::new()
+            } else {
+                vec![Note::legacy(item)]
+            }
+        }
+    };
+
+    Ok(notes)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -708,6 +747,44 @@ mod tests {
         assert_eq!(issue.labels, deserialized.labels);
         assert_eq!(issue.dependencies, deserialized.dependencies);
         assert_eq!(issue.blocks, deserialized.blocks);
+    }
+
+    #[test]
+    fn test_issue_deserialize_notes_string() {
+        let json = r#"{
+            "id": "beads-1",
+            "title": "Test",
+            "status": "open",
+            "priority": 0,
+            "issue_type": "task",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "notes": "Legacy note"
+        }"#;
+
+        let issue: Issue = serde_json::from_str(json).unwrap();
+        assert_eq!(issue.notes.len(), 1);
+        assert_eq!(issue.notes[0].content, "Legacy note");
+        assert_eq!(issue.notes[0].author, "legacy");
+    }
+
+    #[test]
+    fn test_issue_deserialize_notes_string_list() {
+        let json = r#"{
+            "id": "beads-1",
+            "title": "Test",
+            "status": "open",
+            "priority": 0,
+            "issue_type": "task",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "notes": ["one", "two"]
+        }"#;
+
+        let issue: Issue = serde_json::from_str(json).unwrap();
+        assert_eq!(issue.notes.len(), 2);
+        assert_eq!(issue.notes[0].content, "one");
+        assert_eq!(issue.notes[1].content, "two");
     }
 
     #[test]
