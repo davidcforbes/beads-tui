@@ -65,6 +65,10 @@ pub enum TaskOutput {
     DependencyAdded,
     /// Dependency was removed
     DependencyRemoved,
+    /// Daemon was started
+    DaemonStarted,
+    /// Daemon was stopped
+    DaemonStopped,
 }
 
 impl fmt::Display for TaskOutput {
@@ -82,6 +86,8 @@ impl fmt::Display for TaskOutput {
             Self::IssueUpdated(id) => write!(f, "Updated issue {}", id),
             Self::DependencyAdded => write!(f, "Dependency added"),
             Self::DependencyRemoved => write!(f, "Dependency removed"),
+            Self::DaemonStarted => write!(f, "Daemon started successfully"),
+            Self::DaemonStopped => write!(f, "Daemon stopped successfully"),
         }
     }
 }

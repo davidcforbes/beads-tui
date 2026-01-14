@@ -485,36 +485,19 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 
                             match dep_type {
                                 ui::widgets::DependencyType::RelatesTo => {
-                                    // Bidirectional "see also" relationship - no cycle check needed
-                                    // Using global runtime instead of creating new runtime
-                                    app.start_loading("Linking issues...");
+                                    // Bidirectional "see also" relationship - moved to background task
+                                    let current_id_clone = current_id.clone();
+                                    let target_id_clone = target_issue_id.clone();
 
-                                    match runtime::RUNTIME.block_on(
-                                        app.beads_client
-                                            .relate_issues(&current_id, &target_issue_id),
-                                    ) {
-                                        Ok(()) => {
-                                            app.stop_loading();
-                                            tracing::info!(
-                                                "Created relates_to link: {} <-> {}",
-                                                current_id,
-                                                target_issue_id
-                                            );
-                                            app.set_success(format!(
-                                                "Linked issues: {} <-> {}",
-                                                current_id, target_issue_id
-                                            ));
-                                            app.reload_issues();
-                                        }
-                                        Err(e) => {
-                                            app.stop_loading();
-                                            tracing::error!(
-                                                "Failed to create relates_to link: {}",
-                                                e
-                                            );
-                                            app.set_error(format!("Failed to link issues: {}\n\nCommon causes:\n• One or both issue IDs are invalid\n• Issues not found - verify with 'bd list'\n• Network connectivity issues", e));
-                                        }
-                                    }
+                                    let _ = app.spawn_task("Linking issues", move |client| async move {
+                                        client
+                                            .relate_issues(&current_id_clone, &target_id_clone)
+                                            .await
+                                            .map_err(|e| crate::tasks::error::TaskError::BeadsOperation(e.to_string()))?;
+                                        Ok(crate::tasks::handle::TaskOutput::Success(
+                                            format!("Linked issues: {} <-> {}", current_id_clone, target_id_clone),
+                                        ))
+                                    });
                                 }
                                 ui::widgets::DependencyType::DependsOn
                                 | ui::widgets::DependencyType::Blocks => {
@@ -1823,39 +1806,19 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             app.stop_loading();
         }
         KeyCode::Char('t') => {
-            // Toggle daemon (start/stop) - 't' for toggle (consistent with daemon concept)
-            tracing::info!("Toggling daemon");
-
+            // Toggle daemon (start/stop) - moved to background task
             if app.daemon_running {
                 // Stop daemon
-                match runtime::RUNTIME.block_on(client.stop_daemon()) {
-                    Ok(_) => {
-                        tracing::info!("Daemon stopped successfully");
-                        app.daemon_running = false;
-                        app.mark_dirty();
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to stop daemon: {:?}", e);
-                        app.set_error(format!(
-                            "Failed to stop daemon: {e}\n\nThe daemon may not be running or may be unresponsive.\nCheck 'bd doctor' for status."
-                        ));
-                    }
-                }
+                let _ = app.spawn_task("Stopping daemon", |client| async move {
+                    client.stop_daemon().await?;
+                    Ok(TaskOutput::DaemonStopped)
+                });
             } else {
                 // Start daemon
-                match runtime::RUNTIME.block_on(client.start_daemon()) {
-                    Ok(_) => {
-                        tracing::info!("Daemon started successfully");
-                        app.daemon_running = true;
-                        app.mark_dirty();
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to start daemon: {:?}", e);
-                        app.set_error(format!(
-                            "Failed to start daemon: {e}\n\nTry:\n• Check if daemon is already running\n• Verify beads is installed correctly\n• Run 'bd doctor' for diagnostics"
-                        ));
-                    }
-                }
+                let _ = app.spawn_task("Starting daemon", |client| async move {
+                    client.start_daemon().await?;
+                    Ok(TaskOutput::DaemonStarted)
+                });
             }
         }
         KeyCode::Char('s') => {

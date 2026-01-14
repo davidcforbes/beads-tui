@@ -70,13 +70,25 @@ impl Default for BehaviorConfig {
 }
 
 impl Config {
-    /// Load configuration from file
+    /// Load configuration from file with retry logic
     pub fn load() -> Result<Self> {
         let config_path = Self::config_path()?;
 
         let mut config = if config_path.exists() {
-            let content = std::fs::read_to_string(&config_path)?;
-            serde_yaml::from_str(&content)?
+            // Try to read with retries for transient I/O errors
+            let content = Self::read_with_retry(&config_path, 3)?;
+
+            // Try to parse, fall back to default if corrupted
+            match serde_yaml::from_str(&content) {
+                Ok(cfg) => cfg,
+                Err(e) => {
+                    tracing::warn!("Config file corrupted, using defaults: {}", e);
+                    // Create backup of corrupted config
+                    let backup_path = config_path.with_extension("yaml.backup");
+                    let _ = std::fs::copy(&config_path, &backup_path);
+                    Self::default()
+                }
+            }
         } else {
             Self::default()
         };
@@ -90,7 +102,28 @@ impl Config {
         Ok(config)
     }
 
-    /// Save configuration to file
+    /// Read file with retry logic for transient errors
+    fn read_with_retry(path: &std::path::Path, max_attempts: u32) -> Result<String> {
+        use std::thread;
+        use std::time::Duration;
+
+        let mut last_error = None;
+        for attempt in 1..=max_attempts {
+            match std::fs::read_to_string(path) {
+                Ok(content) => return Ok(content),
+                Err(e) => {
+                    last_error = Some(e);
+                    if attempt < max_attempts {
+                        // Exponential backoff: 10ms, 20ms, 40ms
+                        thread::sleep(Duration::from_millis(10 * (1 << (attempt - 1))));
+                    }
+                }
+            }
+        }
+        Err(last_error.unwrap().into())
+    }
+
+    /// Save configuration to file using atomic write
     pub fn save(&self) -> Result<()> {
         let config_path = Self::config_path()?;
 
@@ -99,7 +132,22 @@ impl Config {
         }
 
         let content = serde_yaml::to_string(self)?;
-        std::fs::write(&config_path, content)?;
+
+        // Use atomic write: write to temp file, then rename
+        // This ensures the config file is never in a half-written state
+        use std::io::Write;
+        let temp_dir = config_path
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?;
+        let mut temp_file = ::tempfile::Builder::new()
+            .prefix(".config.yaml.tmp")
+            .tempfile_in(temp_dir)?;
+
+        temp_file.write_all(content.as_bytes())?;
+        temp_file.flush()?;
+
+        // Atomic rename: this is atomic on both Unix and Windows
+        temp_file.persist(&config_path)?;
 
         Ok(())
     }

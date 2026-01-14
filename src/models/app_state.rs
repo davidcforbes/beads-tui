@@ -123,9 +123,8 @@ pub struct AppState {
     pub loading_spinner: Option<crate::ui::widgets::Spinner>,
     /// Loading operation message
     pub loading_message: Option<String>,
-    /// Cancellation token for current operation (None if not cancellable)
-    /// TODO: Implement with tokio_util::sync::CancellationToken (beads-tui-8nexq)
-    pub cancellation_token: Option<()>,
+    /// Cancellation token for current operation (Some if cancellable)
+    pub cancellation_token: Option<tokio_util::sync::CancellationToken>,
     /// Undo/redo stack for reversible operations
     pub undo_stack: UndoStack,
     /// Task manager for background operations
@@ -1017,35 +1016,32 @@ impl AppState {
         self.loading_spinner.is_some()
     }
 
-    /// Start showing a loading indicator with cancellation support
-    /// TODO: Implement with tokio_util::sync::CancellationToken (beads-tui-8nexq)
-    #[allow(dead_code)]
-    pub fn start_loading_cancellable<S: Into<String>>(&mut self, message: S) {
-        // Placeholder implementation until tokio_util is added
-        self.start_loading(message);
-        self.cancellation_token = Some(());
-    }
-
     /// Request cancellation of the current operation
-    /// TODO: Implement with tokio_util::sync::CancellationToken (beads-tui-8nexq)
-    #[allow(dead_code)]
     pub fn request_cancellation(&mut self) {
-        // Placeholder implementation
-        if self.cancellation_token.is_some() {
+        if let Some(token) = &self.cancellation_token {
+            // Cancel the operation
+            token.cancel();
+
             // Update loading message to show cancelled state
             if let Some(ref msg) = self.loading_message {
                 self.loading_message = Some(format!("{} (Cancelling...)", msg));
             }
+
+            tracing::info!("Cancellation requested for current operation");
             self.mark_dirty();
         }
     }
 
     /// Check if cancellation has been requested for the current operation
-    /// TODO: Implement with tokio_util::sync::CancellationToken (beads-tui-8nexq)
-    #[allow(dead_code)]
     pub fn is_cancellation_requested(&self) -> bool {
-        // Placeholder implementation
-        false
+        self.cancellation_token
+            .as_ref()
+            .map_or(false, |token| token.is_cancelled())
+    }
+
+    /// Check if the current operation can be cancelled
+    pub fn can_cancel(&self) -> bool {
+        self.cancellation_token.is_some()
     }
 
     /// Save table configuration from issues view to config and persist to disk
@@ -1085,6 +1081,9 @@ impl AppState {
         // Add to active tasks
         self.active_tasks.push(handle.clone());
 
+        // Store cancellation token for current operation
+        self.cancellation_token = Some(handle.cancellation_token());
+
         // Show loading indicator
         self.start_loading(name);
 
@@ -1106,6 +1105,9 @@ impl AppState {
 
         // Add to active tasks
         self.active_tasks.push(handle.clone());
+
+        // Store cancellation token for current operation
+        self.cancellation_token = Some(handle.cancellation_token());
 
         // Show loading indicator
         self.start_loading(name);
@@ -1142,8 +1144,9 @@ impl AppState {
                                 let msg = format!("✓ {}: {}", handle.name(), output);
                                 self.set_success(msg);
 
-                                // Reload issues if needed
+                                // Handle specific output types
                                 match output {
+                                    // Reload issues for these operations
                                     TaskOutput::IssuesUpdated
                                     | TaskOutput::DatabaseCompacted
                                     | TaskOutput::DatabaseSynced
@@ -1153,6 +1156,13 @@ impl AppState {
                                     | TaskOutput::DependencyAdded
                                     | TaskOutput::DependencyRemoved => {
                                         self.reload_issues();
+                                    }
+                                    // Update daemon state
+                                    TaskOutput::DaemonStarted => {
+                                        self.daemon_running = true;
+                                    }
+                                    TaskOutput::DaemonStopped => {
+                                        self.daemon_running = false;
                                     }
                                     _ => {}
                                 }
