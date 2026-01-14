@@ -18,6 +18,7 @@ pub enum Action {
     DismissNotification,
     ShowNotificationHistory,
     Undo,
+    Redo,
 
     // Navigation
     NextTab,
@@ -68,12 +69,18 @@ pub enum Action {
     ExportDatabase,
     ImportDatabase,
     VerifyDatabase,
+    CompactDatabase,
 
     // Dialogs
     ConfirmDialog,
     CancelDialog,
     NextDialogButton,
     PrevDialogButton,
+
+    // Generic
+    Save,
+    LoadFile,
+    TogglePreview,
 
     // Other
     ToggleExpand,
@@ -92,6 +99,7 @@ impl Action {
             Action::DismissNotification => "Dismiss notification",
             Action::ShowNotificationHistory => "Show notification history",
             Action::Undo => "Undo last action",
+            Action::Redo => "Redo last action",
 
             Action::NextTab => "Next tab",
             Action::PrevTab => "Previous tab",
@@ -137,11 +145,16 @@ impl Action {
             Action::ExportDatabase => "Export database",
             Action::ImportDatabase => "Import database",
             Action::VerifyDatabase => "Verify database",
+            Action::CompactDatabase => "Compact database",
 
             Action::ConfirmDialog => "Confirm",
             Action::CancelDialog => "Cancel",
             Action::NextDialogButton => "Next button",
             Action::PrevDialogButton => "Previous button",
+
+            Action::Save => "Save",
+            Action::LoadFile => "Load from file",
+            Action::TogglePreview => "Toggle preview",
 
             Action::ToggleExpand => "Toggle expand/collapse",
             Action::ShowIssueHistory => "Show issue history",
@@ -313,32 +326,73 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
     let mut bindings = HashMap::new();
 
     // Global actions
-    bindings.insert(Action::Quit, vec![Keybinding::new("q"), Keybinding::ctrl("c")]);
-    bindings.insert(Action::ShowHelp, vec![Keybinding::new("?")]);
+    bindings.insert(
+        Action::Quit,
+        vec![
+            Keybinding::new("q"),
+            Keybinding::ctrl("q"),
+            Keybinding::ctrl("c"),
+        ],
+    );
+    bindings.insert(
+        Action::ShowHelp,
+        vec![Keybinding::new("?"), Keybinding::new("f1")],
+    );
     bindings.insert(Action::ShowShortcutHelp, vec![Keybinding::new("?")]); // Same as ShowHelp (they're the same thing)
-    bindings.insert(Action::TogglePerfStats, vec![Keybinding::ctrl("p")]);
+    bindings.insert(
+        Action::TogglePerfStats,
+        vec![Keybinding::ctrl("p"), Keybinding::new("f12")],
+    );
     bindings.insert(Action::DismissNotification, vec![Keybinding::new("esc")]); // Context: when notification shown
-    bindings.insert(Action::ShowNotificationHistory, vec![Keybinding::ctrl("h")]);
+    bindings.insert(
+        Action::ShowNotificationHistory,
+        vec![Keybinding::ctrl("h"), Keybinding::new("N")],
+    );
     bindings.insert(Action::Undo, vec![Keybinding::ctrl("z")]);
+    bindings.insert(Action::Redo, vec![Keybinding::ctrl("y")]);
 
     // Navigation
-    bindings.insert(Action::NextTab, vec![Keybinding::new("tab"), Keybinding::new("right")]);
-    bindings.insert(Action::PrevTab, vec![Keybinding::shift("tab"), Keybinding::new("left")]);
-    bindings.insert(Action::MoveUp, vec![Keybinding::new("up"), Keybinding::new("k")]);
-    bindings.insert(Action::MoveDown, vec![Keybinding::new("down"), Keybinding::new("j")]);
-    bindings.insert(Action::MoveLeft, vec![Keybinding::new("left"), Keybinding::new("h")]);
-    bindings.insert(Action::MoveRight, vec![Keybinding::new("right")]);
-    bindings.insert(Action::PageUp, vec![Keybinding::new("pageup"), Keybinding::ctrl("u")]);
-    bindings.insert(Action::PageDown, vec![Keybinding::new("pagedown"), Keybinding::ctrl("d")]);
-    bindings.insert(Action::Home, vec![Keybinding::new("home"), Keybinding::new("g")]);
-    bindings.insert(Action::End, vec![Keybinding::new("end"), Keybinding::shift("g")]);
+    bindings.insert(Action::NextTab, vec![Keybinding::new("tab")]);
+    bindings.insert(Action::PrevTab, vec![Keybinding::shift("tab")]);
+    bindings.insert(
+        Action::MoveUp,
+        vec![Keybinding::new("up"), Keybinding::new("k")],
+    );
+    bindings.insert(
+        Action::MoveDown,
+        vec![Keybinding::new("down"), Keybinding::new("j")],
+    );
+    bindings.insert(
+        Action::MoveLeft,
+        vec![Keybinding::new("left"), Keybinding::new("h")],
+    );
+    bindings.insert(
+        Action::MoveRight,
+        vec![Keybinding::new("right"), Keybinding::new("l")],
+    );
+    bindings.insert(
+        Action::PageUp,
+        vec![Keybinding::new("pageup"), Keybinding::ctrl("u")],
+    );
+    bindings.insert(
+        Action::PageDown,
+        vec![Keybinding::new("pagedown"), Keybinding::ctrl("d")],
+    );
+    bindings.insert(
+        Action::Home,
+        vec![Keybinding::new("home"), Keybinding::new("g")],
+    );
+    bindings.insert(
+        Action::End,
+        vec![Keybinding::new("end"), Keybinding::shift("G")],
+    );
 
     // Issue management
     bindings.insert(Action::CreateIssue, vec![Keybinding::new("n")]);
     bindings.insert(Action::EditIssue, vec![Keybinding::new("e")]);
     bindings.insert(Action::DeleteIssue, vec![Keybinding::new("d")]);
-    bindings.insert(Action::CloseIssue, vec![Keybinding::new("c")]);
-    bindings.insert(Action::ReopenIssue, vec![Keybinding::new("r")]);
+    bindings.insert(Action::CloseIssue, vec![Keybinding::new("x")]);
+    bindings.insert(Action::ReopenIssue, vec![Keybinding::new("o")]);
     bindings.insert(Action::ToggleSelection, vec![Keybinding::new(" ")]);
     bindings.insert(Action::SelectAll, vec![Keybinding::ctrl("a")]);
     bindings.insert(Action::DeselectAll, vec![Keybinding::ctrl("n")]);
@@ -354,7 +408,10 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
     bindings.insert(Action::OutdentIssue, vec![Keybinding::new("<")]);
 
     // View operations
-    bindings.insert(Action::Refresh, vec![Keybinding::ctrl("r"), Keybinding::new("f5")]);
+    bindings.insert(
+        Action::Refresh,
+        vec![Keybinding::new("r"), Keybinding::new("f5")],
+    );
     bindings.insert(Action::ToggleFilter, vec![Keybinding::new("f")]);
     bindings.insert(Action::ClearFilter, vec![Keybinding::shift("f")]);
     bindings.insert(Action::SaveFilter, vec![Keybinding::alt("s")]);
@@ -366,21 +423,41 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
     bindings.insert(Action::ToggleRegexSearch, vec![Keybinding::alt("r")]);
 
     // Database operations
-    bindings.insert(Action::SyncDatabase, vec![Keybinding::ctrl("s")]);
-    bindings.insert(Action::ExportDatabase, vec![Keybinding::ctrl("e")]);
-    bindings.insert(Action::ImportDatabase, vec![Keybinding::ctrl("i")]);
-    bindings.insert(Action::VerifyDatabase, vec![Keybinding::ctrl("v")]);
+    bindings.insert(Action::SyncDatabase, vec![Keybinding::new("s")]);
+    bindings.insert(Action::ExportDatabase, vec![Keybinding::new("x")]);
+    bindings.insert(Action::ImportDatabase, vec![Keybinding::new("i")]);
+    bindings.insert(Action::VerifyDatabase, vec![Keybinding::new("v")]);
+    bindings.insert(Action::CompactDatabase, vec![Keybinding::new("c")]);
 
-    // Dialogs (context-specific, same keys as navigation)
-    bindings.insert(Action::ConfirmDialog, vec![Keybinding::new("enter"), Keybinding::new("y")]);
+    // Dialogs
+    bindings.insert(Action::ConfirmDialog, vec![Keybinding::new("enter")]);
     bindings.insert(Action::CancelDialog, vec![Keybinding::new("esc")]);
-    bindings.insert(Action::NextDialogButton, vec![Keybinding::new("tab"), Keybinding::new("right")]);
-    bindings.insert(Action::PrevDialogButton, vec![Keybinding::shift("tab"), Keybinding::new("left")]);
+    bindings.insert(
+        Action::NextDialogButton,
+        vec![
+            Keybinding::new("tab"),
+            Keybinding::new("right"),
+            Keybinding::new("l"),
+        ],
+    );
+    bindings.insert(
+        Action::PrevDialogButton,
+        vec![
+            Keybinding::shift("tab"),
+            Keybinding::new("left"),
+            Keybinding::new("h"),
+        ],
+    );
+
+    // Generic
+    bindings.insert(Action::Save, vec![Keybinding::ctrl("s")]);
+    bindings.insert(Action::LoadFile, vec![Keybinding::ctrl("l")]);
+    bindings.insert(Action::TogglePreview, vec![Keybinding::ctrl("p")]);
 
     // Other
     bindings.insert(Action::ToggleExpand, vec![Keybinding::new("enter")]);
     bindings.insert(Action::ShowIssueHistory, vec![Keybinding::alt("h")]);
-    bindings.insert(Action::ShowColumnManager, vec![Keybinding::new("m")]);
+    bindings.insert(Action::ShowColumnManager, vec![Keybinding::new("c")]);
 
     bindings
 }
@@ -490,13 +567,19 @@ mod tests {
             .filter(|(_binding, actions)| {
                 // A conflict is acceptable if ALL actions involved are contextual
                 // (they won't fire at the same time due to UI state)
-                !actions.iter().all(|action| contextual_actions.contains(action))
+                !actions
+                    .iter()
+                    .all(|action| contextual_actions.contains(action))
             })
             .collect();
 
         // Print any remaining conflicts
         for (binding, actions) in &non_contextual_conflicts {
-            eprintln!("Non-contextual conflict: {} -> {:?}", binding.display(), actions);
+            eprintln!(
+                "Non-contextual conflict: {} -> {:?}",
+                binding.display(),
+                actions
+            );
         }
 
         assert_eq!(

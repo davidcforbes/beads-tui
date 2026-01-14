@@ -1,78 +1,80 @@
-# Keyboard Shortcuts
+# Keyboard Shortcuts Reference Guide
 
-## Global
-- `1`-`9`: Switch to tab
-- `Tab`: Next tab
-- `Shift+Tab`: Previous tab
-- `q`: Quit
-- `?`: Toggle keyboard shortcuts help
-- `F1`: Toggle context-sensitive help
-- `F1`-`F11`: Apply saved filter (if on Issues tab)
-- `Ctrl+P` or `F12`: Toggle performance statistics
+This guide outlines the universal keyboard shortcuts for the application.
+
+## Global Actions
+| Key | Action | Description |
+|---|---|---|
+| `q` or `Ctrl+q` | Quit | Exit the application |
+| `?` | Help | Toggle keyboard shortcuts overlay |
+| `F1` | Context Help | Toggle context-sensitive help |
+| `Ctrl+p` or `F12` | Performance | Toggle performance statistics |
+| `Ctrl+z` | Undo | Undo last action |
+| `Ctrl+y` | Redo | Redo last undone action |
+
+## Navigation
+| Key | Action | Description |
+|---|---|---|
+| `Tab` | Next Tab | Switch to the next view tab |
+| `Shift+Tab` | Prev Tab | Switch to the previous view tab |
+| `1`-`9` | Jump Tab | Switch directly to a specific tab |
+| `j` or `↓` | Down | Move selection down |
+| `k` or `↑` | Up | Move selection up |
+| `h` or `←` | Left | Move left / Collapse / Back |
+| `l` or `→` | Right | Move right / Expand / Forward |
+| `g` / `Home` | Top | Jump to top of list |
+| `G` / `End` | Bottom | Jump to bottom of list |
+
+## General Operations
+| Key | Action | Description |
+|---|---|---|
+| `Enter` | Confirm/View | Open details, confirm dialog, or edit selection |
+| `Esc` | Cancel/Back | Close dialogs, clear selection, go back |
+| `Ctrl+s` | Save | Save current item or configuration |
+| `r` | Refresh | Refresh data from database |
 
 ## Issues View
-- `j` / `Down`: Select next issue
-- `k` / `Up`: Select previous issue
-- `Enter`: View issue details
-- `c`: Create new issue
-- `e`: Edit selected issue
-- `d`: Delete selected issue
-- `x`: Close selected issue
-- `o`: Reopen selected issue
-- `r`: Quick edit title
-- `>`: Indent issue (make child of previous)
-- `<`: Outdent issue (promote to parent level)
-- `Ctrl+Up`/`Ctrl+Down`: Reorder child within parent
-- `/`: Focus search bar
-- `Esc`: Clear search / focus
-- `Ctrl+S`: Save current filter
-- `m`: Open saved filters menu
-- `f`: Toggle column filters (Quick Filters)
-- `v`: Cycle view (All, Ready, My Issues, etc.)
-- `s`: Cycle search scope (All, Title, Description, etc.)
-- `g`: Toggle Regex search
-- `z`: Toggle Fuzzy search
-- `l`: Toggle Label Logic (AND/OR)
-- `Alt+Left`/`Right`: Move focused column
-- `Alt+Shift+Left`/`Right`: Resize focused column
-- `Alt+Tab`: Focus next column
+| Key | Action | Description |
+|---|---|---|
+| `n` | Create | Create a new issue |
+| `e` | Edit | Edit selected issue |
+| `d` | Delete | Delete selected issue (with confirmation) |
+| `x` | Close | Close selected issue (Status -> Closed) |
+| `o` | Reopen | Reopen selected issue (Status -> Open) |
+| `/` | Search | Focus search bar |
+| `f` | Filter | Toggle quick filters |
+| `Alt+s` | Save Filter | Save current filter configuration |
+| `m` | Filter Menu | Open saved filters menu |
+| `v` | View Mode | Cycle view modes (List, Detail, Split) |
+| `p` | Priority | Change priority of selected issue |
+| `s` | Status | Change status of selected issue (Quick menu) |
+| `+` | Add Dep | Add dependency to selected issue |
+| `>` | Indent | Indent issue (make child of previous) |
+| `<` | Outdent | Outdent issue (promote to parent level) |
 
-## Issue Editor / Creator
-- `Tab`: Next field
-- `Shift+Tab`: Previous field
-- `Enter`: Save / Create
-- `Esc`: Cancel
-- `Ctrl+L`: Load description from file (enter path in field first)
-
-## Filter Menu
-- `j` / `Down`: Next filter
-- `k` / `Up`: Previous filter
-- `Enter`: Apply filter
-- `d` / `Delete`: Delete filter
-- `Esc` / `m`: Close menu
-
-## Dependencies View
-- `j` / `Down`: Next item
-- `k` / `Up`: Previous item
-- `Tab`: Switch focus between Blocks/Blocked By lists
-- `a`: Add dependency
-- `r`: Remove dependency
-- `Enter`: View selected issue
-
-## Labels View
-- `j` / `Down`: Next label
-- `k` / `Up`: Previous label
-- `Enter`: Filter issues by label (switches to Issues view)
-- `a`: Add new label
-- `d`: Delete label
+## Issue Editor / Forms
+| Key | Action | Description |
+|---|---|---|
+| `Tab` | Next Field | Move focus to next form field |
+| `Shift+Tab` | Prev Field | Move focus to previous form field |
+| `Enter` | Submit | Save and close the form |
+| `Esc` | Cancel | Close form without saving |
+| `Ctrl+l` | Load File | Load description content from file path |
+| `Ctrl+p` | Preview | Toggle preview mode (Create form only) |
 
 ## Kanban View
-- `Left`/`Right`: Move selection between columns
-- `Up`/`Down`: Move selection within column
-- `Space`: Move card to next column
-- `c`: Configure board
-- `Enter`: View issue details
+| Key | Action | Description |
+|---|---|---|
+| `h` / `l` | Move Column | Move selection between columns |
+| `j` / `k` | Move Card | Move selection within column |
+| `Space` | Advance | Move card to next stage (column) |
+| `c` | Configure | Configure board columns |
 
-## Help View
-- `Left`/`Right`: Change help section
-- `h`/`l`: Change help section
+## Database View
+| Key | Action | Description |
+|---|---|---|
+| `s` | Sync | Sync database with remote |
+| `v` | Verify | Verify database integrity |
+| `c` | Compact | Compact database |
+| `x` | Export | Export issues to JSONL |
+| `i` | Import | Import issues from JSONL |
