@@ -86,6 +86,12 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         return;
     }
 
+    // Handle undo (Ctrl+Z)
+    if key_code == KeyCode::Char('z') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        runtime::RUNTIME.block_on(app.undo()).ok();
+        return;
+    }
+
     // Clear errors when entering create or edit mode
     if matches!(key_code, KeyCode::Char('c') | KeyCode::Char('e')) {
         app.clear_error();
@@ -132,6 +138,13 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         } else if let Some(issue_id) = action.strip_prefix("close:") {
                             tracing::info!("Confirmed close for issue: {}", issue_id);
 
+                            // Capture current status for undo before closing
+                            let old_status = app
+                                .issues_view_state
+                                .search_state()
+                                .selected_issue()
+                                .map(|issue| issue.status.to_string());
+
                             // Show loading indicator
                             app.start_loading(format!("Closing issue {}...", issue_id));
 
@@ -140,6 +153,20 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             match runtime::RUNTIME.block_on(client.close_issue(issue_id, None)) {
                                 Ok(()) => {
                                     tracing::info!("Successfully closed issue: {}", issue_id);
+
+                                    // Add undo entry if we captured the old status
+                                    if let Some(status) = old_status {
+                                        app.undo_history.push(crate::models::UndoEntry {
+                                            description: format!("Closed issue {}", issue_id),
+                                            reverse_command: vec![
+                                                "update".to_string(),
+                                                issue_id.to_string(),
+                                                format!("--status={}", status),
+                                            ],
+                                            timestamp: std::time::SystemTime::now(),
+                                        });
+                                    }
+
                                     app.reload_issues();
                                     app.stop_loading();
                                 }
@@ -502,6 +529,22 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                                     from_id,
                                                     to_id
                                                 );
+
+                                                // Add undo entry
+                                                app.undo_history.push(crate::models::UndoEntry {
+                                                    description: format!(
+                                                        "Added dependency: {} depends on {}",
+                                                        from_id, to_id
+                                                    ),
+                                                    reverse_command: vec![
+                                                        "dep".to_string(),
+                                                        "remove".to_string(),
+                                                        from_id.clone(),
+                                                        to_id.clone(),
+                                                    ],
+                                                    timestamp: std::time::SystemTime::now(),
+                                                });
+
                                                 app.set_success(format!(
                                                     "Added dependency: {} depends on {}",
                                                     from_id, to_id
@@ -905,6 +948,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         // Reopen selected issue
                         if let Some(issue) = issues_state.search_state().selected_issue() {
                             let issue_id = issue.id.clone();
+                            let old_status = issue.status.to_string();
                             tracing::info!("Reopening issue: {}", issue_id);
 
                             // Create a tokio runtime to execute the async call
@@ -917,6 +961,17 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 Ok(()) => {
                                     app.stop_loading();
                                     tracing::info!("Successfully reopened issue: {}", issue_id);
+
+                                    // Add undo entry
+                                    app.undo_history.push(crate::models::UndoEntry {
+                                        description: format!("Reopened issue {}", issue_id),
+                                        reverse_command: vec![
+                                            "update".to_string(),
+                                            issue_id.to_string(),
+                                            format!("--status={}", old_status),
+                                        ],
+                                        timestamp: std::time::SystemTime::now(),
+                                    });
 
                                     // Reload issues list
                                     app.reload_issues();
@@ -2077,6 +2132,12 @@ fn run_app<B: ratatui::backend::Backend>(
                     || key.code == KeyCode::F(12)
                 {
                     app.toggle_perf_stats();
+                    continue;
+                }
+
+                // Check for ESC during loading operations to request cancellation
+                if key.code == KeyCode::Esc && app.is_loading() {
+                    app.request_cancellation();
                     continue;
                 }
 

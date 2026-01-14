@@ -352,6 +352,21 @@ impl BeadsClient {
         Ok(())
     }
 
+    /// Execute arbitrary bd command for undo operations
+    /// This is a public wrapper around execute_command that allows
+    /// executing any bd CLI command, primarily for undo functionality
+    ///
+    /// # Arguments
+    /// * `args` - Command arguments (e.g., ["update", "beads-abc", "--title=Old Title"])
+    ///
+    /// # Returns
+    /// * `Ok(())` if command succeeded
+    /// * `Err` if command failed with error message from stderr
+    pub async fn execute_raw_command(&self, args: &[String]) -> Result<()> {
+        self.execute_command(args).await?;
+        Ok(())
+    }
+
     /// Execute a bd command with timeout
     async fn execute_command(&self, args: &[String]) -> Result<String> {
         let mut cmd = TokioCommand::new(&self.bd_path);

@@ -129,6 +129,10 @@ impl<'a> HelpView<'a> {
                 Span::styled("Ctrl+C", Style::default().fg(Color::Green)),
                 Span::raw("    - Force quit"),
             ]),
+            Line::from(vec![
+                Span::styled("Ctrl+Z", Style::default().fg(Color::Green)),
+                Span::raw("    - Undo last operation"),
+            ]),
         ]
     }
 

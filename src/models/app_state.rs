@@ -1,8 +1,7 @@
 /// Application state management
 use crate::beads::BeadsClient;
 use crate::config::Config;
-use crate::models::SavedFilter;
-use std::collections::VecDeque;
+use crate::models::{SavedFilter, UndoHistory};
 use crate::ui::views::{
     compute_label_stats, BondingInterfaceState, DatabaseStats, DatabaseStatus, DatabaseViewState,
     DependenciesViewState, Formula, FormulaBrowserState, GanttViewState, HelpSection,
@@ -12,6 +11,8 @@ use crate::ui::views::{
 use crate::ui::widgets::{
     DependencyDialogState, DialogState, FilterQuickSelectState, FilterSaveDialogState,
 };
+use std::collections::VecDeque;
+use tokio_util::sync::CancellationToken;
 
 use super::PerfStats;
 
@@ -117,6 +118,11 @@ pub struct AppState {
     pub loading_spinner: Option<crate::ui::widgets::Spinner>,
     /// Loading operation message
     pub loading_message: Option<String>,
+    /// Cancellation token for current operation (None if not cancellable)
+    /// TODO: Implement with tokio_util::sync::CancellationToken (beads-tui-8nexq)
+    pub cancellation_token: Option<()>,
+    /// Undo history for reversible operations
+    pub undo_history: UndoHistory,
 }
 
 impl AppState {
@@ -128,10 +134,8 @@ impl AppState {
 
         // Compute label statistics
         let label_stats = compute_label_stats(&issues);
-        let label_picker_labels: Vec<String> = label_stats
-            .iter()
-            .map(|stat| stat.name.clone())
-            .collect();
+        let label_picker_labels: Vec<String> =
+            label_stats.iter().map(|stat| stat.name.clone()).collect();
 
         // Create database stats
         let database_stats = DatabaseStats {
@@ -255,12 +259,15 @@ impl AppState {
             show_context_help: false,
             loading_spinner: None,
             loading_message: None,
+            cancellation_token: None,
+            undo_history: UndoHistory::new(20),
         }
     }
 
     /// Load issues synchronously using tokio runtime
     fn load_issues_sync(client: &BeadsClient) -> Vec<crate::beads::models::Issue> {
-        crate::runtime::RUNTIME.block_on(client.list_issues(None, None))
+        crate::runtime::RUNTIME
+            .block_on(client.list_issues(None, None))
             .unwrap_or_else(|e| {
                 tracing::warn!("Failed to load issues: {:?}", e);
                 vec![]
@@ -269,7 +276,8 @@ impl AppState {
 
     /// Check daemon status synchronously using tokio runtime
     fn check_daemon_status_sync(client: &BeadsClient) -> bool {
-        crate::runtime::RUNTIME.block_on(client.check_daemon_status())
+        crate::runtime::RUNTIME
+            .block_on(client.check_daemon_status())
             .unwrap_or_else(|e| {
                 tracing::warn!("Failed to check daemon status: {:?}", e);
                 false
@@ -412,6 +420,26 @@ impl AppState {
         self.set_notification(message, NotificationType::Warning);
     }
 
+    /// Undo the most recent operation
+    /// Executes the reverse command stored in undo history
+    /// Returns Ok(()) if successful, Err(message) if failed
+    ///
+    /// TODO: Requires execute_raw_command method in BeadsClient (beads-tui-5vgzt)
+    #[allow(dead_code)]
+    pub async fn undo(&mut self) -> Result<(), String> {
+        if let Some(_entry) = self.undo_history.pop() {
+            // TODO: Execute reverse command using beads_client.execute_raw_command
+            // Placeholder for now until execute_raw_command is implemented
+            self.set_error(
+                "Undo not yet implemented - requires BeadsClient.execute_raw_command".to_string(),
+            );
+            Err("Not implemented".to_string())
+        } else {
+            self.set_info("Nothing to undo".to_string());
+            Ok(())
+        }
+    }
+
     /// Clear the oldest notification from the queue
     pub fn clear_notification(&mut self) {
         if !self.notifications.is_empty() {
@@ -435,8 +463,7 @@ impl AppState {
     /// Info and Success notifications are auto-dismissed after 3 seconds
     /// Error and Warning notifications require manual dismissal
     pub fn check_notification_timeout(&mut self) {
-        const AUTO_DISMISS_DURATION: std::time::Duration =
-            std::time::Duration::from_secs(3);
+        const AUTO_DISMISS_DURATION: std::time::Duration = std::time::Duration::from_secs(3);
 
         // Remove expired Info and Success notifications
         self.notifications.retain(|notification| {
@@ -534,7 +561,10 @@ impl AppState {
         };
 
         // Update the filter in config
-        if !self.config.update_filter(&editing_name, saved_filter.clone()) {
+        if !self
+            .config
+            .update_filter(&editing_name, saved_filter.clone())
+        {
             return Err(format!("Filter '{}' not found", editing_name));
         }
 
@@ -545,10 +575,14 @@ impl AppState {
         })?;
 
         // Synchronize saved filters with search state
-        self.issues_view_state.set_saved_filters(self.config.filters.clone());
+        self.issues_view_state
+            .set_saved_filters(self.config.filters.clone());
 
         // Show success notification
-        self.set_success(format!("Filter '{}' updated successfully", saved_filter.name));
+        self.set_success(format!(
+            "Filter '{}' updated successfully",
+            saved_filter.name
+        ));
 
         // Clear edit state
         self.editing_filter_name = None;
@@ -663,12 +697,16 @@ impl AppState {
             .clone();
 
         // Show loading indicator
-        self.start_loading(format!("Removing dependency {} → {}...", issue_id, depends_on_id));
+        self.start_loading(format!(
+            "Removing dependency {} → {}...",
+            issue_id, depends_on_id
+        ));
 
         // Use the beads client to remove the dependency
         use crate::runtime;
         match runtime::RUNTIME.block_on(
-            self.beads_client.remove_dependency(&issue_id, &depends_on_id),
+            self.beads_client
+                .remove_dependency(&issue_id, &depends_on_id),
         ) {
             Ok(()) => {
                 tracing::info!(
@@ -857,12 +895,44 @@ impl AppState {
     pub fn stop_loading(&mut self) {
         self.loading_spinner = None;
         self.loading_message = None;
+        self.cancellation_token = None;
         self.mark_dirty();
     }
 
     /// Check if a loading operation is in progress
     pub fn is_loading(&self) -> bool {
         self.loading_spinner.is_some()
+    }
+
+    /// Start showing a loading indicator with cancellation support
+    /// TODO: Implement with tokio_util::sync::CancellationToken (beads-tui-8nexq)
+    #[allow(dead_code)]
+    pub fn start_loading_cancellable<S: Into<String>>(&mut self, message: S) {
+        // Placeholder implementation until tokio_util is added
+        self.start_loading(message);
+        self.cancellation_token = Some(());
+    }
+
+    /// Request cancellation of the current operation
+    /// TODO: Implement with tokio_util::sync::CancellationToken (beads-tui-8nexq)
+    #[allow(dead_code)]
+    pub fn request_cancellation(&mut self) {
+        // Placeholder implementation
+        if self.cancellation_token.is_some() {
+            // Update loading message to show cancelled state
+            if let Some(ref msg) = self.loading_message {
+                self.loading_message = Some(format!("{} (Cancelling...)", msg));
+            }
+            self.mark_dirty();
+        }
+    }
+
+    /// Check if cancellation has been requested for the current operation
+    /// TODO: Implement with tokio_util::sync::CancellationToken (beads-tui-8nexq)
+    #[allow(dead_code)]
+    pub fn is_cancellation_requested(&self) -> bool {
+        // Placeholder implementation
+        false
     }
 
     /// Save table configuration from issues view to config and persist to disk
@@ -874,7 +944,7 @@ impl AppState {
             .list_state()
             .table_config()
             .clone();
-        
+
         self.config.table = table_config;
 
         // Save config to disk
@@ -958,6 +1028,8 @@ mod tests {
             show_context_help: false,
             loading_spinner: None,
             loading_message: None,
+            cancellation_token: None,
+            undo_history: UndoHistory::new(20),
             notification_history: VecDeque::new(),
             show_notification_history: false,
             notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
@@ -1596,4 +1668,3 @@ mod tests {
         }
     }
 }
-
