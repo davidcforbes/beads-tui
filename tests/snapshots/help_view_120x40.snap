@@ -15,8 +15,8 @@ expression: rendered
 │?         - Toggle help                                                                                               │
 │Ctrl+C    - Force quit                                                                                                │
 │Ctrl+Z    - Undo last operation                                                                                       │
-│                                                                                                                      │
-│                                                                                                                      │
+│Ctrl+Y    - Redo last undone operation                                                                                │
+│Ctrl+H    - Show undo/redo history                                                                                    │
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │

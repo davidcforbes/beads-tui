@@ -91,11 +91,22 @@ impl CreateIssueFormState {
 
         if output.status.success() {
             let user_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !user_name.is_empty() {
-                Ok(user_name)
-            } else {
-                Err("git user.name is empty".to_string())
+            if user_name.is_empty() {
+                return Err("git user.name is empty".to_string());
             }
+
+            // Validate username contains only safe characters
+            if !user_name
+                .chars()
+                .all(|c| c.is_alphanumeric() || " .-_@".contains(c))
+            {
+                return Err(format!(
+                    "git user.name contains invalid characters: {}",
+                    user_name
+                ));
+            }
+
+            Ok(user_name)
         } else {
             Err("git config failed".to_string())
         }
