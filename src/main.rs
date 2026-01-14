@@ -223,7 +223,8 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     let new_columns = cm_state.columns().to_vec();
 
                     // Update table config with new columns
-                    let mut table_config = app.issues_view_state
+                    let mut table_config = app
+                        .issues_view_state
                         .search_state()
                         .list_state()
                         .table_config()
@@ -369,7 +370,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
             }
             KeyCode::Up => {
                 if app.dependency_dialog_state.focus() == DependencyDialogFocus::IssueId {
-                    app.dependency_dialog_state.autocomplete_state.select_previous();
+                    app.dependency_dialog_state
+                        .autocomplete_state
+                        .select_previous();
                     app.mark_dirty();
                 }
                 return;
@@ -397,7 +400,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
             }
             KeyCode::Char(c) => {
                 if app.dependency_dialog_state.focus() == DependencyDialogFocus::IssueId {
-                    app.dependency_dialog_state.autocomplete_state.insert_char(c);
+                    app.dependency_dialog_state
+                        .autocomplete_state
+                        .insert_char(c);
                     app.mark_dirty();
                 }
                 return;
@@ -417,8 +422,14 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 ui::widgets::DependencyType::RelatesTo => {
                                     // Bidirectional "see also" relationship - no cycle check needed
                                     // Using global runtime instead of creating new runtime
-                                    match runtime::RUNTIME.block_on(app.beads_client.relate_issues(&current_id, &target_issue_id)) {
+                                    app.start_loading("Linking issues...");
+
+                                    match runtime::RUNTIME.block_on(
+                                        app.beads_client
+                                            .relate_issues(&current_id, &target_issue_id),
+                                    ) {
                                         Ok(()) => {
+                                            app.stop_loading();
                                             tracing::info!(
                                                 "Created relates_to link: {} <-> {}",
                                                 current_id,
@@ -431,12 +442,17 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                             app.reload_issues();
                                         }
                                         Err(e) => {
-                                            tracing::error!("Failed to create relates_to link: {}", e);
+                                            app.stop_loading();
+                                            tracing::error!(
+                                                "Failed to create relates_to link: {}",
+                                                e
+                                            );
                                             app.set_error(format!("Failed to link issues: {}\n\nCommon causes:\n• One or both issue IDs are invalid\n• Issues not found - verify with 'bd list'\n• Network connectivity issues", e));
                                         }
                                     }
                                 }
-                                ui::widgets::DependencyType::DependsOn | ui::widgets::DependencyType::Blocks => {
+                                ui::widgets::DependencyType::DependsOn
+                                | ui::widgets::DependencyType::Blocks => {
                                     // Blocking dependency - check for cycles
                                     let (from_id, to_id) = match dep_type {
                                         ui::widgets::DependencyType::DependsOn => {
@@ -457,7 +473,11 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                         .filtered_issues()
                                         .to_vec();
 
-                                    if models::PertGraph::would_create_cycle(&all_issues, &from_id, &to_id) {
+                                    if models::PertGraph::would_create_cycle(
+                                        &all_issues,
+                                        &from_id,
+                                        &to_id,
+                                    ) {
                                         app.set_error(format!(
                                             "Cannot add dependency: would create a cycle. {} → {} would form a circular dependency.",
                                             from_id, to_id
@@ -470,8 +490,13 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                     } else {
                                         // Call CLI to add dependency synchronously
                                         // Using global runtime instead of creating new runtime
-                                        match runtime::RUNTIME.block_on(app.beads_client.add_dependency(&from_id, &to_id)) {
+                                        app.start_loading("Adding dependency...");
+
+                                        match runtime::RUNTIME.block_on(
+                                            app.beads_client.add_dependency(&from_id, &to_id),
+                                        ) {
                                             Ok(()) => {
+                                                app.stop_loading();
                                                 tracing::info!(
                                                     "Added dependency: {} depends on {}",
                                                     from_id,
@@ -485,6 +510,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                                 app.reload_issues();
                                             }
                                             Err(e) => {
+                                                app.stop_loading();
                                                 tracing::error!("Failed to add dependency: {}", e);
                                                 app.set_error(format!(
                                                     "Failed to add dependency: {}\n\nCommon causes:\n• Dependency would create a cycle\n• Invalid issue ID format\n• Issue not found",
@@ -752,19 +778,28 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 tracing::info!("Saving title edit for {}: {}", issue_id, new_title);
 
                                 // Create IssueUpdate with only title
-                                let update = crate::beads::client::IssueUpdate::new()
-                                    .title(new_title);
+                                let update =
+                                    crate::beads::client::IssueUpdate::new().title(new_title);
 
                                 // Execute the update
                                 // Using global runtime instead of creating new runtime
-                                let client = &app.beads_client;
+                                let client = app.beads_client.clone();
 
-                                match runtime::RUNTIME.block_on(client.update_issue(&issue_id, update)) {
+                                app.start_loading("Updating title...");
+
+                                match runtime::RUNTIME
+                                    .block_on(client.update_issue(&issue_id, update))
+                                {
                                     Ok(()) => {
-                                        tracing::info!("Successfully updated title for: {}", issue_id);
+                                        app.stop_loading();
+                                        tracing::info!(
+                                            "Successfully updated title for: {}",
+                                            issue_id
+                                        );
                                         app.reload_issues();
                                     }
                                     Err(e) => {
+                                        app.stop_loading();
                                         tracing::error!("Failed to update title: {:?}", e);
                                     }
                                 }
@@ -773,23 +808,38 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     }
                     KeyCode::Esc => {
                         // Cancel editing
-                        issues_state.search_state_mut().list_state_mut().cancel_editing();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .cancel_editing();
                     }
                     KeyCode::Char(ch) => {
                         // Insert character
-                        issues_state.search_state_mut().list_state_mut().insert_char_at_cursor(ch);
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .insert_char_at_cursor(ch);
                     }
                     KeyCode::Backspace => {
                         // Delete character before cursor
-                        issues_state.search_state_mut().list_state_mut().delete_char_before_cursor();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .delete_char_before_cursor();
                     }
                     KeyCode::Left => {
                         // Move cursor left
-                        issues_state.search_state_mut().list_state_mut().move_cursor_left();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .move_cursor_left();
                     }
                     KeyCode::Right => {
                         // Move cursor right
-                        issues_state.search_state_mut().list_state_mut().move_cursor_right();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .move_cursor_right();
                     }
                     _ => {}
                 }
@@ -833,7 +883,8 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             .table_config()
                             .columns
                             .clone();
-                        app.column_manager_state = Some(crate::ui::widgets::ColumnManagerState::new(current_columns));
+                        app.column_manager_state =
+                            Some(crate::ui::widgets::ColumnManagerState::new(current_columns));
                         tracing::debug!("Opened column manager");
                     }
                     KeyCode::Char('x') => {
@@ -855,19 +906,23 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if let Some(issue) = issues_state.search_state().selected_issue() {
                             let issue_id = issue.id.clone();
                             tracing::info!("Reopening issue: {}", issue_id);
-                            
+
                             // Create a tokio runtime to execute the async call
                             // Using global runtime instead of creating new runtime
-                            let client = &app.beads_client;
-                            
+                            let client = app.beads_client.clone();
+
+                            app.start_loading("Reopening issue...");
+
                             match runtime::RUNTIME.block_on(client.reopen_issue(&issue_id)) {
                                 Ok(()) => {
+                                    app.stop_loading();
                                     tracing::info!("Successfully reopened issue: {}", issue_id);
-                                    
+
                                     // Reload issues list
                                     app.reload_issues();
                                 }
                                 Err(e) => {
+                                    app.stop_loading();
                                     tracing::error!("Failed to reopen issue: {:?}", e);
                                 }
                             }
@@ -892,9 +947,18 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         // Start in-place editing of title
                         if let Some(issue) = issues_state.search_state().selected_issue() {
                             let title = issue.title.clone();
-                            if let Some(selected_idx) = issues_state.search_state().list_state().selected() {
-                                tracing::info!("Starting in-place edit for {}: {}", issue.id, title);
-                                issues_state.search_state_mut().list_state_mut().start_editing(selected_idx, title);
+                            if let Some(selected_idx) =
+                                issues_state.search_state().list_state().selected()
+                            {
+                                tracing::info!(
+                                    "Starting in-place edit for {}: {}",
+                                    issue.id,
+                                    title
+                                );
+                                issues_state
+                                    .search_state_mut()
+                                    .list_state_mut()
+                                    .start_editing(selected_idx, title);
                             }
                         }
                     }
@@ -907,32 +971,52 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             // Get the previous issue in the filtered list
                             if let Some(idx) = selected_idx {
                                 if idx > 0 {
-                                    let filtered_issues = issues_state.search_state().filtered_issues();
+                                    let filtered_issues =
+                                        issues_state.search_state().filtered_issues();
                                     if let Some(prev_issue) = filtered_issues.get(idx - 1) {
                                         let prev_id = prev_issue.id.clone();
 
-                                        tracing::info!("Indenting {} under {}", selected_id, prev_id);
+                                        tracing::info!(
+                                            "Indenting {} under {}",
+                                            selected_id,
+                                            prev_id
+                                        );
 
                                         // Create a tokio runtime to execute the async call
                                         // Using global runtime instead of creating new runtime
-                                        let client = &app.beads_client;
+                                        let client = app.beads_client.clone();
+
+                                        app.start_loading("Indenting issue...");
 
                                         // Add dependency: selected depends on previous (previous blocks selected)
-                                        match runtime::RUNTIME.block_on(client.add_dependency(&selected_id, &prev_id)) {
+                                        match runtime::RUNTIME
+                                            .block_on(client.add_dependency(&selected_id, &prev_id))
+                                        {
                                             Ok(()) => {
-                                                tracing::info!("Successfully indented {} under {}", selected_id, prev_id);
-                                                app.set_success(format!("Indented issue under {}", prev_id));
+                                                app.stop_loading();
+                                                tracing::info!(
+                                                    "Successfully indented {} under {}",
+                                                    selected_id,
+                                                    prev_id
+                                                );
+                                                app.set_success(format!(
+                                                    "Indented issue under {}",
+                                                    prev_id
+                                                ));
 
                                                 // Reload issues list to reflect the hierarchy change
                                                 app.reload_issues();
                                             }
                                             Err(e) => {
+                                                app.stop_loading();
                                                 tracing::error!("Failed to indent issue: {:?}", e);
                                                 app.set_error(format!("Failed to indent: {e}\n\nTip: Ensure the previous issue is valid and can be a parent.\nCheck 'bd show' to verify issue hierarchy."));
                                             }
                                         }
                                     } else {
-                                        app.set_error("No previous issue to indent under".to_string());
+                                        app.set_error(
+                                            "No previous issue to indent under".to_string(),
+                                        );
                                     }
                                 } else {
                                     app.set_error("Cannot indent first issue".to_string());
@@ -947,27 +1031,45 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 
                             // Find the parent (issue that blocks the selected issue)
                             let all_issues = issues_state.all_issues();
-                            let parent_id = all_issues.iter()
+                            let parent_id = all_issues
+                                .iter()
                                 .find(|issue| issue.blocks.contains(&selected_id))
                                 .map(|issue| issue.id.clone());
 
                             if let Some(parent_id) = parent_id {
-                                tracing::info!("Outdenting {} from parent {}", selected_id, parent_id);
+                                tracing::info!(
+                                    "Outdenting {} from parent {}",
+                                    selected_id,
+                                    parent_id
+                                );
 
                                 // Create a tokio runtime to execute the async call
                                 // Using global runtime instead of creating new runtime
-                                let client = &app.beads_client;
+                                let client = app.beads_client.clone();
+
+                                app.start_loading("Outdenting issue...");
 
                                 // Remove dependency: selected no longer depends on parent
-                                match runtime::RUNTIME.block_on(client.remove_dependency(&selected_id, &parent_id)) {
+                                match runtime::RUNTIME
+                                    .block_on(client.remove_dependency(&selected_id, &parent_id))
+                                {
                                     Ok(()) => {
-                                        tracing::info!("Successfully outdented {} from {}", selected_id, parent_id);
-                                        app.set_success(format!("Outdented issue from {}", parent_id));
+                                        app.stop_loading();
+                                        tracing::info!(
+                                            "Successfully outdented {} from {}",
+                                            selected_id,
+                                            parent_id
+                                        );
+                                        app.set_success(format!(
+                                            "Outdented issue from {}",
+                                            parent_id
+                                        ));
 
                                         // Reload issues list to reflect the hierarchy change
                                         app.reload_issues();
                                     }
                                     Err(e) => {
+                                        app.stop_loading();
                                         tracing::error!("Failed to outdent issue: {:?}", e);
                                         app.set_error(format!("Failed to outdent: {e}\n\nTip: Check the issue hierarchy with 'bd show'.\nEnsure dependencies allow this change."));
                                     }
@@ -979,32 +1081,50 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     }
                     KeyCode::Char('f') => {
                         // Toggle quick filters
-                        issues_state.search_state_mut().list_state_mut().toggle_filters();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .toggle_filters();
                         issues_state.search_state_mut().update_filtered_issues();
                         let enabled = issues_state.search_state().list_state().filters_enabled();
-                        tracing::info!("Quick filters toggled: {}", if enabled { "enabled" } else { "disabled" });
+                        tracing::info!(
+                            "Quick filters toggled: {}",
+                            if enabled { "enabled" } else { "disabled" }
+                        );
                     }
                     KeyCode::Char('v') => {
                         // Cycle view
                         issues_state.search_state_mut().next_view();
-                        tracing::debug!("Cycled to next view: {:?}", issues_state.search_state().current_view());
+                        tracing::debug!(
+                            "Cycled to next view: {:?}",
+                            issues_state.search_state().current_view()
+                        );
                     }
                     KeyCode::Char('s') => {
                         // Cycle search scope
                         issues_state.search_state_mut().next_search_scope();
-                        tracing::debug!("Cycled to next scope: {:?}", issues_state.search_state().search_scope());
+                        tracing::debug!(
+                            "Cycled to next scope: {:?}",
+                            issues_state.search_state().search_scope()
+                        );
                     }
                     KeyCode::Char('g') => {
                         // Toggle regex
                         issues_state.search_state_mut().toggle_regex();
                         let enabled = issues_state.search_state().is_regex_enabled();
-                        app.set_info(format!("Regex search {}", if enabled { "enabled" } else { "disabled" }));
+                        app.set_info(format!(
+                            "Regex search {}",
+                            if enabled { "enabled" } else { "disabled" }
+                        ));
                     }
                     KeyCode::Char('z') => {
                         // Toggle fuzzy
                         issues_state.search_state_mut().toggle_fuzzy();
                         let enabled = issues_state.search_state().is_fuzzy_enabled();
-                        app.set_info(format!("Fuzzy search {}", if enabled { "enabled" } else { "disabled" }));
+                        app.set_info(format!(
+                            "Fuzzy search {}",
+                            if enabled { "enabled" } else { "disabled" }
+                        ));
                     }
                     KeyCode::Char('l') => {
                         // Toggle label logic
@@ -1035,11 +1155,13 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 .iter()
                                 .flat_map(|i| i.labels.iter().cloned())
                                 .collect();
-                            let mut available_labels: Vec<String> = all_labels.into_iter().collect();
+                            let mut available_labels: Vec<String> =
+                                all_labels.into_iter().collect();
                             available_labels.sort();
 
                             // Set available labels and current issue's labels as selected
-                            app.label_picker_state.set_available_labels(available_labels);
+                            app.label_picker_state
+                                .set_available_labels(available_labels);
                             app.label_picker_state.set_selected_labels(current_labels);
 
                             // Open picker
@@ -1061,18 +1183,32 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     KeyCode::Esc => {
                         issues_state.search_state_mut().clear_search();
                     }
-                    KeyCode::Left if key.modifiers.contains(KeyModifiers::ALT | KeyModifiers::SHIFT) => {
+                    KeyCode::Left
+                        if key
+                            .modifiers
+                            .contains(KeyModifiers::ALT | KeyModifiers::SHIFT) =>
+                    {
                         // Alt+Shift+Left: Shrink focused column
-                        issues_state.search_state_mut().list_state_mut().shrink_focused_column();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .shrink_focused_column();
                         let _ = issues_state; // Release borrow
                         if let Err(e) = app.save_table_config() {
                             tracing::warn!("Failed to save table config: {}", e);
                         }
                         tracing::debug!("Shrinking focused column");
                     }
-                    KeyCode::Right if key.modifiers.contains(KeyModifiers::ALT | KeyModifiers::SHIFT) => {
+                    KeyCode::Right
+                        if key
+                            .modifiers
+                            .contains(KeyModifiers::ALT | KeyModifiers::SHIFT) =>
+                    {
                         // Alt+Shift+Right: Grow focused column
-                        issues_state.search_state_mut().list_state_mut().grow_focused_column();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .grow_focused_column();
                         let _ = issues_state; // Release borrow
                         if let Err(e) = app.save_table_config() {
                             tracing::warn!("Failed to save table config: {}", e);
@@ -1081,7 +1217,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     }
                     KeyCode::Left if key.modifiers.contains(KeyModifiers::ALT) => {
                         // Alt+Left: Move focused column left
-                        issues_state.search_state_mut().list_state_mut().move_focused_column_left();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .move_focused_column_left();
                         let _ = issues_state; // Release borrow
                         if let Err(e) = app.save_table_config() {
                             tracing::warn!("Failed to save table config: {}", e);
@@ -1090,7 +1229,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     }
                     KeyCode::Right if key.modifiers.contains(KeyModifiers::ALT) => {
                         // Alt+Right: Move focused column right
-                        issues_state.search_state_mut().list_state_mut().move_focused_column_right();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .move_focused_column_right();
                         let _ = issues_state; // Release borrow
                         if let Err(e) = app.save_table_config() {
                             tracing::warn!("Failed to save table config: {}", e);
@@ -1099,12 +1241,18 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     }
                     KeyCode::Tab if key.modifiers.contains(KeyModifiers::ALT) => {
                         // Alt+Tab: Focus next column
-                        issues_state.search_state_mut().list_state_mut().focus_next_column();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .focus_next_column();
                         tracing::debug!("Focusing next column");
                     }
                     KeyCode::BackTab if key.modifiers.contains(KeyModifiers::ALT) => {
                         // Alt+Shift+Tab: Focus previous column
-                        issues_state.search_state_mut().list_state_mut().focus_previous_column();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .focus_previous_column();
                         tracing::debug!("Focusing previous column");
                     }
                     _ => {}
@@ -1139,7 +1287,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if file_path.is_empty() {
                             // Set error on focused field
                             if let Some(field) = form.focused_field_mut() {
-                                field.error = Some("Enter a file path first, then press Ctrl+L to load it".to_string());
+                                field.error = Some(
+                                    "Enter a file path first, then press Ctrl+L to load it"
+                                        .to_string(),
+                                );
                             }
                         } else {
                             // Try to load from file
@@ -1185,50 +1336,59 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         }
                         // Save/Cancel
                         KeyCode::Enter => {
-                        // Validate and save
-                        if editor_state.validate() {
-                            // Check if there are any changes
-                            if !editor_state.is_dirty() {
-                                tracing::info!("No changes detected, returning to list");
-                                issues_state.return_to_list();
-                            } else {
-                                // Get change summary for logging
-                                let changes = editor_state.get_changes();
-                                tracing::info!("Changes detected: {:?}", changes);
-                                
-                                // Get IssueUpdate with only changed fields
-                                if let Some(update) = editor_state.get_issue_update() {
-                                    let issue_id = editor_state.issue_id().to_string();
-                                    
-                                    // Mark as saved and return to list before reloading
-                                    editor_state.save();
+                            // Validate and save
+                            if editor_state.validate() {
+                                // Check if there are any changes
+                                if !editor_state.is_dirty() {
+                                    tracing::info!("No changes detected, returning to list");
                                     issues_state.return_to_list();
-                                    
-                                    // Create a tokio runtime to execute the async call
-                                    // Using global runtime instead of creating new runtime
-                                    let client = &app.beads_client;
-                                    
-                                    match runtime::RUNTIME.block_on(client.update_issue(&issue_id, update)) {
-                                        Ok(()) => {
-                                            tracing::info!("Successfully updated issue: {}", issue_id);
+                                } else {
+                                    // Get change summary for logging
+                                    let changes = editor_state.get_changes();
+                                    tracing::info!("Changes detected: {:?}", changes);
 
-                                            // Clear any previous errors
-                                            app.clear_error();
+                                    // Get IssueUpdate with only changed fields
+                                    if let Some(update) = editor_state.get_issue_update() {
+                                        let issue_id = editor_state.issue_id().to_string();
 
-                                            // Reload issues list
-                                            app.reload_issues();
-                                        }
-                                        Err(e) => {
-                                            tracing::error!("Failed to update issue: {:?}", e);
-                                            app.set_error(format!(
+                                        // Mark as saved and return to list before reloading
+                                        editor_state.save();
+                                        issues_state.return_to_list();
+
+                                        // Create a tokio runtime to execute the async call
+                                        // Using global runtime instead of creating new runtime
+                                        let client = app.beads_client.clone();
+
+                                        app.start_loading("Updating issue...");
+
+                                        match runtime::RUNTIME
+                                            .block_on(client.update_issue(&issue_id, update))
+                                        {
+                                            Ok(()) => {
+                                                app.stop_loading();
+                                                tracing::info!(
+                                                    "Successfully updated issue: {}",
+                                                    issue_id
+                                                );
+
+                                                // Clear any previous errors
+                                                app.clear_error();
+
+                                                // Reload issues list
+                                                app.reload_issues();
+                                            }
+                                            Err(e) => {
+                                                app.stop_loading();
+                                                tracing::error!("Failed to update issue: {:?}", e);
+                                                app.set_error(format!(
                                                 "Failed to update issue: {e}\n\nStay in edit mode to fix and retry.\nVerify your changes and try again."
                                             ));
-                                            // Stay in edit mode so user can fix and retry
+                                                // Stay in edit mode so user can fix and retry
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
                         }
                         KeyCode::Esc => {
                             issues_state.cancel_edit();
@@ -1255,11 +1415,14 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     // Get the current field value as the file path
                     if let Some(focused_field) = form.focused_field() {
                         let file_path = focused_field.value.trim().to_string();
-                        
+
                         if file_path.is_empty() {
                             // Set error on focused field
                             if let Some(field) = form.focused_field_mut() {
-                                field.error = Some("Enter a file path first, then press Ctrl+L to load it".to_string());
+                                field.error = Some(
+                                    "Enter a file path first, then press Ctrl+L to load it"
+                                        .to_string(),
+                                );
                             }
                         } else {
                             // Try to load from file
@@ -1305,95 +1468,113 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         }
                         // Submit/Cancel
                         KeyCode::Enter => {
-                        // Validate and submit
-                        if create_form_state.validate() {
-                            if let Some(data) = app.issues_view_state.save_create() {
-                                // Create a tokio runtime to execute the async call
-                                // Using global runtime instead of creating new runtime
-                                let client = app.beads_client.clone();
+                            // Validate and submit
+                            if create_form_state.validate() {
+                                if let Some(data) = app.issues_view_state.save_create() {
+                                    // Create a tokio runtime to execute the async call
+                                    // Using global runtime instead of creating new runtime
+                                    let client = app.beads_client.clone();
 
-                                let mut dependency_targets: Vec<String> = Vec::new();
-                                if let Some(parent) = data.parent.clone() {
-                                    if !dependency_targets.contains(&parent) {
-                                        dependency_targets.push(parent);
+                                    let mut dependency_targets: Vec<String> = Vec::new();
+                                    if let Some(parent) = data.parent.clone() {
+                                        if !dependency_targets.contains(&parent) {
+                                            dependency_targets.push(parent);
+                                        }
                                     }
-                                }
-                                for dep in data.dependencies.clone() {
-                                    if !dependency_targets.contains(&dep) {
-                                        dependency_targets.push(dep);
+                                    for dep in data.dependencies.clone() {
+                                        if !dependency_targets.contains(&dep) {
+                                            dependency_targets.push(dep);
+                                        }
                                     }
-                                }
 
-                                // Build create params
-                                let mut params = beads::models::CreateIssueParams::new(
-                                    &data.title,
-                                    data.issue_type,
-                                    data.priority,
-                                );
-                                params.status = Some(&data.status);
-                                params.assignee = data.assignee.as_deref();
-                                params.labels = &data.labels;
-                                params.description = data.description.as_deref();
+                                    // Build create params
+                                    let mut params = beads::models::CreateIssueParams::new(
+                                        &data.title,
+                                        data.issue_type,
+                                        data.priority,
+                                    );
+                                    params.status = Some(&data.status);
+                                    params.assignee = data.assignee.as_deref();
+                                    params.labels = &data.labels;
+                                    params.description = data.description.as_deref();
 
-                                match runtime::RUNTIME.block_on(
-                                    client.create_issue_full(params)
-                                ) {
-                                    Ok(issue_id) => {
-                                        // Successfully created
-                                        tracing::info!("Successfully created issue: {}", issue_id);
+                                    // Show loading indicator
+                                    app.start_loading("Creating issue...");
 
-                                        // Clear any previous errors
-                                        app.clear_error();
+                                    match runtime::RUNTIME
+                                        .block_on(client.create_issue_full(params))
+                                    {
+                                        Ok(issue_id) => {
+                                            app.stop_loading();
+                                            // Successfully created
+                                            tracing::info!(
+                                                "Successfully created issue: {}",
+                                                issue_id
+                                            );
 
-                                        if !dependency_targets.is_empty() {
-                                            let mut failures = Vec::new();
-                                            for dep_id in &dependency_targets {
-                                                if dep_id == &issue_id {
-                                                    continue;
+                                            // Clear any previous errors
+                                            app.clear_error();
+
+                                            if !dependency_targets.is_empty() {
+                                                let mut failures = Vec::new();
+                                                for dep_id in &dependency_targets {
+                                                    if dep_id == &issue_id {
+                                                        continue;
+                                                    }
+                                                    if let Err(e) = runtime::RUNTIME.block_on(
+                                                        client.add_dependency(&issue_id, dep_id),
+                                                    ) {
+                                                        failures.push(format!("{dep_id}: {e}"));
+                                                    }
                                                 }
-                                                if let Err(e) = runtime::RUNTIME.block_on(client.add_dependency(&issue_id, dep_id)) {
-                                                    failures.push(format!("{dep_id}: {e}"));
-                                                }
-                                            }
-                                            if !failures.is_empty() {
-                                                app.set_error(format!(
+                                                if !failures.is_empty() {
+                                                    app.set_error(format!(
                                                     "Issue created, but dependencies failed: {}",
                                                     failures.join(", ")
                                                 ));
+                                                }
+                                            }
+
+                                            // Reload issues list
+                                            app.reload_issues();
+
+                                            // Return to list
+                                            app.issues_view_state.cancel_create();
+
+                                            // Select the newly created issue in the list
+                                            let created_issue = app
+                                                .issues_view_state
+                                                .search_state()
+                                                .filtered_issues()
+                                                .iter()
+                                                .find(|issue| issue.id == issue_id)
+                                                .cloned();
+
+                                            if let Some(issue) = created_issue {
+                                                app.issues_view_state
+                                                    .set_selected_issue(Some(issue));
+                                                tracing::debug!(
+                                                    "Selected newly created issue: {}",
+                                                    issue_id
+                                                );
+                                            } else {
+                                                tracing::warn!(
+                                                    "Could not find newly created issue {} in list",
+                                                    issue_id
+                                                );
                                             }
                                         }
-
-                                        // Reload issues list
-                                        app.reload_issues();
-
-                                        // Return to list
-                                        app.issues_view_state.cancel_create();
-
-                                        // Select the newly created issue in the list
-                                        let created_issue = app.issues_view_state
-                                            .search_state()
-                                            .filtered_issues()
-                                            .iter()
-                                            .find(|issue| issue.id == issue_id)
-                                            .cloned();
-
-                                        if let Some(issue) = created_issue {
-                                            app.issues_view_state.set_selected_issue(Some(issue));
-                                            tracing::debug!("Selected newly created issue: {}", issue_id);
-                                        } else {
-                                            tracing::warn!("Could not find newly created issue {} in list", issue_id);
-                                        }
-                                    }
-                                    Err(e) => {
-                                        tracing::error!("Failed to create issue: {:?}", e);
-                                        app.set_error(format!(
+                                        Err(e) => {
+                                            app.stop_loading();
+                                            tracing::error!("Failed to create issue: {:?}", e);
+                                            app.set_error(format!(
                                             "Failed to create issue: {e}\n\nStay in create mode to fix and retry.\nCheck that all required fields are filled correctly."
                                         ));
-                                        // Stay in create mode so user can fix and retry
+                                            // Stay in create mode so user can fix and retry
+                                        }
                                     }
                                 }
                             }
-                        }
                         }
                         KeyCode::Esc => {
                             issues_state.cancel_create();
@@ -1475,7 +1656,8 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
                 let current_id = issue.id.clone();
                 match app.dependencies_view_state.focus() {
                     ui::views::DependencyFocus::Dependencies => {
-                        if let Some(selected_idx) = app.dependencies_view_state.selected_dependency()
+                        if let Some(selected_idx) =
+                            app.dependencies_view_state.selected_dependency()
                         {
                             if selected_idx < issue.dependencies.len() {
                                 let dep_id = issue.dependencies[selected_idx].clone();
@@ -1518,9 +1700,7 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
         return;
     }
 
-    let filtered_labels = app
-        .labels_view_state
-        .filtered_labels(&app.label_stats);
+    let filtered_labels = app.labels_view_state.filtered_labels(&app.label_stats);
     let labels_len = filtered_labels.len();
 
     if app.labels_view_state.is_searching() {
@@ -1563,7 +1743,10 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
             if let Some(selected_idx) = app.labels_view_state.selected() {
                 if let Some(label_stat) = filtered_labels.get(selected_idx) {
                     let label_name = label_stat.name.clone();
-                    app.set_info(format!("Delete label '{}': Not yet implemented", label_name));
+                    app.set_info(format!(
+                        "Delete label '{}': Not yet implemented",
+                        label_name
+                    ));
                     tracing::info!("Delete label requested: {}", label_name);
                 }
             }
@@ -1605,7 +1788,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
     }
 
     // Using global runtime instead of creating new runtime
-    let client = &app.beads_client;
+    let client = app.beads_client.clone();
 
     match key_code {
         KeyCode::Char('r') => {
@@ -1655,12 +1838,16 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             // Sync database with remote
             tracing::info!("Syncing database with remote");
 
-            match runtime::RUNTIME.block_on(client.sync_database()) {
+            app.start_loading("Syncing database...");
+
+            match runtime::RUNTIME.block_on(app.beads_client.sync_database()) {
                 Ok(output) => {
+                    app.stop_loading();
                     tracing::info!("Database synced successfully: {}", output);
                     app.reload_issues();
                 }
                 Err(e) => {
+                    app.stop_loading();
                     tracing::error!("Failed to sync database: {:?}", e);
                     app.set_error(format!(
                         "Failed to sync database: {e}\n\nTry:\n• Check network connectivity\n• Verify git remote is configured\n• Run 'bd doctor' to diagnose issues"
@@ -1672,12 +1859,16 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             // Export issues to file
             tracing::info!("Exporting issues to beads_export.jsonl");
 
-            match runtime::RUNTIME.block_on(client.export_issues("beads_export.jsonl")) {
+            app.start_loading("Exporting issues...");
+
+            match runtime::RUNTIME.block_on(app.beads_client.export_issues("beads_export.jsonl")) {
                 Ok(_) => {
+                    app.stop_loading();
                     tracing::info!("Issues exported successfully");
                     app.set_success("Issues exported to beads_export.jsonl".to_string());
                 }
                 Err(e) => {
+                    app.stop_loading();
                     tracing::error!("Failed to export issues: {:?}", e);
                     app.set_error(format!("Failed to export issues: {e}\n\nTry:\n• Check write permissions for the output file\n• Ensure sufficient disk space\n• Verify the file path is valid"));
                 }
@@ -1687,12 +1878,16 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             // Import issues from file
             tracing::info!("Importing issues from beads_import.jsonl");
 
-            match runtime::RUNTIME.block_on(client.import_issues("beads_import.jsonl")) {
+            app.start_loading("Importing issues...");
+
+            match runtime::RUNTIME.block_on(app.beads_client.import_issues("beads_import.jsonl")) {
                 Ok(_) => {
+                    app.stop_loading();
                     tracing::info!("Issues imported successfully");
                     app.reload_issues();
                 }
                 Err(e) => {
+                    app.stop_loading();
                     tracing::error!("Failed to import issues: {:?}", e);
                     app.set_error(format!("Failed to import issues: {e}\n\nTry:\n• Verify the import file exists and is readable\n• Check the file format is valid JSON\n• Ensure the file contains properly formatted issue data"));
                 }
@@ -1702,8 +1897,11 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             // Verify database integrity
             tracing::info!("Verifying database integrity");
 
-            match runtime::RUNTIME.block_on(client.verify_database()) {
+            app.start_loading("Verifying database...");
+
+            match runtime::RUNTIME.block_on(app.beads_client.verify_database()) {
                 Ok(output) => {
+                    app.stop_loading();
                     tracing::info!("Database verification result: {}", output);
                     if output.contains("error") {
                         app.set_error(format!("Database check: {output}"));
@@ -1714,6 +1912,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                     }
                 }
                 Err(e) => {
+                    app.stop_loading();
                     tracing::error!("Failed to verify database: {:?}", e);
                     app.set_error(format!("Failed to verify database: {e}\n\nTry:\n• Run 'bd doctor' to diagnose issues\n• Check if beads CLI is accessible\n• Verify database integrity with 'bd stats'"));
                 }
@@ -1894,7 +2093,8 @@ fn run_app<B: ratatui::backend::Backend>(
                         };
 
                         // Try to load and apply the filter
-                        if let Some(saved_filter) = app.config.get_filter_by_hotkey(hotkey).cloned() {
+                        if let Some(saved_filter) = app.config.get_filter_by_hotkey(hotkey).cloned()
+                        {
                             // Apply filter to issues view (only if on Issues tab)
                             if app.selected_tab == 0 {
                                 app.issues_view_state
@@ -1997,7 +2197,10 @@ fn run_app<B: ratatui::backend::Backend>(
                         KeyCode::Down | KeyCode::Char('j') => {
                             // Count history events for the selected issue
                             if let Some(issue) = app.issues_view_state.selected_issue() {
-                                let len = 2 + issue.notes.len() + if issue.updated != issue.created { 1 } else { 0 } + if issue.closed.is_some() { 1 } else { 0 };
+                                let len = 2
+                                    + issue.notes.len()
+                                    + if issue.updated != issue.created { 1 } else { 0 }
+                                    + if issue.closed.is_some() { 1 } else { 0 };
                                 app.issue_history_state.select_next(len);
                             }
                             continue;
@@ -2020,24 +2223,39 @@ fn run_app<B: ratatui::backend::Backend>(
                         KeyCode::Enter => {
                             // Apply selected priority to current issue
                             if let Some(selected_idx) = app.priority_selector_state.selected() {
-                                use crate::beads::models::Priority;
                                 use crate::beads::client::IssueUpdate;
-                                let priorities = [Priority::P0, Priority::P1, Priority::P2, Priority::P3, Priority::P4];
+                                use crate::beads::models::Priority;
+                                let priorities = [
+                                    Priority::P0,
+                                    Priority::P1,
+                                    Priority::P2,
+                                    Priority::P3,
+                                    Priority::P4,
+                                ];
                                 if let Some(&new_priority) = priorities.get(selected_idx) {
                                     if let Some(issue) = app.issues_view_state.selected_issue() {
                                         let issue_id = issue.id.clone();
 
                                         // Update priority via beads client
                                         // Using global runtime instead of creating new runtime
-                                        let client = &app.beads_client;
+                                        let client = app.beads_client.clone();
                                         let update = IssueUpdate::new().priority(new_priority);
 
-                                        match runtime::RUNTIME.block_on(client.update_issue(&issue_id, update)) {
+                                        app.start_loading("Updating priority...");
+
+                                        match runtime::RUNTIME
+                                            .block_on(client.update_issue(&issue_id, update))
+                                        {
                                             Ok(()) => {
-                                                app.set_success(format!("Updated priority to {} for issue {}", new_priority, issue_id));
+                                                app.stop_loading();
+                                                app.set_success(format!(
+                                                    "Updated priority to {} for issue {}",
+                                                    new_priority, issue_id
+                                                ));
                                                 app.reload_issues();
                                             }
                                             Err(e) => {
+                                                app.stop_loading();
                                                 app.set_error(format!("Failed to update priority: {}\n\nTip: Verify the issue exists and you have permission to modify it.\nUse valid priority values: P0, P1, P2, P3, or P4", e));
                                             }
                                         }
@@ -2081,11 +2299,15 @@ fn run_app<B: ratatui::backend::Backend>(
                             app.label_picker_state.delete_char();
                             continue;
                         }
-                        KeyCode::Up | KeyCode::Char('k') if !app.label_picker_state.is_filtering() => {
+                        KeyCode::Up | KeyCode::Char('k')
+                            if !app.label_picker_state.is_filtering() =>
+                        {
                             app.label_picker_state.select_previous();
                             continue;
                         }
-                        KeyCode::Down | KeyCode::Char('j') if !app.label_picker_state.is_filtering() => {
+                        KeyCode::Down | KeyCode::Char('j')
+                            if !app.label_picker_state.is_filtering() =>
+                        {
                             app.label_picker_state.select_next();
                             continue;
                         }
@@ -2102,11 +2324,16 @@ fn run_app<B: ratatui::backend::Backend>(
                                 // Update labels via beads client
                                 use crate::beads::client::IssueUpdate;
                                 // Using global runtime instead of creating new runtime
-                                let client = &app.beads_client;
+                                let client = app.beads_client.clone();
                                 let update = IssueUpdate::new().labels(new_labels.clone());
 
-                                match runtime::RUNTIME.block_on(client.update_issue(&issue_id, update)) {
+                                app.start_loading("Updating labels...");
+
+                                match runtime::RUNTIME
+                                    .block_on(client.update_issue(&issue_id, update))
+                                {
                                     Ok(()) => {
+                                        app.stop_loading();
                                         app.set_success(format!(
                                             "Updated labels for issue {} ({})",
                                             issue_id,
@@ -2119,6 +2346,7 @@ fn run_app<B: ratatui::backend::Backend>(
                                         app.reload_issues();
                                     }
                                     Err(e) => {
+                                        app.stop_loading();
                                         app.set_error(format!("Failed to update labels: {}\n\nTip: Verify the issue exists and label format is correct.\nLabels should be single words or hyphenated (e.g., 'bug', 'high-priority')", e));
                                     }
                                 }
@@ -2146,24 +2374,37 @@ fn run_app<B: ratatui::backend::Backend>(
                         KeyCode::Enter => {
                             // Apply selected status to current issue
                             if let Some(selected_idx) = app.status_selector_state.selected() {
-                                use crate::beads::models::IssueStatus;
                                 use crate::beads::client::IssueUpdate;
-                                let statuses = [IssueStatus::Open, IssueStatus::InProgress, IssueStatus::Closed];
+                                use crate::beads::models::IssueStatus;
+                                let statuses = [
+                                    IssueStatus::Open,
+                                    IssueStatus::InProgress,
+                                    IssueStatus::Closed,
+                                ];
                                 if let Some(&new_status) = statuses.get(selected_idx) {
                                     if let Some(issue) = app.issues_view_state.selected_issue() {
                                         let issue_id = issue.id.clone();
 
                                         // Update status via beads client
                                         // Using global runtime instead of creating new runtime
-                                        let client = &app.beads_client;
+                                        let client = app.beads_client.clone();
                                         let update = IssueUpdate::new().status(new_status);
 
-                                        match runtime::RUNTIME.block_on(client.update_issue(&issue_id, update)) {
+                                        app.start_loading("Updating status...");
+
+                                        match runtime::RUNTIME
+                                            .block_on(client.update_issue(&issue_id, update))
+                                        {
                                             Ok(()) => {
-                                                app.set_success(format!("Updated status to {} for issue {}", new_status, issue_id));
+                                                app.stop_loading();
+                                                app.set_success(format!(
+                                                    "Updated status to {} for issue {}",
+                                                    new_status, issue_id
+                                                ));
                                                 app.reload_issues();
                                             }
                                             Err(e) => {
+                                                app.stop_loading();
                                                 app.set_error(format!("Failed to update status: {}\n\nTip: Valid statuses are: open, in_progress, blocked, closed.\nVerify the issue exists with 'bd show <issue-id>'", e));
                                             }
                                         }
@@ -2279,7 +2520,9 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     let daemon_status = if app.daemon_running {
         Span::styled(
             " [Daemon: Running]",
-            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
         )
     } else {
         Span::styled(
@@ -2390,7 +2633,11 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     // Status bar with optional performance stats, loading indicator, or action hints
     let status_text = if let Some(ref spinner) = app.loading_spinner {
         // Show loading indicator using Spinner widget
-        let label = app.loading_message.as_ref().map(|s| s.as_str()).unwrap_or("Loading...");
+        let label = app
+            .loading_message
+            .as_ref()
+            .map(|s| s.as_str())
+            .unwrap_or("Loading...");
         let spinner_text = format!("{} {}", spinner.frame_char(), label);
         Paragraph::new(spinner_text)
             .style(Style::default().fg(Color::Cyan))
@@ -2490,7 +2737,10 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     // Render delete filter confirmation dialog overlay if active
     if let Some(ref filter_name) = app.delete_confirmation_filter {
         if let Some(ref dialog_state) = app.delete_dialog_state {
-            let message = format!("Are you sure you want to delete the filter '{}'?\n\nThis action cannot be undone.", filter_name);
+            let message = format!(
+                "Are you sure you want to delete the filter '{}'?\n\nThis action cannot be undone.",
+                filter_name
+            );
             let dialog = ui::widgets::Dialog::confirm("Delete Filter", &message)
                 .dialog_type(ui::widgets::DialogType::Warning);
 
@@ -2714,12 +2964,14 @@ fn get_action_hints(app: &models::AppState) -> String {
 
     // If filter quick-select is visible
     if app.issues_view_state.search_state().is_filter_menu_open() {
-        return "↑/↓: Navigate | Enter: Apply filter | e: Edit | d: Delete | Esc: Cancel".to_string();
+        return "↑/↓: Navigate | Enter: Apply filter | e: Edit | d: Delete | Esc: Cancel"
+            .to_string();
     }
 
     // If dependency dialog is visible
     if app.dependency_dialog_state.is_open() {
-        return "Tab: Next field | ↑/↓: Navigate | Space: Select | Enter: Add | Esc: Cancel".to_string();
+        return "Tab: Next field | ↑/↓: Navigate | Space: Select | Enter: Add | Esc: Cancel"
+            .to_string();
     }
 
     // If keyboard shortcut help is visible
@@ -2749,11 +3001,13 @@ fn get_action_hints(app: &models::AppState) -> String {
         }
         1 => {
             // Dependencies view
-            "↑/↓/j/k: Navigate | a: Add dependency | r: Remove | Enter: View | Esc: Back | ?: Help".to_string()
+            "↑/↓/j/k: Navigate | a: Add dependency | r: Remove | Enter: View | Esc: Back | ?: Help"
+                .to_string()
         }
         2 => {
             // Labels view
-            "↑/↓/j/k: Navigate | Enter: Select | a: Add label | d: Delete | Esc: Back | ?: Help".to_string()
+            "↑/↓/j/k: Navigate | Enter: Select | a: Add label | d: Delete | Esc: Back | ?: Help"
+                .to_string()
         }
         3 => {
             // PERT view
@@ -2761,7 +3015,8 @@ fn get_action_hints(app: &models::AppState) -> String {
         }
         4 => {
             // Gantt view
-            "↑/↓: Navigate | +/-: Zoom | g: Group by | c: Configure | Esc: Back | ?: Help".to_string()
+            "↑/↓: Navigate | +/-: Zoom | g: Group by | c: Configure | Esc: Back | ?: Help"
+                .to_string()
         }
         5 => {
             // Kanban view
@@ -2769,7 +3024,8 @@ fn get_action_hints(app: &models::AppState) -> String {
         }
         6 => {
             // Molecular view
-            "↑/↓: Navigate | Tab: Switch molecular tab | Enter: Select | Esc: Back | ?: Help".to_string()
+            "↑/↓: Navigate | Tab: Switch molecular tab | Enter: Select | Esc: Back | ?: Help"
+                .to_string()
         }
         7 => {
             // Database view
@@ -2779,14 +3035,15 @@ fn get_action_hints(app: &models::AppState) -> String {
             // Help view
             "←/→/h/l: Navigate sections | Esc: Back | ?: Quick reference".to_string()
         }
-        _ => {
-            "Press 'q' to quit | Tab/Shift+Tab: Switch tabs | 1-9: Direct tab access | ?: Help".to_string()
-        }
+        _ => "Press 'q' to quit | Tab/Shift+Tab: Switch tabs | 1-9: Direct tab access | ?: Help"
+            .to_string(),
     }
 }
 
 /// Generate context-sensitive help content based on current application state
-fn get_context_help_content(app: &models::AppState) -> (String, String, Vec<(&'static str, &'static str)>) {
+fn get_context_help_content(
+    app: &models::AppState,
+) -> (String, String, Vec<(&'static str, &'static str)>) {
     // If dialog is visible, show dialog-specific help
     if app.dialog_state.is_some() || app.delete_dialog_state.is_some() {
         return (
