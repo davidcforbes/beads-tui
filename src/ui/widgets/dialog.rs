@@ -411,11 +411,13 @@ mod tests {
 
     #[test]
     fn test_dialog_types() {
-        assert_eq!(DialogType::Info.color(), Color::Blue);
-        assert_eq!(DialogType::Warning.color(), Color::Yellow);
-        assert_eq!(DialogType::Error.color(), Color::Red);
-        assert_eq!(DialogType::Success.color(), Color::Green);
-        assert_eq!(DialogType::Confirm.color(), Color::Cyan);
+        use crate::ui::themes::Theme;
+        let theme = Theme::default();
+        assert_eq!(DialogType::Info.color(&theme), theme.info);
+        assert_eq!(DialogType::Warning.color(&theme), theme.warning);
+        assert_eq!(DialogType::Error.color(&theme), theme.error);
+        assert_eq!(DialogType::Success.color(&theme), theme.success);
+        assert_eq!(DialogType::Confirm.color(&theme), theme.primary);
 
         assert_eq!(DialogType::Info.symbol(), "ℹ");
         assert_eq!(DialogType::Warning.symbol(), "⚠");
@@ -836,12 +838,14 @@ mod tests {
 
     #[test]
     fn test_dialog_type_color_all_variants() {
+        use crate::ui::themes::Theme;
+        let theme = Theme::default();
         // Verify all dialog types have a color
-        let _info_color = DialogType::Info.color();
-        let _warning_color = DialogType::Warning.color();
-        let _error_color = DialogType::Error.color();
-        let _success_color = DialogType::Success.color();
-        let _confirm_color = DialogType::Confirm.color();
+        let _info_color = DialogType::Info.color(&theme);
+        let _warning_color = DialogType::Warning.color(&theme);
+        let _error_color = DialogType::Error.color(&theme);
+        let _success_color = DialogType::Success.color(&theme);
+        let _confirm_color = DialogType::Confirm.color(&theme);
         // All variants have colors
     }
 

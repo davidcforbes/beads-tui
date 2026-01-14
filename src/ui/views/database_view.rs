@@ -644,10 +644,12 @@ mod tests {
 
     #[test]
     fn test_database_status_color() {
-        assert_eq!(DatabaseStatus::Ready.color(), Color::Green);
-        assert_eq!(DatabaseStatus::Syncing.color(), Color::Yellow);
-        assert_eq!(DatabaseStatus::Error.color(), Color::Red);
-        assert_eq!(DatabaseStatus::Offline.color(), Color::Gray);
+        use crate::ui::themes::Theme;
+        let theme = Theme::default();
+        assert_eq!(DatabaseStatus::Ready.color(&theme), theme.success);
+        assert_eq!(DatabaseStatus::Syncing.color(&theme), theme.warning);
+        assert_eq!(DatabaseStatus::Error.color(&theme), theme.error);
+        assert_eq!(DatabaseStatus::Offline.color(&theme), theme.muted);
     }
 
     #[test]

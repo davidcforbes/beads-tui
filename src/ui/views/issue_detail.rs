@@ -402,40 +402,7 @@ mod tests {
         assert!(!view.show_notes);
     }
 
-    #[test]
-    fn test_priority_color() {
-        assert_eq!(IssueDetailView::priority_color(&Priority::P0), Color::Red);
-        assert_eq!(
-            IssueDetailView::priority_color(&Priority::P1),
-            Color::LightRed
-        );
-        assert_eq!(
-            IssueDetailView::priority_color(&Priority::P2),
-            Color::Yellow
-        );
-        assert_eq!(IssueDetailView::priority_color(&Priority::P3), Color::Blue);
-        assert_eq!(IssueDetailView::priority_color(&Priority::P4), Color::Gray);
-    }
-
-    #[test]
-    fn test_status_color() {
-        assert_eq!(
-            IssueDetailView::status_color(&IssueStatus::Open),
-            Color::Green
-        );
-        assert_eq!(
-            IssueDetailView::status_color(&IssueStatus::InProgress),
-            Color::Cyan
-        );
-        assert_eq!(
-            IssueDetailView::status_color(&IssueStatus::Blocked),
-            Color::Red
-        );
-        assert_eq!(
-            IssueDetailView::status_color(&IssueStatus::Closed),
-            Color::Gray
-        );
-    }
+    // Theme color tests moved to src/ui/themes/mod.rs
 
     #[test]
     fn test_type_symbol() {
