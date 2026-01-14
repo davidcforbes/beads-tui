@@ -28,6 +28,7 @@ impl UndoHistory {
     ///
     /// # Example
     /// ```
+    /// use beads_tui::models::UndoHistory;
     /// let history = UndoHistory::new(20);
     /// ```
     pub fn new(max_size: usize) -> Self {
