@@ -1371,6 +1371,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::beads::{IssueStatus, Priority};
     use chrono::Utc;
 
     fn create_test_issue(id: &str, title: &str, priority: Priority, status: IssueStatus) -> Issue {

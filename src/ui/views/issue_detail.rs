@@ -363,6 +363,7 @@ impl<'a> Widget for IssueDetailView<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::beads::IssueStatus;
     use chrono::Utc;
 
     fn create_test_issue() -> Issue {

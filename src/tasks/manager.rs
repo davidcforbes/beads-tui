@@ -159,6 +159,7 @@ impl Default for TaskManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tasks::TaskOutput;
     use std::time::Duration;
     use tokio::time::sleep;
 

@@ -114,6 +114,8 @@ impl<'a> Widget for UndoHistoryView<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
+    use ratatui::widgets::Borders;
 
     fn create_test_entry(desc: &str, is_current: bool, can_undo: bool) -> HistoryEntry {
         HistoryEntry {
