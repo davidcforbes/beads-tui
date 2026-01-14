@@ -95,6 +95,8 @@ pub struct AppState {
     pub daemon_running: bool,
     /// Application configuration
     pub config: Config,
+    /// Current UI theme
+    pub theme: crate::ui::themes::Theme,
     /// Filter save dialog state
     pub filter_save_dialog_state: Option<FilterSaveDialogState>,
     /// Filter quick-select menu state
@@ -154,6 +156,14 @@ impl AppState {
             tracing::warn!("Failed to load config: {:?}, using defaults", e);
             Config::default()
         });
+
+        // Load theme from config
+        let theme = if let Some(theme_type) = crate::ui::themes::ThemeType::from_name(&config.theme.name) {
+            crate::ui::themes::Theme::new(theme_type)
+        } else {
+            tracing::warn!("Unknown theme '{}', using default", config.theme.name);
+            crate::ui::themes::Theme::default()
+        };
 
         let formulas = vec![
             Formula {
@@ -247,6 +257,7 @@ impl AppState {
             column_manager_state: None,
             daemon_running,
             config,
+            theme,
             filter_save_dialog_state: None,
             filter_quick_select_state: None,
             editing_filter_name: None,
@@ -1016,6 +1027,7 @@ mod tests {
             notifications: Vec::new(),
             daemon_running: false,
             config: Config::default(),
+            theme: crate::ui::themes::Theme::default(),
             filter_save_dialog_state: None,
             filter_quick_select_state: None,
             editing_filter_name: None,
