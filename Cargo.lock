@@ -160,6 +160,7 @@ dependencies = [
  "fuzzy-matcher",
  "insta",
  "mockall",
+ "once_cell",
  "owo-colors",
  "predicates",
  "proptest",

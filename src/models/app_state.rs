@@ -247,8 +247,7 @@ impl AppState {
 
     /// Load issues synchronously using tokio runtime
     fn load_issues_sync(client: &BeadsClient) -> Vec<crate::beads::models::Issue> {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(client.list_issues(None, None))
+        crate::runtime::RUNTIME.block_on(client.list_issues(None, None))
             .unwrap_or_else(|e| {
                 tracing::warn!("Failed to load issues: {:?}", e);
                 vec![]
@@ -257,8 +256,7 @@ impl AppState {
 
     /// Check daemon status synchronously using tokio runtime
     fn check_daemon_status_sync(client: &BeadsClient) -> bool {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(client.check_daemon_status())
+        crate::runtime::RUNTIME.block_on(client.check_daemon_status())
             .unwrap_or_else(|e| {
                 tracing::warn!("Failed to check daemon status: {:?}", e);
                 false

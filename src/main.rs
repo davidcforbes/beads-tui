@@ -1,6 +1,7 @@
 pub mod beads;
 pub mod config;
 pub mod models;
+pub mod runtime;
 pub mod ui;
 pub mod utils;
 
@@ -111,10 +112,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             tracing::info!("Confirmed delete for issue: {}", issue_id);
 
                             // Create a tokio runtime to execute the async call
-                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            // Using global runtime instead of creating new runtime
                             let client = &app.beads_client;
 
-                            match rt.block_on(client.delete_issue(issue_id)) {
+                            match runtime::RUNTIME.block_on(client.delete_issue(issue_id)) {
                                 Ok(()) => {
                                     tracing::info!("Successfully deleted issue: {}", issue_id);
                                     app.reload_issues();
@@ -127,10 +128,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             tracing::info!("Confirmed compact database");
 
                             // Create a tokio runtime to execute the async call
-                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            // Using global runtime instead of creating new runtime
                             let client = &app.beads_client;
 
-                            match rt.block_on(client.compact_database()) {
+                            match runtime::RUNTIME.block_on(client.compact_database()) {
                                 Ok(()) => {
                                     tracing::info!("Successfully compacted database");
                                     app.reload_issues();
@@ -383,8 +384,8 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             match dep_type {
                                 ui::widgets::DependencyType::RelatesTo => {
                                     // Bidirectional "see also" relationship - no cycle check needed
-                                    let rt = tokio::runtime::Runtime::new().unwrap();
-                                    match rt.block_on(app.beads_client.relate_issues(&current_id, &target_issue_id)) {
+                                    // Using global runtime instead of creating new runtime
+                                    match runtime::RUNTIME.block_on(app.beads_client.relate_issues(&current_id, &target_issue_id)) {
                                         Ok(()) => {
                                             tracing::info!(
                                                 "Created relates_to link: {} <-> {}",
@@ -436,8 +437,8 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                         );
                                     } else {
                                         // Call CLI to add dependency synchronously
-                                        let rt = tokio::runtime::Runtime::new().unwrap();
-                                        match rt.block_on(app.beads_client.add_dependency(&from_id, &to_id)) {
+                                        // Using global runtime instead of creating new runtime
+                                        match runtime::RUNTIME.block_on(app.beads_client.add_dependency(&from_id, &to_id)) {
                                             Ok(()) => {
                                                 tracing::info!(
                                                     "Added dependency: {} depends on {}",
@@ -672,10 +673,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                     .title(new_title);
 
                                 // Execute the update
-                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                // Using global runtime instead of creating new runtime
                                 let client = &app.beads_client;
 
-                                match rt.block_on(client.update_issue(&issue_id, update)) {
+                                match runtime::RUNTIME.block_on(client.update_issue(&issue_id, update)) {
                                     Ok(()) => {
                                         tracing::info!("Successfully updated title for: {}", issue_id);
                                         app.reload_issues();
@@ -759,10 +760,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             tracing::info!("Closing issue: {}", issue_id);
                             
                             // Create a tokio runtime to execute the async call
-                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            // Using global runtime instead of creating new runtime
                             let client = &app.beads_client;
                             
-                            match rt.block_on(client.close_issue(&issue_id, None)) {
+                            match runtime::RUNTIME.block_on(client.close_issue(&issue_id, None)) {
                                 Ok(()) => {
                                     tracing::info!("Successfully closed issue: {}", issue_id);
                                     
@@ -782,10 +783,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             tracing::info!("Reopening issue: {}", issue_id);
                             
                             // Create a tokio runtime to execute the async call
-                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            // Using global runtime instead of creating new runtime
                             let client = &app.beads_client;
                             
-                            match rt.block_on(client.reopen_issue(&issue_id)) {
+                            match runtime::RUNTIME.block_on(client.reopen_issue(&issue_id)) {
                                 Ok(()) => {
                                     tracing::info!("Successfully reopened issue: {}", issue_id);
                                     
@@ -839,11 +840,11 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                         tracing::info!("Indenting {} under {}", selected_id, prev_id);
 
                                         // Create a tokio runtime to execute the async call
-                                        let rt = tokio::runtime::Runtime::new().unwrap();
+                                        // Using global runtime instead of creating new runtime
                                         let client = &app.beads_client;
 
                                         // Add dependency: selected depends on previous (previous blocks selected)
-                                        match rt.block_on(client.add_dependency(&selected_id, &prev_id)) {
+                                        match runtime::RUNTIME.block_on(client.add_dependency(&selected_id, &prev_id)) {
                                             Ok(()) => {
                                                 tracing::info!("Successfully indented {} under {}", selected_id, prev_id);
                                                 app.set_success(format!("Indented issue under {}", prev_id));
@@ -880,11 +881,11 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 tracing::info!("Outdenting {} from parent {}", selected_id, parent_id);
 
                                 // Create a tokio runtime to execute the async call
-                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                // Using global runtime instead of creating new runtime
                                 let client = &app.beads_client;
 
                                 // Remove dependency: selected no longer depends on parent
-                                match rt.block_on(client.remove_dependency(&selected_id, &parent_id)) {
+                                match runtime::RUNTIME.block_on(client.remove_dependency(&selected_id, &parent_id)) {
                                     Ok(()) => {
                                         tracing::info!("Successfully outdented {} from {}", selected_id, parent_id);
                                         app.set_success(format!("Outdented issue from {}", parent_id));
@@ -1130,10 +1131,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                     issues_state.return_to_list();
                                     
                                     // Create a tokio runtime to execute the async call
-                                    let rt = tokio::runtime::Runtime::new().unwrap();
+                                    // Using global runtime instead of creating new runtime
                                     let client = &app.beads_client;
                                     
-                                    match rt.block_on(client.update_issue(&issue_id, update)) {
+                                    match runtime::RUNTIME.block_on(client.update_issue(&issue_id, update)) {
                                         Ok(()) => {
                                             tracing::info!("Successfully updated issue: {}", issue_id);
 
@@ -1232,7 +1233,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if create_form_state.validate() {
                             if let Some(data) = app.issues_view_state.save_create() {
                                 // Create a tokio runtime to execute the async call
-                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                // Using global runtime instead of creating new runtime
                                 let client = app.beads_client.clone();
 
                                 let mut dependency_targets: Vec<String> = Vec::new();
@@ -1258,7 +1259,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 params.labels = &data.labels;
                                 params.description = data.description.as_deref();
 
-                                match rt.block_on(
+                                match runtime::RUNTIME.block_on(
                                     client.create_issue_full(params)
                                 ) {
                                     Ok(issue_id) => {
@@ -1274,7 +1275,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                                 if dep_id == &issue_id {
                                                     continue;
                                                 }
-                                                if let Err(e) = rt.block_on(client.add_dependency(&issue_id, dep_id)) {
+                                                if let Err(e) = runtime::RUNTIME.block_on(client.add_dependency(&issue_id, dep_id)) {
                                                     failures.push(format!("{dep_id}: {e}"));
                                                 }
                                             }
@@ -1402,8 +1403,8 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
                                 let dep_id = issue.dependencies[selected_idx].clone();
 
                                 // Remove dependency: current_id depends on dep_id
-                                let rt = tokio::runtime::Runtime::new().unwrap();
-                                match rt.block_on(
+                                // Using global runtime instead of creating new runtime
+                                match runtime::RUNTIME.block_on(
                                     app.beads_client.remove_dependency(&current_id, &dep_id),
                                 ) {
                                     Ok(()) => {
@@ -1436,8 +1437,8 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
                                 let blocked_id = issue.blocks[selected_idx].clone();
 
                                 // Remove dependency: blocked_id depends on current_id
-                                let rt = tokio::runtime::Runtime::new().unwrap();
-                                match rt.block_on(
+                                // Using global runtime instead of creating new runtime
+                                match runtime::RUNTIME.block_on(
                                     app.beads_client.remove_dependency(&blocked_id, &current_id),
                                 ) {
                                     Ok(()) => {
@@ -1575,7 +1576,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
         return;
     }
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    // Using global runtime instead of creating new runtime
     let client = &app.beads_client;
 
     match key_code {
@@ -1590,7 +1591,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
 
             if app.daemon_running {
                 // Stop daemon
-                match rt.block_on(client.stop_daemon()) {
+                match runtime::RUNTIME.block_on(client.stop_daemon()) {
                     Ok(_) => {
                         tracing::info!("Daemon stopped successfully");
                         app.daemon_running = false;
@@ -1603,7 +1604,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 }
             } else {
                 // Start daemon
-                match rt.block_on(client.start_daemon()) {
+                match runtime::RUNTIME.block_on(client.start_daemon()) {
                     Ok(_) => {
                         tracing::info!("Daemon started successfully");
                         app.daemon_running = true;
@@ -1620,7 +1621,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             // Sync database with remote
             tracing::info!("Syncing database with remote");
 
-            match rt.block_on(client.sync_database()) {
+            match runtime::RUNTIME.block_on(client.sync_database()) {
                 Ok(output) => {
                     tracing::info!("Database synced successfully: {}", output);
                     app.reload_issues();
@@ -1635,7 +1636,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             // Export issues to file
             tracing::info!("Exporting issues to beads_export.jsonl");
 
-            match rt.block_on(client.export_issues("beads_export.jsonl")) {
+            match runtime::RUNTIME.block_on(client.export_issues("beads_export.jsonl")) {
                 Ok(_) => {
                     tracing::info!("Issues exported successfully");
                     app.set_success("Issues exported to beads_export.jsonl".to_string());
@@ -1650,7 +1651,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             // Import issues from file
             tracing::info!("Importing issues from beads_import.jsonl");
 
-            match rt.block_on(client.import_issues("beads_import.jsonl")) {
+            match runtime::RUNTIME.block_on(client.import_issues("beads_import.jsonl")) {
                 Ok(_) => {
                     tracing::info!("Issues imported successfully");
                     app.reload_issues();
@@ -1665,7 +1666,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             // Verify database integrity
             tracing::info!("Verifying database integrity");
 
-            match rt.block_on(client.verify_database()) {
+            match runtime::RUNTIME.block_on(client.verify_database()) {
                 Ok(output) => {
                     tracing::info!("Database verification result: {}", output);
                     if output.contains("error") {
@@ -1769,14 +1770,14 @@ fn reorder_child_issue(app: &mut models::AppState, direction: i32) {
 
     let parent_id = parent.id.clone();
     let current_children = parent.blocks.clone();
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    // Using global runtime instead of creating new runtime
     let client = &app.beads_client;
 
     let mut removed: Vec<String> = Vec::new();
     for child_id in &current_children {
-        if let Err(e) = rt.block_on(client.remove_dependency(child_id, &parent_id)) {
+        if let Err(e) = runtime::RUNTIME.block_on(client.remove_dependency(child_id, &parent_id)) {
             for restored_id in &removed {
-                let _ = rt.block_on(client.add_dependency(restored_id, &parent_id));
+                let _ = runtime::RUNTIME.block_on(client.add_dependency(restored_id, &parent_id));
             }
             app.set_error(format!("Failed to reorder children: {e}"));
             return;
@@ -1786,12 +1787,12 @@ fn reorder_child_issue(app: &mut models::AppState, direction: i32) {
 
     let mut added: Vec<String> = Vec::new();
     for child_id in &new_order {
-        if let Err(e) = rt.block_on(client.add_dependency(child_id, &parent_id)) {
+        if let Err(e) = runtime::RUNTIME.block_on(client.add_dependency(child_id, &parent_id)) {
             for added_id in &added {
-                let _ = rt.block_on(client.remove_dependency(added_id, &parent_id));
+                let _ = runtime::RUNTIME.block_on(client.remove_dependency(added_id, &parent_id));
             }
             for restored_id in &current_children {
-                let _ = rt.block_on(client.add_dependency(restored_id, &parent_id));
+                let _ = runtime::RUNTIME.block_on(client.add_dependency(restored_id, &parent_id));
             }
             app.set_error(format!("Failed to reorder children: {e}"));
             return;
@@ -1991,11 +1992,11 @@ fn run_app<B: ratatui::backend::Backend>(
                                         let issue_id = issue.id.clone();
 
                                         // Update priority via beads client
-                                        let rt = tokio::runtime::Runtime::new().unwrap();
+                                        // Using global runtime instead of creating new runtime
                                         let client = &app.beads_client;
                                         let update = IssueUpdate::new().priority(new_priority);
 
-                                        match rt.block_on(client.update_issue(&issue_id, update)) {
+                                        match runtime::RUNTIME.block_on(client.update_issue(&issue_id, update)) {
                                             Ok(()) => {
                                                 app.set_success(format!("Updated priority to {} for issue {}", new_priority, issue_id));
                                                 app.reload_issues();
@@ -2064,11 +2065,11 @@ fn run_app<B: ratatui::backend::Backend>(
 
                                 // Update labels via beads client
                                 use crate::beads::client::IssueUpdate;
-                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                // Using global runtime instead of creating new runtime
                                 let client = &app.beads_client;
                                 let update = IssueUpdate::new().labels(new_labels.clone());
 
-                                match rt.block_on(client.update_issue(&issue_id, update)) {
+                                match runtime::RUNTIME.block_on(client.update_issue(&issue_id, update)) {
                                     Ok(()) => {
                                         app.set_success(format!(
                                             "Updated labels for issue {} ({})",
@@ -2117,11 +2118,11 @@ fn run_app<B: ratatui::backend::Backend>(
                                         let issue_id = issue.id.clone();
 
                                         // Update status via beads client
-                                        let rt = tokio::runtime::Runtime::new().unwrap();
+                                        // Using global runtime instead of creating new runtime
                                         let client = &app.beads_client;
                                         let update = IssueUpdate::new().status(new_status);
 
-                                        match rt.block_on(client.update_issue(&issue_id, update)) {
+                                        match runtime::RUNTIME.block_on(client.update_issue(&issue_id, update)) {
                                             Ok(()) => {
                                                 app.set_success(format!("Updated status to {} for issue {}", new_status, issue_id));
                                                 app.reload_issues();
