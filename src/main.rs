@@ -124,6 +124,21 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                     tracing::error!("Failed to delete issue: {:?}", e);
                                 }
                             }
+                        } else if let Some(issue_id) = action.strip_prefix("close:") {
+                            tracing::info!("Confirmed close for issue: {}", issue_id);
+
+                            let client = &app.beads_client;
+
+                            match runtime::RUNTIME.block_on(client.close_issue(issue_id, None)) {
+                                Ok(()) => {
+                                    tracing::info!("Successfully closed issue: {}", issue_id);
+                                    app.reload_issues();
+                                }
+                                Err(e) => {
+                                    tracing::error!("Failed to close issue: {:?}", e);
+                                    app.set_error(format!("Failed to close issue: {e}"));
+                                }
+                            }
                         } else if action == "compact_database" {
                             tracing::info!("Confirmed compact database");
 
@@ -754,26 +769,17 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         tracing::debug!("Opened column manager");
                     }
                     KeyCode::Char('x') => {
-                        // Close selected issue
+                        // Close selected issue with confirmation
                         if let Some(issue) = issues_state.search_state().selected_issue() {
                             let issue_id = issue.id.clone();
-                            tracing::info!("Closing issue: {}", issue_id);
-                            
-                            // Create a tokio runtime to execute the async call
-                            // Using global runtime instead of creating new runtime
-                            let client = &app.beads_client;
-                            
-                            match runtime::RUNTIME.block_on(client.close_issue(&issue_id, None)) {
-                                Ok(()) => {
-                                    tracing::info!("Successfully closed issue: {}", issue_id);
-                                    
-                                    // Reload issues list
-                                    app.reload_issues();
-                                }
-                                Err(e) => {
-                                    tracing::error!("Failed to close issue: {:?}", e);
-                                }
-                            }
+                            let issue_title = issue.title.clone();
+                            tracing::info!("Requesting confirmation to close issue: {}", issue_id);
+
+                            // Show confirmation dialog
+                            app.dialog_state = Some(ui::widgets::DialogState::new());
+                            app.pending_action = Some(format!("close:{issue_id}"));
+
+                            tracing::debug!("Showing close confirmation for: {}", issue_title);
                         }
                     }
                     KeyCode::Char('o') => {
@@ -2370,6 +2376,17 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             if let Some(issue_id) = action.strip_prefix("delete:") {
                 let message = format!("Are you sure you want to delete issue {issue_id}?");
                 let dialog = ui::widgets::Dialog::confirm("Confirm Delete", &message);
+
+                // Render dialog centered on screen
+                let area = f.size();
+                let dialog_area = centered_rect(60, 30, area);
+
+                // Clear and render dialog
+                f.render_widget(Clear, dialog_area);
+                dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
+            } else if let Some(issue_id) = action.strip_prefix("close:") {
+                let message = format!("Are you sure you want to close issue {issue_id}?\nThis will mark the issue as resolved.");
+                let dialog = ui::widgets::Dialog::confirm("Confirm Close", &message);
 
                 // Render dialog centered on screen
                 let area = f.size();

@@ -11,25 +11,25 @@ pub enum BeadsError {
     #[error("JSON parsing error: {0} (Input: {1})")]
     Json(serde_json::Error, String),
 
-    #[error("Command execution error: {0}")]
+    #[error("Command execution error: {0}\nTry running 'bd doctor' to diagnose issues.")]
     CommandError(String),
 
-    #[error("Timeout error: operation took longer than {0}ms")]
+    #[error("Timeout: operation took longer than {0}ms\nTry increasing timeout with --timeout={0} or check system resources.")]
     Timeout(u64),
 
     #[error("Cancelled: {0}")]
     Cancelled(String),
 
-    #[error("Invalid issue ID: {0}")]
+    #[error("Invalid issue ID: {0}\nIssue IDs must be in format 'beads-xxxx-xxxx' (e.g., beads-tui-a1b2).")]
     InvalidIssueId(String),
 
-    #[error("Issue not found: {0}")]
+    #[error("Issue not found: {0}\nRun 'bd list' to see all issues or 'bd show {0}' for details.")]
     IssueNotFound(String),
 
-    #[error("Invalid configuration: {0}")]
+    #[error("Invalid configuration: {0}\nCheck your .beads/config file or run 'bd init' to reinitialize.")]
     InvalidConfig(String),
 
-    #[error("Beads CLI not found in PATH")]
+    #[error("Beads CLI not found in PATH\nInstall beads with: cargo install beads\nOr ensure 'bd' is in your system PATH.")]
     BeadsNotFound,
 }
 
@@ -40,16 +40,18 @@ mod tests {
     #[test]
     fn test_command_error_display() {
         let err = BeadsError::CommandError("command failed".to_string());
-        assert_eq!(err.to_string(), "Command execution error: command failed");
+        let msg = err.to_string();
+        assert!(msg.contains("Command execution error: command failed"));
+        assert!(msg.contains("bd doctor"));
     }
 
     #[test]
     fn test_timeout_error_display() {
         let err = BeadsError::Timeout(5000);
-        assert_eq!(
-            err.to_string(),
-            "Timeout error: operation took longer than 5000ms"
-        );
+        let msg = err.to_string();
+        assert!(msg.contains("Timeout"));
+        assert!(msg.contains("5000ms"));
+        assert!(msg.contains("timeout") || msg.contains("resources"));
     }
 
     #[test]
@@ -61,25 +63,33 @@ mod tests {
     #[test]
     fn test_invalid_issue_id_display() {
         let err = BeadsError::InvalidIssueId("bad-id".to_string());
-        assert_eq!(err.to_string(), "Invalid issue ID: bad-id");
+        let msg = err.to_string();
+        assert!(msg.contains("Invalid issue ID: bad-id"));
+        assert!(msg.contains("beads-xxxx-xxxx"));
     }
 
     #[test]
     fn test_issue_not_found_display() {
         let err = BeadsError::IssueNotFound("beads-123".to_string());
-        assert_eq!(err.to_string(), "Issue not found: beads-123");
+        let msg = err.to_string();
+        assert!(msg.contains("Issue not found: beads-123"));
+        assert!(msg.contains("bd list") || msg.contains("bd show"));
     }
 
     #[test]
     fn test_invalid_config_display() {
         let err = BeadsError::InvalidConfig("missing field".to_string());
-        assert_eq!(err.to_string(), "Invalid configuration: missing field");
+        let msg = err.to_string();
+        assert!(msg.contains("Invalid configuration: missing field"));
+        assert!(msg.contains("config") || msg.contains("bd init"));
     }
 
     #[test]
     fn test_beads_not_found_display() {
         let err = BeadsError::BeadsNotFound;
-        assert_eq!(err.to_string(), "Beads CLI not found in PATH");
+        let msg = err.to_string();
+        assert!(msg.contains("Beads CLI not found"));
+        assert!(msg.contains("cargo install beads") || msg.contains("PATH"));
     }
 
     #[test]
@@ -113,7 +123,9 @@ mod tests {
         let result: Result<i32> = Err(BeadsError::BeadsNotFound);
         assert!(result.is_err());
         if let Err(e) = result {
-            assert_eq!(e.to_string(), "Beads CLI not found in PATH");
+            let msg = e.to_string();
+            assert!(msg.contains("Beads CLI not found"));
+            assert!(msg.contains("cargo install beads") || msg.contains("PATH"));
         }
     }
 
@@ -135,7 +147,7 @@ mod tests {
 
         assert_eq!(errors.len(), 3);
         assert!(errors[0].to_string().contains("Command execution error"));
-        assert!(errors[1].to_string().contains("Timeout error"));
-        assert!(errors[2].to_string().contains("not found"));
+        assert!(errors[1].to_string().contains("Timeout"));
+        assert!(errors[2].to_string().contains("not found") || errors[2].to_string().contains("CLI"));
     }
 }
