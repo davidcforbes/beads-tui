@@ -2,6 +2,7 @@
 use crate::beads::BeadsClient;
 use crate::config::Config;
 use crate::models::SavedFilter;
+use crate::tasks::{TaskHandle, TaskId, TaskManager, TaskMessage, TaskOutput, TaskResult, TaskStatus};
 use crate::undo::UndoStack;
 use crate::ui::views::{
     compute_label_stats, BondingInterfaceState, DatabaseStats, DatabaseStatus, DatabaseViewState,
@@ -127,6 +128,12 @@ pub struct AppState {
     pub cancellation_token: Option<()>,
     /// Undo/redo stack for reversible operations
     pub undo_stack: UndoStack,
+    /// Task manager for background operations
+    pub task_manager: TaskManager,
+    /// Active background tasks
+    pub active_tasks: Vec<TaskHandle>,
+    /// Completed tasks (last 20)
+    pub completed_tasks: VecDeque<TaskHandle>,
 }
 
 impl AppState {
@@ -275,6 +282,9 @@ impl AppState {
             loading_message: None,
             cancellation_token: None,
             undo_stack: UndoStack::new(),
+            task_manager: TaskManager::new(),
+            active_tasks: Vec::new(),
+            completed_tasks: VecDeque::new(),
         }
     }
 
@@ -1056,6 +1066,138 @@ impl AppState {
             "Failed to save configuration. Check logs for details.".to_string()
         })
     }
+
+    // ========== Background Task Management ==========
+
+    /// Spawn a background task
+    pub fn spawn_task<F, Fut>(
+        &mut self,
+        name: &str,
+        f: F,
+    ) -> TaskHandle
+    where
+        F: FnOnce(BeadsClient) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = TaskResult> + Send + 'static,
+    {
+        let client = self.beads_client.clone();
+        let handle = self.task_manager.spawn_task(name, client, f);
+
+        // Add to active tasks
+        self.active_tasks.push(handle.clone());
+
+        // Show loading indicator
+        self.start_loading(name);
+
+        handle
+    }
+
+    /// Spawn a background task with progress tracking
+    pub fn spawn_task_with_progress<F, Fut>(
+        &mut self,
+        name: &str,
+        f: F,
+    ) -> TaskHandle
+    where
+        F: FnOnce(BeadsClient) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = TaskResult> + Send + 'static,
+    {
+        let client = self.beads_client.clone();
+        let handle = self.task_manager.spawn_task_with_progress(name, client, f);
+
+        // Add to active tasks
+        self.active_tasks.push(handle.clone());
+
+        // Show loading indicator
+        self.start_loading(name);
+
+        handle
+    }
+
+    /// Poll for task completions (call this in event loop)
+    pub fn poll_tasks(&mut self) {
+        let messages = self.task_manager.poll();
+
+        for message in messages {
+            match message {
+                TaskMessage::StatusChanged { id, status } => {
+                    tracing::debug!("Task {} status changed to {:?}", id, status);
+                }
+                TaskMessage::Completed { id, result } => {
+                    // Find and remove from active tasks
+                    if let Some(index) = self.active_tasks.iter().position(|h: &TaskHandle| h.id() == id) {
+                        let handle = self.active_tasks.remove(index);
+
+                        // Add to completed tasks (limit to 20)
+                        self.completed_tasks.push_front(handle.clone());
+                        if self.completed_tasks.len() > 20 {
+                            self.completed_tasks.pop_back();
+                        }
+
+                        // Stop loading indicator
+                        self.stop_loading();
+
+                        // Show notification based on result
+                        match result {
+                            Ok(output) => {
+                                let msg = format!("✓ {}: {}", handle.name(), output);
+                                self.set_success(msg);
+
+                                // Reload issues if needed
+                                match output {
+                                    TaskOutput::IssuesUpdated
+                                    | TaskOutput::DatabaseCompacted
+                                    | TaskOutput::DatabaseSynced
+                                    | TaskOutput::IssueDeleted(_)
+                                    | TaskOutput::IssueCreated(_)
+                                    | TaskOutput::IssueUpdated(_)
+                                    | TaskOutput::DependencyAdded
+                                    | TaskOutput::DependencyRemoved => {
+                                        self.reload_issues();
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            Err(e) => {
+                                let msg = format!("✗ {}: {}", handle.name(), e);
+                                self.set_error(msg);
+                            }
+                        }
+
+                        self.mark_dirty();
+                    }
+                }
+            }
+        }
+    }
+
+    /// Cancel a specific task
+    pub fn cancel_task(&mut self, task_id: TaskId) {
+        if let Some(handle) = self.active_tasks.iter().find(|h| h.id() == task_id) {
+            handle.cancel();
+            self.set_info(format!("Cancelling task: {}", handle.name()));
+            self.mark_dirty();
+        }
+    }
+
+    /// Cancel all active tasks
+    pub fn cancel_all_tasks(&mut self) {
+        for handle in self.active_tasks.iter() {
+            handle.cancel();
+        }
+
+        if !self.active_tasks.is_empty() {
+            self.set_info(format!("Cancelling {} tasks", self.active_tasks.len()));
+            self.mark_dirty();
+        }
+    }
+
+    /// Get the status of a task
+    pub fn get_task_status(&self, task_id: TaskId) -> Option<TaskStatus> {
+        self.active_tasks
+            .iter()
+            .find(|h: &&TaskHandle| h.id() == task_id)
+            .map(|h: &TaskHandle| h.status())
+    }
 }
 
 impl Default for AppState {
@@ -1145,6 +1287,9 @@ mod tests {
             status_selector_state: crate::ui::widgets::SelectorState::new(),
             label_picker_state: crate::ui::widgets::LabelPickerState::new(vec![]),
             column_manager_state: None,
+            task_manager: TaskManager::new(),
+            active_tasks: Vec::new(),
+            completed_tasks: VecDeque::new(),
         }
     }
 

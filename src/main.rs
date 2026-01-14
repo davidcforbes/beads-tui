@@ -3,11 +3,13 @@ pub mod config;
 pub mod graph;
 pub mod models;
 pub mod runtime;
+pub mod tasks;
 pub mod ui;
 pub mod undo;
 pub mod utils;
 
 use anyhow::Result;
+use tasks::TaskOutput;
 use crossterm::{
     event::{
         self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
@@ -143,24 +145,16 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if let Some(issue_id) = action.strip_prefix("delete:") {
                             tracing::info!("Confirmed delete for issue: {}", issue_id);
 
-                            // Show loading indicator
-                            app.start_loading(format!("Deleting issue {}...", issue_id));
-
-                            // Create a tokio runtime to execute the async call
-                            // Using global runtime instead of creating new runtime
-                            let client = &app.beads_client;
-
-                            match runtime::RUNTIME.block_on(client.delete_issue(issue_id)) {
-                                Ok(()) => {
-                                    tracing::info!("Successfully deleted issue: {}", issue_id);
-                                    app.reload_issues();
-                                    app.stop_loading();
-                                }
-                                Err(e) => {
-                                    app.stop_loading();
-                                    tracing::error!("Failed to delete issue: {:?}", e);
-                                }
-                            }
+                            // Spawn background task (non-blocking)
+                            let issue_id_owned = issue_id.to_string();
+                            let _ = app.spawn_task(
+                                &format!("Deleting issue {}", issue_id),
+                                move |client| async move {
+                                    client.delete_issue(&issue_id_owned).await?;
+                                    tracing::info!("Successfully deleted issue: {}", issue_id_owned);
+                                    Ok(TaskOutput::IssueDeleted(issue_id_owned))
+                                },
+                            );
                         } else if let Some(issue_id) = action.strip_prefix("close:") {
                             tracing::info!("Confirmed close for issue: {}", issue_id);
 
@@ -191,27 +185,11 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         } else if action == "compact_database" {
                             tracing::info!("Confirmed compact database");
 
-                            // Show loading indicator
-                            app.start_loading("Compacting database...");
-
-                            // Create a tokio runtime to execute the async call
-                            // Using global runtime instead of creating new runtime
-                            let client = &app.beads_client;
-
-                            match runtime::RUNTIME.block_on(client.compact_database()) {
-                                Ok(()) => {
-                                    tracing::info!("Successfully compacted database");
-                                    app.reload_issues();
-                                    app.stop_loading();
-                                }
-                                Err(e) => {
-                                    app.stop_loading();
-                                    tracing::error!("Failed to compact database: {:?}", e);
-                                    app.set_error(format!(
-                                        "Failed to compact database: {e}\n\nTry:\n• Run 'bd doctor' to diagnose issues\n• Check available disk space\n• Restart the application"
-                                    ));
-                                }
-                            }
+                            // Spawn background task (non-blocking)
+                            let _ = app.spawn_task("Compacting database", |client| async move {
+                                client.compact_database().await?;
+                                Ok(TaskOutput::DatabaseCompacted)
+                            });
                         }
                     }
                 }
@@ -527,39 +505,21 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                             to_id
                                         );
                                     } else {
-                                        // Call CLI to add dependency synchronously
-                                        // Using global runtime instead of creating new runtime
-                                        app.start_loading("Adding dependency...");
-
-                                        match runtime::RUNTIME.block_on(
-                                            app.beads_client.add_dependency(&from_id, &to_id),
-                                        ) {
-                                            Ok(()) => {
-                                                app.stop_loading();
+                                        // Spawn background task (non-blocking)
+                                        let from_id_owned = from_id.clone();
+                                        let to_id_owned = to_id.clone();
+                                        let _ = app.spawn_task(
+                                            "Adding dependency",
+                                            move |client| async move {
+                                                client.add_dependency(&from_id_owned, &to_id_owned).await?;
                                                 tracing::info!(
                                                     "Added dependency: {} depends on {}",
-                                                    from_id,
-                                                    to_id
+                                                    from_id_owned,
+                                                    to_id_owned
                                                 );
-
-                                                // TODO: Wrap dep add in DependencyAddCommand for undo support (beads-tui-37lyg)
-
-                                                app.set_success(format!(
-                                                    "Added dependency: {} depends on {}",
-                                                    from_id, to_id
-                                                ));
-                                                // Reload issues to reflect the change
-                                                app.reload_issues();
-                                            }
-                                            Err(e) => {
-                                                app.stop_loading();
-                                                tracing::error!("Failed to add dependency: {}", e);
-                                                app.set_error(format!(
-                                                    "Failed to add dependency: {}\n\nCommon causes:\n• Dependency would create a cycle\n• Invalid issue ID format\n• Issue not found",
-                                                    e
-                                                ));
-                                            }
-                                        }
+                                                Ok(TaskOutput::DependencyAdded)
+                                            },
+                                        );
                                     }
                                 }
                             }
@@ -1030,37 +990,21 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                             prev_id
                                         );
 
-                                        // Create a tokio runtime to execute the async call
-                                        // Using global runtime instead of creating new runtime
-                                        let client = app.beads_client.clone();
-
-                                        app.start_loading("Indenting issue...");
-
-                                        // Add dependency: selected depends on previous (previous blocks selected)
-                                        match runtime::RUNTIME
-                                            .block_on(client.add_dependency(&selected_id, &prev_id))
-                                        {
-                                            Ok(()) => {
-                                                app.stop_loading();
+                                        // Spawn background task (non-blocking)
+                                        let selected_id_owned = selected_id.clone();
+                                        let prev_id_owned = prev_id.clone();
+                                        let _ = app.spawn_task(
+                                            "Indenting issue",
+                                            move |client| async move {
+                                                client.add_dependency(&selected_id_owned, &prev_id_owned).await?;
                                                 tracing::info!(
                                                     "Successfully indented {} under {}",
-                                                    selected_id,
-                                                    prev_id
+                                                    selected_id_owned,
+                                                    prev_id_owned
                                                 );
-                                                app.set_success(format!(
-                                                    "Indented issue under {}",
-                                                    prev_id
-                                                ));
-
-                                                // Reload issues list to reflect the hierarchy change
-                                                app.reload_issues();
-                                            }
-                                            Err(e) => {
-                                                app.stop_loading();
-                                                tracing::error!("Failed to indent issue: {:?}", e);
-                                                app.set_error(format!("Failed to indent: {e}\n\nTip: Ensure the previous issue is valid and can be a parent.\nCheck 'bd show' to verify issue hierarchy."));
-                                            }
-                                        }
+                                                Ok(TaskOutput::DependencyAdded)
+                                            },
+                                        );
                                     } else {
                                         app.set_error(
                                             "No previous issue to indent under".to_string(),
@@ -1091,37 +1035,21 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                     parent_id
                                 );
 
-                                // Create a tokio runtime to execute the async call
-                                // Using global runtime instead of creating new runtime
-                                let client = app.beads_client.clone();
-
-                                app.start_loading("Outdenting issue...");
-
-                                // Remove dependency: selected no longer depends on parent
-                                match runtime::RUNTIME
-                                    .block_on(client.remove_dependency(&selected_id, &parent_id))
-                                {
-                                    Ok(()) => {
-                                        app.stop_loading();
+                                // Spawn background task (non-blocking)
+                                let selected_id_owned = selected_id.clone();
+                                let parent_id_owned = parent_id.clone();
+                                let _ = app.spawn_task(
+                                    "Outdenting issue",
+                                    move |client| async move {
+                                        client.remove_dependency(&selected_id_owned, &parent_id_owned).await?;
                                         tracing::info!(
                                             "Successfully outdented {} from {}",
-                                            selected_id,
-                                            parent_id
+                                            selected_id_owned,
+                                            parent_id_owned
                                         );
-                                        app.set_success(format!(
-                                            "Outdented issue from {}",
-                                            parent_id
-                                        ));
-
-                                        // Reload issues list to reflect the hierarchy change
-                                        app.reload_issues();
-                                    }
-                                    Err(e) => {
-                                        app.stop_loading();
-                                        tracing::error!("Failed to outdent issue: {:?}", e);
-                                        app.set_error(format!("Failed to outdent: {e}\n\nTip: Check the issue hierarchy with 'bd show'.\nEnsure dependencies allow this change."));
-                                    }
-                                }
+                                        Ok(TaskOutput::DependencyRemoved)
+                                    },
+                                );
                             } else {
                                 app.set_error("Issue has no parent to outdent from".to_string());
                             }
@@ -1888,85 +1816,47 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             // Sync database with remote
             tracing::info!("Syncing database with remote");
 
-            app.start_loading("Syncing database...");
-
-            match runtime::RUNTIME.block_on(app.beads_client.sync_database()) {
-                Ok(output) => {
-                    app.stop_loading();
-                    tracing::info!("Database synced successfully: {}", output);
-                    app.reload_issues();
-                }
-                Err(e) => {
-                    app.stop_loading();
-                    tracing::error!("Failed to sync database: {:?}", e);
-                    app.set_error(format!(
-                        "Failed to sync database: {e}\n\nTry:\n• Check network connectivity\n• Verify git remote is configured\n• Run 'bd doctor' to diagnose issues"
-                    ));
-                }
-            }
+            // Spawn background task (non-blocking)
+            let _ = app.spawn_task("Syncing database", |client| async move {
+                let output = client.sync_database().await?;
+                tracing::info!("Database synced successfully: {}", output);
+                Ok(TaskOutput::DatabaseSynced)
+            });
         }
         KeyCode::Char('e') => {
             // Export issues to file
             tracing::info!("Exporting issues to beads_export.jsonl");
 
-            app.start_loading("Exporting issues...");
-
-            match runtime::RUNTIME.block_on(app.beads_client.export_issues("beads_export.jsonl")) {
-                Ok(_) => {
-                    app.stop_loading();
-                    tracing::info!("Issues exported successfully");
-                    app.set_success("Issues exported to beads_export.jsonl".to_string());
-                }
-                Err(e) => {
-                    app.stop_loading();
-                    tracing::error!("Failed to export issues: {:?}", e);
-                    app.set_error(format!("Failed to export issues: {e}\n\nTry:\n• Check write permissions for the output file\n• Ensure sufficient disk space\n• Verify the file path is valid"));
-                }
-            }
+            // Spawn background task (non-blocking)
+            let _ = app.spawn_task("Exporting issues", |client| async move {
+                client.export_issues("beads_export.jsonl").await?;
+                tracing::info!("Issues exported successfully");
+                Ok(TaskOutput::IssuesExported(
+                    "beads_export.jsonl".to_string(),
+                ))
+            });
         }
         KeyCode::Char('i') => {
             // Import issues from file
             tracing::info!("Importing issues from beads_import.jsonl");
 
-            app.start_loading("Importing issues...");
-
-            match runtime::RUNTIME.block_on(app.beads_client.import_issues("beads_import.jsonl")) {
-                Ok(_) => {
-                    app.stop_loading();
-                    tracing::info!("Issues imported successfully");
-                    app.reload_issues();
-                }
-                Err(e) => {
-                    app.stop_loading();
-                    tracing::error!("Failed to import issues: {:?}", e);
-                    app.set_error(format!("Failed to import issues: {e}\n\nTry:\n• Verify the import file exists and is readable\n• Check the file format is valid JSON\n• Ensure the file contains properly formatted issue data"));
-                }
-            }
+            // Spawn background task (non-blocking)
+            let _ = app.spawn_task("Importing issues", |client| async move {
+                client.import_issues("beads_import.jsonl").await?;
+                tracing::info!("Issues imported successfully");
+                Ok(TaskOutput::IssuesImported(0))
+            });
         }
         KeyCode::Char('v') => {
             // Verify database integrity
             tracing::info!("Verifying database integrity");
 
-            app.start_loading("Verifying database...");
-
-            match runtime::RUNTIME.block_on(app.beads_client.verify_database()) {
-                Ok(output) => {
-                    app.stop_loading();
-                    tracing::info!("Database verification result: {}", output);
-                    if output.contains("error") {
-                        app.set_error(format!("Database check: {output}"));
-                    } else if output.contains("issue") || output.contains("warning") {
-                        app.set_warning(format!("Database check: {output}"));
-                    } else {
-                        app.set_success("Database verification completed successfully".to_string());
-                    }
-                }
-                Err(e) => {
-                    app.stop_loading();
-                    tracing::error!("Failed to verify database: {:?}", e);
-                    app.set_error(format!("Failed to verify database: {e}\n\nTry:\n• Run 'bd doctor' to diagnose issues\n• Check if beads CLI is accessible\n• Verify database integrity with 'bd stats'"));
-                }
-            }
+            // Spawn background task (non-blocking)
+            let _ = app.spawn_task("Verifying database", |client| async move {
+                let output = client.verify_database().await?;
+                tracing::info!("Database verification result: {}", output);
+                Ok(TaskOutput::Success(output))
+            });
         }
         KeyCode::Char('c') => {
             // Compact database (requires confirmation)
@@ -2105,6 +1995,9 @@ fn run_app<B: ratatui::backend::Backend>(
     loop {
         // Check for notification auto-dismiss
         app.check_notification_timeout();
+
+        // Poll for task completions
+        app.poll_tasks();
 
         // Only render if state has changed (dirty checking)
         if app.is_dirty() {

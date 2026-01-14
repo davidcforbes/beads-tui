@@ -557,8 +557,9 @@ impl SearchInterfaceState {
         } else {
             // Cache the lowercase query for substring matching performance
             let lowercase_query = self.search_state.query().to_lowercase();
-            self.lowercase_query_cache = Some(lowercase_query.clone());
-            lowercase_query
+            self.lowercase_query_cache = Some(lowercase_query);
+            // Use cached value to avoid double allocation
+            self.lowercase_query_cache.as_ref().unwrap().clone()
         };
         let column_filters = self.list_state.column_filters();
         let filters_enabled = self.list_state.filters_enabled();

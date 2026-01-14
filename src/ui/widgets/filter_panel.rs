@@ -235,10 +235,11 @@ impl<'a> FilterPanel<'a> {
                 self.active_style,
             ))));
             for status in &self.criteria.statuses {
+                let symbol = crate::ui::themes::Theme::status_symbol(status);
                 items.push(ListItem::new(Line::from(vec![
                     Span::raw("  • "),
                     Span::styled(
-                        format!("{status:?}"),
+                        format!("{} {status:?}", symbol),
                         Style::default().fg(Self::status_color(status)),
                     ),
                 ])));
@@ -255,10 +256,11 @@ impl<'a> FilterPanel<'a> {
                 self.active_style,
             ))));
             for priority in &self.criteria.priorities {
+                let symbol = crate::ui::themes::Theme::priority_symbol(priority);
                 items.push(ListItem::new(Line::from(vec![
                     Span::raw("  • "),
                     Span::styled(
-                        format!("{priority}"),
+                        format!("{} {}", symbol, priority),
                         Style::default().fg(Self::priority_color(priority)),
                     ),
                 ])));

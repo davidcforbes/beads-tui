@@ -15,8 +15,18 @@ use tokio::runtime::Runtime;
 /// - Can cause crashes if runtime creation fails
 ///
 /// Instead, we use a single shared runtime for all async operations.
-pub static RUNTIME: Lazy<Runtime> =
-    Lazy::new(|| Runtime::new().expect("Failed to create tokio runtime"));
+pub static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
+    Runtime::new().unwrap_or_else(|e| {
+        eprintln!("FATAL ERROR: Failed to create tokio runtime");
+        eprintln!("This usually indicates a system resource issue:");
+        eprintln!("  - Insufficient system resources (memory, threads)");
+        eprintln!("  - Thread pool initialization failure");
+        eprintln!("  - Permission issues on some platforms");
+        eprintln!("\nError details: {}", e);
+        eprintln!("\nThe application cannot continue without a working async runtime.");
+        std::process::exit(1);
+    })
+});
 
 #[cfg(test)]
 mod tests {

@@ -133,6 +133,14 @@ impl<'a> HelpView<'a> {
                 Span::styled("Ctrl+Z", Style::default().fg(Color::Green)),
                 Span::raw("    - Undo last operation"),
             ]),
+            Line::from(vec![
+                Span::styled("Ctrl+Y", Style::default().fg(Color::Green)),
+                Span::raw("    - Redo last undone operation"),
+            ]),
+            Line::from(vec![
+                Span::styled("Ctrl+H", Style::default().fg(Color::Green)),
+                Span::raw("    - Show undo/redo history"),
+            ]),
         ]
     }
 
