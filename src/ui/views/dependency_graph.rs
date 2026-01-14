@@ -1,4 +1,34 @@
 //! Dependency graph view with pan and zoom controls
+//!
+//! ## Known Limitations
+//!
+//! - **Performance**: Very wide graphs (>1000 nodes at same level) may cause slowdown
+//!   - Layout algorithm is O(n²) for positioning nodes within layers
+//!   - Rendering is optimized with viewport clipping
+//!
+//! - **Layout**: Node label truncation occurs when labels exceed node width (max ~50 chars)
+//!   - Long labels show ellipsis (…) to indicate truncation
+//!   - Hover tooltips could be added in future for full text
+//!
+//! - **Deep Hierarchies**: Very deep graphs (>200 levels) are supported but may require
+//!   significant panning to navigate
+//!   - Consider implementing minimap or overview panel for large graphs
+//!
+//! - **Zoom**: Zoom functionality is planned but not yet implemented
+//!   - Current workaround: Use terminal font size adjustment
+//!
+//! - **Cycles**: Cyclic dependencies are detected and rendered without infinite loops
+//!   - Cycle visualization shows all edges including back edges
+//!   - Consider adding cycle highlighting in future
+//!
+//! ## Testing
+//!
+//! Comprehensive edge case tests in `tests/integration/dependency_edge_cases.rs` cover:
+//! - Empty graphs, single nodes, disconnected components
+//! - Very wide graphs (150+ children), deep hierarchies (120+ levels)
+//! - Cyclic dependencies, self-referencing nodes
+//! - Large labels, special characters, Unicode
+//! - Viewport edge cases (tiny viewport, large offsets)
 
 use crate::beads::models::Issue;
 use crate::graph::{GraphLayout, GraphRenderer, LayoutOptions, RenderOptions};
