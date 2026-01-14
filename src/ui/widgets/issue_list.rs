@@ -156,11 +156,26 @@ impl ColumnFilters {
             return true;
         }
 
+        // Pre-compute lowercase versions once for all filter checks
+        // This avoids repeated allocations for the same issue
+        let id_lower = if !self.id.is_empty() {
+            Some(issue.id.to_lowercase())
+        } else {
+            None
+        };
+        let title_lower = if !self.title.is_empty() {
+            Some(issue.title.to_lowercase())
+        } else {
+            None
+        };
+        let status_lower = if !self.status.is_empty() {
+            Some(issue.status.to_string().to_lowercase())
+        } else {
+            None
+        };
+
         // Check ID filter (substring match, case-insensitive)
-        // Use cached lowercase if available, otherwise compute it (for backwards compatibility)
-        if !self.id.is_empty() {
-            let id_lower = issue.id.to_lowercase();
-            // Use cache if populated, otherwise fall back to computing (for tests)
+        if let Some(id_lower) = id_lower {
             let temp_lower;
             let filter_lower = if !self.cached_id_lower.is_empty() {
                 &self.cached_id_lower
@@ -174,8 +189,7 @@ impl ColumnFilters {
         }
 
         // Check title filter (substring match, case-insensitive)
-        if !self.title.is_empty() {
-            let title_lower = issue.title.to_lowercase();
+        if let Some(title_lower) = title_lower {
             let temp_lower;
             let filter_lower = if !self.cached_title_lower.is_empty() {
                 &self.cached_title_lower
@@ -189,8 +203,7 @@ impl ColumnFilters {
         }
 
         // Check status filter (exact match, case-insensitive)
-        if !self.status.is_empty() {
-            let status_str = issue.status.to_string().to_lowercase();
+        if let Some(status_str) = status_lower {
             let temp_lower;
             let filter_lower = if !self.cached_status_lower.is_empty() {
                 &self.cached_status_lower

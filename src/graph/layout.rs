@@ -220,7 +220,12 @@ impl GraphLayout {
         let mut layers_vec: Vec<Vec<String>> = vec![Vec::new(); max_layer + 1];
 
         for (node_id, &layer) in layers {
-            layers_vec[layer].push(node_id.clone());
+            // Bounds check to prevent panic (defensive programming)
+            if let Some(layer_vec) = layers_vec.get_mut(layer) {
+                layer_vec.push(node_id.clone());
+            } else {
+                tracing::warn!("Layer index {} out of bounds (max: {})", layer, max_layer);
+            }
         }
 
         // Sort nodes within each layer by ID for consistency

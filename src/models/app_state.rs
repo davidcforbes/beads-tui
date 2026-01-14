@@ -288,9 +288,11 @@ impl AppState {
     }
 
     /// Load issues synchronously using tokio runtime
+    /// Limits to 10,000 issues to prevent memory exhaustion on large projects
     fn load_issues_sync(client: &BeadsClient) -> Vec<crate::beads::models::Issue> {
+        const MAX_ISSUES: usize = 10_000;
         crate::runtime::RUNTIME
-            .block_on(client.list_issues(None, None))
+            .block_on(client.list_issues(None, Some(MAX_ISSUES)))
             .unwrap_or_else(|e| {
                 tracing::warn!("Failed to load issues: {:?}", e);
                 vec![]
