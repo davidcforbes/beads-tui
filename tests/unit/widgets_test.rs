@@ -30,7 +30,7 @@ fn test_status_bar_snapshot() {
     assert!(buffer
         .content
         .iter()
-        .any(|c| c.symbol() == "C" && c.fg == Color::Gray));
+        .any(|c| c.symbol() == "C" && c.fg == Color::White));
     // Verify mode
     assert!(buffer
         .content
