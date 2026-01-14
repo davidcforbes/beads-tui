@@ -1,8 +1,12 @@
 /// Configuration management for beads-tui
+pub mod keybindings;
+
 use crate::models::{KanbanConfig, SavedFilter, TableConfig};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+pub use keybindings::{Action, Keybinding, KeybindingsConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
@@ -38,10 +42,7 @@ impl Default for ThemeConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct KeybindingsConfig {
-    // Future: Custom keybindings
-}
+// KeybindingsConfig is now defined in keybindings module and re-exported above
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BehaviorConfig {
@@ -150,7 +151,6 @@ impl Config {
         self.filters.iter().find(|f| f.hotkey == Some(key))
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -312,7 +312,7 @@ theme:
         use crate::models::IssueFilter;
 
         let mut config = Config::default();
-        
+
         let filter1 = SavedFilter {
             name: "Filter 1".to_string(),
             filter: IssueFilter::new(),
