@@ -46,6 +46,7 @@ impl Default for ToastConfig {
 pub struct Toast<'a> {
     notification: &'a NotificationMessage,
     config: ToastConfig,
+    theme: Option<&'a crate::ui::themes::Theme>,
 }
 
 impl<'a> Toast<'a> {
@@ -54,6 +55,7 @@ impl<'a> Toast<'a> {
         Self {
             notification,
             config: ToastConfig::default(),
+            theme: None,
         }
     }
 
@@ -87,13 +89,24 @@ impl<'a> Toast<'a> {
         self
     }
 
+    /// Set theme
+    pub fn theme(mut self, theme: &'a crate::ui::themes::Theme) -> Self {
+        self.theme = Some(theme);
+        self
+    }
+
     /// Get the notification type styling
     fn get_style(&self) -> (Color, Color, &'static str, &'static str) {
+        use crate::ui::themes::Theme;
+
+        let default_theme = Theme::default();
+        let theme_ref = self.theme.unwrap_or(&default_theme);
+
         match self.notification.notification_type {
-            NotificationType::Error => (Color::Red, Color::White, "✖", "Error"),
-            NotificationType::Success => (Color::Green, Color::White, "✓", "Success"),
-            NotificationType::Info => (Color::Blue, Color::White, "ℹ", "Info"),
-            NotificationType::Warning => (Color::Yellow, Color::Black, "⚠", "Warning"),
+            NotificationType::Error => (theme_ref.error, Color::White, "✖", "Error"),
+            NotificationType::Success => (theme_ref.success, Color::White, "✓", "Success"),
+            NotificationType::Info => (theme_ref.info, Color::White, "ℹ", "Info"),
+            NotificationType::Warning => (theme_ref.warning, Color::Black, "⚠", "Warning"),
         }
     }
 
