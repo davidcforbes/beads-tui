@@ -470,6 +470,11 @@ impl<'a> DatabaseView<'a> {
     }
 
     fn render_statistics(&self) -> Vec<Line<'static>> {
+        use crate::ui::themes::Theme;
+
+        let default_theme = Theme::default();
+        let theme_ref = self.theme.unwrap_or(&default_theme);
+
         let total_issues = self.stats.total_issues;
         let open_issues = self.stats.open_issues;
         let closed_issues = self.stats.closed_issues;
@@ -486,19 +491,19 @@ impl<'a> DatabaseView<'a> {
             Line::from(""),
             Line::from(vec![
                 Span::styled("Total Issues:  ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{total_issues}"), Style::default().fg(Color::Cyan)),
+                Span::styled(format!("{total_issues}"), Style::default().fg(theme_ref.info)),
             ]),
             Line::from(vec![
                 Span::styled("Open:          ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{open_issues}"), Style::default().fg(Color::Green)),
+                Span::styled(format!("{open_issues}"), Style::default().fg(theme_ref.success)),
             ]),
             Line::from(vec![
                 Span::styled("Closed:        ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{closed_issues}"), Style::default().fg(Color::Blue)),
+                Span::styled(format!("{closed_issues}"), Style::default().fg(theme_ref.muted)),
             ]),
             Line::from(vec![
                 Span::styled("Blocked:       ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{blocked_issues}"), Style::default().fg(Color::Red)),
+                Span::styled(format!("{blocked_issues}"), Style::default().fg(theme_ref.error)),
             ]),
             Line::from(""),
             Line::from(vec![
