@@ -4,11 +4,13 @@ pub mod graph;
 pub mod models;
 pub mod runtime;
 pub mod tasks;
+pub mod tts;
 pub mod ui;
 pub mod undo;
 pub mod utils;
 
 use anyhow::Result;
+use clap::Parser;
 use tasks::TaskOutput;
 use crossterm::{
     event::{
@@ -32,7 +34,18 @@ use std::time::Instant;
 use ui::views::{DatabaseView, DependenciesView, HelpView, IssuesView, LabelsView};
 use undo::IssueUpdateCommand;
 
+/// Terminal UI for the beads issue tracker
+#[derive(Parser, Debug)]
+#[command(name = "beads-tui")]
+#[command(about = "Terminal UI for beads issue tracker", long_about = None)]
+struct Args {
+    /// Enable text-to-speech announcements for screen readers
+    #[arg(long)]
+    tts: bool,
+}
+
 fn main() -> Result<()> {
+    let args = Args::parse();
     // Setup panic hook to restore terminal on panic
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -68,8 +81,14 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    // Initialize TTS if requested
+    let tts_manager = tts::TtsManager::new(args.tts);
+    if tts_manager.is_available() {
+        tracing::info!("Screen reader support enabled");
+    }
+
     // Create app state
-    let mut app = models::AppState::new();
+    let mut app = models::AppState::with_tts(tts_manager);
 
     // Run the app
     let res = run_app(&mut terminal, &mut app);
@@ -2424,26 +2443,31 @@ fn run_app<B: ratatui::backend::Backend>(
                     }
                     KeyCode::Char('1') => {
                         app.selected_tab = 0;
+                        app.tts_manager.announce("Issues tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('2') => {
                         app.selected_tab = 1;
+                        app.tts_manager.announce("Dependencies tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('3') => {
                         app.selected_tab = 2;
+                        app.tts_manager.announce("Labels tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('4') => {
                         app.selected_tab = 3;
+                        app.tts_manager.announce("PERT view tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('5') => {
                         app.selected_tab = 4;
+                        app.tts_manager.announce("Gantt view tab");
                         app.mark_dirty();
                         continue;
                     }

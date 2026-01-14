@@ -9,6 +9,7 @@ pub mod graph;
 pub mod models;
 pub mod runtime;
 pub mod tasks;
+pub mod tts;
 pub mod ui;
 pub mod undo;
 pub mod utils;

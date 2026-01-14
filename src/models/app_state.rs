@@ -125,6 +125,8 @@ pub struct AppState {
     pub loading_message: Option<String>,
     /// Cancellation token for current operation (Some if cancellable)
     pub cancellation_token: Option<tokio_util::sync::CancellationToken>,
+    /// Text-to-speech manager for screen reader support
+    pub tts_manager: crate::tts::TtsManager,
     /// Undo/redo stack for reversible operations
     pub undo_stack: UndoStack,
     /// Task manager for background operations
@@ -280,11 +282,20 @@ impl AppState {
             loading_spinner: None,
             loading_message: None,
             cancellation_token: None,
+            tts_manager: crate::tts::TtsManager::default(),
             undo_stack: UndoStack::new(),
             task_manager: TaskManager::new(),
             active_tasks: Vec::new(),
             completed_tasks: VecDeque::new(),
         }
+    }
+
+    /// Create a new app state with a specific TTS manager
+    pub fn with_tts(tts_manager: crate::tts::TtsManager) -> Self {
+        let mut state = Self::new();
+        state.tts_manager = tts_manager;
+        state.tts_manager.announce("Beads TUI started");
+        state
     }
 
     /// Load issues synchronously using tokio runtime
@@ -436,10 +447,19 @@ impl AppState {
     /// Add a notification message to the queue
     pub fn set_notification(&mut self, message: String, notification_type: NotificationType) {
         let notification = NotificationMessage {
-            message,
+            message: message.clone(),
             notification_type,
             created_at: std::time::Instant::now(),
         };
+
+        // Announce to screen reader
+        let announcement = match notification_type {
+            NotificationType::Error => format!("Error: {}", message),
+            NotificationType::Warning => format!("Warning: {}", message),
+            NotificationType::Success => format!("Success: {}", message),
+            NotificationType::Info => message.clone(),
+        };
+        self.tts_manager.announce(&announcement);
 
         // Add to current notification queue
         self.notifications.push(notification.clone());
@@ -996,6 +1016,7 @@ impl AppState {
         use ratatui::style::{Color, Style};
 
         let msg = message.into();
+        self.tts_manager.announce(&msg);
         self.loading_message = Some(msg.clone());
         self.loading_spinner = Some(
             Spinner::new()
@@ -1007,6 +1028,9 @@ impl AppState {
 
     /// Stop showing the loading indicator
     pub fn stop_loading(&mut self) {
+        if self.loading_message.is_some() {
+            self.tts_manager.announce("Loading complete");
+        }
         self.loading_spinner = None;
         self.loading_message = None;
         self.cancellation_token = None;
@@ -1288,6 +1312,7 @@ mod tests {
             loading_spinner: None,
             loading_message: None,
             cancellation_token: None,
+            tts_manager: crate::tts::TtsManager::default(),
             undo_stack: UndoStack::new(),
             notification_history: VecDeque::new(),
             show_notification_history: false,

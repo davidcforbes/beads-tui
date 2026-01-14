@@ -64,6 +64,7 @@ directories = "5.0"
 # Colors and styling
 owo-colors = "4.0"
 tempfile = "3.10"
+tts = "0.26.3"
 
 [dev-dependencies]
 # Testing
