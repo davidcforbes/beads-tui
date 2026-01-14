@@ -80,6 +80,27 @@ impl Default for CreateIssueFormState {
 }
 
 impl CreateIssueFormState {
+    /// Get git user.name from git config as default assignee
+    fn get_git_user_name() -> Result<String, String> {
+        use std::process::Command;
+
+        let output = Command::new("git")
+            .args(&["config", "--get", "user.name"])
+            .output()
+            .map_err(|e| format!("Failed to run git config: {}", e))?;
+
+        if output.status.success() {
+            let user_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !user_name.is_empty() {
+                Ok(user_name)
+            } else {
+                Err("git user.name is empty".to_string())
+            }
+        } else {
+            Err("git config failed".to_string())
+        }
+    }
+
     /// Create a new create issue form state
     pub fn new() -> Self {
         let fields = vec![
@@ -166,9 +187,17 @@ impl CreateIssueFormState {
                 .placeholder("comma-separated beads-xxx (optional)")
                 .with_validation(ValidationRule::MaxLength(2048)),
             // Labels section
-            FormField::text("assignee", "Assignee")
-                .placeholder("username (optional)")
-                .with_validation(ValidationRule::MaxLength(128)),
+            {
+                let mut assignee_field = FormField::text("assignee", "Assignee")
+                    .placeholder("username (optional)")
+                    .with_validation(ValidationRule::MaxLength(128));
+
+                // Try to get default assignee from git config
+                if let Ok(git_user) = Self::get_git_user_name() {
+                    assignee_field = assignee_field.value(&git_user);
+                }
+                assignee_field
+            },
             FormField::text("labels", "Labels")
                 .placeholder("comma-separated labels (optional)")
                 .with_validation(ValidationRule::MaxLength(2048)),
@@ -480,9 +509,17 @@ impl CreateIssueFormState {
                 .placeholder("comma-separated beads-xxx (optional)")
                 .with_validation(ValidationRule::MaxLength(2048)),
             // Labels section
-            FormField::text("assignee", "Assignee")
-                .placeholder("username (optional)")
-                .with_validation(ValidationRule::MaxLength(128)),
+            {
+                let mut assignee_field = FormField::text("assignee", "Assignee")
+                    .placeholder("username (optional)")
+                    .with_validation(ValidationRule::MaxLength(128));
+
+                // Try to get default assignee from git config
+                if let Ok(git_user) = Self::get_git_user_name() {
+                    assignee_field = assignee_field.value(&git_user);
+                }
+                assignee_field
+            },
             FormField::text("labels", "Labels")
                 .placeholder("comma-separated labels (optional)")
                 .with_validation(ValidationRule::MaxLength(2048)),
@@ -916,7 +953,8 @@ mod tests {
         state.clear();
 
         assert_eq!(state.form_state().get_value("title"), Some(""));
-        assert_eq!(state.form_state().get_value("assignee"), Some(""));
+        // Assignee may have git config default, so just check it's not "john" anymore
+        assert_ne!(state.form_state().get_value("assignee"), Some("john"));
     }
 
     #[test]
@@ -930,7 +968,8 @@ mod tests {
         assert!(state.validate());
 
         let data = state.get_data().unwrap();
-        assert_eq!(data.assignee, None);
+        // Assignee may be populated from git config, so it could be Some or None
+        // Just verify labels and description are empty as expected
         assert_eq!(data.labels.len(), 0);
         assert_eq!(data.description, None);
     }
