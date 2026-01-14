@@ -540,7 +540,8 @@ impl FormState {
         let path = Path::new(file_path);
 
         // Canonicalize the path to resolve any ../.. or symlinks
-        let canonical_path = path.canonicalize()
+        let canonical_path = path
+            .canonicalize()
             .map_err(|_| "File not found or inaccessible".to_string())?;
 
         // Verify it's actually a file (not a directory or other special file)
@@ -549,8 +550,9 @@ impl FormState {
         }
 
         // Read file content - use canonical path to ensure we read what we validated
-        let content = fs::read_to_string(&canonical_path)
-            .map_err(|_| "Failed to read file: permission denied or file is not UTF-8".to_string())?;
+        let content = fs::read_to_string(&canonical_path).map_err(|_| {
+            "Failed to read file: permission denied or file is not UTF-8".to_string()
+        })?;
 
         // Validate UTF-8 (already validated by read_to_string, but check for null bytes)
         if content.contains('\0') {
@@ -1803,9 +1805,8 @@ mod tests {
     #[test]
     fn test_validation_clears_errors_when_input_becomes_valid() {
         // Test that validation clears errors when the input becomes valid
-        let fields =
-            vec![FormField::text("estimate", "Estimate")
-                .with_validation(ValidationRule::PositiveInteger)];
+        let fields = vec![FormField::text("estimate", "Estimate")
+            .with_validation(ValidationRule::PositiveInteger)];
         let mut state = FormState::new(fields);
 
         // Enter invalid input
@@ -1829,9 +1830,8 @@ mod tests {
     #[test]
     fn test_validation_on_rapid_input() {
         // Test that rapid typing triggers validation on each character
-        let fields = vec![
-            FormField::text("label", "Label").with_validation(ValidationRule::NoSpaces),
-        ];
+        let fields =
+            vec![FormField::text("label", "Label").with_validation(ValidationRule::NoSpaces)];
         let mut state = FormState::new(fields);
 
         // Type valid characters rapidly
@@ -1878,10 +1878,6 @@ mod tests {
 
         // First field should still have its error
         assert!(state.fields[0].error.is_some());
-        assert!(state.fields[0]
-            .error
-            .as_ref()
-            .unwrap()
-            .contains("required"));
+        assert!(state.fields[0].error.as_ref().unwrap().contains("required"));
     }
 }

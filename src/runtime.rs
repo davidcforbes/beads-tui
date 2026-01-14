@@ -15,9 +15,8 @@ use tokio::runtime::Runtime;
 /// - Can cause crashes if runtime creation fails
 ///
 /// Instead, we use a single shared runtime for all async operations.
-pub static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
-    Runtime::new().expect("Failed to create tokio runtime")
-});
+pub static RUNTIME: Lazy<Runtime> =
+    Lazy::new(|| Runtime::new().expect("Failed to create tokio runtime"));
 
 #[cfg(test)]
 mod tests {

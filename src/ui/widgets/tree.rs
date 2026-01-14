@@ -502,7 +502,12 @@ mod tests {
         let mut output = Vec::new();
 
         // Without expansion, should only show parent
-        flatten_tree(std::slice::from_ref(&parent), &state.expanded, 0, &mut output);
+        flatten_tree(
+            std::slice::from_ref(&parent),
+            &state.expanded,
+            0,
+            &mut output,
+        );
         assert_eq!(output.len(), 1);
         assert_eq!(output[0].id, "parent");
         assert_eq!(output[0].level, 0);
@@ -627,7 +632,12 @@ mod tests {
         state.expand("parent1");
 
         let mut output = Vec::new();
-        flatten_tree(&[parent1.clone(), parent2.clone()], &state.expanded, 0, &mut output);
+        flatten_tree(
+            &[parent1.clone(), parent2.clone()],
+            &state.expanded,
+            0,
+            &mut output,
+        );
 
         // Should show: parent1, child1_1, child1_2, parent2
         assert_eq!(output.len(), 4);

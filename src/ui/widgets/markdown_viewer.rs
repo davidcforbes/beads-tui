@@ -162,7 +162,8 @@ fn parse_markdown(content: &str) -> Vec<MarkdownElement> {
 
         // List items
         if (trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ "))
-            && trimmed.len() >= 2 {
+            && trimmed.len() >= 2
+        {
             let text = trimmed[2..].trim().to_string();
             elements.push(MarkdownElement::ListItem(text));
             continue;
@@ -490,7 +491,9 @@ impl<'a> MarkdownViewer<'a> {
                 MarkdownElement::Blockquote(text) => {
                     let mut spans = vec![Span::styled(
                         "│ ",
-                        Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD),
+                        Style::default()
+                            .fg(Color::Gray)
+                            .add_modifier(Modifier::BOLD),
                     )];
                     let quote_spans: Vec<Span> = parse_inline_formatting(text)
                         .into_iter()
@@ -1383,7 +1386,7 @@ mod tests {
         let content = "- [ ] Unchecked task";
         let elements = parse_markdown(content);
         assert_eq!(elements.len(), 1);
-        
+
         if let MarkdownElement::TaskListItem(checked, text) = &elements[0] {
             assert!(!checked);
             assert_eq!(text, "Unchecked task");
@@ -1397,14 +1400,14 @@ mod tests {
         let content = "- [x] Checked task\n- [X] Also checked";
         let elements = parse_markdown(content);
         assert_eq!(elements.len(), 2);
-        
+
         if let MarkdownElement::TaskListItem(checked, text) = &elements[0] {
             assert!(checked);
             assert_eq!(text, "Checked task");
         } else {
             panic!("Expected TaskListItem");
         }
-        
+
         if let MarkdownElement::TaskListItem(checked, _) = &elements[1] {
             assert!(checked);
         } else {
@@ -1417,19 +1420,19 @@ mod tests {
         let content = "- [ ] Todo item\n- [x] Done item\n- [ ] Another todo";
         let elements = parse_markdown(content);
         assert_eq!(elements.len(), 3);
-        
+
         if let MarkdownElement::TaskListItem(checked, _) = &elements[0] {
             assert!(!checked);
         } else {
             panic!("Expected TaskListItem");
         }
-        
+
         if let MarkdownElement::TaskListItem(checked, _) = &elements[1] {
             assert!(checked);
         } else {
             panic!("Expected TaskListItem");
         }
-        
+
         if let MarkdownElement::TaskListItem(checked, _) = &elements[2] {
             assert!(!checked);
         } else {
@@ -1442,7 +1445,7 @@ mod tests {
         let content = "> This is a quote";
         let elements = parse_markdown(content);
         assert_eq!(elements.len(), 1);
-        
+
         if let MarkdownElement::Blockquote(text) = &elements[0] {
             assert_eq!(text, "This is a quote");
         } else {
@@ -1455,7 +1458,7 @@ mod tests {
         let content = "> First quote\n> Second quote\n> Third quote";
         let elements = parse_markdown(content);
         assert_eq!(elements.len(), 3);
-        
+
         for element in elements {
             assert!(matches!(element, MarkdownElement::Blockquote(_)));
         }
@@ -1466,7 +1469,7 @@ mod tests {
         let content = "> Quote with **bold** and *italic*";
         let elements = parse_markdown(content);
         assert_eq!(elements.len(), 1);
-        
+
         if let MarkdownElement::Blockquote(text) = &elements[0] {
             assert!(text.contains("**bold**"));
             assert!(text.contains("*italic*"));
@@ -1479,12 +1482,12 @@ mod tests {
     fn test_parse_inline_link() {
         let spans = parse_inline_formatting("This is a [link](http://example.com) text");
         assert!(spans.len() >= 3);
-        
+
         // Should have link span with underline and cyan color
         let has_link = spans.iter().any(|s| {
-            s.content == "link" &&
-            s.style.add_modifier.contains(Modifier::UNDERLINED) &&
-            s.style.fg == Some(Color::Cyan)
+            s.content == "link"
+                && s.style.add_modifier.contains(Modifier::UNDERLINED)
+                && s.style.fg == Some(Color::Cyan)
         });
         assert!(has_link);
     }
@@ -1492,10 +1495,10 @@ mod tests {
     #[test]
     fn test_parse_inline_multiple_links() {
         let spans = parse_inline_formatting("[First](url1) and [Second](url2)");
-        
+
         let has_first = spans.iter().any(|s| s.content == "First");
         let has_second = spans.iter().any(|s| s.content == "Second");
-        
+
         assert!(has_first);
         assert!(has_second);
     }
@@ -1518,12 +1521,12 @@ mod tests {
     fn test_parse_inline_strikethrough() {
         let spans = parse_inline_formatting("This is ~~deleted~~ text");
         assert!(spans.len() >= 3);
-        
+
         // Should have strikethrough span with CROSSED_OUT modifier
         let has_strikethrough = spans.iter().any(|s| {
-            s.content == "deleted" &&
-            s.style.add_modifier.contains(Modifier::CROSSED_OUT) &&
-            s.style.fg == Some(Color::DarkGray)
+            s.content == "deleted"
+                && s.style.add_modifier.contains(Modifier::CROSSED_OUT)
+                && s.style.fg == Some(Color::DarkGray)
         });
         assert!(has_strikethrough);
     }
@@ -1531,11 +1534,12 @@ mod tests {
     #[test]
     fn test_parse_inline_multiple_strikethrough() {
         let spans = parse_inline_formatting("~~First~~ and ~~Second~~");
-        
-        let strike_spans: Vec<_> = spans.iter()
+
+        let strike_spans: Vec<_> = spans
+            .iter()
             .filter(|s| s.style.add_modifier.contains(Modifier::CROSSED_OUT))
             .collect();
-        
+
         assert_eq!(strike_spans.len(), 2);
     }
 
@@ -1556,13 +1560,21 @@ mod tests {
     #[test]
     fn test_parse_combined_inline_formatting() {
         let spans = parse_inline_formatting("**bold** *italic* `code` [link](url) ~~strike~~");
-        
+
         // Should have multiple spans with different formatting
-        let has_bold = spans.iter().any(|s| s.style.add_modifier.contains(Modifier::BOLD));
-        let has_italic = spans.iter().any(|s| s.style.add_modifier.contains(Modifier::ITALIC));
-        let has_link = spans.iter().any(|s| s.style.add_modifier.contains(Modifier::UNDERLINED));
-        let has_strike = spans.iter().any(|s| s.style.add_modifier.contains(Modifier::CROSSED_OUT));
-        
+        let has_bold = spans
+            .iter()
+            .any(|s| s.style.add_modifier.contains(Modifier::BOLD));
+        let has_italic = spans
+            .iter()
+            .any(|s| s.style.add_modifier.contains(Modifier::ITALIC));
+        let has_link = spans
+            .iter()
+            .any(|s| s.style.add_modifier.contains(Modifier::UNDERLINED));
+        let has_strike = spans
+            .iter()
+            .any(|s| s.style.add_modifier.contains(Modifier::CROSSED_OUT));
+
         assert!(has_bold);
         assert!(has_italic);
         assert!(has_link);
@@ -1574,13 +1586,13 @@ mod tests {
         let content = "- Regular list\n- [ ] Task list\n- Another regular";
         let elements = parse_markdown(content);
         assert_eq!(elements.len(), 3);
-        
+
         // First should be regular list
         assert!(matches!(elements[0], MarkdownElement::ListItem(_)));
-        
+
         // Second should be task list
         assert!(matches!(elements[1], MarkdownElement::TaskListItem(_, _)));
-        
+
         // Third should be regular list
         assert!(matches!(elements[2], MarkdownElement::ListItem(_)));
     }
@@ -1590,7 +1602,7 @@ mod tests {
         let task1 = MarkdownElement::TaskListItem(true, "Task".to_string());
         let task2 = MarkdownElement::TaskListItem(true, "Task".to_string());
         let task3 = MarkdownElement::TaskListItem(false, "Task".to_string());
-        
+
         assert_eq!(task1, task2);
         assert_ne!(task1, task3);
     }
@@ -1600,7 +1612,7 @@ mod tests {
         let quote1 = MarkdownElement::Blockquote("Text".to_string());
         let quote2 = MarkdownElement::Blockquote("Text".to_string());
         let quote3 = MarkdownElement::Blockquote("Other".to_string());
-        
+
         assert_eq!(quote1, quote2);
         assert_ne!(quote1, quote3);
     }
@@ -1611,10 +1623,18 @@ mod tests {
         let elements = parse_markdown(content);
 
         // Should have all element types
-        let has_heading = elements.iter().any(|e| matches!(e, MarkdownElement::Heading(_, _)));
-        let has_blockquote = elements.iter().any(|e| matches!(e, MarkdownElement::Blockquote(_)));
-        let has_task = elements.iter().any(|e| matches!(e, MarkdownElement::TaskListItem(_, _)));
-        let has_paragraph = elements.iter().any(|e| matches!(e, MarkdownElement::Paragraph(_)));
+        let has_heading = elements
+            .iter()
+            .any(|e| matches!(e, MarkdownElement::Heading(_, _)));
+        let has_blockquote = elements
+            .iter()
+            .any(|e| matches!(e, MarkdownElement::Blockquote(_)));
+        let has_task = elements
+            .iter()
+            .any(|e| matches!(e, MarkdownElement::TaskListItem(_, _)));
+        let has_paragraph = elements
+            .iter()
+            .any(|e| matches!(e, MarkdownElement::Paragraph(_)));
 
         assert!(has_heading);
         assert!(has_blockquote);

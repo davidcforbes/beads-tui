@@ -5,6 +5,7 @@ use crate::models::{filter::LogicOp, IssueFilter, SavedFilter};
 use crate::ui::widgets::{
     issue_list::LabelMatchMode, IssueList, IssueListState, SearchInput, SearchInputState,
 };
+use crate::utils::safe_regex_match;
 use chrono::{Duration, Utc};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use ratatui::{
@@ -14,7 +15,6 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, StatefulWidget, Widget},
 };
-use crate::utils::safe_regex_match;
 
 /// View type for smart views
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -304,14 +304,14 @@ impl SearchInterfaceState {
             LogicOp::And => LogicOp::Or,
             LogicOp::Or => LogicOp::And,
         };
-        
+
         // Synchronize with list state
         let mode = match self.label_logic {
             LogicOp::And => LabelMatchMode::All,
             LogicOp::Or => LabelMatchMode::Any,
         };
         self.list_state.column_filters_mut().label_match_mode = mode;
-        
+
         self.update_filtered_issues();
     }
 
@@ -378,7 +378,7 @@ impl SearchInterfaceState {
             if let Some(ref issue_type) = filter.issue_type {
                 col_filters.set_type_filter(issue_type.to_string());
             }
-            
+
             // Handle assignee - if filter.assignee is None, set no_assignee
             col_filters.no_assignee = filter.assignee.is_none();
 
@@ -518,7 +518,8 @@ impl SearchInterfaceState {
 
         // Restore selection by finding the same issue ID in the new filtered list
         if let Some(issue_id) = selected_issue_id {
-            let new_index = self.filtered_issues
+            let new_index = self
+                .filtered_issues
                 .iter()
                 .position(|issue| issue.id == issue_id);
 
@@ -682,10 +683,7 @@ impl SearchInterfaceState {
                         .as_ref()
                         .map(|a| self.matches_text(a, query))
                         .unwrap_or(false)
-                    || issue
-                        .labels
-                        .iter()
-                        .any(|l| self.matches_text(l, query))
+                    || issue.labels.iter().any(|l| self.matches_text(l, query))
                     || issue
                         .notes
                         .iter()
@@ -2859,7 +2857,7 @@ mod tests {
     #[test]
     fn test_regex_notes_search() {
         let mut issues = create_test_issues();
-        
+
         // Add notes with patterns
         issues[0].notes.push(Note {
             timestamp: chrono::Utc::now(),

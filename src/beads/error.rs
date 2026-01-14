@@ -148,6 +148,8 @@ mod tests {
         assert_eq!(errors.len(), 3);
         assert!(errors[0].to_string().contains("Command execution error"));
         assert!(errors[1].to_string().contains("Timeout"));
-        assert!(errors[2].to_string().contains("not found") || errors[2].to_string().contains("CLI"));
+        assert!(
+            errors[2].to_string().contains("not found") || errors[2].to_string().contains("CLI")
+        );
     }
 }

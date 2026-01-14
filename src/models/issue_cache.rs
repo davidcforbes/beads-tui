@@ -80,11 +80,8 @@ impl IssueCache {
 
     /// Update memory usage tracking
     fn update_memory_usage(&mut self) {
-        self.total_description_memory = self
-            .full_descriptions
-            .values()
-            .map(|desc| desc.len())
-            .sum();
+        self.total_description_memory =
+            self.full_descriptions.values().map(|desc| desc.len()).sum();
     }
 
     /// Get cache statistics

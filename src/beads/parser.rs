@@ -34,9 +34,10 @@ pub fn parse_create_response(output: &str) -> Result<String> {
     for line in output.lines() {
         if line.contains("Created") || line.contains("✓") {
             // Look for an ID: either starts with "beads-" or ".tmp" (test environment)
-            if let Some(id_part) = line.split_whitespace().find(|s| {
-                s.starts_with("beads-") || s.starts_with(".tmp")
-            }) {
+            if let Some(id_part) = line
+                .split_whitespace()
+                .find(|s| s.starts_with("beads-") || s.starts_with(".tmp"))
+            {
                 let id = id_part.trim_end_matches(':');
                 return Ok(id.to_string());
             }
@@ -44,7 +45,10 @@ pub fn parse_create_response(output: &str) -> Result<String> {
     }
 
     // Log the full output for debugging but don't expose it to users
-    tracing::error!("Failed to parse issue ID from create response. Output:\n{}", output);
+    tracing::error!(
+        "Failed to parse issue ID from create response. Output:\n{}",
+        output
+    );
     Err(BeadsError::CommandError(
         "Failed to parse issue ID from create response. Check logs for details.".to_string(),
     ))

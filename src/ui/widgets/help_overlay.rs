@@ -84,9 +84,15 @@ impl<'a> HelpOverlay<'a> {
             width_percent: 50,
             height_percent: 60,
             custom_content: None,
-            border_style: Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-            title_style: Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-            key_style: Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+            border_style: Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+            title_style: Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+            key_style: Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
             description_style: Style::default().fg(Color::White),
             dismiss_hint: Some("Press ? or Esc to close"),
         }
@@ -244,8 +250,8 @@ impl<'a> Widget for HelpOverlay<'a> {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3),                                  // Title
-                Constraint::Min(5),                                     // Content
+                Constraint::Length(3),                                               // Title
+                Constraint::Min(5),                                                  // Content
                 Constraint::Length(if self.dismiss_hint.is_some() { 2 } else { 0 }), // Footer
             ])
             .split(overlay_area);
@@ -277,10 +283,7 @@ impl<'a> Widget for HelpOverlay<'a> {
         } else {
             // Build key binding list
             let binding_lines = self.build_key_binding_lines();
-            let items: Vec<ListItem> = binding_lines
-                .into_iter()
-                .map(ListItem::new)
-                .collect();
+            let items: Vec<ListItem> = binding_lines.into_iter().map(ListItem::new).collect();
 
             let list = List::new(items).block(content_block);
             list.render(content_area, buf);
@@ -431,10 +434,7 @@ mod tests {
 
     #[test]
     fn test_help_overlay_custom_content() {
-        let lines = vec![
-            Line::from("Line 1"),
-            Line::from("Line 2"),
-        ];
+        let lines = vec![Line::from("Line 1"), Line::from("Line 2")];
         let overlay = HelpOverlay::new("Help").custom_content(lines.clone());
         assert_eq!(overlay.custom_content, Some(lines));
     }
@@ -538,7 +538,10 @@ mod tests {
     fn test_help_overlay_position_variants() {
         assert_eq!(HelpOverlayPosition::Center, HelpOverlayPosition::Center);
         assert_ne!(HelpOverlayPosition::Center, HelpOverlayPosition::TopRight);
-        assert_ne!(HelpOverlayPosition::TopLeft, HelpOverlayPosition::BottomLeft);
+        assert_ne!(
+            HelpOverlayPosition::TopLeft,
+            HelpOverlayPosition::BottomLeft
+        );
     }
 
     #[test]
@@ -588,13 +591,9 @@ mod tests {
 
     #[test]
     fn test_help_overlay_widget_rendering_custom_content() {
-        let lines = vec![
-            Line::from("Custom line 1"),
-            Line::from("Custom line 2"),
-        ];
+        let lines = vec![Line::from("Custom line 1"), Line::from("Custom line 2")];
 
-        let overlay = HelpOverlay::new("Custom Help")
-            .custom_content(lines);
+        let overlay = HelpOverlay::new("Custom Help").custom_content(lines);
 
         let area = Rect::new(0, 0, 80, 24);
         let mut buffer = Buffer::empty(area);

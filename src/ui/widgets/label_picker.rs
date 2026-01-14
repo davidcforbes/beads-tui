@@ -1,5 +1,6 @@
 //! Label picker widget with autocomplete
 
+use crate::models::normalize_label_key;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
@@ -7,7 +8,6 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, StatefulWidget, Widget},
 };
-use crate::models::normalize_label_key;
 use std::collections::HashMap;
 
 /// Label picker state
@@ -137,7 +137,10 @@ impl LabelPickerState {
                 score_b.cmp(score_a).then_with(|| label_a.cmp(label_b))
             });
 
-            matches.into_iter().map(|(_, label)| label.as_str()).collect()
+            matches
+                .into_iter()
+                .map(|(_, label)| label.as_str())
+                .collect()
         }
     }
 
@@ -734,7 +737,11 @@ mod tests {
 
     #[test]
     fn test_filtered_labels_ranked_by_weight() {
-        let labels = vec!["bug".to_string(), "feature".to_string(), "urgent".to_string()];
+        let labels = vec![
+            "bug".to_string(),
+            "feature".to_string(),
+            "urgent".to_string(),
+        ];
         let mut state = LabelPickerState::new(labels);
 
         let mut weights = HashMap::new();

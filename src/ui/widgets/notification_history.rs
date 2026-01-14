@@ -264,19 +264,23 @@ mod tests {
 
     #[test]
     fn test_get_type_indicator() {
-        let (indicator, color) = NotificationHistoryPanel::<'_>::get_type_indicator(&NotificationType::Info);
+        let (indicator, color) =
+            NotificationHistoryPanel::<'_>::get_type_indicator(&NotificationType::Info);
         assert_eq!(indicator, "ℹ");
         assert_eq!(color, Color::Cyan);
 
-        let (indicator, color) = NotificationHistoryPanel::<'_>::get_type_indicator(&NotificationType::Success);
+        let (indicator, color) =
+            NotificationHistoryPanel::<'_>::get_type_indicator(&NotificationType::Success);
         assert_eq!(indicator, "✓");
         assert_eq!(color, Color::Green);
 
-        let (indicator, color) = NotificationHistoryPanel::<'_>::get_type_indicator(&NotificationType::Warning);
+        let (indicator, color) =
+            NotificationHistoryPanel::<'_>::get_type_indicator(&NotificationType::Warning);
         assert_eq!(indicator, "⚠");
         assert_eq!(color, Color::Yellow);
 
-        let (indicator, color) = NotificationHistoryPanel::<'_>::get_type_indicator(&NotificationType::Error);
+        let (indicator, color) =
+            NotificationHistoryPanel::<'_>::get_type_indicator(&NotificationType::Error);
         assert_eq!(indicator, "✗");
         assert_eq!(color, Color::Red);
     }

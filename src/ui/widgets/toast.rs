@@ -104,14 +104,8 @@ impl<'a> Toast<'a> {
         let vertical_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints(match self.config.position {
-                ToastPosition::Top => [
-                    Constraint::Length(height),
-                    Constraint::Min(0),
-                ],
-                ToastPosition::Bottom => [
-                    Constraint::Min(0),
-                    Constraint::Length(height),
-                ],
+                ToastPosition::Top => [Constraint::Length(height), Constraint::Min(0)],
+                ToastPosition::Bottom => [Constraint::Min(0), Constraint::Length(height)],
             })
             .split(area);
 
@@ -146,7 +140,10 @@ impl<'a> Widget for Toast<'a> {
 
         // Build the notification text
         let mut spans = vec![
-            Span::styled(icon, Style::default().fg(fg_color).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                icon,
+                Style::default().fg(fg_color).add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" "),
             Span::styled(
                 type_label,
@@ -163,19 +160,13 @@ impl<'a> Widget for Toast<'a> {
             spans.push(Span::raw("  "));
             spans.push(Span::styled(
                 format!("({})", self.config.dismiss_hint),
-                Style::default()
-                    .fg(fg_color)
-                    .add_modifier(Modifier::DIM),
+                Style::default().fg(fg_color).add_modifier(Modifier::DIM),
             ));
         }
 
         let notification_block = Block::default()
             .borders(Borders::ALL)
-            .border_style(
-                Style::default()
-                    .fg(bg_color)
-                    .add_modifier(Modifier::BOLD),
-            )
+            .border_style(Style::default().fg(bg_color).add_modifier(Modifier::BOLD))
             .style(Style::default().bg(bg_color).fg(fg_color));
 
         let notification_text = Paragraph::new(Line::from(spans))
@@ -244,10 +235,10 @@ impl<'a> Widget for ToastStack<'a> {
         const NOTIFICATION_SPACING: u16 = 1; // Gap between notifications
 
         let visible_count = self.notifications.len().min(MAX_VISIBLE_NOTIFICATIONS);
-        
+
         // Start from the oldest visible notification
         let start_idx = self.notifications.len().saturating_sub(visible_count);
-        
+
         for (i, notification) in self.notifications[start_idx..].iter().enumerate() {
             // Calculate vertical offset for this notification
             let y_offset = match self.config.position {
@@ -257,9 +248,10 @@ impl<'a> Widget for ToastStack<'a> {
                 }
                 ToastPosition::Bottom => {
                     // Stack upward from the bottom
-                    let total_stack_height = visible_count as u16 * (NOTIFICATION_HEIGHT + NOTIFICATION_SPACING);
-                    area.height.saturating_sub(total_stack_height) +
-                        (i as u16 * (NOTIFICATION_HEIGHT + NOTIFICATION_SPACING))
+                    let total_stack_height =
+                        visible_count as u16 * (NOTIFICATION_HEIGHT + NOTIFICATION_SPACING);
+                    area.height.saturating_sub(total_stack_height)
+                        + (i as u16 * (NOTIFICATION_HEIGHT + NOTIFICATION_SPACING))
                 }
             };
 
@@ -446,10 +438,7 @@ mod tests {
 
         assert_eq!(stack.notifications.len(), 3);
         // Currently renders only the last one
-        assert_eq!(
-            stack.notifications.last().unwrap().message,
-            "Third"
-        );
+        assert_eq!(stack.notifications.last().unwrap().message, "Third");
     }
 
     #[test]

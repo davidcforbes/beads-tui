@@ -98,7 +98,10 @@ impl MockBeadsBackend {
         ];
 
         {
-            let mut issues = backend.issues.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+            let mut issues = backend
+                .issues
+                .lock()
+                .expect("Mutex poisoned: test thread panicked while holding lock");
             for issue in test_issues {
                 issues.insert(issue.id.clone(), issue);
             }
@@ -106,7 +109,10 @@ impl MockBeadsBackend {
 
         // Add test labels
         {
-            let mut labels = backend.labels.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+            let mut labels = backend
+                .labels
+                .lock()
+                .expect("Mutex poisoned: test thread panicked while holding lock");
             labels.extend(vec![
                 Label {
                     name: "test".to_string(),
@@ -129,7 +135,10 @@ impl MockBeadsBackend {
 
         // Update stats
         {
-            let mut stats = backend.stats.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+            let mut stats = backend
+                .stats
+                .lock()
+                .expect("Mutex poisoned: test thread panicked while holding lock");
             stats.total_issues = 3;
             stats.open = 1;
             stats.in_progress = 1;
@@ -146,7 +155,10 @@ impl MockBeadsBackend {
         status: Option<IssueStatus>,
         limit: Option<usize>,
     ) -> Result<Vec<Issue>> {
-        let issues = self.issues.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+        let issues = self
+            .issues
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock");
         let mut result: Vec<Issue> = issues
             .values()
             .filter(|issue| match &status {
@@ -168,7 +180,10 @@ impl MockBeadsBackend {
 
     /// Get a specific issue by ID
     pub fn get_issue(&self, id: &str) -> Result<Issue> {
-        let issues = self.issues.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+        let issues = self
+            .issues
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock");
         issues
             .get(id)
             .cloned()
@@ -183,7 +198,10 @@ impl MockBeadsBackend {
         priority: Priority,
     ) -> Result<String> {
         let id = {
-            let mut next_id = self.next_id.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+            let mut next_id = self
+                .next_id
+                .lock()
+                .expect("Mutex poisoned: test thread panicked while holding lock");
             let id = format!("beads-mock-{:04}", *next_id);
             *next_id += 1;
             id
@@ -206,11 +224,17 @@ impl MockBeadsBackend {
             notes: Vec::new(),
         };
 
-        let mut issues = self.issues.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+        let mut issues = self
+            .issues
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock");
         issues.insert(id.clone(), issue);
 
         // Update stats
-        let mut stats = self.stats.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+        let mut stats = self
+            .stats
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock");
         stats.total_issues += 1;
         stats.open += 1;
         stats.ready_to_work += 1;
@@ -226,7 +250,10 @@ impl MockBeadsBackend {
         priority: Option<Priority>,
         assignee: Option<String>,
     ) -> Result<()> {
-        let mut issues = self.issues.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+        let mut issues = self
+            .issues
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock");
         let issue = issues
             .get_mut(id)
             .ok_or(BeadsError::IssueNotFound(id.to_string()))?;
@@ -250,7 +277,10 @@ impl MockBeadsBackend {
         // Update stats if status changed
         if let Some(new_status) = status {
             if new_status != old_status {
-                let mut stats = self.stats.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+                let mut stats = self
+                    .stats
+                    .lock()
+                    .expect("Mutex poisoned: test thread panicked while holding lock");
                 match old_status {
                     IssueStatus::Open => stats.open = stats.open.saturating_sub(1),
                     IssueStatus::InProgress => {
@@ -278,19 +308,28 @@ impl MockBeadsBackend {
 
     /// Get issue statistics
     pub fn get_stats(&self) -> Result<IssueStats> {
-        let stats = self.stats.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+        let stats = self
+            .stats
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock");
         Ok(stats.clone())
     }
 
     /// List all labels
     pub fn list_labels(&self) -> Result<Vec<Label>> {
-        let labels = self.labels.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+        let labels = self
+            .labels
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock");
         Ok(labels.clone())
     }
 
     /// Add a dependency between issues
     pub fn add_dependency(&self, issue_id: &str, depends_on_id: &str) -> Result<()> {
-        let mut issues = self.issues.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+        let mut issues = self
+            .issues
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock");
 
         // Verify both issues exist
         if !issues.contains_key(issue_id) {
@@ -319,7 +358,10 @@ impl MockBeadsBackend {
 
     /// Remove a dependency
     pub fn remove_dependency(&self, issue_id: &str, depends_on_id: &str) -> Result<()> {
-        let mut issues = self.issues.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+        let mut issues = self
+            .issues
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock");
 
         // Remove from dependencies
         if let Some(issue) = issues.get_mut(issue_id) {
@@ -336,9 +378,18 @@ impl MockBeadsBackend {
 
     /// Clear all data (useful for test cleanup)
     pub fn clear(&self) {
-        self.issues.lock().expect("Mutex poisoned: test thread panicked while holding lock").clear();
-        self.labels.lock().expect("Mutex poisoned: test thread panicked while holding lock").clear();
-        let mut stats = self.stats.lock().expect("Mutex poisoned: test thread panicked while holding lock");
+        self.issues
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock")
+            .clear();
+        self.labels
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock")
+            .clear();
+        let mut stats = self
+            .stats
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock");
         *stats = IssueStats {
             total_issues: 0,
             open: 0,
@@ -348,7 +399,10 @@ impl MockBeadsBackend {
             ready_to_work: 0,
             avg_lead_time_hours: 0.0,
         };
-        *self.next_id.lock().expect("Mutex poisoned: test thread panicked while holding lock") = 1;
+        *self
+            .next_id
+            .lock()
+            .expect("Mutex poisoned: test thread panicked while holding lock") = 1;
     }
 }
 

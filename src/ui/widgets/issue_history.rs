@@ -127,14 +127,17 @@ impl<'a> StatefulWidget for IssueHistoryPanel<'a> {
 
             // Created event
             events.push(ListItem::new(vec![
+                Line::from(vec![Span::styled(
+                    issue.created.format("%Y-%m-%d %H:%M").to_string(),
+                    Style::default().fg(Color::DarkGray),
+                )]),
                 Line::from(vec![
                     Span::styled(
-                        issue.created.format("%Y-%m-%d %H:%M").to_string(),
-                        Style::default().fg(Color::DarkGray),
+                        "  ✓ ",
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
                     ),
-                ]),
-                Line::from(vec![
-                    Span::styled("  ✓ ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
                     Span::raw("Issue created"),
                 ]),
                 Line::from(""),
@@ -143,12 +146,10 @@ impl<'a> StatefulWidget for IssueHistoryPanel<'a> {
             // Notes events (chronologically)
             for note in &issue.notes {
                 events.push(ListItem::new(vec![
-                    Line::from(vec![
-                        Span::styled(
-                            note.timestamp.format("%Y-%m-%d %H:%M").to_string(),
-                            Style::default().fg(Color::DarkGray),
-                        ),
-                    ]),
+                    Line::from(vec![Span::styled(
+                        note.timestamp.format("%Y-%m-%d %H:%M").to_string(),
+                        Style::default().fg(Color::DarkGray),
+                    )]),
                     Line::from(vec![
                         Span::styled("  📝 ", Style::default().fg(Color::Cyan)),
                         Span::styled(&note.author, Style::default().fg(Color::Yellow)),
@@ -162,12 +163,10 @@ impl<'a> StatefulWidget for IssueHistoryPanel<'a> {
             // Updated event (if different from created)
             if issue.updated != issue.created {
                 events.push(ListItem::new(vec![
-                    Line::from(vec![
-                        Span::styled(
-                            issue.updated.format("%Y-%m-%d %H:%M").to_string(),
-                            Style::default().fg(Color::DarkGray),
-                        ),
-                    ]),
+                    Line::from(vec![Span::styled(
+                        issue.updated.format("%Y-%m-%d %H:%M").to_string(),
+                        Style::default().fg(Color::DarkGray),
+                    )]),
                     Line::from(vec![
                         Span::styled("  ↻ ", Style::default().fg(Color::Yellow)),
                         Span::raw("Issue updated"),
@@ -179,14 +178,15 @@ impl<'a> StatefulWidget for IssueHistoryPanel<'a> {
             // Closed event
             if let Some(closed) = issue.closed {
                 events.push(ListItem::new(vec![
+                    Line::from(vec![Span::styled(
+                        closed.format("%Y-%m-%d %H:%M").to_string(),
+                        Style::default().fg(Color::DarkGray),
+                    )]),
                     Line::from(vec![
                         Span::styled(
-                            closed.format("%Y-%m-%d %H:%M").to_string(),
-                            Style::default().fg(Color::DarkGray),
+                            "  ✗ ",
+                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                         ),
-                    ]),
-                    Line::from(vec![
-                        Span::styled("  ✗ ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
                         Span::raw("Issue closed"),
                     ]),
                     Line::from(""),

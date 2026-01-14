@@ -114,7 +114,12 @@ impl FilterQuickSelectMenu {
     }
 
     /// Render the filter quick-select menu with state
-    pub fn render_with_state(self, area: Rect, buf: &mut Buffer, state: &mut FilterQuickSelectState) {
+    pub fn render_with_state(
+        self,
+        area: Rect,
+        buf: &mut Buffer,
+        state: &mut FilterQuickSelectState,
+    ) {
         StatefulWidget::render(self, area, buf, state);
     }
 }
@@ -141,9 +146,10 @@ impl StatefulWidget for FilterQuickSelectMenu {
 
         if state.is_empty() {
             // Show empty message
-            let message = Paragraph::new("No saved filters. Press Ctrl+S to save the current filter.")
-                .alignment(Alignment::Center)
-                .style(Style::default().fg(Color::DarkGray));
+            let message =
+                Paragraph::new("No saved filters. Press Ctrl+S to save the current filter.")
+                    .alignment(Alignment::Center)
+                    .style(Style::default().fg(Color::DarkGray));
             message.render(inner_area, buf);
             return;
         }
@@ -197,17 +203,16 @@ impl StatefulWidget for FilterQuickSelectMenu {
                 };
 
                 let line = Line::from(vec![
-                    Span::styled(
-                        format!(" {} ", num_str),
-                        Style::default().fg(Color::Yellow),
-                    ),
+                    Span::styled(format!(" {} ", num_str), Style::default().fg(Color::Yellow)),
                     Span::styled(
                         format!("{:4} ", hotkey_str),
                         Style::default().fg(Color::Green),
                     ),
                     Span::styled(
                         format!("{:<20} ", filter.name),
-                        Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                        Style::default()
+                            .fg(Color::White)
+                            .add_modifier(Modifier::BOLD),
                     ),
                     Span::styled(desc_str, Style::default().fg(Color::DarkGray)),
                 ]);

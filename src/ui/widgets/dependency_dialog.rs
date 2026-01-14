@@ -35,7 +35,9 @@ impl DependencyType {
         match self {
             DependencyType::DependsOn => "This issue depends on (is blocked by) the selected issue",
             DependencyType::Blocks => "This issue blocks the selected issue",
-            DependencyType::RelatesTo => "Bidirectional 'see also' relationship (both issues reference each other)",
+            DependencyType::RelatesTo => {
+                "Bidirectional 'see also' relationship (both issues reference each other)"
+            }
         }
     }
 
@@ -179,11 +181,7 @@ impl DependencyDialogState {
 
     /// Select previous button
     pub fn select_previous_button(&mut self) {
-        self.selected_button = if self.selected_button == 0 {
-            1
-        } else {
-            0
-        };
+        self.selected_button = if self.selected_button == 0 { 1 } else { 0 };
     }
 
     /// Get selected button (0 = OK, 1 = Cancel)
@@ -367,11 +365,9 @@ impl<'a> StatefulWidget for DependencyDialog<'a> {
 
         // Render help text
         let help_style = Style::default().fg(Color::DarkGray);
-        let help = Paragraph::new(state.dependency_type.help_text()).style(help_style).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Explanation"),
-        );
+        let help = Paragraph::new(state.dependency_type.help_text())
+            .style(help_style)
+            .block(Block::default().borders(Borders::ALL).title("Explanation"));
         help.render(chunks[2], buf);
 
         // Render autocomplete for issue ID
@@ -460,14 +456,8 @@ mod tests {
 
     #[test]
     fn test_dependency_type_toggle() {
-        assert_eq!(
-            DependencyType::DependsOn.toggle(),
-            DependencyType::Blocks
-        );
-        assert_eq!(
-            DependencyType::Blocks.toggle(),
-            DependencyType::RelatesTo
-        );
+        assert_eq!(DependencyType::DependsOn.toggle(), DependencyType::Blocks);
+        assert_eq!(DependencyType::Blocks.toggle(), DependencyType::RelatesTo);
         assert_eq!(
             DependencyType::RelatesTo.toggle(),
             DependencyType::DependsOn

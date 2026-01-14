@@ -41,10 +41,10 @@ async fn test_crud_create_issue() {
         .expect("Failed to create issue");
 
     assert!(output.status.success(), "Create command should succeed");
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Created"), "Output should confirm creation");
-    
+
     // Extract issue ID
     let issue_id = stdout
         .split_whitespace()
@@ -58,7 +58,7 @@ async fn test_crud_create_issue() {
         .list_issues(None, None)
         .await
         .expect("Failed to list issues");
-    
+
     assert_eq!(issues.len(), 1, "Should have exactly 1 issue");
     assert_eq!(issues[0].id, issue_id, "Issue ID should match");
     assert_eq!(issues[0].title, "Test Issue", "Title should match");
@@ -100,10 +100,16 @@ async fn test_crud_read_issue() {
         .expect("Failed to show issue");
 
     assert!(show_output.status.success(), "Show command should succeed");
-    
+
     let show_stdout = String::from_utf8_lossy(&show_output.stdout);
-    assert!(show_stdout.contains("Read Test Issue"), "Should display issue title");
-    assert!(show_stdout.contains("bug") || show_stdout.contains("Bug"), "Should display issue type");
+    assert!(
+        show_stdout.contains("Read Test Issue"),
+        "Should display issue title"
+    );
+    assert!(
+        show_stdout.contains("bug") || show_stdout.contains("Bug"),
+        "Should display issue type"
+    );
 
     // Read via client API
     let issues = harness
@@ -151,7 +157,10 @@ async fn test_crud_update_issue() {
         .output()
         .expect("Failed to update issue");
 
-    assert!(update_output.status.success(), "Update command should succeed");
+    assert!(
+        update_output.status.success(),
+        "Update command should succeed"
+    );
 
     // Verify update via client
     let issues = harness
@@ -170,7 +179,10 @@ async fn test_crud_update_issue() {
         .output()
         .expect("Failed to update status");
 
-    assert!(status_output.status.success(), "Status update should succeed");
+    assert!(
+        status_output.status.success(),
+        "Status update should succeed"
+    );
 
     // Verify status update
     let issues = harness
@@ -179,7 +191,11 @@ async fn test_crud_update_issue() {
         .await
         .expect("Failed to list issues");
 
-    assert_eq!(issues[0].status.to_string(), "in_progress", "Status should be updated");
+    assert_eq!(
+        issues[0].status.to_string(),
+        "in_progress",
+        "Status should be updated"
+    );
 
     // Update priority
     let priority_output = Command::new("bd")
@@ -188,7 +204,10 @@ async fn test_crud_update_issue() {
         .output()
         .expect("Failed to update priority");
 
-    assert!(priority_output.status.success(), "Priority update should succeed");
+    assert!(
+        priority_output.status.success(),
+        "Priority update should succeed"
+    );
 
     // Verify priority update
     let issues = harness
@@ -197,7 +216,11 @@ async fn test_crud_update_issue() {
         .await
         .expect("Failed to list issues");
 
-    assert_eq!(issues[0].priority.to_string(), "P1", "Priority should be updated");
+    assert_eq!(
+        issues[0].priority.to_string(),
+        "P1",
+        "Priority should be updated"
+    );
 }
 
 #[tokio::test]
@@ -248,7 +271,10 @@ async fn test_crud_delete_issue() {
         .output()
         .expect("Failed to delete issue");
 
-    assert!(delete_output.status.success(), "Delete command should succeed");
+    assert!(
+        delete_output.status.success(),
+        "Delete command should succeed"
+    );
 
     // Verify deletion
     let issues = harness
@@ -256,7 +282,7 @@ async fn test_crud_delete_issue() {
         .list_issues(None, None)
         .await
         .expect("Failed to list issues");
-    
+
     assert_eq!(issues.len(), 2, "Should have 2 issues after deletion");
     assert!(
         issues.iter().any(|i| i.id == id1),
@@ -275,7 +301,7 @@ async fn test_crud_delete_issue() {
 #[tokio::test]
 async fn test_crud_list_with_filters() {
     use beads_tui::beads::models::IssueStatus;
-    
+
     let harness = TestHarness::new();
     harness.init().await;
     let root = harness.root.path();
@@ -295,9 +321,13 @@ async fn test_crud_list_with_filters() {
             .current_dir(root)
             .output()
             .expect("Failed to create issue");
-        
-        assert!(output.status.success(), "Create command should succeed for {}", title);
-        
+
+        assert!(
+            output.status.success(),
+            "Create command should succeed for {}",
+            title
+        );
+
         // Extract ID from create command output
         let stdout = String::from_utf8_lossy(&output.stdout);
         let id = stdout
@@ -313,7 +343,11 @@ async fn test_crud_list_with_filters() {
                 .current_dir(root)
                 .status()
                 .expect("Failed to update status");
-            assert!(update_result.success(), "Update command should succeed for {}", title);
+            assert!(
+                update_result.success(),
+                "Update command should succeed for {}",
+                title
+            );
         }
     };
 
@@ -352,7 +386,11 @@ async fn test_crud_list_with_filters() {
         .list_issues(Some(IssueStatus::InProgress), None)
         .await
         .expect("Failed to list in_progress issues");
-    assert_eq!(in_progress_issues.len(), 1, "Should have 1 in_progress issue");
+    assert_eq!(
+        in_progress_issues.len(),
+        1,
+        "Should have 1 in_progress issue"
+    );
 
     // List with limit
     let limited_issues = harness
@@ -386,7 +424,7 @@ async fn test_crud_bulk_operations() {
             .current_dir(root)
             .output()
             .expect("Failed to create issue");
-        
+
         let stdout = String::from_utf8_lossy(&output.stdout);
         let id = stdout
             .split_whitespace()
@@ -420,7 +458,7 @@ async fn test_crud_bulk_operations() {
         .list_issues(None, None)
         .await
         .expect("Failed to list issues");
-    
+
     let in_progress_count = issues
         .iter()
         .filter(|i| i.status.to_string() == "in_progress")

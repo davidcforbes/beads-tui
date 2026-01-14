@@ -61,11 +61,14 @@ pub fn validate_regex_safety(pattern: &str) -> Result<(), String> {
                         ));
                     }
                     // A group counts as a quantifier if it is quantified
-                    let group_is_quantified = i + 1 < chars.len() && matches!(chars[i+1], '+' | '*' | '?' | '{');
+                    let group_is_quantified =
+                        i + 1 < chars.len() && matches!(chars[i + 1], '+' | '*' | '?' | '{');
                     has_quantifier_in_current_group = prev_has_quantifier || group_is_quantified;
                 }
             }
-            '+' | '*' | '?' | '{' if !paren_stack.is_empty() && (i == 0 || chars[i - 1] != '\\') => {
+            '+' | '*' | '?' | '{'
+                if !paren_stack.is_empty() && (i == 0 || chars[i - 1] != '\\') =>
+            {
                 has_quantifier_in_current_group = true;
             }
             _ => {}
@@ -198,19 +201,16 @@ mod tests {
     #[test]
     fn test_safe_regex_match_basic() {
         assert_eq!(safe_regex_match("hello", "hello world", false), Some(true));
-        assert_eq!(safe_regex_match("hello", "goodbye world", false), Some(false));
+        assert_eq!(
+            safe_regex_match("hello", "goodbye world", false),
+            Some(false)
+        );
     }
 
     #[test]
     fn test_safe_regex_match_case_insensitive() {
-        assert_eq!(
-            safe_regex_match("HELLO", "hello world", true),
-            Some(true)
-        );
-        assert_eq!(
-            safe_regex_match("HELLO", "hello world", false),
-            Some(false)
-        );
+        assert_eq!(safe_regex_match("HELLO", "hello world", true), Some(true));
+        assert_eq!(safe_regex_match("HELLO", "hello world", false), Some(false));
     }
 
     #[test]

@@ -100,7 +100,7 @@ async fn test_concurrent_create_race_condition() {
     harness.init().await;
 
     let root_path = harness.root.path().to_path_buf();
-    
+
     // Spawn multiple threads that all create issues simultaneously
     let handles: Vec<_> = (0..5)
         .map(|thread_id| {
@@ -124,7 +124,7 @@ async fn test_concurrent_create_race_condition() {
                         .expect("Failed to execute bd create");
 
                     assert!(output.status.success(), "Create failed for {}", title);
-                    
+
                     // Extract ID from output (format: "✓ Created issue: <ID>")
                     let stdout = String::from_utf8_lossy(&output.stdout);
                     for line in stdout.lines() {
@@ -173,7 +173,7 @@ async fn test_concurrent_create_race_condition() {
         .list_issues(None, None)
         .await
         .expect("Failed to list issues");
-    
+
     assert!(
         final_issues.len() >= 25,
         "Database shows {} issues, expected at least 25",
@@ -182,7 +182,10 @@ async fn test_concurrent_create_race_condition() {
 
     // Verify all database IDs are unique
     let db_ids: Vec<String> = final_issues.iter().map(|i| i.id.clone()).collect();
-    let unique_count = db_ids.iter().collect::<std::collections::HashSet<_>>().len();
+    let unique_count = db_ids
+        .iter()
+        .collect::<std::collections::HashSet<_>>()
+        .len();
     assert_eq!(
         unique_count,
         db_ids.len(),
@@ -191,5 +194,8 @@ async fn test_concurrent_create_race_condition() {
         db_ids.len()
     );
 
-    println!("✓ Race condition test passed: All {} IDs are unique", all_ids.len());
+    println!(
+        "✓ Race condition test passed: All {} IDs are unique",
+        all_ids.len()
+    );
 }

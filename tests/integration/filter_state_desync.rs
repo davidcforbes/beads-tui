@@ -2,7 +2,6 @@
 ///
 /// Verifies that filter state and selection remain consistent across
 /// external issue updates (from CLI or another TUI instance).
-
 use beads_tui::beads::models::{Issue, IssueStatus, IssueType, Priority};
 use beads_tui::ui::views::SearchInterfaceState;
 use chrono::Utc;

@@ -1,5 +1,6 @@
 //! Labels view for managing and viewing label usage
 
+use crate::models::{normalize_label_key, split_label_dimension};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
@@ -7,7 +8,6 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, StatefulWidget, Widget},
 };
-use crate::models::{normalize_label_key, split_label_dimension};
 use std::collections::HashMap;
 
 /// Label statistics
@@ -302,7 +302,11 @@ impl<'a> LabelsView<'a> {
                             format!(
                                 "+{} alias{}",
                                 label_stat.aliases.len(),
-                                if label_stat.aliases.len() == 1 { "" } else { "es" }
+                                if label_stat.aliases.len() == 1 {
+                                    ""
+                                } else {
+                                    "es"
+                                }
                             ),
                             Style::default().fg(Color::DarkGray),
                         ));
@@ -338,8 +342,7 @@ impl<'a> LabelsView<'a> {
     }
 
     fn render_help(&self, area: Rect, buf: &mut Buffer) {
-        let help_text =
-            "a: Add | d: Delete | e: Edit | s: Stats | /: Search | Esc: Clear";
+        let help_text = "a: Add | d: Delete | e: Edit | s: Stats | /: Search | Esc: Clear";
         let help = Paragraph::new(Line::from(Span::styled(
             help_text,
             Style::default().fg(Color::DarkGray),
@@ -454,9 +457,12 @@ fn label_matches_query(label: &LabelStats, query: &str) -> bool {
     if let Some(ref value) = label.value {
         candidates.push(value.to_lowercase());
     }
-    if let (Some(dimension), Some(value)) = (label.dimension.as_ref(), label.value.as_ref())
-    {
-        candidates.push(format!("{}:{}", dimension.to_lowercase(), value.to_lowercase()));
+    if let (Some(dimension), Some(value)) = (label.dimension.as_ref(), label.value.as_ref()) {
+        candidates.push(format!(
+            "{}:{}",
+            dimension.to_lowercase(),
+            value.to_lowercase()
+        ));
     }
     for alias in &label.aliases {
         candidates.push(alias.to_lowercase());
@@ -505,7 +511,9 @@ where
         }
     }
 
-    let mut stats: Vec<LabelStats> = aggregates.into_values().map(|aggregate| {
+    let mut stats: Vec<LabelStats> = aggregates
+        .into_values()
+        .map(|aggregate| {
             let (canonical, _) = aggregate
                 .counts
                 .iter()

@@ -356,12 +356,12 @@ impl TableConfig {
     pub fn save_to_file(&self, path: &std::path::Path) -> Result<(), std::io::Error> {
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        
+
         // Create parent directory if it doesn't exist
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        
+
         std::fs::write(path, json)
     }
 
@@ -370,7 +370,7 @@ impl TableConfig {
         let json = std::fs::read_to_string(path)?;
         let config: TableConfig = serde_json::from_str(&json)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        
+
         // Validate and migrate the loaded config
         Ok(config.validate_and_migrate())
     }
@@ -1381,7 +1381,10 @@ mod tests {
     #[test]
     fn test_load_config_creates_parent_dir() {
         let temp_dir = std::env::temp_dir();
-        let nested_path = temp_dir.join("beads_tui_test").join("nested").join("config.json");
+        let nested_path = temp_dir
+            .join("beads_tui_test")
+            .join("nested")
+            .join("config.json");
 
         // Clean up first if it exists
         if let Some(parent) = nested_path.parent() {

@@ -39,8 +39,7 @@ impl SortDirection {
 }
 
 /// Label matching mode for filtering
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum LabelMatchMode {
     /// Match issues that have ANY of the specified labels (OR logic)
     #[default]
@@ -243,7 +242,11 @@ impl ColumnFilters {
             let labels_lower = if !self.cached_labels_lower.is_empty() {
                 &self.cached_labels_lower
             } else {
-                temp_labels_lower = self.labels.iter().map(|l| l.to_lowercase()).collect::<Vec<_>>();
+                temp_labels_lower = self
+                    .labels
+                    .iter()
+                    .map(|l| l.to_lowercase())
+                    .collect::<Vec<_>>();
                 &temp_labels_lower
             };
 
@@ -291,12 +294,12 @@ struct HierarchyInfo {
 /// based on dependencies (blocks relationships)
 fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, HierarchyInfo> {
     use std::collections::{HashMap, HashSet};
-    
+
     // Build parent-child relationships
     // If A blocks B, then A is parent of B
     let mut children_map: HashMap<String, Vec<String>> = HashMap::new();
     let mut has_parent: HashSet<String> = HashSet::new();
-    
+
     for issue in issues {
         // For each issue that this issue blocks, add it as a child
         for blocked_id in &issue.blocks {
@@ -307,17 +310,17 @@ fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, H
             has_parent.insert(blocked_id.clone());
         }
     }
-    
+
     // Find root issues (those with no parents)
     let roots: Vec<String> = issues
         .iter()
         .map(|i| i.id.clone())
         .filter(|id| !has_parent.contains(id))
         .collect();
-    
+
     // Build hierarchy info via DFS
     let mut hierarchy_map: HashMap<String, HierarchyInfo> = HashMap::new();
-    
+
     fn build_tree(
         issue_id: &str,
         depth: usize,
@@ -328,19 +331,19 @@ fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, H
     ) {
         // Build prefix for this node
         let mut prefix = String::new();
-        
+
         // Add parent prefixes
         for (i, &has_sibling_below) in parent_prefixes.iter().enumerate() {
             if i < parent_prefixes.len() {
                 prefix.push_str(if has_sibling_below { "│   " } else { "    " });
             }
         }
-        
+
         // Add this node's connector
         if depth > 0 {
             prefix.push_str(if is_last { "└── " } else { "├── " });
         }
-        
+
         hierarchy_map.insert(
             issue_id.to_string(),
             HierarchyInfo {
@@ -349,17 +352,17 @@ fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, H
                 is_last,
             },
         );
-        
+
         // Process children
         if let Some(children) = children_map.get(issue_id) {
             let child_count = children.len();
             for (idx, child_id) in children.iter().enumerate() {
                 let child_is_last = idx == child_count - 1;
-                
+
                 // Build new parent prefixes for children
                 let mut new_prefixes = parent_prefixes.to_vec();
                 new_prefixes.push(!is_last);
-                
+
                 build_tree(
                     child_id,
                     depth + 1,
@@ -371,13 +374,20 @@ fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, H
             }
         }
     }
-    
+
     // Build tree for each root
     for (idx, root_id) in roots.iter().enumerate() {
         let is_last_root = idx == roots.len() - 1;
-        build_tree(root_id, 0, &[], is_last_root, &children_map, &mut hierarchy_map);
+        build_tree(
+            root_id,
+            0,
+            &[],
+            is_last_root,
+            &children_map,
+            &mut hierarchy_map,
+        );
     }
-    
+
     hierarchy_map
 }
 
@@ -950,10 +960,10 @@ impl<'a> IssueList<'a> {
         hierarchy_map: &std::collections::HashMap<String, HierarchyInfo>,
     ) -> Cell<'b> {
         use crate::models::table_config::ColumnId;
-        
+
         match column_id {
             ColumnId::Type => Cell::from(Self::type_symbol(&issue.issue_type)),
-            
+
             ColumnId::Id => {
                 if let Some(ref query) = search_query {
                     Cell::from(Line::from(Self::highlight_text(&issue.id, query)))
@@ -961,7 +971,7 @@ impl<'a> IssueList<'a> {
                     Cell::from(issue.id.clone())
                 }
             }
-            
+
             ColumnId::Title => {
                 // Check if this row is being edited
                 let title_text = if let Some((edit_idx, ref edit_buffer, cursor_pos)) = edit_state {
@@ -978,7 +988,12 @@ impl<'a> IssueList<'a> {
 
                 // Add tree prefix and status symbol if this issue is in the hierarchy
                 let title_with_tree = if let Some(hierarchy_info) = hierarchy_map.get(&issue.id) {
-                    format!("{}{} {}", hierarchy_info.prefix, Self::status_symbol(&issue.status), title_text)
+                    format!(
+                        "{}{} {}",
+                        hierarchy_info.prefix,
+                        Self::status_symbol(&issue.status),
+                        title_text
+                    )
                 } else {
                     title_text
                 };
@@ -1016,17 +1031,17 @@ impl<'a> IssueList<'a> {
                     }
                 }
             }
-            
+
             ColumnId::Status => Cell::from(Span::styled(
                 format!("{:?}", issue.status),
                 Style::default().fg(Self::status_color(&issue.status)),
             )),
-            
+
             ColumnId::Priority => Cell::from(Span::styled(
                 format!("{:?}", issue.priority),
                 Style::default().fg(Self::priority_color(&issue.priority)),
             )),
-            
+
             ColumnId::Assignee => {
                 let text = issue.assignee.as_deref().unwrap_or("-");
                 if let Some(ref query) = search_query {
@@ -1035,14 +1050,14 @@ impl<'a> IssueList<'a> {
                     Cell::from(text.to_string())
                 }
             }
-            
+
             ColumnId::Labels => {
                 let text = if issue.labels.is_empty() {
                     "-".to_string()
                 } else {
                     issue.labels.join(", ")
                 };
-                
+
                 if row_height > 1 && text.len() > wrap_width {
                     let wrapped_lines = Self::wrap_text(&text, wrap_width);
                     let lines: Vec<Line> = wrapped_lines
@@ -1056,7 +1071,7 @@ impl<'a> IssueList<'a> {
                             }
                         })
                         .collect();
-                    
+
                     let mut padded_lines = lines;
                     while padded_lines.len() < row_height as usize {
                         padded_lines.push(Line::from(""));
@@ -1071,9 +1086,9 @@ impl<'a> IssueList<'a> {
                     }
                 }
             }
-            
+
             ColumnId::Updated => Cell::from(Self::format_date(&issue.updated)),
-            
+
             ColumnId::Created => Cell::from(Self::format_date(&issue.created)),
         }
     }
@@ -1163,20 +1178,34 @@ impl<'a> StatefulWidget for IssueList<'a> {
         // Get visible columns from table config
         let visible_columns = state.table_config().visible_columns();
         let focused_col_idx = state.focused_column();
-        
+
         let header_cells: Vec<Cell> = visible_columns
             .iter()
             .enumerate()
             .map(|(idx, col)| {
                 // Map ColumnId to SortColumn to check if this column is sorted
                 let is_sorted = match col.id {
-                    crate::models::table_config::ColumnId::Type => state.sort_column == SortColumn::Type,
-                    crate::models::table_config::ColumnId::Id => state.sort_column == SortColumn::Id,
-                    crate::models::table_config::ColumnId::Title => state.sort_column == SortColumn::Title,
-                    crate::models::table_config::ColumnId::Status => state.sort_column == SortColumn::Status,
-                    crate::models::table_config::ColumnId::Priority => state.sort_column == SortColumn::Priority,
-                    crate::models::table_config::ColumnId::Updated => state.sort_column == SortColumn::Updated,
-                    crate::models::table_config::ColumnId::Created => state.sort_column == SortColumn::Created,
+                    crate::models::table_config::ColumnId::Type => {
+                        state.sort_column == SortColumn::Type
+                    }
+                    crate::models::table_config::ColumnId::Id => {
+                        state.sort_column == SortColumn::Id
+                    }
+                    crate::models::table_config::ColumnId::Title => {
+                        state.sort_column == SortColumn::Title
+                    }
+                    crate::models::table_config::ColumnId::Status => {
+                        state.sort_column == SortColumn::Status
+                    }
+                    crate::models::table_config::ColumnId::Priority => {
+                        state.sort_column == SortColumn::Priority
+                    }
+                    crate::models::table_config::ColumnId::Updated => {
+                        state.sort_column == SortColumn::Updated
+                    }
+                    crate::models::table_config::ColumnId::Created => {
+                        state.sort_column == SortColumn::Created
+                    }
                     _ => false,
                 };
 
@@ -1204,7 +1233,9 @@ impl<'a> StatefulWidget for IssueList<'a> {
             .height(1);
 
         // Get editing state for rendering (clone to avoid borrow conflicts)
-        let editing_state = state.editing_state().map(|(idx, buf, cursor)| (idx, buf.clone(), cursor));
+        let editing_state = state
+            .editing_state()
+            .map(|(idx, buf, cursor)| (idx, buf.clone(), cursor));
 
         // Virtual scrolling: Calculate visible range to optimize rendering
         let total_issues = issues.len();
@@ -1237,7 +1268,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
             .enumerate()
             .map(|(visible_idx, issue)| {
                 let row_idx = start_idx + visible_idx; // Actual index in full list
-                
+
                 // Generate cells for all visible columns
                 let cells: Vec<Cell> = visible_columns
                     .iter()
@@ -1275,11 +1306,11 @@ impl<'a> StatefulWidget for IssueList<'a> {
 
         let table = Table::new(rows, widths)
             .header(header)
-            .block(Block::default().borders(Borders::ALL).title(format!(
-                "Issues ({}/{})",
-                total_issues,
-                total_issues
-            )))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(format!("Issues ({}/{})", total_issues, total_issues)),
+            )
             .highlight_style(
                 Style::default()
                     .bg(Color::DarkGray)
@@ -1683,10 +1714,12 @@ mod tests {
     // Empty/null filter tests
     #[test]
     fn test_column_filters_no_assignee() {
-        let mut issue_with_assignee = create_test_issue("beads-001", "Test 1", Priority::P2, IssueStatus::Open);
+        let mut issue_with_assignee =
+            create_test_issue("beads-001", "Test 1", Priority::P2, IssueStatus::Open);
         issue_with_assignee.assignee = Some("user1".to_string());
 
-        let issue_no_assignee = create_test_issue("beads-002", "Test 2", Priority::P2, IssueStatus::Open);
+        let issue_no_assignee =
+            create_test_issue("beads-002", "Test 2", Priority::P2, IssueStatus::Open);
 
         let filters = ColumnFilters {
             no_assignee: true,
@@ -1702,10 +1735,12 @@ mod tests {
 
     #[test]
     fn test_column_filters_no_labels() {
-        let mut issue_with_labels = create_test_issue("beads-001", "Test 1", Priority::P2, IssueStatus::Open);
+        let mut issue_with_labels =
+            create_test_issue("beads-001", "Test 1", Priority::P2, IssueStatus::Open);
         issue_with_labels.labels = vec!["bug".to_string(), "frontend".to_string()];
 
-        let issue_no_labels = create_test_issue("beads-002", "Test 2", Priority::P2, IssueStatus::Open);
+        let issue_no_labels =
+            create_test_issue("beads-002", "Test 2", Priority::P2, IssueStatus::Open);
 
         let filters = ColumnFilters {
             no_labels: true,
@@ -1721,17 +1756,21 @@ mod tests {
 
     #[test]
     fn test_column_filters_no_assignee_and_no_labels() {
-        let mut issue_has_both = create_test_issue("beads-001", "Test 1", Priority::P2, IssueStatus::Open);
+        let mut issue_has_both =
+            create_test_issue("beads-001", "Test 1", Priority::P2, IssueStatus::Open);
         issue_has_both.assignee = Some("user1".to_string());
         issue_has_both.labels = vec!["bug".to_string()];
 
-        let mut issue_no_assignee = create_test_issue("beads-002", "Test 2", Priority::P2, IssueStatus::Open);
+        let mut issue_no_assignee =
+            create_test_issue("beads-002", "Test 2", Priority::P2, IssueStatus::Open);
         issue_no_assignee.labels = vec!["bug".to_string()];
 
-        let mut issue_no_labels = create_test_issue("beads-003", "Test 3", Priority::P2, IssueStatus::Open);
+        let mut issue_no_labels =
+            create_test_issue("beads-003", "Test 3", Priority::P2, IssueStatus::Open);
         issue_no_labels.assignee = Some("user1".to_string());
 
-        let issue_has_neither = create_test_issue("beads-004", "Test 4", Priority::P2, IssueStatus::Open);
+        let issue_has_neither =
+            create_test_issue("beads-004", "Test 4", Priority::P2, IssueStatus::Open);
 
         let filters = ColumnFilters {
             no_assignee: true,
@@ -1783,12 +1822,22 @@ mod tests {
 
     #[test]
     fn test_column_filters_combined_with_other_filters() {
-        let issue1 = create_test_issue("beads-001", "Feature request", Priority::P2, IssueStatus::Open);
+        let issue1 = create_test_issue(
+            "beads-001",
+            "Feature request",
+            Priority::P2,
+            IssueStatus::Open,
+        );
 
         let mut issue2 = create_test_issue("beads-002", "Bug fix", Priority::P1, IssueStatus::Open);
         issue2.assignee = Some("user1".to_string());
 
-        let issue3 = create_test_issue("beads-003", "Feature request", Priority::P2, IssueStatus::Closed);
+        let issue3 = create_test_issue(
+            "beads-003",
+            "Feature request",
+            Priority::P2,
+            IssueStatus::Closed,
+        );
 
         let filters = ColumnFilters {
             no_assignee: true,
@@ -1809,7 +1858,11 @@ mod tests {
     #[test]
     fn test_label_filter_any_mode_single_match() {
         let mut issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
-        issue.labels = vec!["bug".to_string(), "frontend".to_string(), "urgent".to_string()];
+        issue.labels = vec![
+            "bug".to_string(),
+            "frontend".to_string(),
+            "urgent".to_string(),
+        ];
 
         let filters = ColumnFilters {
             labels: vec!["bug".to_string()],
@@ -1854,7 +1907,11 @@ mod tests {
     #[test]
     fn test_label_filter_all_mode_all_match() {
         let mut issue = create_test_issue("beads-001", "Test", Priority::P2, IssueStatus::Open);
-        issue.labels = vec!["bug".to_string(), "frontend".to_string(), "urgent".to_string()];
+        issue.labels = vec![
+            "bug".to_string(),
+            "frontend".to_string(),
+            "urgent".to_string(),
+        ];
 
         let filters = ColumnFilters {
             labels: vec!["bug".to_string(), "frontend".to_string()],
@@ -2065,12 +2122,12 @@ mod tests {
         }
 
         let issue_refs: Vec<&Issue> = issues.iter().collect();
-        
+
         // Creating the widget should be fast even with 10k issues
         let start = std::time::Instant::now();
         let _widget = IssueList::new(issue_refs);
         let duration = start.elapsed();
-        
+
         // Should complete in under 100ms even with 10k issues
         assert!(
             duration.as_millis() < 100,
@@ -2082,7 +2139,7 @@ mod tests {
     #[test]
     fn test_build_hierarchy_map_simple() {
         use chrono::Utc;
-        
+
         // Create parent issue that blocks child
         let parent = Issue {
             id: "parent".to_string(),
@@ -2100,7 +2157,7 @@ mod tests {
             closed: None,
             notes: vec![],
         };
-        
+
         let child = Issue {
             id: "child".to_string(),
             title: "Child Issue".to_string(),
@@ -2117,19 +2174,19 @@ mod tests {
             closed: None,
             notes: vec![],
         };
-        
+
         let issues = vec![&parent, &child];
         let hierarchy_map = build_hierarchy_map(&issues);
-        
+
         // Check that both issues are in the map
         assert!(hierarchy_map.contains_key("parent"));
         assert!(hierarchy_map.contains_key("child"));
-        
+
         // Parent should be at depth 0 (root)
         let parent_info = hierarchy_map.get("parent").unwrap();
         assert_eq!(parent_info.depth, 0);
         assert_eq!(parent_info.prefix, ""); // Root has no prefix
-        
+
         // Child should be at depth 1 with tree prefix
         let child_info = hierarchy_map.get("child").unwrap();
         assert_eq!(child_info.depth, 1);
@@ -2139,7 +2196,7 @@ mod tests {
     #[test]
     fn test_build_hierarchy_map_multiple_children() {
         use chrono::Utc;
-        
+
         let parent = Issue {
             id: "parent".to_string(),
             title: "Parent".to_string(),
@@ -2150,13 +2207,17 @@ mod tests {
             assignee: None,
             labels: vec![],
             dependencies: vec![],
-            blocks: vec!["child1".to_string(), "child2".to_string(), "child3".to_string()],
+            blocks: vec![
+                "child1".to_string(),
+                "child2".to_string(),
+                "child3".to_string(),
+            ],
             created: Utc::now(),
             updated: Utc::now(),
             closed: None,
             notes: vec![],
         };
-        
+
         let child1 = Issue {
             id: "child1".to_string(),
             title: "Child 1".to_string(),
@@ -2173,7 +2234,7 @@ mod tests {
             closed: None,
             notes: vec![],
         };
-        
+
         let child2 = Issue {
             id: "child2".to_string(),
             title: "Child 2".to_string(),
@@ -2190,7 +2251,7 @@ mod tests {
             closed: None,
             notes: vec![],
         };
-        
+
         let child3 = Issue {
             id: "child3".to_string(),
             title: "Child 3".to_string(),
@@ -2207,22 +2268,22 @@ mod tests {
             closed: None,
             notes: vec![],
         };
-        
+
         let issues = vec![&parent, &child1, &child2, &child3];
         let hierarchy_map = build_hierarchy_map(&issues);
-        
+
         // All issues should be in the map
         assert_eq!(hierarchy_map.len(), 4);
-        
+
         // All children should be at depth 1
         assert_eq!(hierarchy_map.get("child1").unwrap().depth, 1);
         assert_eq!(hierarchy_map.get("child2").unwrap().depth, 1);
         assert_eq!(hierarchy_map.get("child3").unwrap().depth, 1);
-        
+
         // Last child should have └── prefix
         let child3_prefix = &hierarchy_map.get("child3").unwrap().prefix;
         assert!(child3_prefix.contains("└──"));
-        
+
         // Other children should have ├── prefix
         let child1_prefix = &hierarchy_map.get("child1").unwrap().prefix;
         assert!(child1_prefix.contains("├──"));
@@ -2231,7 +2292,7 @@ mod tests {
     #[test]
     fn test_build_hierarchy_map_deep_tree() {
         use chrono::Utc;
-        
+
         // Create a 3-level deep tree: root -> level1 -> level2
         let root = Issue {
             id: "root".to_string(),
@@ -2249,7 +2310,7 @@ mod tests {
             closed: None,
             notes: vec![],
         };
-        
+
         let level1 = Issue {
             id: "level1".to_string(),
             title: "Level 1".to_string(),
@@ -2266,7 +2327,7 @@ mod tests {
             closed: None,
             notes: vec![],
         };
-        
+
         let level2 = Issue {
             id: "level2".to_string(),
             title: "Level 2".to_string(),
@@ -2283,15 +2344,15 @@ mod tests {
             closed: None,
             notes: vec![],
         };
-        
+
         let issues = vec![&root, &level1, &level2];
         let hierarchy_map = build_hierarchy_map(&issues);
-        
+
         // Check depths
         assert_eq!(hierarchy_map.get("root").unwrap().depth, 0);
         assert_eq!(hierarchy_map.get("level1").unwrap().depth, 1);
         assert_eq!(hierarchy_map.get("level2").unwrap().depth, 2);
-        
+
         // Check prefixes contain tree characters
         let level2_prefix = &hierarchy_map.get("level2").unwrap().prefix;
         assert!(level2_prefix.contains("└──") || level2_prefix.contains("├──"));
@@ -2302,7 +2363,7 @@ mod tests {
     #[test]
     fn test_build_hierarchy_map_no_hierarchy() {
         use chrono::Utc;
-        
+
         // Create issues with no blocking relationships
         let issue1 = Issue {
             id: "issue1".to_string(),
@@ -2320,7 +2381,7 @@ mod tests {
             closed: None,
             notes: vec![],
         };
-        
+
         let issue2 = Issue {
             id: "issue2".to_string(),
             title: "Issue 2".to_string(),
@@ -2337,10 +2398,10 @@ mod tests {
             closed: None,
             notes: vec![],
         };
-        
+
         let issues = vec![&issue1, &issue2];
         let hierarchy_map = build_hierarchy_map(&issues);
-        
+
         // All issues should be roots (depth 0, no prefix)
         assert_eq!(hierarchy_map.get("issue1").unwrap().depth, 0);
         assert_eq!(hierarchy_map.get("issue1").unwrap().prefix, "");

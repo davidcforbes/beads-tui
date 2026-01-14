@@ -1,10 +1,10 @@
 mod common;
 mod concurrent_ops;
+mod crud;
 mod dependency_edge_cases;
 mod filter_logic;
 mod filter_state_desync;
 mod fuzz_interactions;
-mod crud;
 mod memory_spike;
 mod property_tests;
 mod ui_snapshots;

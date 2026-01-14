@@ -35,10 +35,7 @@ fn create_test_issue(id: u32) -> Issue {
             3 => Priority::P3,
             _ => Priority::P4,
         },
-        labels: vec![
-            format!("component-{}", id % 8),
-            format!("area-{}", id % 6),
-        ],
+        labels: vec![format!("component-{}", id % 8), format!("area-{}", id % 6)],
         assignee: if id % 3 == 0 {
             Some(format!("developer{}", id % 5))
         } else {
@@ -256,35 +253,27 @@ fn bench_search_large_datasets(c: &mut Criterion) {
         let issues = create_issues_batch(*size);
 
         // Substring search
-        group.bench_with_input(
-            BenchmarkId::new("substring", size),
-            size,
-            |b, _| {
-                b.iter(|| {
-                    let mut state = SearchInterfaceState::new(issues.clone());
-                    state.search_state_mut().set_query("performance");
-                    state.update_filtered_issues();
-                    black_box(state.filtered_issues().len())
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("substring", size), size, |b, _| {
+            b.iter(|| {
+                let mut state = SearchInterfaceState::new(issues.clone());
+                state.search_state_mut().set_query("performance");
+                state.update_filtered_issues();
+                black_box(state.filtered_issues().len())
+            });
+        });
 
         // Fuzzy search
-        group.bench_with_input(
-            BenchmarkId::new("fuzzy", size),
-            size,
-            |b, _| {
-                b.iter(|| {
-                    let mut state = SearchInterfaceState::new(issues.clone());
-                    if !state.is_fuzzy_enabled() {
-                        state.toggle_fuzzy();
-                    }
-                    state.search_state_mut().set_query("prfmnc"); // typo
-                    state.update_filtered_issues();
-                    black_box(state.filtered_issues().len())
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("fuzzy", size), size, |b, _| {
+            b.iter(|| {
+                let mut state = SearchInterfaceState::new(issues.clone());
+                if !state.is_fuzzy_enabled() {
+                    state.toggle_fuzzy();
+                }
+                state.search_state_mut().set_query("prfmnc"); // typo
+                state.update_filtered_issues();
+                black_box(state.filtered_issues().len())
+            });
+        });
     }
 
     group.finish();

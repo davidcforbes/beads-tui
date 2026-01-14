@@ -44,9 +44,10 @@ pub fn validate_label(label: &str) -> Result<(), String> {
         return Err("Label must not contain commas".to_string());
     }
 
-    if !label.chars().all(|c| {
-        c.is_ascii_alphanumeric() || ALLOWED_LABEL_CHARS.contains(&c)
-    }) {
+    if !label
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || ALLOWED_LABEL_CHARS.contains(&c))
+    {
         return Err("Label contains unsupported characters".to_string());
     }
 

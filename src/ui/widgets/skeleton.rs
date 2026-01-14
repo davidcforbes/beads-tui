@@ -295,7 +295,9 @@ impl Widget for SkeletonTable {
         };
 
         let header_style = if self.animate {
-            self.animation.get_shimmer_style().add_modifier(Modifier::BOLD)
+            self.animation
+                .get_shimmer_style()
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default()
                 .fg(Color::Gray)
@@ -435,8 +437,9 @@ impl Widget for SkeletonTree {
                 let base_width = 60;
                 let variation = (i * 17) % 30;
                 let width = (base_width + variation).min(90);
-                let available_width =
-                    area.width.saturating_sub((depth * 2 + if self.show_indicators { 2 } else { 0 }) as u16);
+                let available_width = area
+                    .width
+                    .saturating_sub((depth * 2 + if self.show_indicators { 2 } else { 0 }) as u16);
                 let text_length = (available_width as u32 * width as u32 / 100) as usize;
                 let text = "▓".repeat(text_length);
                 spans.push(Span::styled(text, style));
@@ -469,9 +472,7 @@ mod tests {
 
     #[test]
     fn test_skeleton_text_builder() {
-        let skeleton = SkeletonText::new()
-            .width_percent(70)
-            .animate(false);
+        let skeleton = SkeletonText::new().width_percent(70).animate(false);
         assert_eq!(skeleton.width_percent, 70);
         assert!(!skeleton.animate);
     }
@@ -496,9 +497,7 @@ mod tests {
 
     #[test]
     fn test_skeleton_table_builder() {
-        let skeleton = SkeletonTable::new(10, 3)
-            .show_header(false)
-            .animate(false);
+        let skeleton = SkeletonTable::new(10, 3).show_header(false).animate(false);
         assert_eq!(skeleton.rows, 10);
         assert_eq!(skeleton.columns, 3);
         assert!(!skeleton.show_header);
@@ -508,16 +507,14 @@ mod tests {
     #[test]
     fn test_skeleton_table_column_widths() {
         let widths = vec![30, 50, 20];
-        let skeleton = SkeletonTable::new(5, 3)
-            .column_widths(widths.clone());
+        let skeleton = SkeletonTable::new(5, 3).column_widths(widths.clone());
         assert_eq!(skeleton.column_widths, widths);
     }
 
     #[test]
     fn test_skeleton_table_column_widths_wrong_count() {
         let widths = vec![50, 50]; // Wrong count (2 instead of 3)
-        let skeleton = SkeletonTable::new(5, 3)
-            .column_widths(widths);
+        let skeleton = SkeletonTable::new(5, 3).column_widths(widths);
         // Should keep default widths
         assert_eq!(skeleton.column_widths.len(), 3);
     }

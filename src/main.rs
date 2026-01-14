@@ -1,8 +1,10 @@
 pub mod beads;
 pub mod config;
+pub mod graph;
 pub mod models;
 pub mod runtime;
 pub mod ui;
+pub mod undo;
 pub mod utils;
 
 use anyhow::Result;
@@ -23,8 +25,10 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io;
+use std::sync::Arc;
 use std::time::Instant;
 use ui::views::{DatabaseView, DependenciesView, HelpView, IssuesView, LabelsView};
+use undo::IssueUpdateCommand;
 
 fn main() -> Result<()> {
     // Setup panic hook to restore terminal on panic
@@ -88,7 +92,17 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 
     // Handle undo (Ctrl+Z)
     if key_code == KeyCode::Char('z') && key.modifiers.contains(KeyModifiers::CONTROL) {
-        runtime::RUNTIME.block_on(app.undo()).ok();
+        app.undo().ok();
+        return;
+    }
+
+    // Handle redo (Ctrl+Y or Ctrl+Shift+Z)
+    if (key_code == KeyCode::Char('y') && key.modifiers.contains(KeyModifiers::CONTROL))
+        || (key_code == KeyCode::Char('z')
+            && key.modifiers.contains(KeyModifiers::CONTROL)
+            && key.modifiers.contains(KeyModifiers::SHIFT))
+    {
+        app.redo().ok();
         return;
     }
 
@@ -139,7 +153,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             tracing::info!("Confirmed close for issue: {}", issue_id);
 
                             // Capture current status for undo before closing
-                            let old_status = app
+                            let _old_status = app
                                 .issues_view_state
                                 .search_state()
                                 .selected_issue()
@@ -154,18 +168,8 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 Ok(()) => {
                                     tracing::info!("Successfully closed issue: {}", issue_id);
 
-                                    // Add undo entry if we captured the old status
-                                    if let Some(status) = old_status {
-                                        app.undo_history.push(crate::models::UndoEntry {
-                                            description: format!("Closed issue {}", issue_id),
-                                            reverse_command: vec![
-                                                "update".to_string(),
-                                                issue_id.to_string(),
-                                                format!("--status={}", status),
-                                            ],
-                                            timestamp: std::time::SystemTime::now(),
-                                        });
-                                    }
+                                    // TODO: Wrap close_issue in IssueCloseCommand for undo support (beads-tui-37lyg)
+                                    // Note: old_status captured but not used until command wrapper implemented
 
                                     app.reload_issues();
                                     app.stop_loading();
@@ -530,20 +534,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                                     to_id
                                                 );
 
-                                                // Add undo entry
-                                                app.undo_history.push(crate::models::UndoEntry {
-                                                    description: format!(
-                                                        "Added dependency: {} depends on {}",
-                                                        from_id, to_id
-                                                    ),
-                                                    reverse_command: vec![
-                                                        "dep".to_string(),
-                                                        "remove".to_string(),
-                                                        from_id.clone(),
-                                                        to_id.clone(),
-                                                    ],
-                                                    timestamp: std::time::SystemTime::now(),
-                                                });
+                                                // TODO: Wrap dep add in DependencyAddCommand for undo support (beads-tui-37lyg)
 
                                                 app.set_success(format!(
                                                     "Added dependency: {} depends on {}",
@@ -948,7 +939,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         // Reopen selected issue
                         if let Some(issue) = issues_state.search_state().selected_issue() {
                             let issue_id = issue.id.clone();
-                            let old_status = issue.status.to_string();
+                            let _old_status = issue.status.to_string();
                             tracing::info!("Reopening issue: {}", issue_id);
 
                             // Create a tokio runtime to execute the async call
@@ -962,16 +953,8 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                     app.stop_loading();
                                     tracing::info!("Successfully reopened issue: {}", issue_id);
 
-                                    // Add undo entry
-                                    app.undo_history.push(crate::models::UndoEntry {
-                                        description: format!("Reopened issue {}", issue_id),
-                                        reverse_command: vec![
-                                            "update".to_string(),
-                                            issue_id.to_string(),
-                                            format!("--status={}", old_status),
-                                        ],
-                                        timestamp: std::time::SystemTime::now(),
-                                    });
+                                    // TODO: Wrap reopen_issue in IssueReopenCommand for undo support (beads-tui-37lyg)
+                                    // Note: old_status captured but not used until command wrapper implemented
 
                                     // Reload issues list
                                     app.reload_issues();
@@ -2297,20 +2280,29 @@ fn run_app<B: ratatui::backend::Backend>(
                                     if let Some(issue) = app.issues_view_state.selected_issue() {
                                         let issue_id = issue.id.clone();
 
-                                        // Update priority via beads client
-                                        // Using global runtime instead of creating new runtime
-                                        let client = app.beads_client.clone();
-                                        let update = IssueUpdate::new().priority(new_priority);
+                                        // Update priority via command (undoable)
+                                        // PATTERN FOR WRAPPING UPDATE OPERATIONS (beads-tui-37lyg):
+                                        // 1. Create Arc<BeadsClient> from app.beads_client
+                                        // 2. Build IssueUpdate with the fields to change
+                                        // 3. Create Box<IssueUpdateCommand::new(client, issue_id, update)>
+                                        // 4. Call app.execute_command(command) instead of client.update_issue()
+                                        // 5. Success message should mention undo: "(undo with Ctrl+Z)"
+                                        // This enables undo/redo support for the operation.
+                                        let client = Arc::new(app.beads_client.clone());
+                                        let update = beads::client::IssueUpdate::new().priority(new_priority);
+                                        let command = Box::new(IssueUpdateCommand::new(
+                                            client,
+                                            issue_id.clone(),
+                                            update,
+                                        ));
 
                                         app.start_loading("Updating priority...");
 
-                                        match runtime::RUNTIME
-                                            .block_on(client.update_issue(&issue_id, update))
-                                        {
+                                        match app.execute_command(command) {
                                             Ok(()) => {
                                                 app.stop_loading();
                                                 app.set_success(format!(
-                                                    "Updated priority to {} for issue {}",
+                                                    "Updated priority to {} for issue {} (undo with Ctrl+Z)",
                                                     new_priority, issue_id
                                                 ));
                                                 app.reload_issues();

@@ -51,7 +51,8 @@ async fn test_memory_spike_large_descriptions() {
         }
     }
 
-    println!("Total description size in memory: {} bytes ({} MB)",
+    println!(
+        "Total description size in memory: {} bytes ({} MB)",
         total_desc_size,
         total_desc_size / (1024 * 1024)
     );
@@ -65,7 +66,8 @@ async fn test_memory_spike_large_descriptions() {
 
     // This test demonstrates that large descriptions cause memory spikes
     // In a real application with hundreds of issues, this could be problematic
-    println!("⚠ Memory spike detected: {} issues consume {} MB",
+    println!(
+        "⚠ Memory spike detected: {} issues consume {} MB",
         issues.len(),
         total_desc_size / (1024 * 1024)
     );
@@ -100,7 +102,10 @@ async fn test_description_truncation_suggestion() {
         .await
         .expect("Failed to list issues");
 
-    let issue = issues.iter().find(|i| i.title == "Moderate Description").unwrap();
+    let issue = issues
+        .iter()
+        .find(|i| i.title == "Moderate Description")
+        .unwrap();
 
     if let Some(ref desc) = issue.description {
         println!("Original description size: {} bytes", desc.len());
@@ -108,7 +113,8 @@ async fn test_description_truncation_suggestion() {
         // Suggest truncation strategy: keep first 500 chars for list view
         const TRUNCATION_LIMIT: usize = 500;
         if desc.len() > TRUNCATION_LIMIT {
-            let truncated = format!("{}... (truncated, {} more chars)",
+            let truncated = format!(
+                "{}... (truncated, {} more chars)",
                 &desc[..TRUNCATION_LIMIT],
                 desc.len() - TRUNCATION_LIMIT
             );

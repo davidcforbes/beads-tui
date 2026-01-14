@@ -1,7 +1,8 @@
 /// Application state management
 use crate::beads::BeadsClient;
 use crate::config::Config;
-use crate::models::{SavedFilter, UndoHistory};
+use crate::models::SavedFilter;
+use crate::undo::UndoStack;
 use crate::ui::views::{
     compute_label_stats, BondingInterfaceState, DatabaseStats, DatabaseStatus, DatabaseViewState,
     DependenciesViewState, Formula, FormulaBrowserState, GanttViewState, HelpSection,
@@ -122,8 +123,8 @@ pub struct AppState {
     /// Cancellation token for current operation (None if not cancellable)
     /// TODO: Implement with tokio_util::sync::CancellationToken (beads-tui-8nexq)
     pub cancellation_token: Option<()>,
-    /// Undo history for reversible operations
-    pub undo_history: UndoHistory,
+    /// Undo/redo stack for reversible operations
+    pub undo_stack: UndoStack,
 }
 
 impl AppState {
@@ -270,7 +271,7 @@ impl AppState {
             loading_spinner: None,
             loading_message: None,
             cancellation_token: None,
-            undo_history: UndoHistory::new(20),
+            undo_stack: UndoStack::new(),
         }
     }
 
@@ -436,17 +437,55 @@ impl AppState {
     ///
     /// TODO: Requires execute_raw_command method in BeadsClient (beads-tui-5vgzt)
     #[allow(dead_code)]
-    pub async fn undo(&mut self) -> Result<(), String> {
-        if let Some(_entry) = self.undo_history.pop() {
-            // TODO: Execute reverse command using beads_client.execute_raw_command
-            // Placeholder for now until execute_raw_command is implemented
-            self.set_error(
-                "Undo not yet implemented - requires BeadsClient.execute_raw_command".to_string(),
-            );
-            Err("Not implemented".to_string())
-        } else {
-            self.set_info("Nothing to undo".to_string());
-            Ok(())
+    /// Undo the most recent operation
+    pub fn undo(&mut self) -> Result<(), String> {
+        match self.undo_stack.undo() {
+            Ok(()) => {
+                if let Some(desc) = self.undo_stack.peek_redo() {
+                    self.set_info(format!("Undid: {}", desc));
+                } else {
+                    self.set_info("Undid operation".to_string());
+                }
+                self.reload_issues();
+                Ok(())
+            }
+            Err(e) => {
+                self.set_error(format!("Undo failed: {}", e));
+                Err(e.to_string())
+            }
+        }
+    }
+
+    /// Redo the most recently undone operation
+    pub fn redo(&mut self) -> Result<(), String> {
+        match self.undo_stack.redo() {
+            Ok(()) => {
+                if let Some(desc) = self.undo_stack.peek_undo() {
+                    self.set_info(format!("Redid: {}", desc));
+                } else {
+                    self.set_info("Redid operation".to_string());
+                }
+                self.reload_issues();
+                Ok(())
+            }
+            Err(e) => {
+                self.set_error(format!("Redo failed: {}", e));
+                Err(e.to_string())
+            }
+        }
+    }
+
+    /// Execute a command and add it to the undo stack
+    pub fn execute_command(&mut self, mut command: Box<dyn crate::undo::Command>) -> Result<(), String> {
+        match command.execute() {
+            Ok(()) => {
+                self.undo_stack.push(command);
+                Ok(())
+            }
+            Err(e) => {
+                self.set_error(format!("Command failed: {}", e));
+                Err(e.to_string())
+            }
         }
     }
 
@@ -1040,7 +1079,7 @@ mod tests {
             loading_spinner: None,
             loading_message: None,
             cancellation_token: None,
-            undo_history: UndoHistory::new(20),
+            undo_stack: UndoStack::new(),
             notification_history: VecDeque::new(),
             show_notification_history: false,
             notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
