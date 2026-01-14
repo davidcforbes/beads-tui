@@ -5,6 +5,8 @@
 
 mod command;
 mod issue_commands;
+mod stack;
 
 pub use command::{Command, CommandError, CommandMetadata, CommandResult};
 pub use issue_commands::{IssueCreateCommand, IssueUpdateCommand};
+pub use stack::UndoStack;
