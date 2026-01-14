@@ -87,7 +87,8 @@ impl CreateIssueFormState {
             FormField::text("title", "Title")
                 .required()
                 .placeholder("Brief description of the issue")
-                .with_validation(ValidationRule::Required),
+                .with_validation(ValidationRule::Required)
+                .with_validation(ValidationRule::MaxLength(256)),
             FormField::selector(
                 "type",
                 "Type",
@@ -147,27 +148,43 @@ impl CreateIssueFormState {
                 "Closed".to_string(),
             ])),
             // Scheduling section
-            FormField::text("due_date", "Due Date").placeholder("YYYY-MM-DD (optional)"),
-            FormField::text("defer_date", "Defer Date").placeholder("YYYY-MM-DD (optional)"),
+            FormField::text("due_date", "Due Date")
+                .placeholder("YYYY-MM-DD (optional)")
+                .with_validation(ValidationRule::MaxLength(32)),
+            FormField::text("defer_date", "Defer Date")
+                .placeholder("YYYY-MM-DD (optional)")
+                .with_validation(ValidationRule::MaxLength(32)),
             FormField::text("time_estimate", "Time Estimate")
-                .placeholder("e.g., 2h, 3d, 1w (optional)"),
+                .placeholder("e.g., 2h, 3d, 1w (optional)")
+                .with_validation(ValidationRule::MaxLength(32)),
             // Relationships section
             FormField::text("parent", "Parent Issue")
                 .placeholder("beads-xxx (optional)")
-                .with_validation(ValidationRule::BeadsIdFormat),
+                .with_validation(ValidationRule::BeadsIdFormat)
+                .with_validation(ValidationRule::MaxLength(64)),
             FormField::text("dependencies", "Dependencies")
-                .placeholder("comma-separated beads-xxx (optional)"),
+                .placeholder("comma-separated beads-xxx (optional)")
+                .with_validation(ValidationRule::MaxLength(2048)),
             // Labels section
-            FormField::text("assignee", "Assignee").placeholder("username (optional)"),
-            FormField::text("labels", "Labels").placeholder("comma-separated labels (optional)"),
+            FormField::text("assignee", "Assignee")
+                .placeholder("username (optional)")
+                .with_validation(ValidationRule::MaxLength(128)),
+            FormField::text("labels", "Labels")
+                .placeholder("comma-separated labels (optional)")
+                .with_validation(ValidationRule::MaxLength(2048)),
             // Text section
             FormField::text_area("description", "Description")
-                .placeholder("Detailed description of the issue (optional)"),
+                .placeholder("Detailed description of the issue (optional)")
+                .with_validation(ValidationRule::MaxLength(1048576)),
             FormField::text_area("design", "Design")
-                .placeholder("Design notes and approach (optional)"),
+                .placeholder("Design notes and approach (optional)")
+                .with_validation(ValidationRule::MaxLength(1048576)),
             FormField::text_area("acceptance", "Acceptance Criteria")
-                .placeholder("How to verify this is done (optional)"),
-            FormField::text_area("notes", "Notes").placeholder("Additional notes (optional)"),
+                .placeholder("How to verify this is done (optional)")
+                .with_validation(ValidationRule::MaxLength(1048576)),
+            FormField::text_area("notes", "Notes")
+                .placeholder("Additional notes (optional)")
+                .with_validation(ValidationRule::MaxLength(1048576)),
         ];
 
         Self {
@@ -403,7 +420,9 @@ impl CreateIssueFormState {
             // Summary section
             FormField::text("title", "Title")
                 .required()
-                .placeholder("Brief description of the issue"),
+                .placeholder("Brief description of the issue")
+                .with_validation(ValidationRule::Required)
+                .with_validation(ValidationRule::MaxLength(256)),
             FormField::selector(
                 "type",
                 "Type",
@@ -443,25 +462,43 @@ impl CreateIssueFormState {
             .value("Open")
             .required(),
             // Scheduling section
-            FormField::text("due_date", "Due Date").placeholder("YYYY-MM-DD (optional)"),
-            FormField::text("defer_date", "Defer Date").placeholder("YYYY-MM-DD (optional)"),
+            FormField::text("due_date", "Due Date")
+                .placeholder("YYYY-MM-DD (optional)")
+                .with_validation(ValidationRule::MaxLength(32)),
+            FormField::text("defer_date", "Defer Date")
+                .placeholder("YYYY-MM-DD (optional)")
+                .with_validation(ValidationRule::MaxLength(32)),
             FormField::text("time_estimate", "Time Estimate")
-                .placeholder("e.g., 2h, 3d, 1w (optional)"),
+                .placeholder("e.g., 2h, 3d, 1w (optional)")
+                .with_validation(ValidationRule::MaxLength(32)),
             // Relationships section
-            FormField::text("parent", "Parent Issue").placeholder("beads-xxx (optional)"),
+            FormField::text("parent", "Parent Issue")
+                .placeholder("beads-xxx (optional)")
+                .with_validation(ValidationRule::BeadsIdFormat)
+                .with_validation(ValidationRule::MaxLength(64)),
             FormField::text("dependencies", "Dependencies")
-                .placeholder("comma-separated beads-xxx (optional)"),
+                .placeholder("comma-separated beads-xxx (optional)")
+                .with_validation(ValidationRule::MaxLength(2048)),
             // Labels section
-            FormField::text("assignee", "Assignee").placeholder("username (optional)"),
-            FormField::text("labels", "Labels").placeholder("comma-separated labels (optional)"),
+            FormField::text("assignee", "Assignee")
+                .placeholder("username (optional)")
+                .with_validation(ValidationRule::MaxLength(128)),
+            FormField::text("labels", "Labels")
+                .placeholder("comma-separated labels (optional)")
+                .with_validation(ValidationRule::MaxLength(2048)),
             // Text section
             FormField::text_area("description", "Description")
-                .placeholder("Detailed description of the issue (optional)"),
+                .placeholder("Detailed description of the issue (optional)")
+                .with_validation(ValidationRule::MaxLength(1048576)),
             FormField::text_area("design", "Design")
-                .placeholder("Design notes and approach (optional)"),
+                .placeholder("Design notes and approach (optional)")
+                .with_validation(ValidationRule::MaxLength(1048576)),
             FormField::text_area("acceptance", "Acceptance Criteria")
-                .placeholder("How to verify this is done (optional)"),
-            FormField::text_area("notes", "Notes").placeholder("Additional notes (optional)"),
+                .placeholder("How to verify this is done (optional)")
+                .with_validation(ValidationRule::MaxLength(1048576)),
+            FormField::text_area("notes", "Notes")
+                .placeholder("Additional notes (optional)")
+                .with_validation(ValidationRule::MaxLength(1048576)),
         ]);
         self.current_section = FormSection::Summary;
         self.show_preview = false;

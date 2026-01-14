@@ -108,6 +108,7 @@ impl IssueEditorState {
             FormField::text("title", "Title")
                 .required()
                 .with_validation(ValidationRule::Required)
+                .with_validation(ValidationRule::MaxLength(256))
                 .value(&issue.title),
             Section::Summary,
         );
@@ -185,7 +186,8 @@ impl IssueEditorState {
         add_field(
             FormField::text("assignee", "Assignee")
                 .value(issue.assignee.as_deref().unwrap_or(""))
-                .placeholder("username"),
+                .placeholder("username")
+                .with_validation(ValidationRule::MaxLength(128)),
             Section::Summary,
         );
 
@@ -193,14 +195,16 @@ impl IssueEditorState {
         add_field(
             FormField::text_area("dependencies", "Dependencies")
                 .value(issue.dependencies.join("\n"))
-                .placeholder("beads-xxxx-xxxx (one per line)"),
+                .placeholder("beads-xxxx-xxxx (one per line)")
+                .with_validation(ValidationRule::MaxLength(2048)),
             Section::Relationships,
         );
 
         add_field(
             FormField::text_area("blocks", "Blocks")
                 .value(issue.blocks.join("\n"))
-                .placeholder("beads-xxxx-xxxx (one per line)"),
+                .placeholder("beads-xxxx-xxxx (one per line)")
+                .with_validation(ValidationRule::MaxLength(2048)),
             Section::Relationships,
         );
 
@@ -208,7 +212,8 @@ impl IssueEditorState {
         add_field(
             FormField::text_area("labels", "Labels")
                 .value(issue.labels.join("\n"))
-                .placeholder("label-name (one per line)"),
+                .placeholder("label-name (one per line)")
+                .with_validation(ValidationRule::MaxLength(2048)),
             Section::Labels,
         );
 
@@ -216,7 +221,8 @@ impl IssueEditorState {
         add_field(
             FormField::text_area("description", "Description")
                 .value(issue.description.as_deref().unwrap_or(""))
-                .placeholder("Detailed description of the issue"),
+                .placeholder("Detailed description of the issue")
+                .with_validation(ValidationRule::MaxLength(1048576)),
             Section::Text,
         );
 

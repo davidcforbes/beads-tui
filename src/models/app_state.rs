@@ -528,7 +528,8 @@ impl AppState {
 
         // Save config to disk
         self.config.save().map_err(|e| {
-            format!("Failed to save config: {}", e)
+            tracing::error!("Failed to save config: {:?}", e);
+            "Failed to save configuration. Check logs for details.".to_string()
         })?;
 
         // Synchronize saved filters with search state
@@ -566,7 +567,8 @@ impl AppState {
 
         self.config.add_filter(saved_filter.clone());
         self.config.save().map_err(|e| {
-            format!("Failed to save config: {}", e)
+            tracing::error!("Failed to save config after adding filter: {:?}", e);
+            "Failed to save configuration. Check logs for details.".to_string()
         })?;
 
         self.issues_view_state
@@ -599,8 +601,8 @@ impl AppState {
 
         // Save config to disk
         if let Err(e) = self.config.save() {
-            tracing::error!("Failed to save config: {:?}", e);
-            return Err(format!("Failed to save config: {}", e));
+            tracing::error!("Failed to save config after deleting filter: {:?}", e);
+            return Err("Failed to save configuration. Check logs for details.".to_string());
         }
 
         // Update the saved filters in issues view state
@@ -681,7 +683,8 @@ impl AppState {
 
         // Save config to disk
         self.config.save().map_err(|e| {
-            format!("Failed to save table config: {}", e)
+            tracing::error!("Failed to save table config: {:?}", e);
+            "Failed to save configuration. Check logs for details.".to_string()
         })
     }
 }

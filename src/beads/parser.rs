@@ -43,8 +43,10 @@ pub fn parse_create_response(output: &str) -> Result<String> {
         }
     }
 
+    // Log the full output for debugging but don't expose it to users
+    tracing::error!("Failed to parse issue ID from create response. Output:\n{}", output);
     Err(BeadsError::CommandError(
-        format!("Failed to parse issue ID from create response. Output:\n{}", output),
+        "Failed to parse issue ID from create response. Check logs for details.".to_string(),
     ))
 }
 
