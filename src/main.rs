@@ -3039,7 +3039,7 @@ fn get_action_hints(app: &models::AppState) -> String {
             let mode = app.issues_view_state.view_mode();
             match mode {
                 ui::views::IssuesViewMode::List => {
-                    "↑/↓/j/k: Navigate | Enter: View | c: Create | e: Edit | d: Delete | /: Search | f: Filter | Space: Select | ?: Help".to_string()
+                    "↑/↓/j/k: Navigate | Enter: View | c: Create | e: Edit | d: Delete | /: Search | f: Filter | :: Command palette | Space: Select | ?: Help".to_string()
                 }
                 ui::views::IssuesViewMode::Create => {
                     "Tab: Next field | Shift+Tab: Previous | Ctrl+S: Save | Esc: Cancel".to_string()

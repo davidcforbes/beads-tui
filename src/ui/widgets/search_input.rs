@@ -265,9 +265,9 @@ impl<'a> StatefulWidget for SearchInput<'a> {
         // Build block
         let block = if let Some(mut block) = self.block {
             let title = if state.is_focused {
-                "Search [searching]"
+                "Search [searching] (↑/↓ for history)"
             } else {
-                "Search"
+                "Search (↑/↓ for history)"
             };
             block = block.title(title);
 
