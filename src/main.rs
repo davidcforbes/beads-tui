@@ -3005,35 +3005,60 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
 
 /// Generate context-sensitive action hints based on current application state
 fn get_action_hints(app: &models::AppState) -> String {
+    // Build undo/redo status suffix
+    let undo_redo_hints = {
+        let mut hints = Vec::new();
+
+        if app.undo_stack.can_undo() {
+            if let Some(desc) = app.undo_stack.peek_undo() {
+                hints.push(format!("Ctrl+Z: Undo {}", desc));
+            } else {
+                hints.push("Ctrl+Z: Undo".to_string());
+            }
+        }
+
+        if app.undo_stack.can_redo() {
+            if let Some(desc) = app.undo_stack.peek_redo() {
+                hints.push(format!("Ctrl+Y: Redo {}", desc));
+            } else {
+                hints.push("Ctrl+Y: Redo".to_string());
+            }
+        }
+
+        if hints.is_empty() {
+            String::new()
+        } else {
+            format!(" | {}", hints.join(" | "))
+        }
+    };
+
     // If dialog is visible, show dialog-specific hints
     if app.dialog_state.is_some() || app.delete_dialog_state.is_some() {
-        return "←/→: Navigate | Enter: Confirm | Esc: Cancel".to_string();
+        return format!("←/→: Navigate | Enter: Confirm | Esc: Cancel{}", undo_redo_hints);
     }
 
     // If filter save dialog is visible
     if app.is_filter_save_dialog_visible() {
-        return "Type to edit | Tab: Next field | Enter: Save | Esc: Cancel".to_string();
+        return format!("Type to edit | Tab: Next field | Enter: Save | Esc: Cancel{}", undo_redo_hints);
     }
 
     // If filter quick-select is visible
     if app.issues_view_state.search_state().is_filter_menu_open() {
-        return "↑/↓: Navigate | Enter: Apply filter | e: Edit | d: Delete | Esc: Cancel"
-            .to_string();
+        return format!("↑/↓: Navigate | Enter: Apply filter | e: Edit | d: Delete | Esc: Cancel{}", undo_redo_hints);
     }
 
     // If dependency dialog is visible
     if app.dependency_dialog_state.is_open() {
-        return "Tab: Next field | ↑/↓: Navigate | Space: Select | Enter: Add | Esc: Cancel"
-            .to_string();
+        return format!("Tab: Next field | ↑/↓: Navigate | Space: Select | Enter: Add | Esc: Cancel{}", undo_redo_hints);
     }
 
     // If keyboard shortcut help is visible
     if app.is_shortcut_help_visible() {
-        return "Esc or ?: Close help".to_string();
+        return format!("Esc or ?: Close help{}", undo_redo_hints);
     }
 
     // Tab-specific action hints
-    match app.selected_tab {
+    let base_hint = match app.selected_tab {
         0 => {
             // Issues view
             let mode = app.issues_view_state.view_mode();
@@ -3090,7 +3115,9 @@ fn get_action_hints(app: &models::AppState) -> String {
         }
         _ => "Press 'q' to quit | Tab/Shift+Tab: Switch tabs | 1-9: Direct tab access | ?: Help"
             .to_string(),
-    }
+    };
+
+    format!("{}{}", base_hint, undo_redo_hints)
 }
 
 /// Generate context-sensitive help content based on current application state

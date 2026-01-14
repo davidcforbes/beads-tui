@@ -116,6 +116,8 @@ pub struct AppState {
     pub show_shortcut_help: bool,
     /// Whether context-sensitive help overlay is visible
     pub show_context_help: bool,
+    /// Whether undo history overlay is visible
+    pub show_undo_history: bool,
     /// Loading spinner widget (None if not loading)
     pub loading_spinner: Option<crate::ui::widgets::Spinner>,
     /// Loading operation message
@@ -268,6 +270,7 @@ impl AppState {
             dependency_removal_dialog_state: None,
             show_shortcut_help: false,
             show_context_help: false,
+            show_undo_history: false,
             loading_spinner: None,
             loading_message: None,
             cancellation_token: None,
@@ -1076,6 +1079,7 @@ mod tests {
             dependency_removal_dialog_state: None,
             show_shortcut_help: false,
             show_context_help: false,
+            show_undo_history: false,
             loading_spinner: None,
             loading_message: None,
             cancellation_token: None,

@@ -32,6 +32,7 @@ pub mod tab_bar;
 pub mod text_editor;
 pub mod toast;
 pub mod tree;
+pub mod undo_history;
 
 pub use autocomplete::{Autocomplete, AutocompleteState};
 pub use bulk_action_menu::{BulkAction, BulkActionMenu, BulkActionMenuState};
@@ -69,6 +70,7 @@ pub use tab_bar::TabBar;
 pub use text_editor::{TextEditor, TextEditorState};
 pub use toast::{Toast, ToastConfig, ToastPosition, ToastStack};
 pub use tree::{Tree, TreeNode, TreeState};
+pub use undo_history::{HistoryEntry, UndoHistoryView};
 
 // Future widgets:
 // - Issue list widget

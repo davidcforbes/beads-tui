@@ -138,6 +138,50 @@ impl UndoStack {
         let redo_size: usize = self.redo_stack.iter().map(|cmd| cmd.size_bytes()).sum();
         undo_size + redo_size
     }
+
+    /// Get the complete history of commands with their current state
+    ///
+    /// Returns a vector of (description, timestamp, is_current_position, can_undo) tuples.
+    /// The entries are ordered from oldest to newest.
+    /// is_current_position marks where we are in the undo/redo timeline.
+    pub fn history(&self) -> Vec<(String, chrono::DateTime<chrono::Utc>, bool, bool)> {
+        let mut entries = Vec::new();
+
+        // Add undo stack (oldest to newest)
+        for cmd in self.undo_stack.iter() {
+            entries.push((
+                cmd.description().to_string(),
+                cmd.timestamp(),
+                false,
+                true, // Can undo these
+            ));
+        }
+
+        // Mark the current position (after the last undo, before any redo)
+        if !entries.is_empty() && !self.redo_stack.is_empty() {
+            // We're in the middle of the history
+            if let Some(last) = entries.last_mut() {
+                last.2 = true; // Mark as current position
+            }
+        } else if !entries.is_empty() && self.redo_stack.is_empty() {
+            // We're at the end (most recent command)
+            if let Some(last) = entries.last_mut() {
+                last.2 = true;
+            }
+        }
+
+        // Add redo stack (newest to oldest, so we need to reverse)
+        for cmd in self.redo_stack.iter().rev() {
+            entries.push((
+                cmd.description().to_string(),
+                cmd.timestamp(),
+                false,
+                false, // Cannot undo these (they're in the future)
+            ));
+        }
+
+        entries
+    }
 }
 
 impl Default for UndoStack {
