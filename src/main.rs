@@ -3024,7 +3024,13 @@ fn get_action_hints(app: &models::AppState) -> String {
 
     // If dependency dialog is visible
     if app.dependency_dialog_state.is_open() {
-        return format!("Tab: Next field | ↑/↓: Navigate | Space: Select | Enter: Add | Esc: Cancel{}", undo_redo_hints);
+        use ui::widgets::DependencyDialogFocus;
+        let hint = match app.dependency_dialog_state.focus() {
+            DependencyDialogFocus::Type => "Space: Toggle type | Tab: Next | Enter: Add | Esc: Cancel",
+            DependencyDialogFocus::IssueId => "Type to search | ↑/↓: Select issue | Tab: Next | Enter: Add | Esc: Cancel",
+            DependencyDialogFocus::Buttons => "←/→: Select button | Enter: Confirm | Esc: Cancel",
+        };
+        return format!("{}{}", hint, undo_redo_hints);
     }
 
     // If keyboard shortcut help is visible
