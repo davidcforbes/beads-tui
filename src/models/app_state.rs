@@ -662,6 +662,9 @@ impl AppState {
             .ok_or_else(|| "No dependency pending removal".to_string())?
             .clone();
 
+        // Show loading indicator
+        self.start_loading(format!("Removing dependency {} → {}...", issue_id, depends_on_id));
+
         // Use the beads client to remove the dependency
         use crate::runtime;
         match runtime::RUNTIME.block_on(
@@ -681,11 +684,13 @@ impl AppState {
                 // Reload issues to reflect the change
                 self.reload_issues();
 
+                self.stop_loading();
                 self.mark_dirty();
 
                 Ok(())
             }
             Err(e) => {
+                self.stop_loading();
                 tracing::error!("Failed to remove dependency: {}", e);
                 Err(format!(
                     "Failed to remove dependency: {}\n\nCommon causes:\n• Dependency does not exist\n• Invalid issue ID format\n• Network connectivity issues\n\nVerify with 'bd show <issue-id>'",

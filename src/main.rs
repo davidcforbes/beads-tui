@@ -111,6 +111,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if let Some(issue_id) = action.strip_prefix("delete:") {
                             tracing::info!("Confirmed delete for issue: {}", issue_id);
 
+                            // Show loading indicator
+                            app.start_loading(format!("Deleting issue {}...", issue_id));
+
                             // Create a tokio runtime to execute the async call
                             // Using global runtime instead of creating new runtime
                             let client = &app.beads_client;
@@ -119,13 +122,18 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 Ok(()) => {
                                     tracing::info!("Successfully deleted issue: {}", issue_id);
                                     app.reload_issues();
+                                    app.stop_loading();
                                 }
                                 Err(e) => {
+                                    app.stop_loading();
                                     tracing::error!("Failed to delete issue: {:?}", e);
                                 }
                             }
                         } else if let Some(issue_id) = action.strip_prefix("close:") {
                             tracing::info!("Confirmed close for issue: {}", issue_id);
+
+                            // Show loading indicator
+                            app.start_loading(format!("Closing issue {}...", issue_id));
 
                             let client = &app.beads_client;
 
@@ -133,14 +141,19 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 Ok(()) => {
                                     tracing::info!("Successfully closed issue: {}", issue_id);
                                     app.reload_issues();
+                                    app.stop_loading();
                                 }
                                 Err(e) => {
+                                    app.stop_loading();
                                     tracing::error!("Failed to close issue: {:?}", e);
                                     app.set_error(format!("Failed to close issue: {e}\n\nTry:\n• Verify the issue exists with 'bd show {issue_id}'\n• Check network connectivity\n• Run 'bd doctor' to diagnose issues"));
                                 }
                             }
                         } else if action == "compact_database" {
                             tracing::info!("Confirmed compact database");
+
+                            // Show loading indicator
+                            app.start_loading("Compacting database...");
 
                             // Create a tokio runtime to execute the async call
                             // Using global runtime instead of creating new runtime
@@ -150,8 +163,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 Ok(()) => {
                                     tracing::info!("Successfully compacted database");
                                     app.reload_issues();
+                                    app.stop_loading();
                                 }
                                 Err(e) => {
+                                    app.stop_loading();
                                     tracing::error!("Failed to compact database: {:?}", e);
                                     app.set_error(format!(
                                         "Failed to compact database: {e}\n\nTry:\n• Run 'bd doctor' to diagnose issues\n• Check available disk space\n• Restart the application"
@@ -1596,7 +1611,9 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
         KeyCode::Char('r') => {
             // Refresh database status
             tracing::info!("Refreshing database status");
+            app.start_loading("Refreshing database...");
             app.reload_issues();
+            app.stop_loading();
         }
         KeyCode::Char('d') => {
             // Toggle daemon (start/stop)
