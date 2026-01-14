@@ -419,6 +419,11 @@ impl<'a> DatabaseView<'a> {
     }
 
     fn render_status(&self) -> Vec<Line<'static>> {
+        use crate::ui::themes::Theme;
+
+        let default_theme = Theme::default();
+        let theme_ref = self.theme.unwrap_or(&default_theme);
+
         vec![
             Line::from(Span::styled(
                 "Database Status",
@@ -430,9 +435,9 @@ impl<'a> DatabaseView<'a> {
             Line::from(vec![
                 Span::styled("Status:        ", Style::default().fg(Color::Gray)),
                 Span::styled(
-                    self.status.display_name().to_string(),
+                    format!("{} {}", self.status.symbol(), self.status.display_name()),
                     Style::default()
-                        .fg(self.status.color())
+                        .fg(self.status.color(theme_ref))
                         .add_modifier(Modifier::BOLD),
                 ),
             ]),
@@ -445,9 +450,9 @@ impl<'a> DatabaseView<'a> {
                         "Stopped".to_string()
                     },
                     Style::default().fg(if self.daemon_running {
-                        Color::Green
+                        theme_ref.success
                     } else {
-                        Color::Red
+                        theme_ref.error
                     }),
                 ),
             ]),
