@@ -5,10 +5,10 @@ pub type Result<T> = std::result::Result<T, BeadsError>;
 
 #[derive(Error, Debug)]
 pub enum BeadsError {
-    #[error("IO error: {0}")]
+    #[error("IO error: {0}\nCheck file permissions and disk space. Run 'bd doctor' to diagnose issues.")]
     Io(#[from] std::io::Error),
 
-    #[error("JSON parsing error: {0} (Input: {1})")]
+    #[error("JSON parsing error: {0} (Input: {1})\nThe issue database may be corrupted. Try 'bd sync' to restore from remote, or check .beads/issues.jsonl format.")]
     Json(serde_json::Error, String),
 
     #[error("Command execution error: {0}\nTry running 'bd doctor' to diagnose issues.")]
@@ -96,8 +96,10 @@ mod tests {
     fn test_io_error_conversion() {
         let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
         let beads_err: BeadsError = io_err.into();
-        assert!(beads_err.to_string().contains("IO error"));
-        assert!(beads_err.to_string().contains("file not found"));
+        let msg = beads_err.to_string();
+        assert!(msg.contains("IO error"));
+        assert!(msg.contains("file not found"));
+        assert!(msg.contains("permissions") || msg.contains("bd doctor"));
     }
 
     #[test]
@@ -105,8 +107,10 @@ mod tests {
         let json_str = "{invalid json";
         let json_err = serde_json::from_str::<serde_json::Value>(json_str).unwrap_err();
         let beads_err = BeadsError::Json(json_err, json_str.to_string());
-        assert!(beads_err.to_string().contains("JSON parsing error"));
-        assert!(beads_err.to_string().contains("{invalid json"));
+        let msg = beads_err.to_string();
+        assert!(msg.contains("JSON parsing error"));
+        assert!(msg.contains("{invalid json"));
+        assert!(msg.contains("corrupted") || msg.contains("bd sync"));
     }
 
     #[test]
