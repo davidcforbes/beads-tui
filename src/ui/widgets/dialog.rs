@@ -118,6 +118,7 @@ pub struct Dialog<'a> {
     width: u16,
     height: u16,
     theme: Option<&'a crate::ui::themes::Theme>,
+    hint: Option<&'a str>,
 }
 
 impl<'a> Dialog<'a> {
@@ -131,6 +132,7 @@ impl<'a> Dialog<'a> {
             width: 50,
             height: 10,
             theme: None,
+            hint: None,
         }
     }
 
@@ -147,6 +149,7 @@ impl<'a> Dialog<'a> {
             width: 50,
             height: 10,
             theme: None,
+            hint: None,
         }
     }
 
@@ -163,6 +166,7 @@ impl<'a> Dialog<'a> {
             width: 50,
             height: 10,
             theme: None,
+            hint: None,
         }
     }
 
@@ -176,6 +180,7 @@ impl<'a> Dialog<'a> {
             width: 50,
             height: 10,
             theme: None,
+            hint: None,
         }
     }
 
@@ -189,6 +194,7 @@ impl<'a> Dialog<'a> {
             width: 50,
             height: 10,
             theme: None,
+            hint: None,
         }
     }
 
@@ -202,6 +208,7 @@ impl<'a> Dialog<'a> {
             width: 50,
             height: 10,
             theme: None,
+            hint: None,
         }
     }
 
@@ -215,6 +222,7 @@ impl<'a> Dialog<'a> {
             width: 50,
             height: 10,
             theme: None,
+            hint: None,
         }
     }
 
@@ -239,6 +247,12 @@ impl<'a> Dialog<'a> {
     /// Set dialog height
     pub fn height(mut self, height: u16) -> Self {
         self.height = height;
+        self
+    }
+
+    /// Set contextual hint text (shown in footer)
+    pub fn hint(mut self, hint: &'a str) -> Self {
+        self.hint = Some(hint);
         self
     }
 
@@ -271,12 +285,22 @@ impl<'a> Dialog<'a> {
         block.render(dialog_rect, buf);
 
         // Create inner layout
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
+        let constraints = if self.hint.is_some() {
+            vec![
                 Constraint::Min(3),    // Message area
                 Constraint::Length(3), // Buttons area
-            ])
+                Constraint::Length(1), // Hint area
+            ]
+        } else {
+            vec![
+                Constraint::Min(3),    // Message area
+                Constraint::Length(3), // Buttons area
+            ]
+        };
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(constraints)
             .split(inner);
 
         // Render message
@@ -287,6 +311,16 @@ impl<'a> Dialog<'a> {
 
         // Render buttons
         self.render_buttons(chunks[1], buf, state, theme_ref);
+
+        // Render hint if present
+        if let Some(hint_text) = self.hint {
+            let hint = Paragraph::new(Line::from(vec![
+                Span::styled("Hint: ", Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)),
+                Span::styled(hint_text, Style::default().fg(Color::Gray)),
+            ]))
+            .alignment(Alignment::Center);
+            hint.render(chunks[2], buf);
+        }
     }
 
     fn render_buttons(&self, area: Rect, buf: &mut Buffer, state: &DialogState, theme: &crate::ui::themes::Theme) {
@@ -1005,5 +1039,23 @@ mod tests {
         assert_eq!(dialog.buttons.len(), 2);
         assert_eq!(dialog.buttons[0].label, "B");
         assert_eq!(dialog.buttons[1].label, "C");
+    }
+
+    #[test]
+    fn test_dialog_hint() {
+        let dialog = Dialog::new("Test", "Message");
+        assert!(dialog.hint.is_none());
+
+        let dialog_with_hint = Dialog::new("Test", "Message")
+            .hint("Press Tab to navigate");
+        assert_eq!(dialog_with_hint.hint, Some("Press Tab to navigate"));
+    }
+
+    #[test]
+    fn test_dialog_confirm_with_hint() {
+        let dialog = Dialog::confirm("Delete?", "Are you sure?")
+            .hint("Use Tab/Shift+Tab to select buttons");
+        assert_eq!(dialog.hint, Some("Use Tab/Shift+Tab to select buttons"));
+        assert_eq!(dialog.buttons.len(), 2);
     }
 }

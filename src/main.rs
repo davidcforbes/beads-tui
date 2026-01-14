@@ -2659,7 +2659,8 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             // Parse action to get issue ID and construct message
             if let Some(issue_id) = action.strip_prefix("delete:") {
                 let message = format!("Are you sure you want to delete issue {issue_id}?");
-                let dialog = ui::widgets::Dialog::confirm("Confirm Delete", &message);
+                let dialog = ui::widgets::Dialog::confirm("Confirm Delete", &message)
+                    .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
 
                 // Render dialog centered on screen
                 let area = f.size();
@@ -2670,7 +2671,8 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 dialog.render_with_state(dialog_area, f.buffer_mut(), dialog_state);
             } else if let Some(issue_id) = action.strip_prefix("close:") {
                 let message = format!("Are you sure you want to close issue {issue_id}?\nThis will mark the issue as resolved.");
-                let dialog = ui::widgets::Dialog::confirm("Confirm Close", &message);
+                let dialog = ui::widgets::Dialog::confirm("Confirm Close", &message)
+                    .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
 
                 // Render dialog centered on screen
                 let area = f.size();
@@ -2682,7 +2684,8 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             } else if action == "compact_database" {
                 let message = "WARNING: Compacting will remove issue history.\nThis operation cannot be undone.\n\nContinue?";
                 let dialog = ui::widgets::Dialog::confirm("Compact Database", message)
-                    .dialog_type(ui::widgets::DialogType::Warning);
+                    .dialog_type(ui::widgets::DialogType::Warning)
+                    .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
 
                 // Render dialog centered on screen
                 let area = f.size();
@@ -2733,7 +2736,8 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 filter_name
             );
             let dialog = ui::widgets::Dialog::confirm("Delete Filter", &message)
-                .dialog_type(ui::widgets::DialogType::Warning);
+                .dialog_type(ui::widgets::DialogType::Warning)
+                .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
 
             // Render dialog centered on screen
             let area = f.size();
@@ -2753,7 +2757,8 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 issue_id, depends_on_id
             );
             let dialog = ui::widgets::Dialog::confirm("Remove Dependency", &message)
-                .dialog_type(ui::widgets::DialogType::Warning);
+                .dialog_type(ui::widgets::DialogType::Warning)
+                .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
 
             // Render dialog centered on screen
             let area = f.size();
