@@ -136,7 +136,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 }
                                 Err(e) => {
                                     tracing::error!("Failed to close issue: {:?}", e);
-                                    app.set_error(format!("Failed to close issue: {e}"));
+                                    app.set_error(format!("Failed to close issue: {e}\n\nTry:\n• Verify the issue exists with 'bd show {issue_id}'\n• Check network connectivity\n• Run 'bd doctor' to diagnose issues"));
                                 }
                             }
                         } else if action == "compact_database" {
@@ -417,7 +417,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                         }
                                         Err(e) => {
                                             tracing::error!("Failed to create relates_to link: {}", e);
-                                            app.set_error(format!("Failed to link issues: {}", e));
+                                            app.set_error(format!("Failed to link issues: {}\n\nCommon causes:\n• One or both issue IDs are invalid\n• Issues not found - verify with 'bd list'\n• Network connectivity issues", e));
                                         }
                                     }
                                 }
@@ -865,7 +865,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                             }
                                             Err(e) => {
                                                 tracing::error!("Failed to indent issue: {:?}", e);
-                                                app.set_error(format!("Failed to indent: {e}"));
+                                                app.set_error(format!("Failed to indent: {e}\n\nTip: Ensure the previous issue is valid and can be a parent.\nCheck 'bd show' to verify issue hierarchy."));
                                             }
                                         }
                                     } else {
@@ -906,7 +906,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                     }
                                     Err(e) => {
                                         tracing::error!("Failed to outdent issue: {:?}", e);
-                                        app.set_error(format!("Failed to outdent: {e}"));
+                                        app.set_error(format!("Failed to outdent: {e}\n\nTip: Check the issue hierarchy with 'bd show'.\nEnsure dependencies allow this change."));
                                     }
                                 }
                             } else {
@@ -1438,7 +1438,7 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
                                     Err(e) => {
                                         tracing::error!("Failed to remove dependency: {}", e);
                                         app.set_error(format!(
-                                            "Failed to remove dependency: {}",
+                                            "Failed to remove dependency: {}\n\nCommon causes:\n• Dependency does not exist\n• Invalid issue ID format\n• Network connectivity issues\n\nVerify with 'bd show <issue-id>'",
                                             e
                                         ));
                                     }
@@ -1472,7 +1472,7 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
                                     Err(e) => {
                                         tracing::error!("Failed to remove dependency: {}", e);
                                         app.set_error(format!(
-                                            "Failed to remove dependency: {}",
+                                            "Failed to remove dependency: {}\n\nCommon causes:\n• Dependency does not exist\n• Invalid issue ID format\n• Network connectivity issues\n\nVerify with 'bd show <issue-id>'",
                                             e
                                         ));
                                     }
@@ -1664,7 +1664,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 }
                 Err(e) => {
                     tracing::error!("Failed to export issues: {:?}", e);
-                    app.set_error(format!("Failed to export issues: {e}"));
+                    app.set_error(format!("Failed to export issues: {e}\n\nTry:\n• Check write permissions for the output file\n• Ensure sufficient disk space\n• Verify the file path is valid"));
                 }
             }
         }
@@ -1679,7 +1679,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 }
                 Err(e) => {
                     tracing::error!("Failed to import issues: {:?}", e);
-                    app.set_error(format!("Failed to import issues: {e}"));
+                    app.set_error(format!("Failed to import issues: {e}\n\nTry:\n• Verify the import file exists and is readable\n• Check the file format is valid JSON\n• Ensure the file contains properly formatted issue data"));
                 }
             }
         }
@@ -1700,7 +1700,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 }
                 Err(e) => {
                     tracing::error!("Failed to verify database: {:?}", e);
-                    app.set_error(format!("Failed to verify database: {e}"));
+                    app.set_error(format!("Failed to verify database: {e}\n\nTry:\n• Run 'bd doctor' to diagnose issues\n• Check if beads CLI is accessible\n• Verify database integrity with 'bd stats'"));
                 }
             }
         }
@@ -2023,7 +2023,7 @@ fn run_app<B: ratatui::backend::Backend>(
                                                 app.reload_issues();
                                             }
                                             Err(e) => {
-                                                app.set_error(format!("Failed to update priority: {}", e));
+                                                app.set_error(format!("Failed to update priority: {}\n\nTip: Verify the issue exists and you have permission to modify it.\nUse valid priority values: P0, P1, P2, P3, or P4", e));
                                             }
                                         }
                                     }
@@ -2104,7 +2104,7 @@ fn run_app<B: ratatui::backend::Backend>(
                                         app.reload_issues();
                                     }
                                     Err(e) => {
-                                        app.set_error(format!("Failed to update labels: {}", e));
+                                        app.set_error(format!("Failed to update labels: {}\n\nTip: Verify the issue exists and label format is correct.\nLabels should be single words or hyphenated (e.g., 'bug', 'high-priority')", e));
                                     }
                                 }
                             }
@@ -2149,7 +2149,7 @@ fn run_app<B: ratatui::backend::Backend>(
                                                 app.reload_issues();
                                             }
                                             Err(e) => {
-                                                app.set_error(format!("Failed to update status: {}", e));
+                                                app.set_error(format!("Failed to update status: {}\n\nTip: Valid statuses are: open, in_progress, blocked, closed.\nVerify the issue exists with 'bd show <issue-id>'", e));
                                             }
                                         }
                                     }

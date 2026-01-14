@@ -155,34 +155,83 @@ impl PertGraph {
         graph
     }
 
-    /// Check if adding a dependency would create a cycle
+    /// Check if adding a dependency would create a cycle (OPTIMIZED)
     /// Returns true if adding the dependency would create a cycle
     /// from_id: issue that will depend on to_id
     /// to_id: issue that from_id will depend on (blocker)
+    ///
+    /// This is an optimized O(V+E) check in the affected subgraph only,
+    /// avoiding the expensive full graph rebuild of the old implementation.
     pub fn would_create_cycle(issues: &[Issue], from_id: &str, to_id: &str) -> bool {
-        // Create a temporary issue set with the proposed dependency added
-        let mut temp_issues: Vec<Issue> = issues.to_vec();
+        // Quick validation: ensure both issues exist
+        let from_exists = issues.iter().any(|i| i.id == from_id);
+        let to_exists = issues.iter().any(|i| i.id == to_id);
 
-        // Find the from_id issue and add the dependency
-        if let Some(issue) = temp_issues.iter_mut().find(|i| i.id == from_id) {
-            // Check if dependency already exists
-            if issue.dependencies.contains(&to_id.to_string()) {
-                return false; // Already exists, no cycle will be created
+        if !from_exists || !to_exists {
+            return false; // Can't create cycle if either issue doesn't exist
+        }
+
+        // Check if dependency already exists
+        if let Some(from_issue) = issues.iter().find(|i| i.id == from_id) {
+            if from_issue.dependencies.contains(&to_id.to_string()) {
+                return false; // Already exists, no new cycle
             }
-            issue.dependencies.push(to_id.to_string());
-        } else {
-            // from_id doesn't exist, can't create cycle
-            return false;
         }
 
-        // Check if to_id exists
-        if !temp_issues.iter().any(|i| i.id == to_id) {
-            return false; // to_id doesn't exist, can't create cycle
+        // Build a lightweight adjacency list from existing dependencies
+        // This is much faster than creating full PertGraph with all nodes and timing
+        let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
+
+        for issue in issues {
+            adjacency.insert(issue.id.clone(), Vec::new());
         }
 
-        // Create temporary graph and check for cycles
-        let graph = Self::new(&temp_issues, 1.0);
-        graph.cycle_detection.has_cycle
+        for issue in issues {
+            for dep in &issue.dependencies {
+                if issues.iter().any(|i| &i.id == dep) {
+                    adjacency
+                        .entry(dep.clone())
+                        .or_insert_with(Vec::new)
+                        .push(issue.id.clone());
+                }
+            }
+        }
+
+        // Check if there's a path from from_id to to_id in the current graph
+        // If yes, adding from_id depends on to_id (edge to_id -> from_id) would create a cycle
+        // because we'd have: from_id -> ... -> to_id -> from_id
+        Self::has_path(&adjacency, from_id, to_id)
+    }
+
+    /// Check if there's a path from start to target using BFS
+    /// Returns true if target is reachable from start
+    fn has_path(adjacency: &HashMap<String, Vec<String>>, start: &str, target: &str) -> bool {
+        if start == target {
+            return true;
+        }
+
+        let mut visited = HashSet::new();
+        let mut queue = VecDeque::new();
+
+        queue.push_back(start.to_string());
+        visited.insert(start.to_string());
+
+        while let Some(current) = queue.pop_front() {
+            if let Some(neighbors) = adjacency.get(&current) {
+                for neighbor in neighbors {
+                    if neighbor == target {
+                        return true; // Found path
+                    }
+
+                    if !visited.contains(neighbor) {
+                        visited.insert(neighbor.clone());
+                        queue.push_back(neighbor.clone());
+                    }
+                }
+            }
+        }
+
+        false // No path found
     }
 
     /// Detect cycles in the graph using DFS
