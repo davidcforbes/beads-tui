@@ -41,13 +41,13 @@ pub enum DialogType {
 }
 
 impl DialogType {
-    fn color(&self) -> Color {
+    fn color(&self, theme: &crate::ui::themes::Theme) -> Color {
         match self {
-            DialogType::Info => Color::Blue,
-            DialogType::Warning => Color::Yellow,
-            DialogType::Error => Color::Red,
-            DialogType::Success => Color::Green,
-            DialogType::Confirm => Color::Cyan,
+            DialogType::Info => theme.info,
+            DialogType::Warning => theme.warning,
+            DialogType::Error => theme.error,
+            DialogType::Success => theme.success,
+            DialogType::Confirm => theme.primary,
         }
     }
 
@@ -117,6 +117,7 @@ pub struct Dialog<'a> {
     buttons: Vec<DialogButton>,
     width: u16,
     height: u16,
+    theme: Option<&'a crate::ui::themes::Theme>,
 }
 
 impl<'a> Dialog<'a> {
@@ -129,6 +130,7 @@ impl<'a> Dialog<'a> {
             buttons: vec![DialogButton::new("OK", "ok")],
             width: 50,
             height: 10,
+            theme: None,
         }
     }
 
