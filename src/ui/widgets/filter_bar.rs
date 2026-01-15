@@ -176,6 +176,7 @@ pub struct FilterBarState {
 }
 
 impl FilterBarState {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         statuses: Vec<IssueStatus>,
         priorities: Vec<Priority>,
@@ -477,7 +478,9 @@ impl<'a> ActiveDropdownMut<'a> {
 
 /// Filter bar widget
 pub struct FilterBar<'a> {
+    #[allow(dead_code)]
     filtered_count: usize,
+    #[allow(dead_code)]
     total_count: usize,
     theme: &'a Theme,
 }
