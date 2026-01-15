@@ -1285,13 +1285,15 @@ mod tests {
             selected_tab: 0,
             tabs: vec![
                 "Issues",
+                "Split",
+                "Kanban",
                 "Dependencies",
                 "Labels",
-                "PERT",
-                "Gantt",
-                "Kanban",
+                "Ghant",
+                "Pert",
                 "Molecular",
-                "Database",
+                "Statistics",
+                "Utilities",
                 "Help",
             ],
             beads_client: BeadsClient::new(),
@@ -1387,7 +1389,7 @@ mod tests {
     #[test]
     fn test_next_tab_wraps_around() {
         let mut state = create_test_app_state();
-        state.selected_tab = 8; // Last tab (Help)
+        state.selected_tab = 10; // Last tab (Help) - 11 tabs total, index 0-10
 
         state.next_tab();
         assert_eq!(state.selected_tab, 0); // Wraps to first tab
@@ -1409,7 +1411,7 @@ mod tests {
         state.selected_tab = 0; // First tab
 
         state.previous_tab();
-        assert_eq!(state.selected_tab, 8); // Wraps to last tab
+        assert_eq!(state.selected_tab, 10); // Wraps to last tab (index 10)
     }
 
     // Dirty flag tests
@@ -1627,7 +1629,7 @@ mod tests {
         let state = AppState::default();
         assert!(!state.should_quit);
         assert_eq!(state.selected_tab, 0);
-        assert_eq!(state.tabs.len(), 9);
+        assert_eq!(state.tabs.len(), 11); // Updated: Issues, Split, Kanban, Dependencies, Labels, Ghant, Pert, Molecular, Statistics, Utilities, Help
     }
 
     #[test]
@@ -1635,7 +1637,7 @@ mod tests {
         let mut state = create_test_app_state();
 
         // Navigate through all tabs
-        for i in 1..9 {
+        for i in 1..11 {
             state.next_tab();
             assert_eq!(state.selected_tab, i);
         }
@@ -1648,17 +1650,17 @@ mod tests {
     #[test]
     fn test_previous_tab_multiple_times() {
         let mut state = create_test_app_state();
-        state.selected_tab = 8; // Start at last tab
+        state.selected_tab = 10; // Start at last tab (11 tabs, index 0-10)
 
         // Navigate backward through all tabs
-        for i in (0..8).rev() {
+        for i in (0..10).rev() {
             state.previous_tab();
             assert_eq!(state.selected_tab, i);
         }
 
         // Previous should wrap to last
         state.previous_tab();
-        assert_eq!(state.selected_tab, 8);
+        assert_eq!(state.selected_tab, 10);
     }
 
     #[test]
@@ -1923,16 +1925,18 @@ mod tests {
     #[test]
     fn test_tabs_count() {
         let state = create_test_app_state();
-        assert_eq!(state.tabs.len(), 9);
+        assert_eq!(state.tabs.len(), 11);
         assert_eq!(state.tabs[0], "Issues");
-        assert_eq!(state.tabs[1], "Dependencies");
-        assert_eq!(state.tabs[2], "Labels");
-        assert_eq!(state.tabs[3], "PERT");
-        assert_eq!(state.tabs[4], "Gantt");
-        assert_eq!(state.tabs[5], "Kanban");
-        assert_eq!(state.tabs[6], "Molecular");
-        assert_eq!(state.tabs[7], "Database");
-        assert_eq!(state.tabs[8], "Help");
+        assert_eq!(state.tabs[1], "Split");
+        assert_eq!(state.tabs[2], "Kanban");
+        assert_eq!(state.tabs[3], "Dependencies");
+        assert_eq!(state.tabs[4], "Labels");
+        assert_eq!(state.tabs[5], "Ghant");
+        assert_eq!(state.tabs[6], "Pert");
+        assert_eq!(state.tabs[7], "Molecular");
+        assert_eq!(state.tabs[8], "Statistics");
+        assert_eq!(state.tabs[9], "Utilities");
+        assert_eq!(state.tabs[10], "Help");
     }
 
     #[test]

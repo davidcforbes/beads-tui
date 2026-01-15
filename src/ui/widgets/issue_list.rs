@@ -1247,6 +1247,71 @@ impl<'a> StatefulWidget for IssueList<'a> {
         let visible_columns = state.table_config().visible_columns();
         let focused_col_idx = state.focused_column();
 
+        // Get editing state for rendering (clone to avoid borrow conflicts)
+        let editing_state = state
+            .editing_state()
+            .map(|(idx, buf, cursor)| (idx, buf.clone(), cursor));
+
+        // Virtual scrolling: Calculate visible range to optimize rendering
+        let total_issues = issues.len();
+        let viewport_height = table_area
+            .height
+            .saturating_sub(3) // Subtract borders (2) and header (1)
+            as usize;
+
+        // Calculate visible window with buffer
+        let buffer_size = viewport_height.saturating_mul(2); // Render 2x viewport above/below
+        let selected_idx = state.table_state.selected().unwrap_or(0);
+
+        // Calculate start and end of visible window
+        let start_idx = selected_idx.saturating_sub(buffer_size).min(total_issues);
+        let end_idx = (selected_idx + viewport_height + buffer_size)
+            .min(total_issues)
+            .max(start_idx);
+
+        // Only create rows for visible range
+        let visible_issues = if start_idx < end_idx {
+            &issues[start_idx..end_idx]
+        } else {
+            &[]
+        };
+
+        // Calculate available width for table content (subtract borders) BEFORE building rows
+        let available_width = table_area.width.saturating_sub(2) as usize; // 2 for left/right borders
+        let num_columns = visible_columns.len();
+        let spacing_width = num_columns.saturating_sub(1); // 1 space between each column
+        let content_width = available_width.saturating_sub(spacing_width);
+
+        // Calculate total requested width
+        let total_requested: usize = visible_columns.iter().map(|c| c.width as usize).sum();
+
+        // Create a map of column ID to adjusted width for easy lookup
+        use std::collections::HashMap;
+
+        // Adjust column widths if they exceed available space
+        let adjusted_columns: Vec<(crate::models::table_config::ColumnId, u16)> = if total_requested > content_width {
+            // Scale down proportionally, but respect minimum widths
+            let scale_factor = content_width as f64 / total_requested as f64;
+
+            visible_columns
+                .iter()
+                .map(|col| {
+                    let scaled_width = ((col.width as f64 * scale_factor).floor() as u16)
+                        .max(col.width_constraints.min)
+                        .min(col.width);
+                    (col.id, scaled_width)
+                })
+                .collect()
+        } else {
+            // Use configured widths as-is
+            visible_columns.iter().map(|col| (col.id, col.width)).collect()
+        };
+
+        // Create width lookup map
+        let width_map: HashMap<crate::models::table_config::ColumnId, u16> =
+            adjusted_columns.iter().copied().collect();
+
+        // Build header using adjusted widths
         let header_cells: Vec<Cell> = visible_columns
             .iter()
             .enumerate()
@@ -1283,6 +1348,10 @@ impl<'a> StatefulWidget for IssueList<'a> {
                     col.label.clone()
                 };
 
+                // Use adjusted width for truncation
+                let adjusted_width = *width_map.get(&col.id).unwrap_or(&col.width) as usize;
+                let truncated_label = Self::truncate_text(&label, adjusted_width);
+
                 // Highlight focused column
                 let style = if Some(idx) == focused_col_idx {
                     Style::default()
@@ -1292,7 +1361,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
                     Style::default().add_modifier(Modifier::BOLD)
                 };
 
-                Cell::from(Span::styled(label, style))
+                Cell::from(Span::styled(truncated_label, style))
             })
             .collect();
 
@@ -1300,36 +1369,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
             .style(Style::default().fg(Color::Yellow))
             .height(1);
 
-        // Get editing state for rendering (clone to avoid borrow conflicts)
-        let editing_state = state
-            .editing_state()
-            .map(|(idx, buf, cursor)| (idx, buf.clone(), cursor));
-
-        // Virtual scrolling: Calculate visible range to optimize rendering
-        let total_issues = issues.len();
-        let viewport_height = table_area
-            .height
-            .saturating_sub(3) // Subtract borders (2) and header (1)
-            as usize;
-
-        // Calculate visible window with buffer
-        let buffer_size = viewport_height.saturating_mul(2); // Render 2x viewport above/below
-        let selected_idx = state.table_state.selected().unwrap_or(0);
-
-        // Calculate start and end of visible window
-        let start_idx = selected_idx.saturating_sub(buffer_size).min(total_issues);
-        let end_idx = (selected_idx + viewport_height + buffer_size)
-            .min(total_issues)
-            .max(start_idx);
-
-        // Only create rows for visible range
-        let visible_issues = if start_idx < end_idx {
-            &issues[start_idx..end_idx]
-        } else {
-            &[]
-        };
-
-        // Build rows only for visible range, using TableConfig columns
+        // Build rows using adjusted widths
         let row_height_to_use = state.table_config().row_height;
         let rows: Vec<Row> = visible_issues
             .iter()
@@ -1341,7 +1381,8 @@ impl<'a> StatefulWidget for IssueList<'a> {
                 let cells: Vec<Cell> = visible_columns
                     .iter()
                     .map(|col| {
-                        let wrap_width = col.width as usize;
+                        // Use adjusted width from map
+                        let wrap_width = *width_map.get(&col.id).unwrap_or(&col.width) as usize;
                         Self::get_cell_content(
                             issue,
                             col.id,
@@ -1360,15 +1401,15 @@ impl<'a> StatefulWidget for IssueList<'a> {
             })
             .collect();
 
-        // Build table widths from TableConfig
-        let widths: Vec<Constraint> = visible_columns
+        // Build constraints using adjusted widths
+        let widths: Vec<Constraint> = adjusted_columns
             .iter()
-            .map(|col| {
-                // Use column width as preferred, but allow Title to be flexible
-                if col.id == crate::models::table_config::ColumnId::Title {
-                    Constraint::Min(col.width_constraints.min)
+            .map(|(id, width)| {
+                // Allow Title column to be flexible
+                if *id == crate::models::table_config::ColumnId::Title {
+                    Constraint::Min(*width)
                 } else {
-                    Constraint::Length(col.width)
+                    Constraint::Length(*width)
                 }
             })
             .collect();
