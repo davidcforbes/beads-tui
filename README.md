@@ -19,27 +19,36 @@ execute workflows through an intuitive interface.
 ### Implemented ✅
 
 - **Interactive Issue Management**: Create, edit, update, and close issues through forms and dialogs
+- **Unified Form System**: Consistent form layouts across create, edit, detail, and split views
 - **Issue List View**: Browse issues with sorting, filtering, and column customization
 - **Issue Detail View**: View full issue details with metadata and relationships
+- **Split Screen Mode**: View details alongside the issue list
 - **Visual Dependency Trees**: See dependency relationships as interactive trees
-- **Dependencies View**: Manage dependencies with tree visualization
+- **Dependencies View**: Manage dependencies with tree visualization and cycle detection
 - **Label Management**: Browse and manage labels with autocomplete
-- **Database Dashboard**: Monitor database health, sync status, and daemon operations
+- **Database Dashboard**: Monitor database health, sync status, and operations
 - **Column Manager**: Hide, show, and reorder table columns
-- **Smart Search**: Full-text search with filtering
+- **Advanced Search**: Full-text search with fuzzy matching, regex, and saved filters
+- **Smart Filtering**: Multi-criteria filtering with status, priority, type, and label filters
 - **Markdown Rendering**: Rich text display for issue descriptions
-- **Keyboard-First Design**: Efficient navigation with intuitive keybindings
-- **Form Validation**: Field validation for required fields and formats
-- **Help System**: Context-sensitive help and keyboard shortcuts
+- **Gantt Chart View**: Timeline visualization with scheduling and date derivation
+- **Kanban Board View**: Column-based workflow with WIP limits and drag support
+- **PERT Chart View**: Network diagram for dependencies with critical path analysis
+- **Theme Support**: 5 themes including accessibility themes (High-Contrast, Deuteranopia, Protanopia, Tritanopia)
+- **Undo/Redo System**: Command history tracking with 50-command capacity
+- **Keyboard-First Design**: Complete keyboard navigation with 66+ keybindable actions
+- **Form Validation**: Comprehensive field validation for required fields, formats, and constraints
+- **Help System**: Context-sensitive help and keyboard shortcuts overlay
+- **Notification System**: Toast notifications with history panel (Ctrl+H)
+- **Task Management**: Background async operations with progress tracking
+- **Molecular Chemistry UI**: Advanced wizards for bonding, formulas, pour, and wisp operations
 
 ### In Progress 🚧
 
-- **Gantt Chart View**: Calendar-based timeline visualization
-- **Kanban Board View**: Column-based workflow visualization
-- **PERT Chart View**: Network diagram for dependencies
-- **Bulk Operations**: Select and operate on multiple issues at once
-- **Theme Support**: Multiple color themes
-- **Molecular Chemistry UI**: Interactive wizards for advanced operations
+- **Bulk Operations**: Enhanced multi-select and batch operations
+- **Performance Optimization**: Incremental rendering and caching improvements
+- **Test Coverage**: Expanding unit and integration test suite
+- **Documentation**: Comprehensive user and developer guides
 
 ## Tech Stack
 
@@ -110,14 +119,14 @@ beads-tui
 
 1. Press `n` in the Issues view
 2. Fill out the form (title, type, priority, description)
-3. Press `Ctrl+S` to save or `Esc` to cancel
+3. Press `Enter` to save or `Esc` to cancel
 
 #### Editing Issues
 
 1. Select an issue in the list
 2. Press `e` to edit
 3. Modify fields as needed
-4. Press `Ctrl+S` to save changes
+4. Press `Enter` to save changes
 
 ### Development Setup
 
@@ -171,66 +180,125 @@ This will create:
 ```text
 beads-tui/
 ├── src/
-│   ├── main.rs              # Entry point and main loop
-│   ├── app.rs               # Application state management
+│   ├── main.rs              # Entry point, event loop, and rendering orchestration
+│   ├── lib.rs               # Library exports and public API
+│   ├── runtime.rs           # Global async runtime singleton
+│   ├── models/              # Domain models and application state
+│   │   ├── app_state.rs     # Central AppState (single source of truth)
+│   │   ├── filter.rs        # Issue filtering with saved filters
+│   │   ├── table_config.rs  # Column definitions and visibility
+│   │   ├── kanban_config.rs # Kanban board configuration
+│   │   ├── gantt_schedule.rs # Timeline scheduling
+│   │   ├── pert_layout.rs   # PERT chart layout
+│   │   ├── issue_cache.rs   # Issue caching with statistics
+│   │   └── undo_history.rs  # Command history tracking
 │   ├── ui/                  # UI components and widgets
-│   │   ├── mod.rs
-│   │   ├── layout.rs        # Layout engine
-│   │   ├── widgets/         # Reusable UI widgets
-│   │   └── views/           # Main application views
-│   ├── beads/               # Beads-rs wrapper library
-│   │   ├── mod.rs
-│   │   ├── client.rs        # CLI command execution
-│   │   ├── models.rs        # Data models
-│   │   └── parser.rs        # JSON response parsing
-│   ├── config.rs            # Configuration management
-│   ├── events.rs            # Event handling
-│   └── keybindings.rs       # Keyboard shortcut management
+│   │   ├── views/           # 15+ screen-level views
+│   │   │   ├── issues_view.rs        # Main issue list view
+│   │   │   ├── issue_detail.rs       # Issue detail view
+│   │   │   ├── issue_editor.rs       # Issue edit view
+│   │   │   ├── create_issue.rs       # Issue creation view
+│   │   │   ├── issue_form_builder.rs # Unified form builder
+│   │   │   ├── kanban_view.rs        # Kanban board
+│   │   │   ├── gantt_view.rs         # Gantt chart
+│   │   │   ├── pert_view.rs          # PERT chart
+│   │   │   ├── dependencies_view.rs  # Dependency management
+│   │   │   ├── dependency_graph.rs   # Dependency graph visualization
+│   │   │   ├── labels_view.rs        # Label management
+│   │   │   ├── database_view.rs      # Database dashboard
+│   │   │   ├── search_interface.rs   # Search interface
+│   │   │   ├── help_view.rs          # Help and shortcuts
+│   │   │   └── molecular/            # Molecular chemistry views
+│   │   ├── widgets/         # 34+ reusable widgets
+│   │   │   ├── form.rs      # Form widget with validation
+│   │   │   ├── dialog.rs    # Modal dialogs
+│   │   │   ├── filter_bar.rs # Filter bar widget
+│   │   │   ├── kanban_card.rs # Kanban card widget
+│   │   │   ├── gantt_chart.rs # Gantt chart widget
+│   │   │   └── ...          # Many more widgets
+│   │   └── themes/          # 5 theme definitions
+│   ├── beads/               # Beads CLI integration layer
+│   │   ├── client.rs        # Async BeadsClient with retry logic
+│   │   ├── models.rs        # Issue, Status, Priority, Type, Note models
+│   │   ├── parser.rs        # Defensive JSON parsing
+│   │   ├── error.rs         # Custom error types
+│   │   └── mock.rs          # Mock backend for testing
+│   ├── config/              # Configuration management
+│   │   ├── keybindings.rs   # 66 customizable actions
+│   │   └── mod.rs           # YAML-based config
+│   ├── tasks/               # Background task management
+│   │   ├── manager.rs       # TaskManager for async tasks
+│   │   └── types.rs         # TaskHandle, TaskId, TaskStatus
+│   ├── undo/                # Undo/redo system
+│   │   └── ...              # Command pattern implementation
+│   ├── graph/               # Dependency graph algorithms
+│   │   └── ...              # Layout, cycle detection, topological sort
+│   ├── tts/                 # Text-to-speech support
+│   └── utils/               # Utility functions
+├── docs/                    # Documentation
+│   ├── ARCHITECTURE.md      # Architecture and design decisions
+│   ├── SEARCH_ARCHITECTURE.md # Search V2 design
+│   ├── FILTERING_GUIDE.md   # Filter system details
+│   ├── widgets.md           # Widget catalog
+│   └── USER_GUIDE.md        # End-user documentation
 ├── tests/                   # Integration tests
 ├── Cargo.toml              # Rust dependencies
-├── WORKPLAN.md             # Complete development roadmap
-└── generate-issues.py      # Script to import work plan to beads
+├── KEYBOARD_SHORTCUTS.md   # Complete keyboard reference
+└── WORKPLAN.md             # Development roadmap
 ```
 
-## Keyboard Shortcuts (Planned)
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
+
+## Keyboard Shortcuts
+
+Beads-TUI supports 66+ keybindable actions with intuitive shortcuts. Here are the most common:
 
 ### Global
 
-- `?` - Show help
-- `q` - Quit
-- `Ctrl+c` - Force quit
-- `/` - Search
-- `:` - Command palette
-- `Tab` - Next panel
-- `Shift+Tab` - Previous panel
+- `?` or `F1` - Show help / keyboard shortcuts
+- `q`, `Ctrl+Q`, or `Ctrl+C` - Quit
+- `Tab` / `Shift+Tab` - Switch tabs
+- `Ctrl+Z` / `Ctrl+Y` - Undo / Redo
+- `Ctrl+H` - Show notification history
+- `Esc` - Dismiss notifications / close overlays
 
-### Issue List
+### Issue Management
 
-- `j`/`k` or `↓`/`↑` - Navigate
-- `Enter` - View details
 - `n` - Create new issue
 - `e` - Edit selected issue
 - `d` - Delete selected issue
-- `c` - Close selected issue
-- `Space` - Toggle selection (bulk mode)
-- `a` - Select all
-- `A` - Deselect all
+- `x` - Close selected issue
+- `o` - Reopen selected issue
+- `Enter` - View details / Confirm action
+- `c` - Open column manager
 
-### Issue Detail
+### Navigation
 
-- `e` - Edit issue
-- `c` - Close issue
-- `r` - Reopen issue
-- `l` - Manage labels
-- `d` - Manage dependencies
-- `Esc` - Back to list
+- `j`/`k` or `↓`/`↑` - Move up/down
+- `h`/`l` or `←`/`→` - Move left/right
+- `g`/`G` - Jump to top/bottom
+- `Ctrl+U` / `Ctrl+D` - Page up/down
 
-### Filters
+### Search & Filters
 
-- `f` - Open filter builder
-- `F` - Save current filter
-- `Ctrl+f` - Quick filter
-- `F1-F12` - Saved filter shortcuts
+- `/` or `s` - Focus search bar
+- `f` - Toggle filters
+- `Shift+F` - Clear filters
+- `Alt+Z` - Toggle fuzzy search
+- `Alt+R` - Toggle regex search
+- `Alt+S` / `Alt+P` / `Alt+T` / `Alt+L` - Open status/priority/type/labels filters
+- `F3`-`F11` - Apply saved filters
+
+### Issue Operations
+
+- `p` - Update priority
+- `Shift+S` - Update status
+- `l` - Update labels
+- `a` - Update assignee
+- `+` / `-` - Add/remove dependency
+- `>` / `<` - Indent/outdent issue
+
+See [KEYBOARD_SHORTCUTS.md](KEYBOARD_SHORTCUTS.md) for the complete reference.
 
 ## Development Roadmap
 
@@ -290,17 +358,19 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 **Recent Milestones**:
 
-- ✅ Implemented beads-rs wrapper library
-- ✅ Created interactive issue list view
-- ✅ Built issue create/edit forms
-- ✅ Added dependency tree visualization
-- ✅ Implemented column manager
-- ✅ Added markdown rendering
+- ✅ Implemented unified form system across all views
+- ✅ Completed Gantt, Kanban, and PERT chart views
+- ✅ Added 5-theme system with accessibility support
+- ✅ Implemented advanced search with fuzzy and regex matching
+- ✅ Built molecular chemistry UI wizards
+- ✅ Added undo/redo system with command history
+- ✅ Implemented notification system with history panel
+- ✅ Created comprehensive keyboard shortcuts (66+ actions)
 
 **Next Steps**:
 
-1. Complete Gantt, Kanban, and PERT chart views
-2. Add bulk operations support
-3. Implement theme system
-4. Add molecular chemistry UI
-5. Create comprehensive documentation
+1. Enhance bulk operations and multi-select functionality
+2. Improve test coverage (unit and integration tests)
+3. Optimize performance with incremental rendering
+4. Complete comprehensive user and developer documentation
+5. Add CI/CD pipeline and release automation

@@ -30,7 +30,6 @@ use ratatui::{
 };
 use std::io::{self, Write};
 use std::sync::Arc;
-use std::time::Instant;
 use tasks::TaskOutput;
 use ui::views::{DatabaseView, DependenciesView, HelpView, IssuesView, LabelsView};
 use undo::IssueUpdateCommand;

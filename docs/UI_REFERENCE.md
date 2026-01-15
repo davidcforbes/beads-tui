@@ -38,14 +38,23 @@ Beads-TUI is a Rust-based terminal user interface for the beads issue tracking s
 
 ### Key Features
 
-- **Tab-based Navigation**: Switch between Issues, Dependencies, Labels, Database, and Help views
-- **Keyboard-First Design**: Efficient navigation with vim-style keybindings
-- **Visual Dependency Trees**: Interactive tree visualization of issue dependencies
-- **Advanced Filtering**: Full-text search with status, label, and priority filters
+- **Tab-based Navigation**: Switch between Issues, Dependencies, Labels, Kanban, Gantt, PERT, Database, and Help views
+- **Keyboard-First Design**: 66+ keybindable actions with vim-style navigation
+- **Split Screen Mode**: View issue details alongside the list
+- **Unified Form System**: Consistent layouts across create, edit, and detail views
+- **Visual Dependency Trees**: Interactive tree visualization with cycle detection
+- **Advanced Search**: Full-text search with fuzzy matching, regex, and saved filters
+- **Smart Filtering**: Multi-criteria filtering with status, priority, type, and label filters
 - **Column Customization**: Show, hide, and reorder table columns
+- **Gantt Chart View**: Timeline visualization with scheduling
+- **Kanban Board View**: Column-based workflow with WIP limits
+- **PERT Chart View**: Network diagram with critical path analysis
+- **Theme Support**: 5 themes including accessibility themes
 - **Markdown Support**: Rich text rendering for issue descriptions
+- **Notification System**: Toast notifications with history panel (Ctrl+H)
+- **Task Management**: Background async operations with progress tracking
+- **Undo/Redo**: Command history tracking with 50-command capacity
 - **Screen Reader Support**: Text-to-speech announcements (enable with `--tts` flag)
-- **Undo/Redo**: Reversible operations for safety
 
 ---
 
@@ -89,9 +98,9 @@ The status bar appears at the bottom of the screen and displays:
 
 - **Status Message**: Current operation or ready state
 - **Issue Count**: Total number of issues
-- **Daemon Status**: Beads daemon running status
+- **Daemon Status**: Beads daemon running status (when applicable)
 - **Quick Shortcuts**: Context-sensitive keyboard hints
-- **Performance Stats**: Optional FPS and render time (toggle with Debug mode)
+- **Notification Indicator**: Shows when there are pending notifications
 
 **Screenshot Placeholder:** `screenshot-02-status-bar.png`
 *Caption: Status bar showing application state and shortcuts*
@@ -136,22 +145,32 @@ Default columns (customizable via Column Manager):
 | Key | Action |
 |-----|--------|
 | `↑`/`↓` or `j`/`k` | Navigate up/down |
-| `Enter` | View issue details |
-| `c` | Create new issue |
+| `Enter` | View issue details / Toggle split screen |
+| `n` | Create new issue |
 | `e` | Edit selected issue |
 | `d` | Delete selected issue (with confirmation) |
-| `Shift+C` | Close selected issue |
+| `x` | Close selected issue |
+| `o` | Reopen selected issue |
 | `Shift+S` | Change issue status |
 | `p` | Change issue priority |
-| `Shift+L` | Manage labels |
+| `l` | Manage labels |
+| `a` | Update assignee |
 | `Space` | Toggle selection (bulk mode) |
-| `a` | Select all visible issues |
-| `Shift+A` | Deselect all |
-| `/` | Focus search bar |
-| `f` | Open filter builder |
-| `Shift+F` | Save current filter |
-| `Ctrl+M` | Open column manager |
-| `r` | Refresh issue list |
+| `Ctrl+A` | Select all visible issues |
+| `Ctrl+N` | Deselect all |
+| `/` or `s` | Focus search bar |
+| `f` | Toggle filter bar |
+| `Shift+F` | Clear current filters |
+| `Ctrl+Shift+S` | Save current filter |
+| `Alt+F` | Open saved filters menu |
+| `Alt+S` / `Alt+P` / `Alt+T` / `Alt+L` | Open status/priority/type/labels filter dialogs |
+| `Alt+Z` | Toggle fuzzy search |
+| `Alt+R` | Toggle regex search |
+| `c` | Open column manager |
+| `v` | Cycle issue scope (All/Ready/Blocked/My/Recent/Stale) |
+| `r` or `F5` | Refresh issue list |
+| `Ctrl+H` | Show notification history |
+| `Ctrl+Z` / `Ctrl+Y` | Undo / Redo |
 
 **Screenshot Placeholder:** `screenshot-04-issues-view-filtered.png`
 *Caption: Issues view with active filters applied*

@@ -28,11 +28,14 @@ behavior:
 
 | Key | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `theme` | object | `{ name: "dark" }` | UI theme name |
-| `behavior` | object | see below | Refresh behavior |
-| `keybindings` | object | `{}` | Reserved for future custom bindings |
+| `theme` | object | `{ name: "dark" }` | UI theme name (5 themes available) |
+| `behavior` | object | see below | Refresh behavior and UI preferences |
+| `keybindings` | object | `{}` | Custom keybinding overrides (66 actions available) |
 | `table` | object | see below | Issue list table layout |
 | `kanban` | object | see below | Kanban board layout |
+| `gantt` | object | see below | Gantt chart configuration |
+| `pert` | object | see below | PERT chart configuration |
+| `filters` | object | see below | Saved filter configurations |
 
 ## Theme
 
@@ -41,7 +44,15 @@ theme:
   name: dark
 ```
 
-`theme.name` is a string. The default is `dark`.
+`theme.name` is a string. Available themes:
+
+- **`dark`** (default): Dark theme with good contrast
+- **`high_contrast`**: WCAG AAA compliant high-contrast theme for accessibility
+- **`deuteranopia`**: Red-green colorblind friendly theme (deuteranopia/protanopia)
+- **`protanopia`**: Red-green colorblind friendly theme (alternative variant)
+- **`tritanopia`**: Blue-yellow colorblind friendly theme
+
+All themes are designed to work well in terminal environments and support 256-color terminals.
 
 ## Behavior
 
@@ -141,8 +152,89 @@ kanban:
 - `card_sort`: `priority`, `title`, `created`, or `updated`.
 - `wip_limit`: number or null.
 
+## Saved Filters
+
+```yaml
+filters:
+  saved:
+    - name: "My Issues"
+      hotkey: F3
+      search_text: ""
+      status_filter: [open, in_progress]
+      assignee: "@me"
+    - name: "Blocked"
+      hotkey: F4
+      status_filter: [blocked]
+```
+
+Saved filters can be:
+- Accessed via `Alt+F` (saved filters menu)
+- Applied directly with `F3`-`F11` hotkeys
+- Created via `Ctrl+Shift+S` in the Issues view
+
+### Filter Fields
+
+- `name` (string): Display name for the filter
+- `hotkey` (string): Function key (`F3`-`F11`)
+- `search_text` (string): Text search query
+- `status_filter` (list): Status values to include
+- `priority_filter` (list): Priority levels to include
+- `type_filter` (list): Issue types to include
+- `label_filter` (list): Labels to filter by
+- `assignee` (string): Assignee username or `@me`
+
+## Keybindings
+
+```yaml
+keybindings:
+  # Override default keybindings (66 actions available)
+  # See KEYBOARD_SHORTCUTS.md for the full list of actions
+  actions:
+    quit: ["q", "ctrl+q", "ctrl+c"]
+    search: ["/", "s"]
+    create_issue: ["n"]
+```
+
+Custom keybindings override the defaults. Each action can have multiple key combinations.
+See [KEYBOARD_SHORTCUTS.md](KEYBOARD_SHORTCUTS.md) for the complete list of 66 available actions.
+
+## Gantt Chart Configuration
+
+```yaml
+gantt:
+  zoom_level: day
+  grouping_mode: none
+  show_milestones: true
+  show_dependencies: true
+```
+
+### Fields
+
+- `zoom_level`: `hour`, `day`, `week`, `month`
+- `grouping_mode`: `none`, `assignee`, `label`, `priority`
+- `show_milestones`: bool (highlight milestone issues)
+- `show_dependencies`: bool (draw dependency lines)
+
+## PERT Chart Configuration
+
+```yaml
+pert:
+  layout_algorithm: hierarchical
+  show_critical_path: true
+  node_spacing: 3
+```
+
+### Fields
+
+- `layout_algorithm`: `hierarchical`, `force_directed`, `radial`
+- `show_critical_path`: bool (highlight critical path in red)
+- `node_spacing`: number (spacing between nodes)
+
 ## Notes
 
 - Missing fields fall back to defaults.
 - Table and Kanban configs auto-migrate: missing mandatory columns are added
   and widths are clamped to constraints.
+- Config changes are written atomically with retry logic.
+- Invalid YAML results in a warning and fallback to defaults.
+- The config file is created with default values on first run.

@@ -9,11 +9,10 @@ context-specific; the same key may do different things depending on the active v
 | `q`, `Ctrl+Q`, `Ctrl+C` | Quit | Exit the application |
 | `?` | Shortcut Help | Toggle keyboard shortcuts overlay |
 | `F1` | Context Help | Toggle context-sensitive help |
-| `Ctrl+P` or `F12` | Performance | Toggle performance statistics |
 | `Ctrl+Z` | Undo | Undo last action |
 | `Ctrl+Y` | Redo | Redo last undone action |
 | `Esc` | Dismiss | Dismiss notification / close overlays |
-| `Ctrl+H` or `N` | Notifications | Show notification history |
+| `Ctrl+H` | Notifications | Show notification history |
 
 ## Navigation
 | Key | Action | Description |
@@ -43,7 +42,7 @@ context-specific; the same key may do different things depending on the active v
 | `o` | Reopen | Reopen selected issue |
 | `F2` | Rename | Quick edit issue title |
 | `p` | Priority | Change priority of selected issue |
-| `s` | Status | Change status of selected issue |
+| `Shift+S` | Status | Change status of selected issue |
 | `l` | Labels | Edit labels for selected issue |
 | `a` | Assignee | Edit assignee for selected issue |
 | `+` | Add Dep | Add dependency to selected issue |
@@ -78,7 +77,7 @@ context-specific; the same key may do different things depending on the active v
 ## Issues View - Search and Filters
 | Key | Action | Description |
 |---|---|---|
-| `/` | Search | Focus search bar |
+| `/` or `s` | Search | Focus search bar |
 | `Esc` | Clear Search | Clear search input and return focus |
 | `Shift+N` | Next Result | Jump to next search result |
 | `Alt+N` | Prev Result | Jump to previous search result |
@@ -86,8 +85,12 @@ context-specific; the same key may do different things depending on the active v
 | `Alt+R` | Regex | Toggle regex search |
 | `f` | Filters | Toggle quick filters on/off |
 | `Shift+F` | Clear Filters | Clear current filters |
-| `Alt+S` | Save Filter | Save current filter configuration |
+| `Ctrl+Shift+S` | Save Filter | Save current filter configuration |
 | `Alt+F` | Filter Menu | Open saved filters menu |
+| `Alt+S` | Status Filter | Open status filter dialog |
+| `Alt+P` | Priority Filter | Open priority filter dialog |
+| `Alt+T` | Type Filter | Open type filter dialog |
+| `Alt+L` | Labels Filter | Open labels filter dialog |
 | `F3`-`F11` | Saved Filters | Apply saved filter hotkeys |
 
 ## Dependencies View
@@ -119,6 +122,10 @@ context-specific; the same key may do different things depending on the active v
 | `Up`/`Down`/`Left`/`Right` or `h`/`j`/`k`/`l` | Navigate | Move between cards/columns |
 | `Space` | Move | Move card to next column |
 | `c` | Configure | Configure board columns |
+| `Ctrl+F1` | Toggle Column | Toggle Open column collapse |
+| `Ctrl+F2` | Toggle Column | Toggle In Progress column collapse |
+| `Ctrl+F3` | Toggle Column | Toggle Blocked column collapse |
+| `Ctrl+F4` | Toggle Column | Toggle Closed column collapse |
 
 ## PERT View
 | Key | Action | Description |
@@ -138,13 +145,12 @@ context-specific; the same key may do different things depending on the active v
 ## Database View
 | Key | Action | Description |
 |---|---|---|
-| `r` | Refresh | Refresh database status |
+| `r` or `F5` | Refresh | Refresh database status |
 | `s` | Sync | Sync database with remote |
 | `x` | Export | Export issues to JSONL |
 | `i` | Import | Import issues from JSONL |
 | `v` | Verify | Verify database integrity |
 | `c` | Compact | Compact database |
-| `t` | Toggle Daemon | Start/stop daemon |
 | `Esc` | Back | Return to Issues view |
 
 ## Help View
