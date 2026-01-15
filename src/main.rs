@@ -901,7 +901,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
     match view_mode {
         IssuesViewMode::List => {
             // Check if a filter dropdown is active
-            if let Some(ref mut fb_state) = app.filter_bar_state {
+            if let Some(ref mut fb_state) = issues_state.filter_bar_state {
                 if fb_state.active_dropdown.is_some() {
                     // Filter dropdown is active - handle dropdown navigation
                     match key_code {
@@ -924,9 +924,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             return;
                         }
                         KeyCode::Enter => {
-                            // Apply filter and close dropdown
-                            // TODO: Apply the selected filters to the issues list
+                            // Close dropdown first
                             fb_state.close_dropdown();
+                            // Apply the selected filters to the issues list
+                            issues_state.apply_filter_bar_filters();
                             return;
                         }
                         KeyCode::Esc => {
@@ -1344,7 +1345,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     }
                     Some(Action::OpenStatusFilter) => {
                         // Open or close status filter dropdown
-                        if app.filter_bar_state.is_none() {
+                        if issues_state.filter_bar_state.is_none() {
                             // Initialize filter bar state
                             let filter_bar_state = ui::widgets::FilterBarState::new(
                                 collect_unique_statuses(&issues_state),
@@ -1352,15 +1353,15 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 collect_unique_types(&issues_state),
                                 collect_unique_labels(&issues_state),
                             );
-                            app.filter_bar_state = Some(filter_bar_state);
+                            issues_state.filter_bar_state = Some(filter_bar_state);
                         }
-                        if let Some(ref mut fb_state) = app.filter_bar_state {
+                        if let Some(ref mut fb_state) = issues_state.filter_bar_state {
                             fb_state.toggle_dropdown(ui::widgets::FilterDropdownType::Status);
                         }
                     }
                     Some(Action::OpenPriorityFilter) => {
                         // Open or close priority filter dropdown
-                        if app.filter_bar_state.is_none() {
+                        if issues_state.filter_bar_state.is_none() {
                             // Initialize filter bar state
                             let filter_bar_state = ui::widgets::FilterBarState::new(
                                 collect_unique_statuses(&issues_state),
@@ -1368,15 +1369,15 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 collect_unique_types(&issues_state),
                                 collect_unique_labels(&issues_state),
                             );
-                            app.filter_bar_state = Some(filter_bar_state);
+                            issues_state.filter_bar_state = Some(filter_bar_state);
                         }
-                        if let Some(ref mut fb_state) = app.filter_bar_state {
+                        if let Some(ref mut fb_state) = issues_state.filter_bar_state {
                             fb_state.toggle_dropdown(ui::widgets::FilterDropdownType::Priority);
                         }
                     }
                     Some(Action::OpenTypeFilter) => {
                         // Open or close type filter dropdown
-                        if app.filter_bar_state.is_none() {
+                        if issues_state.filter_bar_state.is_none() {
                             // Initialize filter bar state
                             let filter_bar_state = ui::widgets::FilterBarState::new(
                                 collect_unique_statuses(&issues_state),
@@ -1384,15 +1385,15 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 collect_unique_types(&issues_state),
                                 collect_unique_labels(&issues_state),
                             );
-                            app.filter_bar_state = Some(filter_bar_state);
+                            issues_state.filter_bar_state = Some(filter_bar_state);
                         }
-                        if let Some(ref mut fb_state) = app.filter_bar_state {
+                        if let Some(ref mut fb_state) = issues_state.filter_bar_state {
                             fb_state.toggle_dropdown(ui::widgets::FilterDropdownType::Type);
                         }
                     }
                     Some(Action::OpenLabelsFilter) => {
                         // Open or close labels filter dropdown
-                        if app.filter_bar_state.is_none() {
+                        if issues_state.filter_bar_state.is_none() {
                             // Initialize filter bar state
                             let filter_bar_state = ui::widgets::FilterBarState::new(
                                 collect_unique_statuses(&issues_state),
@@ -1400,9 +1401,9 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 collect_unique_types(&issues_state),
                                 collect_unique_labels(&issues_state),
                             );
-                            app.filter_bar_state = Some(filter_bar_state);
+                            issues_state.filter_bar_state = Some(filter_bar_state);
                         }
-                        if let Some(ref mut fb_state) = app.filter_bar_state {
+                        if let Some(ref mut fb_state) = issues_state.filter_bar_state {
                             fb_state.toggle_dropdown(ui::widgets::FilterDropdownType::Labels);
                         }
                     }
@@ -3062,6 +3063,11 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     match app.selected_tab {
         0 => {
             // Issues view (List mode)
+            use ui::views::IssuesViewMode;
+            // If coming from Split Screen, revert to List mode to avoid stuck split layout
+            if app.issues_view_state.view_mode() == IssuesViewMode::SplitScreen {
+                app.issues_view_state.return_to_list();
+            }
             let issues_view = IssuesView::new();
             f.render_stateful_widget(issues_view, tabs_chunks[1], &mut app.issues_view_state);
         }
