@@ -25,7 +25,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, Paragraph, Tabs},
     Frame, Terminal,
 };
 use std::io::{self, Write};
@@ -2755,39 +2755,35 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         .split(chunks[1]);
 
     // Tab bar
-    let tabs: Vec<ListItem> = app
+    let tabs: Vec<Line> = app
         .tabs
         .iter()
         .enumerate()
         .map(|(i, &name)| {
-            let style = if i == app.selected_tab {
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(Color::White)
-            };
-
             // Add issue count for Issues tab (index 0)
-            let label = if i == 0 {
+            if i == 0 {
                 let filtered_count = app.issues_view_state.search_state().filtered_issues().len();
                 let total_count = app.database_stats.total_issues;
                 if filtered_count < total_count {
-                    format!(" {} {} ({}/{}) ", i + 1, name, filtered_count, total_count)
+                    Line::from(format!("{name} ({}/{})", filtered_count, total_count))
                 } else {
-                    format!(" {} {} ({}) ", i + 1, name, total_count)
+                    Line::from(format!("{name} ({})", total_count))
                 }
             } else {
-                format!(" {} {} ", i + 1, name)
-            };
-
-            ListItem::new(label).style(style)
+                Line::from(name.to_string())
+            }
         })
         .collect();
 
-    let tabs_widget = List::new(tabs)
-        .block(Block::default().borders(Borders::ALL).title("Tabs"))
-        .highlight_style(Style::default().fg(Color::Yellow));
+    let tabs_widget = Tabs::new(tabs)
+        .block(Block::default().borders(Borders::ALL).title(" Views "))
+        .select(app.selected_tab)
+        .style(Style::default().fg(Color::Cyan))
+        .highlight_style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        );
     f.render_widget(tabs_widget, tabs_chunks[0]);
 
     // Content area based on selected tab
