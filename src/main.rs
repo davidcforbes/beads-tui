@@ -1757,17 +1757,19 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 }
 
 /// Handle keyboard events for the Dependencies view
-fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState) {
+fn handle_dependencies_view_event(key: KeyEvent, app: &mut models::AppState) {
+    let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+
     // Handle notification dismissal with Esc
-    if !app.notifications.is_empty() && key_code == KeyCode::Esc {
+    if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
         app.clear_notification();
         return;
     }
 
     let selected_issue = app.issues_view_state.selected_issue();
 
-    match key_code {
-        KeyCode::Char('j') | KeyCode::Down => {
+    match action {
+        Some(Action::MoveDown) => {
             // Get the length of the focused list
             let len = if let Some(issue) = selected_issue {
                 match app.dependencies_view_state.focus() {
@@ -1780,7 +1782,7 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
             app.dependencies_view_state.select_next(len);
             app.mark_dirty();
         }
-        KeyCode::Char('k') | KeyCode::Up => {
+        Some(Action::MoveUp) => {
             let len = if let Some(issue) = selected_issue {
                 match app.dependencies_view_state.focus() {
                     ui::views::DependencyFocus::Dependencies => issue.dependencies.len(),
@@ -1792,12 +1794,12 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
             app.dependencies_view_state.select_previous(len);
             app.mark_dirty();
         }
-        KeyCode::Tab => {
+        Some(Action::NextTab) => { // Tab cycles focus between lists here
             // Toggle focus between dependencies and blocks
             app.dependencies_view_state.toggle_focus();
             app.mark_dirty();
         }
-        KeyCode::Char('a') => {
+        Some(Action::UpdateAssignee) => { // 'a' used for add dependency in this view
             // Add dependency - open dialog
             if let Some(current_issue) = selected_issue {
                 let current_id = current_issue.id.clone();
@@ -1819,7 +1821,7 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
                 app.set_info("No issue selected".to_string());
             }
         }
-        KeyCode::Char('d') => {
+        Some(Action::DeleteIssue) => { // 'd' used for remove dependency
             // Remove dependency (with confirmation)
             if let Some(issue) = selected_issue {
                 let current_id = issue.id.clone();
@@ -1847,24 +1849,39 @@ fn handle_dependencies_view_event(key_code: KeyCode, app: &mut models::AppState)
                 }
             }
         }
-        KeyCode::Char('g') => {
-            // Show dependency graph
+        _ if key.code == KeyCode::Char('g') => {
+            // Show dependency graph (Keeping hardcoded for now as it's not in standard Action)
             app.set_info("Show dependency graph: Not yet implemented".to_string());
             tracing::info!("Show dependency graph requested");
         }
-        KeyCode::Char('c') => {
+        _ if key.code == KeyCode::Char('c') => {
             // Check for circular dependencies
             app.set_info("Check circular dependencies: Not yet implemented".to_string());
             tracing::info!("Check circular dependencies requested");
+        }
+        Some(Action::ConfirmDialog) => {
+             // Go to issue details if issue selected
+             if selected_issue.is_some() {
+                 // Navigation handled by switching tabs or view modes?
+                 // Dependencies view doesn't have a direct "view detail" state change
+                 // it usually switches back to Issues view tab 0.
+             }
+        }
+        Some(Action::CancelDialog) => {
+             // Esc goes back to Issues tab
+             app.selected_tab = 0;
+             app.mark_dirty();
         }
         _ => {}
     }
 }
 
 /// Handle keyboard events for the Labels view
-fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
+fn handle_labels_view_event(key: KeyEvent, app: &mut models::AppState) {
+    let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+
     // Handle notification dismissal with Esc
-    if !app.notifications.is_empty() && key_code == KeyCode::Esc {
+    if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
         app.clear_notification();
         return;
     }
@@ -1873,41 +1890,45 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
     let labels_len = filtered_labels.len();
 
     if app.labels_view_state.is_searching() {
-        match key_code {
-            KeyCode::Esc => {
+        match action {
+            Some(Action::CancelDialog) => {
                 app.labels_view_state.stop_search();
                 app.labels_view_state.clear_search();
             }
-            KeyCode::Enter => {
+            Some(Action::ConfirmDialog) => {
                 app.labels_view_state.stop_search();
             }
-            KeyCode::Backspace => {
-                app.labels_view_state.delete_search_char();
+            _ => {
+                match key.code {
+                    KeyCode::Backspace => {
+                        app.labels_view_state.delete_search_char();
+                    }
+                    KeyCode::Char(c) => {
+                        app.labels_view_state.insert_search_char(c);
+                    }
+                    _ => {}
+                }
             }
-            KeyCode::Char(c) => {
-                app.labels_view_state.insert_search_char(c);
-            }
-            _ => {}
         }
         app.mark_dirty();
         return;
     }
 
-    match key_code {
-        KeyCode::Char('j') | KeyCode::Down => {
+    match action {
+        Some(Action::MoveDown) => {
             app.labels_view_state.select_next(labels_len);
             app.mark_dirty();
         }
-        KeyCode::Char('k') | KeyCode::Up => {
+        Some(Action::MoveUp) => {
             app.labels_view_state.select_previous(labels_len);
             app.mark_dirty();
         }
-        KeyCode::Char('a') => {
+        Some(Action::UpdateAssignee) => { // 'a' used for add label in this view
             // Add label - show notification for now (needs input dialog widget)
             app.set_info("Add label: Not yet implemented (requires input dialog)".to_string());
             tracing::info!("Add label requested");
         }
-        KeyCode::Char('d') => {
+        Some(Action::DeleteIssue) => { // 'd' used for delete label
             // Delete selected label
             if let Some(selected_idx) = app.labels_view_state.selected() {
                 if let Some(label_stat) = filtered_labels.get(selected_idx) {
@@ -1920,7 +1941,7 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 }
             }
         }
-        KeyCode::Char('e') => {
+        Some(Action::EditIssue) => { // 'e' used for edit label
             // Edit selected label
             if let Some(selected_idx) = app.labels_view_state.selected() {
                 if let Some(label_stat) = filtered_labels.get(selected_idx) {
@@ -1930,18 +1951,20 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 }
             }
         }
-        KeyCode::Char('s') => {
+        Some(Action::UpdateStatus) => { // 's' used for stats in this view
             // Show statistics - already visible in the view
             app.set_info("Label statistics are displayed in the summary panel".to_string());
         }
-        KeyCode::Char('/') => {
+        Some(Action::Search) => { // '/'
             // Search labels
             app.labels_view_state.start_search();
             tracing::info!("Search labels started");
         }
-        KeyCode::Esc => {
+        Some(Action::CancelDialog) => { // Esc
             if !app.labels_view_state.search_query().is_empty() {
                 app.labels_view_state.clear_search();
+            } else {
+                app.selected_tab = 0; // Go back to issues
             }
         }
         _ => {}
@@ -1949,9 +1972,11 @@ fn handle_labels_view_event(key_code: KeyCode, app: &mut models::AppState) {
 }
 
 /// Handle keyboard events for the Database view
-fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
+fn handle_database_view_event(key: KeyEvent, app: &mut models::AppState) {
+    let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+
     // Handle notification dismissal with Esc
-    if !app.notifications.is_empty() && key_code == KeyCode::Esc {
+    if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
         app.clear_notification();
         return;
     }
@@ -1959,15 +1984,15 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
     // Using global runtime instead of creating new runtime
     let _client = app.beads_client.clone();
 
-    match key_code {
-        KeyCode::Char('r') => {
+    match action {
+        Some(Action::Refresh) => {
             // Refresh database status
             tracing::info!("Refreshing database status");
             app.start_loading("Refreshing database...");
             app.reload_issues();
             app.stop_loading();
         }
-        KeyCode::Char('t') => {
+        _ if key.code == KeyCode::Char('t') => {
             // Toggle daemon (start/stop) - moved to background task
             if app.daemon_running {
                 // Stop daemon
@@ -1983,7 +2008,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 });
             }
         }
-        KeyCode::Char('s') => {
+        Some(Action::SyncDatabase) => {
             // Sync database with remote
             tracing::info!("Syncing database with remote");
 
@@ -1994,7 +2019,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 Ok(TaskOutput::DatabaseSynced)
             });
         }
-        KeyCode::Char('x') => {
+        Some(Action::ExportDatabase) => {
             // Export issues to file - 'x' for export (frees 'e' for edit consistency)
             tracing::info!("Exporting issues to beads_export.jsonl");
 
@@ -2002,10 +2027,12 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             let _ = app.spawn_task("Exporting issues", |client| async move {
                 client.export_issues("beads_export.jsonl").await?;
                 tracing::info!("Issues exported successfully");
-                Ok(TaskOutput::IssuesExported("beads_export.jsonl".to_string()))
+                Ok(TaskOutput::IssuesExported(
+                    "beads_export.jsonl".to_string(),
+                ))
             });
         }
-        KeyCode::Char('i') => {
+        Some(Action::ImportDatabase) => {
             // Import issues from file
             tracing::info!("Importing issues from beads_import.jsonl");
 
@@ -2016,7 +2043,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 Ok(TaskOutput::IssuesImported(0))
             });
         }
-        KeyCode::Char('v') => {
+        Some(Action::VerifyDatabase) => {
             // Verify database integrity
             tracing::info!("Verifying database integrity");
 
@@ -2027,7 +2054,7 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
                 Ok(TaskOutput::Success(output))
             });
         }
-        KeyCode::Char('c') => {
+        Some(Action::CompactDatabase) => {
             // Compact database (requires confirmation)
             tracing::info!("Compact database requested - showing confirmation dialog");
 
@@ -2036,24 +2063,32 @@ fn handle_database_view_event(key_code: KeyCode, app: &mut models::AppState) {
             app.pending_action = Some("compact_database".to_string());
             app.mark_dirty();
         }
+        Some(Action::CancelDialog) => {
+            app.selected_tab = 0; // Go back to issues
+        }
         _ => {}
     }
 }
 
 /// Handle keyboard events for the Help view
-fn handle_help_view_event(key_code: KeyCode, app: &mut models::AppState) {
+fn handle_help_view_event(key: KeyEvent, app: &mut models::AppState) {
+    let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+
     // Handle notification dismissal with Esc
-    if !app.notifications.is_empty() && key_code == KeyCode::Esc {
+    if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
         app.clear_notification();
         return;
     }
 
-    match key_code {
-        KeyCode::Right | KeyCode::Tab | KeyCode::Char('l') => {
+    match action {
+        Some(Action::MoveRight) | Some(Action::NextTab) => {
             app.next_help_section();
         }
-        KeyCode::Left | KeyCode::Char('h') => {
+        Some(Action::MoveLeft) | Some(Action::PrevTab) => {
             app.previous_help_section();
+        }
+        Some(Action::CancelDialog) => {
+            app.selected_tab = 0; // Go back to issues
         }
         _ => {}
     }
@@ -2634,10 +2669,10 @@ fn run_app<B: ratatui::backend::Backend>(
                 // Tab-specific key bindings
                 match app.selected_tab {
                     0 => handle_issues_view_event(key, app),
-                    1 => handle_dependencies_view_event(key.code, app),
-                    2 => handle_labels_view_event(key.code, app),
-                    3 => handle_database_view_event(key.code, app),
-                    4 => handle_help_view_event(key.code, app),
+                    1 => handle_dependencies_view_event(key, app),
+                    2 => handle_labels_view_event(key, app),
+                    3 => handle_database_view_event(key, app),
+                    4 => handle_help_view_event(key, app),
                     _ => {}
                 }
 
