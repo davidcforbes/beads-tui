@@ -152,11 +152,22 @@ impl AppState {
             label_stats.iter().map(|stat| stat.name.clone()).collect();
 
         // Create database stats
+        use crate::beads::models::IssueStatus;
         let database_stats = DatabaseStats {
             total_issues: issues.len(),
-            open_issues: 0,
-            closed_issues: 0,
-            blocked_issues: 0,
+            open_issues: issues.iter().filter(|i| i.status == IssueStatus::Open).count(),
+            in_progress_issues: issues
+                .iter()
+                .filter(|i| i.status == IssueStatus::InProgress)
+                .count(),
+            closed_issues: issues
+                .iter()
+                .filter(|i| i.status == IssueStatus::Closed)
+                .count(),
+            blocked_issues: issues
+                .iter()
+                .filter(|i| i.status == IssueStatus::Blocked)
+                .count(),
             database_size: 0,
             last_sync: None,
         };
@@ -337,7 +348,24 @@ impl AppState {
         );
 
         // Update database stats
+        use crate::beads::models::IssueStatus;
         self.database_stats.total_issues = issues.len();
+        self.database_stats.open_issues = issues
+            .iter()
+            .filter(|i| i.status == IssueStatus::Open)
+            .count();
+        self.database_stats.in_progress_issues = issues
+            .iter()
+            .filter(|i| i.status == IssueStatus::InProgress)
+            .count();
+        self.database_stats.blocked_issues = issues
+            .iter()
+            .filter(|i| i.status == IssueStatus::Blocked)
+            .count();
+        self.database_stats.closed_issues = issues
+            .iter()
+            .filter(|i| i.status == IssueStatus::Closed)
+            .count();
 
         // Update daemon status
         self.daemon_running = Self::check_daemon_status_sync(&self.beads_client);

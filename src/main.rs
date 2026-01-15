@@ -2711,27 +2711,38 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         ])
         .split(f.size());
 
-    // Title with daemon status
+    // Title with issue stats and daemon status
+    let open_count = app.database_stats.open_issues;
+    let in_progress_count = app.database_stats.in_progress_issues;
+    let blocked_count = app.database_stats.blocked_issues;
+    let closed_count = app.database_stats.closed_issues;
+
+    let stats_text = format!(
+        " Open: {}, In Progress: {}, Blocked: {}, Closed: {}     ",
+        open_count, in_progress_count, blocked_count, closed_count
+    );
+
     let daemon_status = if app.daemon_running {
         Span::styled(
-            " [Daemon: Running]",
+            "[Daemon: Running]",
             Style::default()
                 .fg(Color::Green)
                 .add_modifier(Modifier::BOLD),
         )
     } else {
         Span::styled(
-            " [Daemon: Stopped]",
+            "[Daemon: Stopped]",
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         )
     };
     let title_line = Line::from(vec![
         Span::styled(
-            "Beads-TUI v0.1.0",
+            "Beads-TUI (v0.1.0)",
             Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         ),
+        Span::styled(stats_text, Style::default().fg(Color::White)),
         daemon_status,
     ]);
     let title = Paragraph::new(title_line).block(Block::default().borders(Borders::ALL));

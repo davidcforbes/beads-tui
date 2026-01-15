@@ -84,6 +84,8 @@ pub struct DatabaseStats {
     pub total_issues: usize,
     /// Number of open issues
     pub open_issues: usize,
+    /// Number of in-progress issues
+    pub in_progress_issues: usize,
     /// Number of closed issues
     pub closed_issues: usize,
     /// Number of blocked issues
@@ -477,6 +479,7 @@ impl<'a> DatabaseView<'a> {
 
         let total_issues = self.stats.total_issues;
         let open_issues = self.stats.open_issues;
+        let in_progress_issues = self.stats.in_progress_issues;
         let closed_issues = self.stats.closed_issues;
         let blocked_issues = self.stats.blocked_issues;
         let database_size = self.stats.database_size;
@@ -501,6 +504,13 @@ impl<'a> DatabaseView<'a> {
                 Span::styled(
                     format!("{open_issues}"),
                     Style::default().fg(theme_ref.success),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled("In Progress:   ", Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{in_progress_issues}"),
+                    Style::default().fg(theme_ref.warning),
                 ),
             ]),
             Line::from(vec![
