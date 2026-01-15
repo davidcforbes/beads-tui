@@ -15,7 +15,7 @@ use config::Action;
 use crossterm::{
     event::{
         self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-        KeyModifiers,
+        KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -111,6 +111,74 @@ fn main() -> Result<()> {
 }
 
 // App struct moved to models::AppState
+
+/// Handle mouse events
+fn handle_mouse_event(mouse: MouseEvent, app: &mut models::AppState) {
+    match mouse.kind {
+        MouseEventKind::ScrollDown => {
+            // Simulate Down key press for scrolling
+            let key = KeyEvent {
+                code: KeyCode::Down,
+                modifiers: KeyModifiers::empty(),
+                kind: KeyEventKind::Press,
+                state: crossterm::event::KeyEventState::empty(),
+            };
+            
+            // Route to active view
+            match app.selected_tab {
+                0 | 1 => handle_issues_view_event(key, app),
+                2 => handle_kanban_view_event(key, app),
+                3 => handle_dependencies_view_event(key, app),
+                4 => handle_labels_view_event(key, app),
+                5 => handle_gantt_view_event(key, app),
+                6 => handle_pert_view_event(key, app),
+                7 => handle_molecular_view_event(key, app),
+                8 | 9 => handle_database_view_event(key, app),
+                10 => handle_help_view_event(key, app),
+                _ => {}
+            }
+            app.mark_dirty();
+        }
+        MouseEventKind::ScrollUp => {
+            // Simulate Up key press for scrolling
+            let key = KeyEvent {
+                code: KeyCode::Up,
+                modifiers: KeyModifiers::empty(),
+                kind: KeyEventKind::Press,
+                state: crossterm::event::KeyEventState::empty(),
+            };
+            
+            // Route to active view
+            match app.selected_tab {
+                0 | 1 => handle_issues_view_event(key, app),
+                2 => handle_kanban_view_event(key, app),
+                3 => handle_dependencies_view_event(key, app),
+                4 => handle_labels_view_event(key, app),
+                5 => handle_gantt_view_event(key, app),
+                6 => handle_pert_view_event(key, app),
+                7 => handle_molecular_view_event(key, app),
+                8 | 9 => handle_database_view_event(key, app),
+                10 => handle_help_view_event(key, app),
+                _ => {}
+            }
+            app.mark_dirty();
+        }
+        MouseEventKind::Down(MouseButton::Left) => {
+            // Basic hit testing for global UI elements
+            let x = mouse.column;
+            let y = mouse.row;
+
+            // Title bar is usually 0-2 (height 3)
+            // Tabs are usually 3-5 (height 3)
+            // If user clicks in tab area (row 4 usually middle of tab), we could try to switch tabs.
+            // For now, just logging click.
+            tracing::debug!("Mouse click at {}, {}", x, y);
+            
+            // TODO: Implement proper hit testing for tabs and list items
+        }
+        _ => {}
+    }
+}
 
 /// Handle keyboard events for the Issues view
 ///
@@ -832,6 +900,48 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 
     match view_mode {
         IssuesViewMode::List => {
+            // Check if a filter dropdown is active
+            if let Some(ref mut fb_state) = app.filter_bar_state {
+                if fb_state.active_dropdown.is_some() {
+                    // Filter dropdown is active - handle dropdown navigation
+                    match key_code {
+                        KeyCode::Up => {
+                            if let Some(ref mut dropdown) = fb_state.active_dropdown_mut() {
+                                dropdown.previous();
+                            }
+                            return;
+                        }
+                        KeyCode::Down => {
+                            if let Some(ref mut dropdown) = fb_state.active_dropdown_mut() {
+                                dropdown.next();
+                            }
+                            return;
+                        }
+                        KeyCode::Char(' ') => {
+                            if let Some(ref mut dropdown) = fb_state.active_dropdown_mut() {
+                                dropdown.toggle_selected();
+                            }
+                            return;
+                        }
+                        KeyCode::Enter => {
+                            // Apply filter and close dropdown
+                            // TODO: Apply the selected filters to the issues list
+                            fb_state.close_dropdown();
+                            return;
+                        }
+                        KeyCode::Esc => {
+                            // Close dropdown without applying
+                            fb_state.close_dropdown();
+                            return;
+                        }
+                        _ => {
+                            // Sink other keys when dropdown is active
+                            return;
+                        }
+                    }
+                }
+            }
+
             let search_focused = issues_state.search_state().search_state().is_focused();
 
             if search_focused {
@@ -1231,6 +1341,70 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             "Quick filters toggled: {}",
                             if enabled { "enabled" } else { "disabled" }
                         );
+                    }
+                    Some(Action::OpenStatusFilter) => {
+                        // Open or close status filter dropdown
+                        if app.filter_bar_state.is_none() {
+                            // Initialize filter bar state
+                            let filter_bar_state = ui::widgets::FilterBarState::new(
+                                collect_unique_statuses(&issues_state),
+                                collect_unique_priorities(&issues_state),
+                                collect_unique_types(&issues_state),
+                                collect_unique_labels(&issues_state),
+                            );
+                            app.filter_bar_state = Some(filter_bar_state);
+                        }
+                        if let Some(ref mut fb_state) = app.filter_bar_state {
+                            fb_state.toggle_dropdown(ui::widgets::FilterDropdownType::Status);
+                        }
+                    }
+                    Some(Action::OpenPriorityFilter) => {
+                        // Open or close priority filter dropdown
+                        if app.filter_bar_state.is_none() {
+                            // Initialize filter bar state
+                            let filter_bar_state = ui::widgets::FilterBarState::new(
+                                collect_unique_statuses(&issues_state),
+                                collect_unique_priorities(&issues_state),
+                                collect_unique_types(&issues_state),
+                                collect_unique_labels(&issues_state),
+                            );
+                            app.filter_bar_state = Some(filter_bar_state);
+                        }
+                        if let Some(ref mut fb_state) = app.filter_bar_state {
+                            fb_state.toggle_dropdown(ui::widgets::FilterDropdownType::Priority);
+                        }
+                    }
+                    Some(Action::OpenTypeFilter) => {
+                        // Open or close type filter dropdown
+                        if app.filter_bar_state.is_none() {
+                            // Initialize filter bar state
+                            let filter_bar_state = ui::widgets::FilterBarState::new(
+                                collect_unique_statuses(&issues_state),
+                                collect_unique_priorities(&issues_state),
+                                collect_unique_types(&issues_state),
+                                collect_unique_labels(&issues_state),
+                            );
+                            app.filter_bar_state = Some(filter_bar_state);
+                        }
+                        if let Some(ref mut fb_state) = app.filter_bar_state {
+                            fb_state.toggle_dropdown(ui::widgets::FilterDropdownType::Type);
+                        }
+                    }
+                    Some(Action::OpenLabelsFilter) => {
+                        // Open or close labels filter dropdown
+                        if app.filter_bar_state.is_none() {
+                            // Initialize filter bar state
+                            let filter_bar_state = ui::widgets::FilterBarState::new(
+                                collect_unique_statuses(&issues_state),
+                                collect_unique_priorities(&issues_state),
+                                collect_unique_types(&issues_state),
+                                collect_unique_labels(&issues_state),
+                            );
+                            app.filter_bar_state = Some(filter_bar_state);
+                        }
+                        if let Some(ref mut fb_state) = app.filter_bar_state {
+                            fb_state.toggle_dropdown(ui::widgets::FilterDropdownType::Labels);
+                        }
                     }
                     // Cycle View (was 'v')
                     // Assuming 'v' maps to some action? Not in Default Bindings explicitly as "CycleView".
@@ -2713,6 +2887,9 @@ fn run_app<B: ratatui::backend::Backend>(
                 // Terminal was resized, need to redraw
                 app.mark_dirty();
             }
+            Event::Mouse(mouse) => {
+                handle_mouse_event(mouse, app);
+            }
             _ => {}
         }
 
@@ -3815,4 +3992,60 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(popup_layout[1])[1]
+}
+
+/// Collect unique statuses from issues
+fn collect_unique_statuses(issues_state: &ui::views::IssuesViewState) -> Vec<beads::models::IssueStatus> {
+    use std::collections::HashSet;
+    let mut statuses: Vec<_> = issues_state
+        .all_issues()
+        .iter()
+        .map(|i| i.status)
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    statuses.sort();
+    statuses
+}
+
+/// Collect unique priorities from issues
+fn collect_unique_priorities(issues_state: &ui::views::IssuesViewState) -> Vec<beads::models::Priority> {
+    use std::collections::HashSet;
+    let mut priorities: Vec<_> = issues_state
+        .all_issues()
+        .iter()
+        .map(|i| i.priority)
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    priorities.sort();
+    priorities
+}
+
+/// Collect unique types from issues
+fn collect_unique_types(issues_state: &ui::views::IssuesViewState) -> Vec<beads::models::IssueType> {
+    use std::collections::HashSet;
+    let mut types: Vec<_> = issues_state
+        .all_issues()
+        .iter()
+        .map(|i| i.issue_type)
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    types.sort();
+    types
+}
+
+/// Collect unique labels from issues
+fn collect_unique_labels(issues_state: &ui::views::IssuesViewState) -> Vec<String> {
+    use std::collections::HashSet;
+    let mut labels: Vec<_> = issues_state
+        .all_issues()
+        .iter()
+        .flat_map(|i| i.labels.iter().cloned())
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    labels.sort();
+    labels
 }
