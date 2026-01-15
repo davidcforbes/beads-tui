@@ -415,7 +415,7 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
 
     // Issue operations
     bindings.insert(Action::UpdatePriority, vec![Keybinding::new("p")]);
-    bindings.insert(Action::UpdateStatus, vec![Keybinding::new("s")]);
+    bindings.insert(Action::UpdateStatus, vec![Keybinding::shift("S")]);
     bindings.insert(Action::UpdateLabels, vec![Keybinding::new("l")]);
     bindings.insert(Action::UpdateAssignee, vec![Keybinding::new("a")]);
     bindings.insert(Action::AddDependency, vec![Keybinding::new("+")]);
@@ -444,7 +444,7 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
     bindings.insert(Action::OpenPriorityFilter, vec![Keybinding::alt("p")]);
     bindings.insert(Action::OpenTypeFilter, vec![Keybinding::alt("t")]);
     bindings.insert(Action::OpenLabelsFilter, vec![Keybinding::alt("l")]);
-    bindings.insert(Action::Search, vec![Keybinding::new("/")]);
+    bindings.insert(Action::Search, vec![Keybinding::new("/"), Keybinding::new("s")]);
     bindings.insert(Action::NextSearchResult, vec![Keybinding::shift("n")]);
     bindings.insert(Action::PrevSearchResult, vec![Keybinding::alt("n")]);
     bindings.insert(Action::ToggleFuzzySearch, vec![Keybinding::alt("z")]);

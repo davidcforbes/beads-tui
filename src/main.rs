@@ -1566,7 +1566,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
             }
         }
         IssuesViewMode::Detail => {
-            // Detail mode: view navigation
+            // Detail mode: view navigation with scrolling
             match action {
                 Some(Action::CancelDialog) | Some(Action::Quit) => {
                     // Esc or q
@@ -1575,6 +1575,26 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 Some(Action::EditIssue) => {
                     issues_state.return_to_list();
                     issues_state.enter_edit_mode();
+                }
+                Some(Action::MoveUp) => {
+                    // Scroll up in detail view
+                    issues_state.detail_scroll = issues_state.detail_scroll.saturating_sub(1);
+                    app.mark_dirty();
+                }
+                Some(Action::MoveDown) => {
+                    // Scroll down in detail view
+                    issues_state.detail_scroll = issues_state.detail_scroll.saturating_add(1);
+                    app.mark_dirty();
+                }
+                Some(Action::PageUp) => {
+                    // Page up in detail view
+                    issues_state.detail_scroll = issues_state.detail_scroll.saturating_sub(10);
+                    app.mark_dirty();
+                }
+                Some(Action::PageDown) => {
+                    // Page down in detail view
+                    issues_state.detail_scroll = issues_state.detail_scroll.saturating_add(10);
+                    app.mark_dirty();
                 }
                 _ => {}
             }
@@ -1649,8 +1669,8 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     issues_state.enter_edit_mode();
                 }
                 KeyCode::Char('r') => {
-                    // Switch focus to detail panel
-                    issues_state.set_split_screen_focus(SplitScreenFocus::Detail);
+                    // Enter read-only detail view
+                    issues_state.enter_detail_view();
                 }
                 KeyCode::Char('l') => {
                     // Switch focus to list panel
@@ -3711,7 +3731,7 @@ fn get_action_hints(app: &models::AppState) -> String {
             let mode = app.issues_view_state.view_mode();
             match mode {
                 ui::views::IssuesViewMode::List => {
-                    "Up/Down/j/k: Navigate | Enter: View | n: Create | e: Edit | d: Delete | /: Search | f: Filters | ?: Help".to_string()
+                    "Up/Down/j/k: Navigate | Enter: View | n: Create | e: Edit | d: Delete | /s: Search | f: Filters | ?: Help".to_string()
                 }
                 ui::views::IssuesViewMode::Create => {
                     "Tab/Shift+Tab: Move | Enter: Save | Ctrl+L: Load | Ctrl+P: Preview | Esc: Cancel".to_string()
@@ -3720,10 +3740,10 @@ fn get_action_hints(app: &models::AppState) -> String {
                     "Tab/Shift+Tab: Move | Enter: Save | Ctrl+L: Load | Esc: Cancel".to_string()
                 }
                 ui::views::IssuesViewMode::Detail => {
-                    "e: Edit | d: Delete | Alt+H: History | Esc: Back".to_string()
+                    "Up/Down/j/k: Scroll | PgUp/PgDn: Page | e: Edit | d: Delete | Alt+H: History | Esc: Back".to_string()
                 }
                 ui::views::IssuesViewMode::SplitScreen => {
-                    "Up/Down/j/k: Navigate | Enter: View | Tab: Switch Focus | n: Create | e: Edit | d: Delete | /: Search | f: Filters | ?: Help".to_string()
+                    "Up/Down/j/k: Navigate | Enter: View | Tab: Switch Focus | n: Create | e: Edit | d: Delete | /s: Search | f: Filters | ?: Help".to_string()
                 }
             }
         }
@@ -3748,7 +3768,7 @@ fn get_action_hints(app: &models::AppState) -> String {
         }
         5 => {
             // Kanban view
-            "Up/Down/j/k: Navigate | Enter: View | n: Create | e: Edit | d: Delete | /: Search | f: Filters | c: Configure | ?: Help".to_string()
+            "Up/Down/j/k: Navigate | Enter: View | n: Create | e: Edit | d: Delete | /s: Search | f: Filters | c: Configure | ?: Help".to_string()
         }
         6 => {
             // Molecular view
@@ -3880,6 +3900,8 @@ fn get_context_help_content(
                     "Issue Detail View Help".to_string(),
                     "View Issue Information".to_string(),
                     vec![
+                        ("Up/Down or j/k", "Scroll detail view"),
+                        ("PgUp/PgDn", "Page up/down"),
                         ("e", "Edit this issue"),
                         ("d", "Delete this issue"),
                         ("Alt+H", "Toggle issue history"),
