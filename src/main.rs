@@ -2761,7 +2761,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         let query = search_state.search_state().query();
         let is_focused = search_state.search_state().is_focused();
         
-        let label = if search_state.is_regex_enabled() {
+        let mode_text = if search_state.is_regex_enabled() {
             "RegEx"
         } else if search_state.is_fuzzy_enabled() {
             "Fuzzy"
@@ -2778,14 +2778,14 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
 
         let icon = "🔍";
 
-        // Ensure visible cursor position if focused (simple approximation)
-        let display_text = if query.is_empty() && !is_focused {
-            format!("{}   ", icon)
+        // Search: [ 🔍 Mode {query} ]
+        let display_content = if query.is_empty() {
+            format!("{} {}", icon, mode_text)
         } else {
-            format!("{} {} ", icon, query)
+            format!("{} {}: {}", icon, mode_text, query)
         };
 
-        Span::styled(format!("{}: [{}]     ", label, display_text), style)
+        Span::styled(format!("Search: [{}]     ", display_content), style)
     } else {
         Span::raw("")
     };
@@ -2989,7 +2989,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             if let Some(issue_id) = action.strip_prefix("delete:") {
                 let message = format!("Are you sure you want to delete issue {issue_id}?");
                 let dialog = ui::widgets::Dialog::confirm("Confirm Delete", &message)
-                    .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
+                    .hint("Tab/Shift+Tab: Select | Enter: Confirm | Esc: Cancel");
 
                 // Render dialog centered on screen
                 let area = f.size();
@@ -3010,7 +3010,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                         );
                         let dialog = ui::widgets::Dialog::confirm("Delete Filter", &message)
                             .dialog_type(ui::widgets::DialogType::Warning)
-                            .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
+                            .hint("Tab/Shift+Tab: Select | Enter: Confirm | Esc: Cancel");
 
                         // Render dialog centered on screen
                         let area = f.size();
@@ -3029,7 +3029,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                         parts[0], parts[1], parts[0], parts[1]
                     );
                     let dialog = ui::widgets::Dialog::confirm("Confirm Indent", &message)
-                        .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
+                        .hint("Tab/Shift+Tab: Select | Enter: Confirm | Esc: Cancel");
 
                     // Render dialog centered on screen
                     let area = f.size();
@@ -3047,7 +3047,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                         parts[0], parts[1], parts[0], parts[1]
                     );
                     let dialog = ui::widgets::Dialog::confirm("Confirm Outdent", &message)
-                        .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
+                        .hint("Tab/Shift+Tab: Select | Enter: Confirm | Esc: Cancel");
 
                     // Render dialog centered on screen
                     let area = f.size();
@@ -3061,7 +3061,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 let message = "WARNING: Compacting will remove issue history.\nThis operation cannot be undone.\n\nContinue?";
                 let dialog = ui::widgets::Dialog::confirm("Compact Database", message)
                     .dialog_type(ui::widgets::DialogType::Warning)
-                    .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
+                    .hint("Tab/Shift+Tab: Select | Enter: Confirm | Esc: Cancel");
 
                 // Render dialog centered on screen
                 let area = f.size();
@@ -3113,7 +3113,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             );
             let dialog = ui::widgets::Dialog::confirm("Delete Filter", &message)
                 .dialog_type(ui::widgets::DialogType::Warning)
-                .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
+                .hint("Tab/Shift+Tab: Select | Enter: Confirm | Esc: Cancel");
 
             // Render dialog centered on screen
             let area = f.size();
@@ -3134,7 +3134,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             );
             let dialog = ui::widgets::Dialog::confirm("Remove Dependency", &message)
                 .dialog_type(ui::widgets::DialogType::Warning)
-                .hint("Tab/Shift+Tab to select • Enter to confirm • ESC to cancel");
+                .hint("Tab/Shift+Tab: Select | Enter: Confirm | Esc: Cancel");
 
             // Render dialog centered on screen
             let area = f.size();
@@ -3273,33 +3273,33 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             .height_percent(70)
             // Global shortcuts
             .key_binding("?", "Toggle this help")
-            .key_binding("q", "Quit application")
+            .key_binding("F1", "Context help")
+            .key_binding("q / Ctrl+Q / Ctrl+C", "Quit application")
             .key_binding("Esc", "Dismiss overlays/dialogs")
+            .key_binding("Ctrl+H / N", "Notification history")
+            .key_binding("Ctrl+P / F12", "Toggle performance stats")
+            .key_binding("Ctrl+Z", "Undo last action")
+            .key_binding("Ctrl+Y", "Redo last action")
             .key_binding("Tab", "Next tab")
             .key_binding("Shift+Tab", "Previous tab")
-            .key_binding("1-9", "Switch to tab by number")
-            .key_binding("Shift+N", "Notification history")
-            .key_binding("Ctrl+P / F12", "Toggle performance stats")
+            .key_binding("1-9", "Switch to tab by number (1-5 implemented)")
             // Issues view shortcuts
-            .key_binding("↑/↓ or j/k", "Navigate issues")
-            .key_binding("Enter", "View/edit issue")
-            .key_binding("c", "Create new issue")
+            .key_binding("Up/Down or j/k", "Navigate issues")
+            .key_binding("Enter", "View issue details")
+            .key_binding("n", "Create new issue")
             .key_binding("e", "Edit selected issue")
             .key_binding("d", "Delete selected issue")
-            .key_binding("Space", "Select/deselect issue")
-            .key_binding("a", "Select all issues")
-            .key_binding("x", "Clear selection")
-            .key_binding("/", "Search/filter issues")
-            .key_binding("f", "Quick filter menu")
-            .key_binding("Ctrl+S", "Save current filter")
-            .key_binding("F1-F11", "Apply saved filter")
-            // Undo/redo shortcuts
-            .key_binding("Ctrl+Z", "Undo last action")
-            .key_binding("Ctrl+Y", "Redo last undone action")
-            .key_binding("Ctrl+H", "Show undo/redo history")
-            // View shortcuts
-            .key_binding("h", "Show full help")
-            .key_binding("r", "Refresh data");
+            .key_binding("x", "Close selected issue")
+            .key_binding("o", "Reopen selected issue")
+            .key_binding("F2", "Rename issue")
+            .key_binding("/", "Search issues")
+            .key_binding("f", "Toggle filters")
+            .key_binding("Shift+F", "Clear filters")
+            .key_binding("Alt+F", "Filter menu")
+            .key_binding("Alt+S", "Save current filter")
+            .key_binding("F3-F11", "Apply saved filter")
+            .key_binding("Alt+H", "Toggle issue history")
+            .key_binding("r / F5", "Refresh data");
 
         f.render_widget(help, f.size());
     }
@@ -3347,7 +3347,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             Block::default()
                 .borders(Borders::ALL)
                 .title("Undo/Redo History")
-                .title_bottom("Ctrl+H: Close | ✓: Can undo | →: Current | ○: Future"),
+                .title_bottom("Esc: Close"),
         );
 
         // Center the overlay (60% width, 70% height)
@@ -3388,7 +3388,7 @@ fn get_action_hints(app: &models::AppState) -> String {
     // If dialog is visible, show dialog-specific hints
     if app.dialog_state.is_some() || app.delete_dialog_state.is_some() {
         return format!(
-            "←/→: Navigate | Enter: Confirm | Esc: Cancel{}",
+            "Left/Right: Navigate | Enter: Confirm | Esc: Cancel{}",
             undo_redo_hints
         );
     }
@@ -3404,7 +3404,7 @@ fn get_action_hints(app: &models::AppState) -> String {
     // If filter quick-select is visible
     if app.issues_view_state.search_state().is_filter_menu_open() {
         return format!(
-            "↑/↓: Navigate | Enter: Apply filter | e: Edit | d: Delete | Esc: Cancel{}",
+            "Up/Down: Navigate | Enter: Apply | e: Edit | d: Delete | Esc: Close{}",
             undo_redo_hints
         );
     }
@@ -3417,9 +3417,9 @@ fn get_action_hints(app: &models::AppState) -> String {
                 "Space: Toggle type | Tab: Next | Enter: Add | Esc: Cancel"
             }
             DependencyDialogFocus::IssueId => {
-                "Type to search | ↑/↓: Select issue | Tab: Next | Enter: Add | Esc: Cancel"
+                "Type to search | Up/Down: Select issue | Tab: Next | Enter: Add | Esc: Cancel"
             }
-            DependencyDialogFocus::Buttons => "←/→: Select button | Enter: Confirm | Esc: Cancel",
+            DependencyDialogFocus::Buttons => "Left/Right: Select button | Enter: Confirm | Esc: Cancel",
         };
         return format!("{}{}", hint, undo_redo_hints);
     }
@@ -3436,57 +3436,57 @@ fn get_action_hints(app: &models::AppState) -> String {
             let mode = app.issues_view_state.view_mode();
             match mode {
                 ui::views::IssuesViewMode::List => {
-                    "↑/↓/j/k: Navigate | Enter: View | a/c: Create | e: Edit | F2/n: Rename | d: Delete | /: Search | f: Filter | :: Command palette | ?: Help".to_string()
+                    "Up/Down/j/k: Navigate | Enter: View | n: Create | e: Edit | F2: Rename | d: Delete | x: Close | /: Search | f: Filters | v: Scope | ?: Help".to_string()
                 }
                 ui::views::IssuesViewMode::Create => {
-                    "Tab/Shift+Tab: Move | Enter: Save | Ctrl+L: Load | Esc: Cancel".to_string()
+                    "Tab/Shift+Tab: Move | Enter: Save | Ctrl+L: Load | Ctrl+P: Preview | Esc: Cancel".to_string()
                 }
                 ui::views::IssuesViewMode::Edit => {
-                    "Tab/Shift+Tab: Move | Enter: Save | Ctrl+L: Load | Ctrl+P: Preview | Esc: Cancel".to_string()
+                    "Tab/Shift+Tab: Move | Enter: Save | Ctrl+L: Load | Esc: Cancel".to_string()
                 }
                 ui::views::IssuesViewMode::Detail => {
                     "e: Edit | d: Delete | Alt+H: History | Esc: Back".to_string()
                 }
                 ui::views::IssuesViewMode::SplitScreen => {
-                    "↑/↓/j/k: Navigate | Enter: Full view | e: Edit | Esc/q: Back to list | ?: Help".to_string()
+                    "Up/Down/j/k: Navigate | Enter: Full view | e: Edit | Esc/q: Back | ?: Help".to_string()
                 }
             }
         }
         1 => {
             // Dependencies view
-            "↑/↓/j/k: Navigate | a: Add dependency | d: Remove | Enter: View | Esc: Back | ?: Help"
+            "Up/Down/j/k: Navigate | Tab: Focus | a: Add | d: Remove | g: Graph | c: Cycle | Enter: View | Esc: Back | ?: Help"
                 .to_string()
         }
         2 => {
             // Labels view
-            "↑/↓/j/k: Navigate | Enter: Select | a: Add label | d: Delete | Esc: Back | ?: Help"
+            "Up/Down/j/k: Navigate | /: Search | a: Add | e: Edit | d: Delete | s: Stats | Esc: Back | ?: Help"
                 .to_string()
         }
         3 => {
             // PERT view
-            "↑/↓: Navigate | +/-: Zoom | c: Configure | Esc: Back | ?: Help".to_string()
+            "Up/Down: Navigate | +/-: Zoom | c: Configure | Esc: Back | ?: Help".to_string()
         }
         4 => {
             // Gantt view
-            "↑/↓: Navigate | +/-: Zoom | g: Group by | c: Configure | Esc: Back | ?: Help"
+            "Up/Down: Navigate | +/-: Zoom | g: Group | c: Configure | Esc: Back | ?: Help"
                 .to_string()
         }
         5 => {
             // Kanban view
-            "↑/↓/←/→: Navigate | Space: Move card | c: Configure | Esc: Back | ?: Help".to_string()
+            "Up/Down/Left/Right or h/j/k/l: Navigate | Space: Move | c: Configure | Esc: Back | ?: Help".to_string()
         }
         6 => {
             // Molecular view
-            "↑/↓: Navigate | Tab: Switch molecular tab | Enter: Select | Esc: Back | ?: Help"
+            "Up/Down: Navigate | Tab: Switch molecular tab | Enter: Select | Esc: Back | ?: Help"
                 .to_string()
         }
         7 => {
             // Database view
-            "Up/Down: Navigate | r: Refresh | t: Toggle daemon | x: Export | i: Import | v: Verify | c: Compact | s: Sync | Esc: Back | ?: Help".to_string()
+            "Up/Down/j/k: Navigate | r: Refresh | s: Sync | x: Export | i: Import | v: Verify | c: Compact | t: Toggle daemon | Esc: Back | ?: Help".to_string()
         }
         8 => {
             // Help view
-            "←/→/h/l: Navigate sections | Esc: Back | ?: Quick reference".to_string()
+            "Left/Right or h/l: Navigate sections | Esc: Back | ?: Quick reference".to_string()
         }
         _ => "Press 'q' to quit | Tab/Shift+Tab: Switch tabs | 1-9 (1-5 implemented): Direct tab access | ?: Help"
             .to_string(),
@@ -3505,7 +3505,7 @@ fn get_context_help_content(
             "Dialog Help".to_string(),
             "Confirmation Dialog".to_string(),
             vec![
-                ("←/→", "Navigate between buttons"),
+                ("Left/Right", "Navigate between buttons"),
                 ("Enter", "Confirm current selection"),
                 ("Esc", "Cancel and close dialog"),
                 ("Tab", "Move to next button"),
@@ -3524,7 +3524,7 @@ fn get_context_help_content(
                 ("Shift+Tab", "Move to previous field"),
                 ("Enter", "Save filter"),
                 ("Esc", "Cancel"),
-                ("F1-F11", "Available hotkey options"),
+                ("F3-F11", "Available hotkey options"),
             ],
         );
     }
@@ -3535,7 +3535,7 @@ fn get_context_help_content(
             "Quick Filter Menu Help".to_string(),
             "Apply, Edit, or Delete Filters".to_string(),
             vec![
-                ("↑/↓", "Navigate through filters"),
+                ("Up/Down", "Navigate through filters"),
                 ("Enter", "Apply selected filter"),
                 ("e", "Edit filter"),
                 ("d", "Delete filter"),
@@ -3551,8 +3551,8 @@ fn get_context_help_content(
             "Manage Issue Dependencies".to_string(),
             vec![
                 ("Tab", "Move to next field"),
-                ("↑/↓", "Navigate through issues"),
-                ("Space", "Select/deselect issue"),
+                ("Up/Down", "Navigate through issues"),
+                ("Space", "Toggle dependency type"),
                 ("Enter", "Add dependency"),
                 ("Esc", "Cancel"),
             ],
@@ -3569,18 +3569,34 @@ fn get_context_help_content(
                     "Issues List View Help".to_string(),
                     "Navigate and Manage Issues".to_string(),
                     vec![
-                        ("↑/↓ or j/k", "Navigate through issues"),
+                        ("Up/Down or j/k", "Navigate through issues"),
                         ("Enter", "View issue details"),
-                        ("c", "Create new issue"),
+                        ("n", "Create new issue"),
                         ("e", "Edit selected issue"),
                         ("d", "Delete selected issue"),
-                        ("Space", "Select/deselect issue"),
-                        ("a", "Select all issues"),
-                        ("x", "Clear selection"),
-                        ("/", "Search/filter issues"),
-                        ("f", "Open quick filter menu"),
-                        ("Ctrl+S", "Save current filter"),
-                        ("F1-F11", "Apply saved filter"),
+                        ("x", "Close selected issue"),
+                        ("o", "Reopen selected issue"),
+                        ("F2", "Rename issue title"),
+                        ("p", "Update priority"),
+                        ("s", "Update status"),
+                        ("l", "Update labels"),
+                        ("a", "Update assignee"),
+                        ("+", "Add dependency"),
+                        ("-", "Remove dependency"),
+                        (">", "Indent issue"),
+                        ("<", "Outdent issue"),
+                        ("Space", "Toggle select"),
+                        ("Ctrl+A", "Select all issues"),
+                        ("Ctrl+N", "Clear selection"),
+                        ("/", "Search issues"),
+                        ("f", "Toggle filters"),
+                        ("Shift+F", "Clear filters"),
+                        ("Alt+F", "Open filter menu"),
+                        ("Alt+S", "Save current filter"),
+                        ("F3-F11", "Apply saved filter"),
+                        ("c", "Open column manager"),
+                        ("v", "Cycle issue scope"),
+                        ("Alt+H", "Toggle issue history"),
                         ("?", "Show all keyboard shortcuts"),
                         ("Esc", "Clear search or go back"),
                     ],
@@ -3591,6 +3607,7 @@ fn get_context_help_content(
                     vec![
                         ("e", "Edit this issue"),
                         ("d", "Delete this issue"),
+                        ("Alt+H", "Toggle issue history"),
                         ("Esc", "Back to issues list"),
                         ("?", "Show all keyboard shortcuts"),
                     ],
@@ -3601,7 +3618,8 @@ fn get_context_help_content(
                     vec![
                         ("Tab", "Move to next field"),
                         ("Shift+Tab", "Move to previous field"),
-                        ("Ctrl+S", "Save changes"),
+                        ("Enter", "Save changes"),
+                        ("Ctrl+L", "Load description from file"),
                         ("Esc", "Cancel editing"),
                         ("?", "Show all keyboard shortcuts"),
                     ],
@@ -3612,7 +3630,9 @@ fn get_context_help_content(
                     vec![
                         ("Tab", "Move to next field"),
                         ("Shift+Tab", "Move to previous field"),
-                        ("Ctrl+S", "Create issue"),
+                        ("Enter", "Create issue"),
+                        ("Ctrl+L", "Load description from file"),
+                        ("Ctrl+P", "Toggle preview"),
                         ("Esc", "Cancel creation"),
                         ("?", "Show all keyboard shortcuts"),
                     ],
@@ -3621,12 +3641,10 @@ fn get_context_help_content(
                     "Split-Screen View Help".to_string(),
                     "List and Detail View".to_string(),
                     vec![
-                        ("↑/↓ or j/k", "Navigate through issues"),
-                        ("g", "Go to top"),
-                        ("G", "Go to bottom"),
+                        ("Up/Down or j/k", "Navigate through issues"),
                         ("Enter", "Go to full detail view"),
                         ("e", "Edit selected issue"),
-                        ("v", "Return to list view"),
+                        ("Alt+H", "Toggle issue history"),
                         ("Esc/q", "Back to list view"),
                         ("?", "Show all keyboard shortcuts"),
                     ],
@@ -3637,9 +3655,12 @@ fn get_context_help_content(
             "Dependencies View Help".to_string(),
             "Manage Issue Dependencies".to_string(),
             vec![
-                ("↑/↓ or j/k", "Navigate through dependencies"),
-                ("a", "Add new dependency"),
-                ("r", "Remove dependency"),
+                ("Up/Down or j/k", "Navigate through dependencies"),
+                ("Tab", "Switch between Dependencies/Blocks"),
+                ("a", "Add dependency"),
+                ("d", "Remove dependency"),
+                ("g", "Show dependency graph"),
+                ("c", "Check circular dependencies"),
                 ("Enter", "View issue details"),
                 ("Esc", "Go back"),
                 ("?", "Show all keyboard shortcuts"),
@@ -3649,10 +3670,12 @@ fn get_context_help_content(
             "Labels View Help".to_string(),
             "Manage Issue Labels".to_string(),
             vec![
-                ("↑/↓ or j/k", "Navigate through labels"),
-                ("Enter", "Select/apply label"),
+                ("Up/Down or j/k", "Navigate through labels"),
+                ("/", "Search labels"),
                 ("a", "Add new label"),
+                ("e", "Edit label"),
                 ("d", "Delete label"),
+                ("s", "Show label stats"),
                 ("Esc", "Go back"),
                 ("?", "Show all keyboard shortcuts"),
             ],
@@ -3661,7 +3684,7 @@ fn get_context_help_content(
             "PERT Chart View Help".to_string(),
             "Project Evaluation and Review Technique".to_string(),
             vec![
-                ("↑/↓", "Navigate through nodes"),
+                ("Up/Down", "Navigate through nodes"),
                 ("+/-", "Zoom in/out"),
                 ("c", "Configure chart settings"),
                 ("Esc", "Go back"),
@@ -3672,7 +3695,7 @@ fn get_context_help_content(
             "Gantt Chart View Help".to_string(),
             "Timeline and Dependencies".to_string(),
             vec![
-                ("↑/↓", "Navigate through tasks"),
+                ("Up/Down", "Navigate through tasks"),
                 ("+/-", "Zoom timeline"),
                 ("g", "Change grouping mode"),
                 ("c", "Configure chart settings"),
@@ -3684,7 +3707,7 @@ fn get_context_help_content(
             "Kanban Board View Help".to_string(),
             "Drag and Drop Task Management".to_string(),
             vec![
-                ("↑/↓/←/→", "Navigate between cards"),
+                ("Up/Down/Left/Right or h/j/k/l", "Navigate between cards"),
                 ("Space", "Move card to different column"),
                 ("c", "Configure board"),
                 ("Esc", "Go back"),
@@ -3695,7 +3718,7 @@ fn get_context_help_content(
             "Molecular View Help".to_string(),
             "Advanced Issue Visualization".to_string(),
             vec![
-                ("↑/↓", "Navigate through items"),
+                ("Up/Down", "Navigate through items"),
                 ("Tab", "Switch between molecular tabs"),
                 ("Enter", "Select item"),
                 ("Esc", "Go back"),
@@ -3706,10 +3729,14 @@ fn get_context_help_content(
             "Database View Help".to_string(),
             "Database Management".to_string(),
             vec![
-                ("↑/↓", "Navigate through operations"),
+                ("Up/Down or j/k", "Navigate through operations"),
                 ("r", "Refresh database"),
-                ("c", "Compact database"),
+                ("s", "Sync database"),
+                ("x", "Export issues"),
+                ("i", "Import issues"),
                 ("v", "Verify database integrity"),
+                ("c", "Compact database"),
+                ("t", "Toggle daemon"),
                 ("Esc", "Go back"),
                 ("?", "Show all keyboard shortcuts"),
             ],
@@ -3718,20 +3745,20 @@ fn get_context_help_content(
             "Help View".to_string(),
             "Documentation and Guides".to_string(),
             vec![
-                ("←/→ or h/l", "Navigate between sections"),
+                ("Left/Right or h/l", "Navigate between sections"),
                 ("Esc", "Go back"),
                 ("?", "Quick keyboard reference"),
-                ("F1", "Context-sensitive help"),
             ],
         ),
         _ => (
             "General Help".to_string(),
             "Global Navigation".to_string(),
             vec![
-                ("q", "Quit application"),
+                ("q / Ctrl+Q / Ctrl+C", "Quit application"),
                 ("Tab", "Next tab"),
                 ("Shift+Tab", "Previous tab"),
                 ("1-9", "Jump to tab by number"),
+                ("Ctrl+H / N", "Notification history"),
                 ("Ctrl+P or F12", "Toggle performance stats"),
                 ("?", "Show all keyboard shortcuts"),
                 ("F1", "Context-sensitive help"),
@@ -3739,6 +3766,7 @@ fn get_context_help_content(
         ),
     }
 }
+
 
 /// Helper to create a centered rect
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
