@@ -1,7 +1,7 @@
 //! Issue list widget with sorting and filtering
 
 use crate::beads::models::{Issue, IssueStatus, IssueType};
-use crate::models::table_config::TableConfig;
+use crate::models::table_config::{ColumnDefinition, TableConfig};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
@@ -760,6 +760,7 @@ pub struct IssueList<'a> {
     search_query: Option<String>,
     row_height: u16,
     theme: Option<&'a crate::ui::themes::Theme>,
+    columns: Option<Vec<ColumnDefinition>>,
 }
 
 impl<'a> IssueList<'a> {
@@ -778,6 +779,7 @@ impl<'a> IssueList<'a> {
             search_query: None,
             row_height: 1,
             theme: None,
+            columns: None,
         }
     }
 
@@ -805,6 +807,11 @@ impl<'a> IssueList<'a> {
 
     pub fn row_height(mut self, height: u16) -> Self {
         self.row_height = height.max(1);
+        self
+    }
+
+    pub fn columns(mut self, columns: Vec<ColumnDefinition>) -> Self {
+        self.columns = Some(columns);
         self
     }
 
@@ -989,6 +996,7 @@ impl<'a> IssueList<'a> {
     fn get_cell_content<'b>(
         issue: &'b Issue,
         column_id: crate::models::table_config::ColumnId,
+        wrap_behavior: crate::models::table_config::WrapBehavior,
         search_query: &Option<String>,
         edit_state: Option<(usize, String, usize)>,
         row_idx: usize,
@@ -997,26 +1005,75 @@ impl<'a> IssueList<'a> {
         hierarchy_map: &std::collections::HashMap<String, HierarchyInfo>,
         theme: Option<&'b crate::ui::themes::Theme>,
     ) -> Cell<'b> {
-        use crate::models::table_config::ColumnId;
+        use crate::models::table_config::{ColumnId, WrapBehavior};
+
+        // Default theme if none provided
+        let default_theme = crate::ui::themes::Theme::default();
+        let theme_ref = theme.unwrap_or(&default_theme);
+
+        // Check if this cell is currently being edited
+        // Use ref to avoid moving buffer out of edit_state, so we can use it later if needed
+        // But actually we own edit_state here (passed by value Option).
+        // The issue is if we pattern match it by value, we consume it.
+        // We only use it in ColumnId::Title later.
+        
+        let editing_this_cell = if let Some((edit_idx, _, _)) = edit_state {
+            edit_idx == row_idx && column_id == ColumnId::Title
+        } else {
+            false
+        };
+
+        if editing_this_cell {
+            if let Some((_, buffer, cursor)) = edit_state {
+                // Render editing state with cursor
+                let pre_cursor = buffer[..cursor].to_string();
+                let cursor_char = if cursor < buffer.len() {
+                    buffer[cursor..cursor + 1].to_string()
+                } else {
+                    " ".to_string()
+                };
+                let post_cursor = if cursor < buffer.len() {
+                    buffer[cursor + 1..].to_string()
+                } else {
+                    "".to_string()
+                };
+
+                let spans = vec![
+                    Span::raw(pre_cursor),
+                    Span::styled(
+                        cursor_char,
+                        Style::default().bg(Color::White).fg(Color::Black),
+                    ),
+                    Span::raw(post_cursor),
+                ];
+
+                return Cell::from(Line::from(spans));
+            }
+        }
 
         match column_id {
-            ColumnId::Type => {
-                let symbol = Self::type_symbol(&issue.issue_type);
-                let truncated = Self::truncate_text(symbol, wrap_width);
-                Cell::from(truncated)
-            }
-
             ColumnId::Id => {
-                let truncated = Self::truncate_text(&issue.id, wrap_width);
-                if let Some(ref query) = search_query {
-                    Cell::from(Line::from(Self::highlight_text(&truncated, query)))
+                let id_str = if matches!(wrap_behavior, WrapBehavior::TruncateStart) {
+                    if issue.id.len() > wrap_width {
+                        let suffix_len = wrap_width.saturating_sub(1);
+                        let start = issue.id.len().saturating_sub(suffix_len);
+                        format!("…{}", &issue.id[start..])
+                    } else {
+                        issue.id.clone()
+                    }
                 } else {
-                    Cell::from(truncated)
-                }
+                    issue.id.clone()
+                };
+
+                let id_text = if let Some(query) = search_query {
+                    Self::highlight_text(&id_str, query)
+                } else {
+                    vec![Span::styled(id_str, Style::default().fg(Color::Cyan))]
+                };
+                Cell::from(Line::from(id_text))
             }
 
             ColumnId::Title => {
-                // Check if this row is being edited
                 let title_text = if let Some((edit_idx, ref edit_buffer, cursor_pos)) = edit_state {
                     if row_idx == edit_idx {
                         let before_cursor = &edit_buffer[..cursor_pos];
@@ -1029,7 +1086,6 @@ impl<'a> IssueList<'a> {
                     issue.title.clone()
                 };
 
-                // Add tree prefix and status symbol if this issue is in the hierarchy
                 let title_with_tree = if let Some(hierarchy_info) = hierarchy_map.get(&issue.id) {
                     format!(
                         "{}{} {}",
@@ -1041,9 +1097,7 @@ impl<'a> IssueList<'a> {
                     title_text
                 };
 
-                // Handle title cell with wrapping support
                 if row_height > 1 {
-                    // Multi-row mode: wrap text
                     let wrapped_lines = Self::wrap_text(&title_with_tree, wrap_width);
                     let lines: Vec<Line> = wrapped_lines
                         .iter()
@@ -1057,7 +1111,6 @@ impl<'a> IssueList<'a> {
                         })
                         .collect();
 
-                    // If wrapped text has fewer lines than row_height, pad with empty lines
                     let mut padded_lines = lines;
                     while padded_lines.len() < row_height as usize {
                         padded_lines.push(Line::from(""));
@@ -1065,7 +1118,6 @@ impl<'a> IssueList<'a> {
 
                     Cell::from(padded_lines)
                 } else {
-                    // Single-row mode: truncate
                     let truncated = Self::truncate_text(&title_with_tree, wrap_width);
                     if let Some(ref query) = search_query {
                         Cell::from(Line::from(Self::highlight_text(&truncated, query)))
@@ -1101,6 +1153,11 @@ impl<'a> IssueList<'a> {
                     truncated,
                     Style::default().fg(color),
                 ))
+            }
+
+            ColumnId::Type => {
+                let symbol = Self::type_symbol(&issue.issue_type);
+                Cell::from(format!("{} {:?}", symbol, issue.issue_type))
             }
 
             ColumnId::Assignee => {
@@ -1245,8 +1302,12 @@ impl<'a> StatefulWidget for IssueList<'a> {
             SortDirection::Descending => "▼",
         };
 
-        // Get visible columns from table config
-        let visible_columns = state.table_config().visible_columns();
+        // Get visible columns from table config or override
+        let visible_columns = if let Some(cols) = &self.columns {
+            cols.iter().collect::<Vec<_>>()
+        } else {
+            state.table_config().visible_columns()
+        };
         let focused_col_idx = state.focused_column();
 
         // Get editing state for rendering (clone to avoid borrow conflicts)
@@ -1393,11 +1454,12 @@ impl<'a> StatefulWidget for IssueList<'a> {
                         Self::get_cell_content(
                             issue,
                             col.id,
+                            col.wrap,
                             &self.search_query,
-                            editing_state.clone(),
+                            state.editing_state().map(|(i, s, p)| if i == row_idx { Some((row_idx, s.clone(), p)) } else { None }).flatten(),
                             row_idx,
                             wrap_width,
-                            row_height_to_use,
+                            self.row_height,
                             &hierarchy_map,
                             self.theme,
                         )

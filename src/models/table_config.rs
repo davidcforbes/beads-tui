@@ -53,8 +53,10 @@ pub enum Alignment {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WrapBehavior {
-    /// No wrapping, truncate with ellipsis
+    /// No wrapping, truncate with ellipsis (at end)
     Truncate,
+    /// Truncate at start (keep end characters)
+    TruncateStart,
     /// Wrap at word boundaries
     Wrap,
     /// Wrap anywhere

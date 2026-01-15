@@ -765,11 +765,14 @@ impl SearchInterfaceState {
     }
 }
 
+use crate::models::table_config::ColumnDefinition;
+
 /// Search interface view widget
 pub struct SearchInterfaceView<'a> {
     block_style: Style,
     help_style: Style,
     theme: Option<&'a crate::ui::themes::Theme>,
+    columns: Option<Vec<ColumnDefinition>>,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
@@ -780,6 +783,7 @@ impl<'a> SearchInterfaceView<'a> {
             block_style: Style::default().fg(Color::Cyan),
             help_style: Style::default().fg(Color::DarkGray),
             theme: None,
+            columns: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -799,6 +803,12 @@ impl<'a> SearchInterfaceView<'a> {
     /// Set theme
     pub fn theme(mut self, theme: &'a crate::ui::themes::Theme) -> Self {
         self.theme = Some(theme);
+        self
+    }
+
+    /// Set custom columns for the issue list
+    pub fn columns(mut self, columns: Vec<ColumnDefinition>) -> Self {
+        self.columns = Some(columns);
         self
     }
 
@@ -829,7 +839,7 @@ impl<'a> SearchInterfaceView<'a> {
 
     fn render_help_bar(&self, area: Rect, buf: &mut Buffer) {
         let help_text =
-            "/ Focus Search | Tab: Cycle Scope | v: Cycle View | Esc: Clear | j/k: Navigate | Enter: View | ?: Toggle Help";
+            "/: Search | Esc: Clear | Shift+N/Alt+N: Next/Prev | Alt+Z: Fuzzy | Alt+R: Regex | f: Filters | Shift+F: Clear | Alt+F: Menu | Alt+S: Save | F3-F11: Apply | v: Scope | Up/Down/j/k: Navigate | Enter: View | ?: Help";
 
         let line = Line::from(Span::styled(help_text, self.help_style));
         let paragraph = Paragraph::new(line);
@@ -881,6 +891,9 @@ impl<'a> StatefulWidget for SearchInterfaceView<'a> {
         let mut issue_list = IssueList::new(issue_refs).search_query(search_query);
         if let Some(theme) = self.theme {
             issue_list = issue_list.theme(theme);
+        }
+        if let Some(ref cols) = self.columns {
+            issue_list = issue_list.columns(cols.clone());
         }
 
         StatefulWidget::render(issue_list, chunks[chunk_idx], buf, &mut state.list_state);

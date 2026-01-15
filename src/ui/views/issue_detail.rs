@@ -1,13 +1,12 @@
 //! Issue detail view
 
 use crate::beads::models::{Issue, IssueType, Priority};
-use crate::ui::widgets::{MarkdownViewer, MarkdownViewerState};
 use ratatui::{
     buffer::Buffer,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, StatefulWidget, Widget},
+    widgets::{Block, BorderType, Borders, Paragraph, StatefulWidget, Widget, Wrap},
 };
 
 /// Issue detail view widget
@@ -67,9 +66,26 @@ impl<'a> IssueDetailView<'a> {
         }
     }
 
-    fn render_header(&self, area: Rect, buf: &mut Buffer) {
-        use crate::ui::themes::Theme;
+    fn separator(width: usize) -> Line<'static> {
+        Line::from(Span::styled(
+            "─".repeat(width),
+            Style::default().fg(Color::DarkGray),
+        ))
+    }
+}
 
+impl<'a> StatefulWidget for IssueDetailView<'a> {
+    type State = u16; // Scroll offset
+
+    fn render(self, area: Rect, buf: &mut Buffer, scroll: &mut Self::State) {
+        if area.width < 2 || area.height < 2 {
+            return;
+        }
+
+        let inner_width = (area.width - 2) as usize; // Account for borders
+
+        // Theme
+        use crate::ui::themes::Theme;
         let default_theme = Theme::default();
         let theme_ref = self.theme.unwrap_or(&default_theme);
 
@@ -78,285 +94,170 @@ impl<'a> IssueDetailView<'a> {
         let priority_symbol = Theme::priority_symbol(&self.issue.priority);
         let priority_color = theme_ref.priority_color(&self.issue.priority);
 
-        let header_lines = vec![
-            Line::from(vec![
-                Span::styled(Self::type_symbol(&self.issue.issue_type), Style::default()),
-                Span::raw(" "),
-                Span::styled(
-                    &self.issue.id,
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::raw(" - "),
-                Span::styled(
-                    &self.issue.title,
-                    Style::default().add_modifier(Modifier::BOLD),
-                ),
-            ]),
-            Line::from(vec![
-                Span::styled("Status: ", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    format!("{} {:?}", status_symbol, self.issue.status),
-                    Style::default().fg(status_color),
-                ),
-                Span::raw("  "),
-                Span::styled("Priority: ", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    format!(
-                        "{} {} ({})",
-                        priority_symbol,
-                        self.issue.priority,
-                        Self::priority_description(&self.issue.priority)
-                    ),
-                    Style::default().fg(priority_color),
-                ),
-                Span::raw("  "),
-                Span::styled("Type: ", Style::default().fg(Color::DarkGray)),
-                Span::styled(format!("{:?}", self.issue.issue_type), Style::default()),
-            ]),
-        ];
+        let mut lines = Vec::new();
 
-        let header = Paragraph::new(header_lines)
-            .block(Block::default().borders(Borders::ALL).title("Issue"));
-
-        header.render(area, buf);
-    }
-
-    fn render_description(&self, area: Rect, buf: &mut Buffer) {
-        let description_text = if let Some(ref desc) = self.issue.description {
-            desc.clone()
-        } else {
-            "No description provided.".to_string()
-        };
-
-        // Use markdown viewer for rich text rendering
-        let mut markdown_state = MarkdownViewerState::new(description_text.clone());
-        let markdown_viewer = MarkdownViewer::new()
-            .block(Block::default().borders(Borders::ALL).title("Description"))
-            .style(if self.issue.description.is_none() {
+        // --- Header ---
+        lines.push(Line::from(vec![
+            Span::styled(Self::type_symbol(&self.issue.issue_type), Style::default()),
+            Span::raw(" "),
+            Span::styled(
+                &self.issue.id,
                 Style::default()
-                    .fg(Color::DarkGray)
-                    .add_modifier(Modifier::ITALIC)
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" - "),
+            Span::styled(
+                &self.issue.title,
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+        ]));
+        
+        lines.push(Line::from(vec![
+            Span::styled("Status: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                format!("{} {:?}", status_symbol, self.issue.status),
+                Style::default().fg(status_color),
+            ),
+            Span::raw("  "),
+            Span::styled("Priority: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                format!(
+                    "{} {} ({})",
+                    priority_symbol,
+                    self.issue.priority,
+                    Self::priority_description(&self.issue.priority)
+                ),
+                Style::default().fg(priority_color),
+            ),
+            Span::raw("  "),
+            Span::styled("Type: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:?}", self.issue.issue_type), Style::default()),
+        ]));
+
+        // --- Separator ---
+        lines.push(Self::separator(inner_width));
+
+        // --- Description ---
+        lines.push(Line::from(Span::styled("Description", Style::default().add_modifier(Modifier::BOLD))));
+        if let Some(ref desc) = self.issue.description {
+            if desc.trim().is_empty() {
+                 lines.push(Line::from(Span::styled("No description provided.", Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC))));
             } else {
-                Style::default()
-            });
+                // Simple wrapping for description
+                // Note: Paragraph widget handles wrapping for us if we pass text
+                // But we are constructing a single Paragraph for the whole view.
+                // So we should let Paragraph wrap the whole thing or split lines manually.
+                // If we let Paragraph wrap, we just pass the text.
+                for line in desc.lines() {
+                    lines.push(Line::from(line.to_string()));
+                }
+            }
+        } else {
+            lines.push(Line::from(Span::styled("No description provided.", Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC))));
+        }
 
-        StatefulWidget::render(markdown_viewer, area, buf, &mut markdown_state);
-    }
+        // --- Separator ---
+        lines.push(Self::separator(inner_width));
 
-    fn render_metadata(&self, area: Rect, buf: &mut Buffer) {
-        use crate::ui::themes::Theme;
-
-        let default_theme = Theme::default();
-        let theme_ref = self.theme.unwrap_or(&default_theme);
-
-        let status_symbol = Theme::status_symbol(&self.issue.status);
-        let status_color = theme_ref.status_color(&self.issue.status);
-        let priority_symbol = Theme::priority_symbol(&self.issue.priority);
-        let priority_color = theme_ref.priority_color(&self.issue.priority);
-
-        let mut metadata_lines = vec![
-            Line::from(vec![
-                Span::styled("ID: ", Style::default().fg(Color::DarkGray)),
-                Span::raw(&self.issue.id),
-            ]),
-            Line::from(vec![
-                Span::styled("Type: ", Style::default().fg(Color::DarkGray)),
-                Span::raw(format!("{:?}", self.issue.issue_type)),
-            ]),
-            Line::from(vec![
-                Span::styled("Status: ", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    format!("{} {:?}", status_symbol, self.issue.status),
-                    Style::default().fg(status_color),
-                ),
-            ]),
-            Line::from(vec![
-                Span::styled("Priority: ", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    format!(
-                        "{} {} ({})",
-                        priority_symbol,
-                        self.issue.priority,
-                        Self::priority_description(&self.issue.priority)
-                    ),
-                    Style::default().fg(priority_color),
-                ),
-            ]),
-        ];
-
+        // --- Metadata ---
+        lines.push(Line::from(Span::styled("Metadata", Style::default().add_modifier(Modifier::BOLD))));
+        
         if let Some(ref assignee) = self.issue.assignee {
-            metadata_lines.push(Line::from(vec![
+            lines.push(Line::from(vec![
                 Span::styled("Assignee: ", Style::default().fg(Color::DarkGray)),
                 Span::raw(assignee),
             ]));
         }
 
         if !self.issue.labels.is_empty() {
-            metadata_lines.push(Line::from(vec![
+            lines.push(Line::from(vec![
                 Span::styled("Labels: ", Style::default().fg(Color::DarkGray)),
                 Span::raw(self.issue.labels.join(", ")),
             ]));
         }
 
-        metadata_lines.push(Line::from("")); // Spacer
-
-        metadata_lines.push(Line::from(vec![
+        lines.push(Line::from(vec![
             Span::styled("Created: ", Style::default().fg(Color::DarkGray)),
             Span::raw(self.issue.created.format("%Y-%m-%d %H:%M").to_string()),
-        ]));
-
-        metadata_lines.push(Line::from(vec![
+            Span::raw("  "),
             Span::styled("Updated: ", Style::default().fg(Color::DarkGray)),
             Span::raw(self.issue.updated.format("%Y-%m-%d %H:%M").to_string()),
         ]));
 
         if let Some(closed) = self.issue.closed {
-            metadata_lines.push(Line::from(vec![
+            lines.push(Line::from(vec![
                 Span::styled("Closed: ", Style::default().fg(Color::DarkGray)),
                 Span::raw(closed.format("%Y-%m-%d %H:%M").to_string()),
             ]));
         }
 
-        let metadata = Paragraph::new(metadata_lines)
-            .block(Block::default().borders(Borders::ALL).title("Metadata"));
+        // --- Separator ---
+        if self.show_dependencies && (!self.issue.dependencies.is_empty() || !self.issue.blocks.is_empty()) {
+            lines.push(Self::separator(inner_width));
+            lines.push(Line::from(Span::styled("Dependencies", Style::default().add_modifier(Modifier::BOLD))));
 
-        metadata.render(area, buf);
-    }
+            if !self.issue.dependencies.is_empty() {
+                lines.push(Line::from(Span::styled(
+                    "Depends on:",
+                    Style::default().fg(Color::Yellow),
+                )));
+                for dep in &self.issue.dependencies {
+                    lines.push(Line::from(format!("  → {dep}")));
+                }
+            }
 
-    fn render_dependencies(&self, area: Rect, buf: &mut Buffer) {
-        let mut items = Vec::new();
-
-        if !self.issue.dependencies.is_empty() {
-            items.push(ListItem::new(Line::from(Span::styled(
-                "Depends on:",
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD),
-            ))));
-            for dep in &self.issue.dependencies {
-                items.push(ListItem::new(format!("  → {dep}")));
+            if !self.issue.blocks.is_empty() {
+                lines.push(Line::from(Span::styled(
+                    "Blocks:",
+                    Style::default().fg(Color::Red),
+                )));
+                for blocked in &self.issue.blocks {
+                    lines.push(Line::from(format!("  ← {blocked}")));
+                }
             }
         }
 
-        if !self.issue.blocks.is_empty() {
-            if !items.is_empty() {
-                items.push(ListItem::new("")); // Spacer
-            }
-            items.push(ListItem::new(Line::from(Span::styled(
-                "Blocks:",
-                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-            ))));
-            for blocked in &self.issue.blocks {
-                items.push(ListItem::new(format!("  ← {blocked}")));
+        // --- Separator ---
+        if self.show_notes && !self.issue.notes.is_empty() {
+            lines.push(Self::separator(inner_width));
+            lines.push(Line::from(Span::styled("Notes", Style::default().add_modifier(Modifier::BOLD))));
+
+            for note in &self.issue.notes {
+                let timestamp = note.timestamp.format("%Y-%m-%d %H:%M").to_string();
+                lines.push(Line::from(vec![
+                    Span::styled(timestamp, Style::default().fg(Color::DarkGray)),
+                    Span::raw(" - "),
+                    Span::styled(&note.author, Style::default().fg(Color::Cyan)),
+                ]));
+                // Indent note content
+                for line in note.content.lines() {
+                    lines.push(Line::from(format!("  {}", line)));
+                }
+                lines.push(Line::from("")); // Spacer between notes
             }
         }
 
-        if items.is_empty() {
-            items.push(ListItem::new(Line::from(Span::styled(
-                "No dependencies",
-                Style::default()
-                    .fg(Color::DarkGray)
-                    .add_modifier(Modifier::ITALIC),
-            ))));
-        }
+        // Render everything
+        let paragraph = Paragraph::new(lines)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Double) // Double border
+                    .title("Selected Record Display"),
+            )
+            .wrap(Wrap { trim: false })
+            .scroll((*scroll, 0));
 
-        let list =
-            List::new(items).block(Block::default().borders(Borders::ALL).title("Dependencies"));
-
-        Widget::render(list, area, buf);
-    }
-
-    fn render_notes(&self, area: Rect, buf: &mut Buffer) {
-        let items: Vec<ListItem> = if self.issue.notes.is_empty() {
-            vec![ListItem::new(Line::from(Span::styled(
-                "No notes",
-                Style::default()
-                    .fg(Color::DarkGray)
-                    .add_modifier(Modifier::ITALIC),
-            )))]
-        } else {
-            self.issue
-                .notes
-                .iter()
-                .map(|note| {
-                    let timestamp = note.timestamp.format("%Y-%m-%d %H:%M").to_string();
-                    let author = &note.author;
-                    ListItem::new(vec![
-                        Line::from(vec![
-                            Span::styled(timestamp, Style::default().fg(Color::DarkGray)),
-                            Span::raw(" - "),
-                            Span::styled(author.clone(), Style::default().fg(Color::Cyan)),
-                        ]),
-                        Line::from(format!("  {}", note.content)),
-                    ])
-                })
-                .collect()
-        };
-
-        let list = List::new(items).block(Block::default().borders(Borders::ALL).title("Notes"));
-
-        Widget::render(list, area, buf);
+        paragraph.render(area, buf);
     }
 }
 
+// Backward compatibility wrapper for Widget trait (renders with 0 scroll)
 impl<'a> Widget for IssueDetailView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        // Create main layout: header + body
-        let main_chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(5), // Header
-                Constraint::Min(10),   // Body
-            ])
-            .split(area);
-
-        // Render header
-        self.render_header(main_chunks[0], buf);
-
-        // Create body layout: left (description) + right (metadata + deps + notes)
-        let body_chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(60), // Description
-                Constraint::Percentage(40), // Sidebar
-            ])
-            .split(main_chunks[1]);
-
-        // Render description
-        self.render_description(body_chunks[0], buf);
-
-        // Create sidebar layout
-        let mut sidebar_constraints = vec![Constraint::Length(12)]; // Metadata
-
-        if self.show_dependencies {
-            sidebar_constraints.push(Constraint::Min(8)); // Dependencies
-        }
-
-        if self.show_notes {
-            sidebar_constraints.push(Constraint::Min(8)); // Notes
-        }
-
-        let sidebar_chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(sidebar_constraints)
-            .split(body_chunks[1]);
-
-        // Render metadata
-        self.render_metadata(sidebar_chunks[0], buf);
-
-        // Render dependencies
-        let mut chunk_index = 1;
-        if self.show_dependencies && sidebar_chunks.len() > chunk_index {
-            self.render_dependencies(sidebar_chunks[chunk_index], buf);
-            chunk_index += 1;
-        }
-
-        // Render notes
-        if self.show_notes && sidebar_chunks.len() > chunk_index {
-            self.render_notes(sidebar_chunks[chunk_index], buf);
-        }
+        let mut scroll = 0;
+        StatefulWidget::render(self, area, buf, &mut scroll);
     }
 }
 

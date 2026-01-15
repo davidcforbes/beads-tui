@@ -36,6 +36,8 @@ pub struct IssuesViewState {
     editor_state: Option<IssueEditorState>,
     create_form_state: Option<CreateIssueFormState>,
     show_help: bool,
+    /// Scroll offset for the detail view in split screen
+    pub detail_scroll: u16,
 }
 
 impl IssuesViewState {
@@ -48,6 +50,7 @@ impl IssuesViewState {
             editor_state: None,
             create_form_state: None,
             show_help: true,
+            detail_scroll: 0,
         }
     }
 
@@ -275,6 +278,7 @@ impl<'a> IssuesView<'a> {
 
     fn render_split_screen_mode(&self, area: Rect, buf: &mut Buffer, state: &mut IssuesViewState) {
         use ratatui::layout::{Constraint, Direction, Layout};
+        use crate::models::table_config::{ColumnId, ColumnDefinition, WidthConstraints, WrapBehavior};
 
         // Split the area into left (list) and right (detail) panels
         let chunks = Layout::default()
@@ -285,8 +289,44 @@ impl<'a> IssuesView<'a> {
             ])
             .split(area);
 
-        // Render the list on the left with compact view showing Priority + last 6 chars
-        let mut search_view = SearchInterfaceView::new().block_style(self.block_style);
+        // Define compact columns for split view
+        let compact_columns = vec![
+            {
+                let mut col = ColumnDefinition::new(ColumnId::Id);
+                // "last 6 characters" -> width 8 to allow for "…" + 6 chars roughly
+                col.width_constraints = WidthConstraints::new(6, Some(8), 8);
+                col.width = 8;
+                col.wrap = WrapBehavior::TruncateStart;
+                col
+            },
+            {
+                let mut col = ColumnDefinition::new(ColumnId::Title);
+                // "first 20 characters"
+                col.width_constraints = WidthConstraints::new(10, Some(22), 20);
+                col.width = 20;
+                col.wrap = WrapBehavior::Truncate; 
+                col
+            },
+            {
+                let mut col = ColumnDefinition::new(ColumnId::Status);
+                col.width_constraints = WidthConstraints::new(8, Some(10), 8);
+                col.width = 8;
+                col
+            },
+            {
+                let mut col = ColumnDefinition::new(ColumnId::Priority);
+                col.width_constraints = WidthConstraints::new(4, Some(4), 4);
+                col.width = 4;
+                col.label = "Pri".to_string(); 
+                col
+            },
+        ];
+
+        // Render the list on the left with compact view
+        let mut search_view = SearchInterfaceView::new()
+            .block_style(self.block_style)
+            .columns(compact_columns);
+            
         if let Some(theme) = self.theme {
             search_view = search_view.theme(theme);
         }
@@ -298,7 +338,7 @@ impl<'a> IssuesView<'a> {
             if let Some(theme) = self.theme {
                 detail_view = detail_view.theme(theme);
             }
-            Widget::render(detail_view, chunks[1], buf);
+            StatefulWidget::render(detail_view, chunks[1], buf, &mut state.detail_scroll);
         }
     }
 }
