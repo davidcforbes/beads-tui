@@ -328,18 +328,36 @@ impl<'a> IssuesView<'a> {
         }
     }
 
-    fn render_edit_mode(&self, area: Rect, buf: &mut Buffer, state: &mut IssuesViewState) {
-        if let Some(editor_state) = &mut state.editor_state {
-            let editor_view = IssueEditorView::new();
-            StatefulWidget::render(editor_view, area, buf, editor_state);
-        }
-    }
-
-    fn render_create_mode(&self, area: Rect, buf: &mut Buffer, state: &mut IssuesViewState) {
+    fn render_create_mode_popup(&self, area: Rect, buf: &mut Buffer, state: &mut IssuesViewState) {
+        use ratatui::widgets::Clear;
+        
+        // Calculate popup area (80% width, 80% height)
+        let popup_area = crate::ui::layout::centered_rect(80, 80, area);
+        
+        // Clear background
+        Clear.render(popup_area, buf);
+        
+        // Render form
         if let Some(create_form_state) = &mut state.create_form_state {
             use crate::ui::views::CreateIssueForm;
             let create_form = CreateIssueForm::new();
-            StatefulWidget::render(create_form, area, buf, create_form_state);
+            StatefulWidget::render(create_form, popup_area, buf, create_form_state);
+        }
+    }
+
+    fn render_edit_mode_popup(&self, area: Rect, buf: &mut Buffer, state: &mut IssuesViewState) {
+        use ratatui::widgets::Clear;
+        
+        // Calculate popup area (80% width, 80% height)
+        let popup_area = crate::ui::layout::centered_rect(80, 80, area);
+        
+        // Clear background
+        Clear.render(popup_area, buf);
+        
+        // Render form
+        if let Some(editor_state) = &mut state.editor_state {
+            let editor_view = IssueEditorView::new();
+            StatefulWidget::render(editor_view, popup_area, buf, editor_state);
         }
     }
 
@@ -423,9 +441,19 @@ impl<'a> StatefulWidget for IssuesView<'a> {
         match state.view_mode {
             IssuesViewMode::List => self.render_list_mode(area, buf, state),
             IssuesViewMode::Detail => self.render_detail_mode(area, buf, state),
-            IssuesViewMode::Edit => self.render_edit_mode(area, buf, state),
-            IssuesViewMode::Create => self.render_create_mode(area, buf, state),
             IssuesViewMode::SplitScreen => self.render_split_screen_mode(area, buf, state),
+            IssuesViewMode::Edit => {
+                // Render list as background
+                self.render_list_mode(area, buf, state);
+                // Render editor as popup
+                self.render_edit_mode_popup(area, buf, state);
+            }
+            IssuesViewMode::Create => {
+                // Render list as background
+                self.render_list_mode(area, buf, state);
+                // Render creator as popup
+                self.render_create_mode_popup(area, buf, state);
+            }
         }
     }
 }

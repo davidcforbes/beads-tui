@@ -1134,8 +1134,8 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     }
 
                     Some(Action::ConfirmDialog) => {
-                        // Enter
-                        issues_state.enter_detail_view();
+                        // Enter -> Open edit popup (same form as Create/Edit)
+                        issues_state.enter_edit_mode();
                     }
                     // 'v' is Cycle View in new config
                     // Old code had 'v' for Split Screen AND 'v' for Next View.
