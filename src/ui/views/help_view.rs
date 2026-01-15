@@ -366,6 +366,10 @@ impl<'a> HelpView<'a> {
         lines.push(self.render_shortcut("Alt+S", "Save current filter configuration"));
         lines.push(self.render_shortcut("Alt+F", "Open saved filters menu"));
         lines.push(self.render_shortcut("F3-F11", "Apply saved filter hotkeys"));
+        lines.push(self.render_shortcut("u", "Open Status filter dropdown"));
+        lines.push(self.render_shortcut("y", "Open Type filter dropdown"));
+        lines.push(self.render_shortcut("L", "Open Labels filter dropdown"));
+        lines.push(self.render_shortcut("i", "Open Priority filter dropdown"));
 
         lines
     }

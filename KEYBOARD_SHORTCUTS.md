@@ -87,10 +87,10 @@ context-specific; the same key may do different things depending on the active v
 | `Shift+F` | Clear Filters | Clear current filters |
 | `Ctrl+Shift+S` | Save Filter | Save current filter configuration |
 | `Alt+F` | Filter Menu | Open saved filters menu |
-| `Alt+S` | Status Filter | Open status filter dialog |
-| `Alt+P` | Priority Filter | Open priority filter dialog |
-| `Alt+T` | Type Filter | Open type filter dialog |
-| `Alt+L` | Labels Filter | Open labels filter dialog |
+| `u` | Status Filter | Open Status filter dropdown (Stat[u]s) |
+| `y` | Type Filter | Open Type filter dropdown (T[y]pe) |
+| `L` | Labels Filter | Open Labels filter dropdown ([L]abels) |
+| `i` | Priority Filter | Open Priority filter dropdown (Pr[i]ority) |
 | `F3`-`F11` | Saved Filters | Apply saved filter hotkeys |
 
 ## Dependencies View

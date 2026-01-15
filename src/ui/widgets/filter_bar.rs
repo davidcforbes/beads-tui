@@ -186,7 +186,7 @@ impl FilterBarState {
         let selected_statuses = self.status_dropdown.selected_items();
         if !selected_statuses.is_empty() {
             // If specific statuses are selected, issue must match one of them
-            if !selected_statuses.iter().any(|s| *s == issue.status) {
+            if !selected_statuses.contains(&issue.status) {
                 return false;
             }
         }
@@ -195,7 +195,7 @@ impl FilterBarState {
         let selected_priorities = self.priority_dropdown.selected_items();
         if !selected_priorities.is_empty() {
             // If specific priorities are selected, issue must match one of them
-            if !selected_priorities.iter().any(|p| *p == issue.priority) {
+            if !selected_priorities.contains(&issue.priority) {
                 return false;
             }
         }
@@ -204,7 +204,7 @@ impl FilterBarState {
         let selected_types = self.type_dropdown.selected_items();
         if !selected_types.is_empty() {
             // If specific types are selected, issue must match one of them
-            if !selected_types.iter().any(|t| *t == issue.issue_type) {
+            if !selected_types.contains(&issue.issue_type) {
                 return false;
             }
         }
@@ -364,22 +364,27 @@ impl<'a> FilterBar<'a> {
         let type_text = self.dropdown_text(&state.type_dropdown, "All");
         let labels_text = self.dropdown_text(&state.labels_dropdown, "All");
 
+        // Create bordered block with FILTERS header
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(" FILTERS ");
+
+        let inner = block.inner(area);
+        block.render(area, buf);
+
+        // Build filter line with hotkeys
         let line = Line::from(vec![
-            Span::styled(
-                format!("Scope: showing {} of {}", self.filtered_count, self.total_count),
-                Style::default().fg(Color::DarkGray),
-            ),
-            Span::raw("  "),
-            self.filter_section("Status", &status_text, state.active_dropdown == Some(FilterDropdownType::Status)),
+            Span::raw(" "),
+            self.filter_with_hotkey("Stat", "u", "s", &status_text, state.active_dropdown == Some(FilterDropdownType::Status)),
             Span::raw(" | "),
-            self.filter_section("Priority", &priority_text, state.active_dropdown == Some(FilterDropdownType::Priority)),
+            self.filter_with_hotkey("T", "y", "pe", &type_text, state.active_dropdown == Some(FilterDropdownType::Type)),
             Span::raw(" | "),
-            self.filter_section("Type", &type_text, state.active_dropdown == Some(FilterDropdownType::Type)),
+            self.filter_with_hotkey("", "L", "abels", &labels_text, state.active_dropdown == Some(FilterDropdownType::Labels)),
             Span::raw(" | "),
-            self.filter_section("Labels", &labels_text, state.active_dropdown == Some(FilterDropdownType::Labels)),
+            self.filter_with_hotkey("Pr", "i", "ority", &priority_text, state.active_dropdown == Some(FilterDropdownType::Priority)),
         ]);
 
-        line.render(area, buf);
+        line.render(inner, buf);
     }
 
     fn dropdown_text<T>(&self, dropdown: &MultiSelectDropdownState<T>, default: &str) -> String {
@@ -391,8 +396,12 @@ impl<'a> FilterBar<'a> {
         }
     }
 
-    fn filter_section(&self, label: &str, value: &str, is_active: bool) -> Span<'_> {
-        let text = format!("{}: {} v", label, value);
+    fn filter_with_hotkey(&self, prefix: &str, hotkey: &str, suffix: &str, value: &str, is_active: bool) -> Span<'_> {
+        let text = if prefix.is_empty() {
+            format!("[{}]{}: {}", hotkey, suffix, value)
+        } else {
+            format!("{}[{}]{}: {}", prefix, hotkey, suffix, value)
+        };
         let style = if is_active {
             Style::default()
                 .fg(self.theme.accent)

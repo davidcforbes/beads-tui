@@ -59,6 +59,50 @@ pub struct IssuesViewState {
 impl IssuesViewState {
     /// Create a new issues view state
     pub fn new(issues: Vec<Issue>) -> Self {
+        // Initialize filter bar with all available statuses, priorities, types, and labels
+        use crate::beads::models::{IssueStatus, IssueType, Priority};
+        use std::collections::HashSet;
+
+        let statuses = vec![
+            IssueStatus::Open,
+            IssueStatus::InProgress,
+            IssueStatus::Blocked,
+            IssueStatus::Closed,
+        ];
+
+        let priorities = vec![
+            Priority::P0,
+            Priority::P1,
+            Priority::P2,
+            Priority::P3,
+            Priority::P4,
+        ];
+
+        let types = vec![
+            IssueType::Bug,
+            IssueType::Feature,
+            IssueType::Task,
+            IssueType::Epic,
+            IssueType::Chore,
+        ];
+
+        // Collect unique labels from all issues
+        let mut labels_set: HashSet<String> = HashSet::new();
+        for issue in &issues {
+            for label in &issue.labels {
+                labels_set.insert(label.clone());
+            }
+        }
+        let mut labels: Vec<String> = labels_set.into_iter().collect();
+        labels.sort();
+
+        let filter_bar_state = crate::ui::widgets::FilterBarState::new(
+            statuses,
+            priorities,
+            types,
+            labels,
+        );
+
         Self {
             search_state: SearchInterfaceState::new(issues),
             view_mode: IssuesViewMode::List,
@@ -67,7 +111,7 @@ impl IssuesViewState {
             create_form_state: None,
             show_help: true,
             detail_scroll: 0,
-            filter_bar_state: None,
+            filter_bar_state: Some(filter_bar_state),
             original_issues: None,
             split_screen_focus: SplitScreenFocus::List,
         }
@@ -332,12 +376,12 @@ impl<'a> IssuesView<'a> {
             let default_theme = crate::ui::themes::Theme::default();
             let theme = self.theme.unwrap_or(&default_theme);
 
-            // The filter bar is rendered on the 3rd row from the top
+            // The filter bar is rendered on the 3rd row from the top with 3 lines height for border + content
             let filter_bar_area = ratatui::layout::Rect {
                 x: area.x,
                 y: area.y + 2,
                 width: area.width,
-                height: 1,
+                height: 3,
             };
 
             // Render the filter bar
@@ -447,7 +491,7 @@ impl<'a> IssuesView<'a> {
                 // "first 20 characters"
                 col.width_constraints = WidthConstraints::new(10, Some(22), 20);
                 col.width = 20;
-                col.wrap = WrapBehavior::Truncate; 
+                col.wrap = WrapBehavior::Truncate;
                 col
             },
             {
@@ -460,7 +504,13 @@ impl<'a> IssuesView<'a> {
                 let mut col = ColumnDefinition::new(ColumnId::Priority);
                 col.width_constraints = WidthConstraints::new(4, Some(4), 4);
                 col.width = 4;
-                col.label = "Pri".to_string(); 
+                col.label = "Pri".to_string();
+                col
+            },
+            {
+                let mut col = ColumnDefinition::new(ColumnId::Type);
+                col.width_constraints = WidthConstraints::new(6, Some(8), 8);
+                col.width = 8;
                 col
             },
         ];

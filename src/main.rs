@@ -205,6 +205,88 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         return;
     }
 
+    // Handle filter dropdown hotkeys (u, y, L, i)
+    if app.issues_view_state.filter_bar_state.is_some() {
+        match key_code {
+            KeyCode::Char('u') if key.modifiers.is_empty() => {
+                // Toggle Status filter dropdown
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Status);
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Char('y') if key.modifiers.is_empty() => {
+                // Toggle Type filter dropdown
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Type);
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Char('L') if key.modifiers.is_empty() => {
+                // Toggle Labels filter dropdown
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Labels);
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Char('i') if key.modifiers.is_empty() => {
+                // Toggle Priority filter dropdown
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Priority);
+                    app.mark_dirty();
+                }
+                return;
+            }
+            _ => {}
+        }
+
+        // Handle filter dropdown navigation if a dropdown is open
+        if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+            if filter_bar_state.active_dropdown.is_some() {
+                match action {
+                    Some(Action::MoveUp) => {
+                        if let Some(mut dropdown) = filter_bar_state.active_dropdown_mut() {
+                            dropdown.previous();
+                            app.mark_dirty();
+                        }
+                        return;
+                    }
+                    Some(Action::MoveDown) => {
+                        if let Some(mut dropdown) = filter_bar_state.active_dropdown_mut() {
+                            dropdown.next();
+                            app.mark_dirty();
+                        }
+                        return;
+                    }
+                    Some(Action::ToggleSelection) => {
+                        if let Some(mut dropdown) = filter_bar_state.active_dropdown_mut() {
+                            dropdown.toggle_selected();
+                            app.mark_dirty();
+                        }
+                        return;
+                    }
+                    Some(Action::ConfirmDialog) => {
+                        // Apply filter and close dropdown
+                        filter_bar_state.close_dropdown();
+                        app.issues_view_state.apply_filter_bar_filters();
+                        app.mark_dirty();
+                        return;
+                    }
+                    Some(Action::CancelDialog) => {
+                        // Close dropdown without applying
+                        filter_bar_state.close_dropdown();
+                        app.mark_dirty();
+                        return;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
     // Handle global actions
     match action {
         Some(Action::Undo) => {
@@ -3048,36 +3130,46 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         let search_state = app.issues_view_state.search_state();
         let query = search_state.search_state().query();
         let is_focused = search_state.search_state().is_focused();
-        
-        let mode_text = if search_state.is_regex_enabled() {
-            "RegEx"
-        } else if search_state.is_fuzzy_enabled() {
-            "Fuzzy"
-        } else {
-            "Substring"
-        };
-        
-        // "Pale yellow" (standard Yellow) for non-focused, Bold Yellow for focused
+        let cursor_pos = search_state.search_state().cursor_position();
+
+        // Brighter color (Bold Yellow) for focused, standard Yellow for non-focused
         let style = if is_focused {
             Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::Yellow)
         };
 
-        let icon = "Search:";
-
         // Truncate query for display in title bar to prevent overflow
-        let display_query = if query.len() > 20 {
-            format!("{}...", &query[..20])
+        let display_query = if query.len() > 30 {
+            format!("{}...", &query[..30])
         } else {
             query.to_string()
         };
 
-        // Search: [ 🔍 Mode {query} ]
-        let display_content = if query.is_empty() {
-            format!("{} {}", icon, mode_text)
+        // When focused and empty, show blank box with cursor placeholder
+        // When focused with text, show text with cursor (represented by █ at cursor position)
+        // When not focused, just show the query
+        let display_content = if is_focused {
+            if query.is_empty() {
+                // Show empty box with spaces indicating cursor can be placed
+                "        ".to_string()
+            } else {
+                // Insert cursor marker at cursor position
+                let mut chars: Vec<char> = display_query.chars().collect();
+                let safe_cursor_pos = cursor_pos.min(chars.len());
+                if safe_cursor_pos < chars.len() {
+                    // Insert cursor character before the character at cursor position
+                    chars.insert(safe_cursor_pos, '█');
+                } else {
+                    // Cursor at end
+                    chars.push('█');
+                }
+                chars.into_iter().collect()
+            }
+        } else if query.is_empty() {
+            "".to_string()
         } else {
-            format!("{} {}: {}", icon, mode_text, display_query)
+            display_query
         };
 
         Span::styled(format!("Search: [{}]     ", display_content), style)
