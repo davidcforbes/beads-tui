@@ -41,4 +41,4 @@ Showing all 3 issues  [Scope: All]
 │                                                                                                                      │
 │                                                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-/ Focus Search | Tab: Cycle Scope | v: Cycle View | Esc: Clear | j/k: Navigate | Enter: View | ?: Toggle Help
+/: Search | Esc: Clear | Shift+N/Alt+N: Next/Prev | Alt+Z: Fuzzy | Alt+R: Regex | f: Filters | Shift+F: Clear | Alt+F: M

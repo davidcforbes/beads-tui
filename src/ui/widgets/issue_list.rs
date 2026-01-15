@@ -1188,10 +1188,10 @@ impl<'a> IssueList<'a> {
         }
 
         let filter_text = if filter_parts.is_empty() {
-            "Quick Filters: [No filters active] Press 'f' to toggle filters".to_string()
+            "Quick Filters: [No filters active] Press 'f' to toggle, Shift+F to clear".to_string()
         } else {
             format!(
-                "Quick Filters: {} | Press 'f' to toggle",
+                "Quick Filters: {} | Press 'f' to toggle, Shift+F to clear",
                 filter_parts.join(" | ")
             )
         };
@@ -1297,15 +1297,15 @@ impl<'a> StatefulWidget for IssueList<'a> {
 
         // Adjust column widths if they exceed available space
         let adjusted_columns: Vec<(crate::models::table_config::ColumnId, u16)> = if total_requested > content_width {
-            // Scale down proportionally, but respect minimum widths
+            // Scale down proportionally - DO NOT enforce minimums here as it would cause overflow
             let scale_factor = content_width as f64 / total_requested as f64;
 
             visible_columns
                 .iter()
                 .map(|col| {
+                    // Scale the width down, clamped to at least 1 to prevent zero-width columns
                     let scaled_width = ((col.width as f64 * scale_factor).floor() as u16)
-                        .max(col.width_constraints.min)
-                        .min(col.width);
+                        .max(1);
                     (col.id, scaled_width)
                 })
                 .collect()

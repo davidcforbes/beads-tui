@@ -8,21 +8,21 @@ expression: rendered
 ┌Global────────────────────────────────────────────────────────────────────────┐
 │Global Shortcuts                                                              │
 │                                                                              │
-│q         - Quit application                                                  │
+│q / Ctrl+Q / Ctrl+C - Quit application                                        │
+│?         - Shortcut help                                                     │
+│F1        - Context help                                                      │
+│Ctrl+P / F12 - Performance stats                                              │
+│Ctrl+Z    - Undo last action                                                  │
+│Ctrl+Y    - Redo last action                                                  │
+│Ctrl+H / N - Notification history                                             │
+│Esc       - Dismiss overlays                                                  │
 │Tab       - Next tab                                                          │
 │Shift+Tab - Previous tab                                                      │
-│1-5       - Jump to tab directly                                              │
-│?         - Toggle help                                                       │
-│Ctrl+C    - Force quit                                                        │
-│Ctrl+Z    - Undo last operation                                               │
-│Ctrl+Y    - Redo last undone operation                                        │
-│Ctrl+H    - Show undo/redo history                                            │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
+│1-9       - Jump to tab (1-5 implemented)                                     │
+│Up/Down or j/k - Navigate lists                                               │
+│Left/Right or h/l - Navigate columns/sections                                 │
+│PageUp/PageDown - Page up/down (or Ctrl+U/Ctrl+D)                             │
+│Home/End or g/G - Jump to top/bottom                                          │
+│r / F5    - Refresh data                                                      │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘

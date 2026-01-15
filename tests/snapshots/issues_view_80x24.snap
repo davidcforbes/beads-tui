@@ -4,10 +4,10 @@ expression: rendered
 ---
 Showing all 3 issues  [Scope: All]                                              
 ┌Issues (3/3)──────────────────────────────────────────────────────────────────┐
-│ID         Title         Status   Pri... Type   Assignee Labels     Updated ▼ │
-│beads-100  ○ Add state s o Open   ● P1   ✨      alex     ui, sta... 2026-01...│
-│beads-101  ◐ Fix label v * InP... ◆ P0   🐛      sam      bug, la... 2026-01...│
-│beads-102  ✓ Document wo + Closed ○ P2   📋      -        docs       2026-01...│
+│ID      Title                 Status P... Type Assi... Labels     Updat...    │
+│bead... ○ Add state selector  o Open ● P1 ✨    alex    ui, sta... 2026-...    │
+│bead... ◐ Fix label valida... * I... ◆ P0 🐛    sam     bug, la... 2026-...    │
+│bead... ✓ Document workflo... + C... ○ P2 📋    -       docs       2026-...    │
 │                                                                              │
 │                                                                              │
 │                                                                              │
@@ -25,4 +25,4 @@ Showing all 3 issues  [Scope: All]
 │                                                                              │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
-/ Focus Search | Tab: Cycle Scope | v: Cycle View | Esc: Clear | j/k: Navigate |
+/: Search | Esc: Clear | Shift+N/Alt+N: Next/Prev | Alt+Z: Fuzzy | Alt+R: Regex

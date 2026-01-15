@@ -41,4 +41,4 @@ expression: rendered
                                                                                                                         
                                                                                                                         
                                                                                                                         
-[/]: Switch Modes | s: Sync | r: Refresh
+Up/Down/j/k: Navigate | r: Refresh | s: Sync | x: Export | i: Import | v: Verify | c: Compact | t: Toggle daemon | Esc:
