@@ -2764,19 +2764,20 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             .search_state()
             .is_focused();
         
+        // "Pale yellow" (standard Yellow) for non-focused, Bold Yellow for focused
         let style = if is_focused {
             Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else if !query.is_empty() {
-            Style::default().fg(Color::White)
         } else {
-            Style::default().fg(Color::DarkGray)
+            Style::default().fg(Color::Yellow)
         };
+
+        let icon = "🔍";
 
         // Ensure visible cursor position if focused (simple approximation)
         let display_text = if query.is_empty() && !is_focused {
-            "   ".to_string()
+            format!("{}   ", icon)
         } else {
-            format!(" {} ", query)
+            format!("{} {} ", icon, query)
         };
 
         Span::styled(format!("Search: [{}]     ", display_text), style)
@@ -3390,7 +3391,7 @@ fn get_action_hints(app: &models::AppState) -> String {
     // If filter save dialog is visible
     if app.is_filter_save_dialog_visible() {
         return format!(
-            "Type to edit | Tab: Next field | Enter: Save | Esc: Cancel{}",
+            "Type to edit | Tab/Shift+Tab: Move | Enter: Save | Esc: Cancel{}",
             undo_redo_hints
         );
     }
@@ -3433,13 +3434,13 @@ fn get_action_hints(app: &models::AppState) -> String {
                     "↑/↓/j/k: Navigate | Enter: View | a/c: Create | e: Edit | F2/n: Rename | d: Delete | /: Search | f: Filter | :: Command palette | ?: Help".to_string()
                 }
                 ui::views::IssuesViewMode::Create => {
-                    "Tab: Next field | Shift+Tab: Previous | Ctrl+S: Save | Esc: Cancel".to_string()
+                    "Tab/Shift+Tab: Move | Enter: Save | Ctrl+L: Load | Esc: Cancel".to_string()
                 }
                 ui::views::IssuesViewMode::Edit => {
-                    "Tab: Next field | Shift+Tab: Previous | Ctrl+S: Save | Esc: Cancel".to_string()
+                    "Tab/Shift+Tab: Move | Enter: Save | Ctrl+L: Load | Ctrl+P: Preview | Esc: Cancel".to_string()
                 }
                 ui::views::IssuesViewMode::Detail => {
-                    "e: Edit | d: Delete | Esc: Back to list".to_string()
+                    "e: Edit | d: Delete | Alt+H: History | Esc: Back".to_string()
                 }
                 ui::views::IssuesViewMode::SplitScreen => {
                     "↑/↓/j/k: Navigate | Enter: Full view | e: Edit | Esc/q: Back to list | ?: Help".to_string()
@@ -3476,13 +3477,13 @@ fn get_action_hints(app: &models::AppState) -> String {
         }
         7 => {
             // Database view
-            "r: Refresh | t: Toggle daemon | x: Export | i: Import | v: Verify | c: Compact | s: Sync | Esc: Back | ?: Help".to_string()
+            "Up/Down: Navigate | r: Refresh | t: Toggle daemon | x: Export | i: Import | v: Verify | c: Compact | s: Sync | Esc: Back | ?: Help".to_string()
         }
         8 => {
             // Help view
             "←/→/h/l: Navigate sections | Esc: Back | ?: Quick reference".to_string()
         }
-        _ => "Press 'q' to quit | Tab/Shift+Tab: Switch tabs | 1-9: Direct tab access | ?: Help"
+        _ => "Press 'q' to quit | Tab/Shift+Tab: Switch tabs | 1-9 (1-5 implemented): Direct tab access | ?: Help"
             .to_string(),
     };
 
