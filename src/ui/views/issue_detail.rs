@@ -1,7 +1,8 @@
 //! Issue detail view
 
 use crate::beads::models::Issue;
-use crate::ui::widgets::{FormField, FormState, Form};
+use crate::ui::views::issue_form_builder::{build_issue_form, IssueFormMode};
+use crate::ui::widgets::{FormState, Form};
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
@@ -56,145 +57,15 @@ impl<'a> StatefulWidget for IssueDetailView<'a> {
             return;
         }
 
-        // Build form fields from issue data
-        let mut fields = Vec::new();
+        // Build form fields using unified form builder
+        let mut fields = build_issue_form(IssueFormMode::Read, Some(self.issue));
 
-        // ID - Read-only
-        fields.push(
-            FormField::read_only("id", "ID", &self.issue.id)
-        );
-
-        // Title - Read-only (show as display, not editable in detail view)
-        fields.push(
-            FormField::read_only("title", "Title", &self.issue.title)
-        );
-
-        // Status - Selector
-        fields.push(
-            FormField::selector(
-                "status",
-                "Status",
-                vec![
-                    "Open".to_string(),
-                    "InProgress".to_string(),
-                    "Blocked".to_string(),
-                    "Closed".to_string(),
-                ],
-            )
-            .value(format!("{:?}", self.issue.status))
-        );
-
-        // Priority - Selector
-        fields.push(
-            FormField::selector(
-                "priority",
-                "Priority",
-                vec![
-                    "P0".to_string(),
-                    "P1".to_string(),
-                    "P2".to_string(),
-                    "P3".to_string(),
-                    "P4".to_string(),
-                ],
-            )
-            .value(format!("{}", self.issue.priority))
-        );
-
-        // Type - Selector
-        fields.push(
-            FormField::selector(
-                "type",
-                "Type",
-                vec![
-                    "Bug".to_string(),
-                    "Feature".to_string(),
-                    "Task".to_string(),
-                    "Epic".to_string(),
-                    "Chore".to_string(),
-                ],
-            )
-            .value(format!("{:?}", self.issue.issue_type))
-        );
-
-        // Assignee - Text field
-        fields.push(
-            FormField::text("assignee", "Assignee")
-                .value(self.issue.assignee.as_deref().unwrap_or(""))
-                .placeholder("Unassigned")
-        );
-
-        // Labels - Text field (comma-separated)
-        fields.push(
-            FormField::text("labels", "Labels")
-                .value(self.issue.labels.join(", "))
-                .placeholder("No labels")
-        );
-
-        // Description - Text area
-        fields.push(
-            FormField::text_area("description", "Description")
-                .value(self.issue.description.as_deref().unwrap_or(""))
-                .placeholder("No description")
-        );
-
-        // Created - Read-only date
-        let created_str = self.issue.created.format("%Y-%m-%d %H:%M").to_string();
-        fields.push(
-            FormField::read_only("created", "Created", &created_str)
-        );
-
-        // Updated - Read-only date
-        let updated_str = self.issue.updated.format("%Y-%m-%d %H:%M").to_string();
-        fields.push(
-            FormField::read_only("updated", "Updated", &updated_str)
-        );
-
-        // Closed - Read-only date (if applicable)
-        let closed_str;
-        if let Some(closed) = self.issue.closed {
-            closed_str = closed.format("%Y-%m-%d %H:%M").to_string();
-            fields.push(
-                FormField::read_only("closed", "Closed", &closed_str)
-            );
+        // Filter fields based on show_dependencies and show_notes flags
+        if !self.show_dependencies {
+            fields.retain(|f| f.id != "dependencies" && f.id != "blocks");
         }
-
-        // Dependencies - Read-only list
-        let deps_str;
-        if self.show_dependencies && !self.issue.dependencies.is_empty() {
-            deps_str = self.issue.dependencies.join(", ");
-            fields.push(
-                FormField::read_only("dependencies", "Depends On", &deps_str)
-            );
-        }
-
-        // Blocks - Read-only list
-        let blocks_str;
-        if self.show_dependencies && !self.issue.blocks.is_empty() {
-            blocks_str = self.issue.blocks.join(", ");
-            fields.push(
-                FormField::read_only("blocks", "Blocks", &blocks_str)
-            );
-        }
-
-        // Notes - Display as read-only if present
-        let notes_text;
-        if self.show_notes && !self.issue.notes.is_empty() {
-            notes_text = self.issue.notes
-                .iter()
-                .map(|note| {
-                    format!(
-                        "{} - {}: {}",
-                        note.timestamp.format("%Y-%m-%d %H:%M"),
-                        note.author,
-                        note.content
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
-
-            fields.push(
-                FormField::read_only("notes", "Notes", &notes_text)
-            );
+        if !self.show_notes {
+            fields.retain(|f| f.id != "notes");
         }
 
         // Create form state and render

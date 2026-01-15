@@ -9,6 +9,7 @@ pub mod gantt_view;
 pub mod help_view;
 pub mod issue_detail;
 pub mod issue_editor;
+pub mod issue_form_builder;
 pub mod issues_view;
 pub mod kanban_view;
 pub mod labels_view;
@@ -27,7 +28,7 @@ pub use gantt_view::{GanttView, GanttViewState};
 pub use help_view::{HelpSection, HelpView};
 pub use issue_detail::IssueDetailView;
 pub use issue_editor::{IssueEditorState, IssueEditorView};
-pub use issues_view::{IssuesView, IssuesViewMode, IssuesViewState};
+pub use issues_view::{IssuesView, IssuesViewMode, IssuesViewState, SplitScreenFocus};
 pub use kanban_view::{KanbanView, KanbanViewState};
 pub use labels_view::{compute_label_stats, LabelStats, LabelsView, LabelsViewState};
 pub use molecular::{

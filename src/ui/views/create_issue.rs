@@ -2,6 +2,7 @@
 
 use crate::beads::models::{IssueType, Priority};
 use crate::models::{split_labels, validate_labels};
+use crate::ui::views::issue_form_builder::{build_issue_form, IssueFormMode};
 use crate::ui::widgets::{Form, FormField, FormState, ValidationRule};
 use ratatui::{
     buffer::Buffer,
@@ -131,123 +132,55 @@ impl CreateIssueFormState {
 
     /// Create a new create issue form state
     pub fn new() -> Self {
-        let fields = vec![
-            // Summary section
-            FormField::text("title", "Title")
-                .required()
-                .placeholder("Brief description of the issue")
-                .with_validation(ValidationRule::Required)
-                .with_validation(ValidationRule::MaxLength(256)),
-            FormField::selector(
-                "type",
-                "Type",
-                vec![
-                    "Epic".to_string(),
-                    "Feature".to_string(),
-                    "Task".to_string(),
-                    "Bug".to_string(),
-                    "Chore".to_string(),
-                ],
-            )
-            .value("Task")
-            .required()
-            .with_validation(ValidationRule::Enum(vec![
-                "Epic".to_string(),
-                "Feature".to_string(),
-                "Task".to_string(),
-                "Bug".to_string(),
-                "Chore".to_string(),
-            ])),
-            FormField::selector(
-                "priority",
-                "Priority",
-                vec![
-                    "P0 (Critical)".to_string(),
-                    "P1 (High)".to_string(),
-                    "P2 (Medium)".to_string(),
-                    "P3 (Low)".to_string(),
-                    "P4 (Backlog)".to_string(),
-                ],
-            )
-            .value("P2 (Medium)")
-            .required()
-            .with_validation(ValidationRule::Enum(vec![
-                "P0 (Critical)".to_string(),
-                "P1 (High)".to_string(),
-                "P2 (Medium)".to_string(),
-                "P3 (Low)".to_string(),
-                "P4 (Backlog)".to_string(),
-            ])),
-            FormField::selector(
-                "status",
-                "Status",
-                vec![
-                    "Open".to_string(),
-                    "InProgress".to_string(),
-                    "Blocked".to_string(),
-                    "Closed".to_string(),
-                ],
-            )
-            .value("Open")
-            .required()
-            .with_validation(ValidationRule::Enum(vec![
-                "Open".to_string(),
-                "InProgress".to_string(),
-                "Blocked".to_string(),
-                "Closed".to_string(),
-            ])),
-            // Scheduling section
-            FormField::text("due_date", "Due Date")
-                .placeholder("YYYY-MM-DD (optional)")
-                .help_text("Press F1: Enter a date in YYYY-MM-DD format (e.g., 2024-12-31). This is when the issue should be completed.")
-                .with_validation(ValidationRule::MaxLength(32)),
-            FormField::text("defer_date", "Defer Date")
-                .placeholder("YYYY-MM-DD (optional)")
-                .help_text("Press F1: Enter a date in YYYY-MM-DD format. Issue will be hidden from ready list until this date.")
-                .with_validation(ValidationRule::MaxLength(32)),
-            FormField::text("time_estimate", "Time Estimate")
-                .placeholder("e.g., 2h, 3d, 1w (optional)")
-                .help_text("Press F1: Estimate format: 2h (2 hours), 3d (3 days), 1w (1 week). Used for planning and tracking.")
-                .with_validation(ValidationRule::MaxLength(32)),
-            // Relationships section
-            FormField::text("parent", "Parent Issue")
-                .placeholder("beads-xxx (optional)")
-                .help_text("Press F1: Enter parent issue ID (e.g., beads-abc123). This issue will be part of the parent epic/feature.")
-                .with_validation(ValidationRule::BeadsIdFormat)
-                .with_validation(ValidationRule::MaxLength(64)),
-            FormField::text("dependencies", "Dependencies")
-                .placeholder("comma-separated beads-xxx (optional)")
-                .help_text("Press F1: Enter comma-separated issue IDs that this issue depends on. This issue will be blocked until dependencies are resolved.")
-                .with_validation(ValidationRule::MaxLength(2048)),
-            // Labels section
-            {
-                let mut assignee_field = FormField::text("assignee", "Assignee")
-                    .placeholder("username (optional)")
-                    .with_validation(ValidationRule::MaxLength(128));
+        // Start with unified form fields for core issue fields (Create mode)
+        let mut fields = build_issue_form(IssueFormMode::Create, None);
 
-                // Try to get default assignee from git config
-                if let Ok(git_user) = Self::get_git_user_name() {
-                    assignee_field = assignee_field.value(&git_user);
-                }
-                assignee_field
-            },
-            FormField::text("labels", "Labels")
-                .placeholder("comma-separated labels (optional)")
-                .with_validation(ValidationRule::MaxLength(2048)),
-            // Text section
-            FormField::text_area("description", "Description")
-                .placeholder("Detailed description of the issue (optional)")
-                .with_validation(ValidationRule::MaxLength(1048576)),
-            FormField::text_area("design", "Design")
-                .placeholder("Design notes and approach (optional)")
-                .with_validation(ValidationRule::MaxLength(1048576)),
-            FormField::text_area("acceptance", "Acceptance Criteria")
-                .placeholder("How to verify this is done (optional)")
-                .with_validation(ValidationRule::MaxLength(1048576)),
-            FormField::text_area("notes", "Notes")
-                .placeholder("Additional notes (optional)")
-                .with_validation(ValidationRule::MaxLength(1048576)),
-        ];
+        // Remove the read-only fields that don't make sense in create mode
+        fields.retain(|f| !matches!(f.id.as_str(), "id" | "created" | "updated" | "closed"));
+
+        // Add create-specific fields that aren't in the base Issue model
+        // Scheduling section
+        fields.push(FormField::text("due_date", "Due Date")
+            .placeholder("YYYY-MM-DD (optional)")
+            .help_text("Press F1: Enter a date in YYYY-MM-DD format (e.g., 2024-12-31). This is when the issue should be completed.")
+            .with_validation(ValidationRule::MaxLength(32)));
+
+        fields.push(FormField::text("defer_date", "Defer Date")
+            .placeholder("YYYY-MM-DD (optional)")
+            .help_text("Press F1: Enter a date in YYYY-MM-DD format. Issue will be hidden from ready list until this date.")
+            .with_validation(ValidationRule::MaxLength(32)));
+
+        fields.push(FormField::text("time_estimate", "Time Estimate")
+            .placeholder("e.g., 2h, 3d, 1w (optional)")
+            .help_text("Press F1: Estimate format: 2h (2 hours), 3d (3 days), 1w (1 week). Used for planning and tracking.")
+            .with_validation(ValidationRule::MaxLength(32)));
+
+        // Relationships section (parent is create-specific)
+        fields.push(FormField::text("parent", "Parent Issue")
+            .placeholder("beads-xxx (optional)")
+            .help_text("Press F1: Enter parent issue ID (e.g., beads-abc123). This issue will be part of the parent epic/feature.")
+            .with_validation(ValidationRule::BeadsIdFormat)
+            .with_validation(ValidationRule::MaxLength(64)));
+
+        // Text section (design, acceptance, notes are create-specific)
+        fields.push(FormField::text_area("design", "Design")
+            .placeholder("Design notes and approach (optional)")
+            .with_validation(ValidationRule::MaxLength(1048576)));
+
+        fields.push(FormField::text_area("acceptance", "Acceptance Criteria")
+            .placeholder("How to verify this is done (optional)")
+            .with_validation(ValidationRule::MaxLength(1048576)));
+
+        fields.push(FormField::text_area("notes", "Notes")
+            .placeholder("Additional notes (optional)")
+            .with_validation(ValidationRule::MaxLength(1048576)));
+
+        // Try to get default assignee from git config and update the assignee field
+        if let Ok(git_user) = Self::get_git_user_name() {
+            if let Some(assignee_field) = fields.iter_mut().find(|f| f.id == "assignee") {
+                assignee_field.value = git_user;
+            }
+        }
 
         let mut state = Self {
             form_state: FormState::new(fields),
@@ -850,7 +783,7 @@ impl<'a> CreateIssueForm<'a> {
         let help_lines = vec![Line::from(vec![
             Span::styled("Ctrl+P", Style::default().fg(Color::Magenta)),
             Span::raw(" Back to Form  "),
-            Span::styled("Ctrl+S", Style::default().fg(Color::Green)),
+            Span::styled("Enter", Style::default().fg(Color::Green)),
             Span::raw(" Submit  "),
             Span::styled("Esc", Style::default().fg(Color::Red)),
             Span::raw(" Cancel"),
@@ -911,13 +844,15 @@ impl<'a> StatefulWidget for CreateIssueForm<'a> {
         // Render help text
         if self.show_help && chunks.len() > 1 {
             let help_lines = vec![Line::from(vec![
-                Span::styled("Tab/↓", Style::default().fg(Color::Yellow)),
+                Span::styled("Tab", Style::default().fg(Color::Yellow)),
                 Span::raw(" Next field  "),
-                Span::styled("Shift+Tab/↑", Style::default().fg(Color::Yellow)),
+                Span::styled("Shift+Tab", Style::default().fg(Color::Yellow)),
                 Span::raw(" Previous field  "),
+                Span::styled("Ctrl+L", Style::default().fg(Color::Cyan)),
+                Span::raw(" Load  "),
                 Span::styled("Ctrl+P", Style::default().fg(Color::Magenta)),
                 Span::raw(" Preview  "),
-                Span::styled("Ctrl+S", Style::default().fg(Color::Green)),
+                Span::styled("Enter", Style::default().fg(Color::Green)),
                 Span::raw(" Submit  "),
                 Span::styled("Esc", Style::default().fg(Color::Red)),
                 Span::raw(" Cancel"),

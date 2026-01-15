@@ -1,5 +1,6 @@
 use crate::beads::models::Issue;
-use crate::ui::widgets::form::{FormField, FormState, ValidationRule};
+use crate::ui::views::issue_form_builder::{build_issue_form, IssueFormMode};
+use crate::ui::widgets::form::FormState;
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
@@ -84,14 +85,27 @@ pub struct IssueEditorState {
 impl IssueEditorState {
     /// Create a new editor state from an existing issue
     pub fn new(issue: &Issue) -> Self {
-        let mut fields = Vec::new();
+        // Build fields using unified form builder (Edit mode)
+        let fields = build_issue_form(IssueFormMode::Edit, Some(issue));
+
         let mut original_values = HashMap::new();
         let mut field_sections = HashMap::new();
 
-        // Helper to add a field and track its original value
-        let mut add_field = |field: FormField, section: Section| {
+        // Track original values and assign sections to fields
+        for field in &fields {
             let field_id = field.id.clone();
             let original_value = field.value.clone();
+
+            // Determine section based on field ID
+            let section = match field_id.as_str() {
+                "id" | "created" | "updated" | "closed" => Section::Metadata,
+                "title" | "status" | "priority" | "type" | "assignee" => Section::Summary,
+                "dependencies" | "blocks" => Section::Relationships,
+                "labels" => Section::Labels,
+                "description" => Section::Text,
+                _ => Section::Metadata,
+            };
+
             original_values.insert(
                 field_id.clone(),
                 FieldOriginal {
@@ -100,165 +114,6 @@ impl IssueEditorState {
                 },
             );
             field_sections.insert(field_id, section);
-            fields.push(field);
-        };
-
-        // Section: Summary
-        add_field(
-            FormField::text("title", "Title")
-                .required()
-                .with_validation(ValidationRule::Required)
-                .with_validation(ValidationRule::MaxLength(256))
-                .value(&issue.title),
-            Section::Summary,
-        );
-
-        add_field(
-            FormField::selector(
-                "status",
-                "Status",
-                vec![
-                    "open".to_string(),
-                    "in_progress".to_string(),
-                    "blocked".to_string(),
-                    "closed".to_string(),
-                ],
-            )
-            .required()
-            .value(issue.status.to_string())
-            .with_validation(ValidationRule::Enum(vec![
-                "open".to_string(),
-                "in_progress".to_string(),
-                "blocked".to_string(),
-                "closed".to_string(),
-            ])),
-            Section::Summary,
-        );
-
-        add_field(
-            FormField::selector(
-                "priority",
-                "Priority",
-                vec![
-                    "P0".to_string(),
-                    "P1".to_string(),
-                    "P2".to_string(),
-                    "P3".to_string(),
-                    "P4".to_string(),
-                ],
-            )
-            .required()
-            .value(issue.priority.to_string())
-            .with_validation(ValidationRule::Enum(vec![
-                "P0".to_string(),
-                "P1".to_string(),
-                "P2".to_string(),
-                "P3".to_string(),
-                "P4".to_string(),
-            ])),
-            Section::Summary,
-        );
-
-        add_field(
-            FormField::selector(
-                "type",
-                "Type",
-                vec![
-                    "task".to_string(),
-                    "bug".to_string(),
-                    "feature".to_string(),
-                    "epic".to_string(),
-                    "chore".to_string(),
-                ],
-            )
-            .required()
-            .value(issue.issue_type.to_string())
-            .with_validation(ValidationRule::Enum(vec![
-                "task".to_string(),
-                "bug".to_string(),
-                "feature".to_string(),
-                "epic".to_string(),
-                "chore".to_string(),
-            ])),
-            Section::Summary,
-        );
-
-        add_field(
-            FormField::text("assignee", "Assignee")
-                .value(issue.assignee.as_deref().unwrap_or(""))
-                .placeholder("username")
-                .with_validation(ValidationRule::MaxLength(128)),
-            Section::Summary,
-        );
-
-        // Section: Relationships
-        add_field(
-            FormField::text_area("dependencies", "Dependencies")
-                .value(issue.dependencies.join("\n"))
-                .placeholder("beads-xxxx-xxxx (one per line)")
-                .with_validation(ValidationRule::MaxLength(2048)),
-            Section::Relationships,
-        );
-
-        add_field(
-            FormField::text_area("blocks", "Blocks")
-                .value(issue.blocks.join("\n"))
-                .placeholder("beads-xxxx-xxxx (one per line)")
-                .with_validation(ValidationRule::MaxLength(2048)),
-            Section::Relationships,
-        );
-
-        // Section: Labels
-        add_field(
-            FormField::text_area("labels", "Labels")
-                .value(issue.labels.join("\n"))
-                .placeholder("label-name (one per line)")
-                .with_validation(ValidationRule::MaxLength(2048)),
-            Section::Labels,
-        );
-
-        // Section: Text
-        add_field(
-            FormField::text_area("description", "Description")
-                .value(issue.description.as_deref().unwrap_or(""))
-                .placeholder("Detailed description of the issue")
-                .with_validation(ValidationRule::MaxLength(1048576)),
-            Section::Text,
-        );
-
-        // Section: Metadata (read-only)
-        add_field(
-            FormField::read_only("id", "Issue ID", &issue.id),
-            Section::Metadata,
-        );
-
-        add_field(
-            FormField::read_only(
-                "created",
-                "Created",
-                &issue.created.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
-            ),
-            Section::Metadata,
-        );
-
-        add_field(
-            FormField::read_only(
-                "updated",
-                "Updated",
-                &issue.updated.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
-            ),
-            Section::Metadata,
-        );
-
-        if let Some(closed) = issue.closed {
-            add_field(
-                FormField::read_only(
-                    "closed",
-                    "Closed",
-                    &closed.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
-                ),
-                Section::Metadata,
-            );
         }
 
         let form_state = FormState::new(fields);
@@ -673,9 +528,16 @@ impl StatefulWidget for IssueEditorView {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         use crate::ui::widgets::form::Form;
+        use ratatui::widgets::BorderType;
 
-        // For now, delegate to the Form widget
-        let form = Form::default();
+        // Create a block with double borders to match the Split View Selected Record container
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Double)
+            .title("Selected Record Display");
+
+        // Delegate to the Form widget with custom block
+        let form = Form::default().block(block);
         StatefulWidget::render(form, area, buf, state.form_state_mut());
     }
 }
