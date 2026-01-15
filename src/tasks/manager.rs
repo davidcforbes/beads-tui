@@ -2,6 +2,7 @@
 
 use super::handle::{TaskHandle, TaskId, TaskResult, TaskStatus};
 use crate::beads::client::BeadsClient;
+use crate::runtime::RUNTIME;
 use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
@@ -42,8 +43,8 @@ impl TaskManager {
         let status_arc = Arc::new(handle.clone());
         let tx = self.tx.clone();
 
-        // Spawn the task on tokio runtime
-        tokio::spawn(async move {
+        // Spawn the task on the global tokio runtime
+        RUNTIME.spawn(async move {
             // Update status to running
             status_arc.set_status(TaskStatus::Running);
             let _ = tx.send(TaskMessage::StatusChanged {
