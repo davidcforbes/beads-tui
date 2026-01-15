@@ -5,6 +5,7 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
 };
+use unicode_width::UnicodeWidthStr;
 
 use super::inline_metadata::MetadataDisplayConfig;
 
@@ -195,7 +196,7 @@ pub fn render_kanban_card(
 
             // Pad the line to full width if selected (for consistent highlighting)
             if is_selected {
-                let content_len = issue.id.len() + 1 + title_width.min(issue.title.len());
+                let content_len: usize = spans.iter().map(|s| s.content.width()).sum();
                 if content_len < max_width {
                     spans.push(Span::styled(
                         " ".repeat(max_width - content_len),
@@ -222,7 +223,7 @@ pub fn render_kanban_card(
 
                 // Pad to full width if selected
                 if is_selected {
-                    let content_len = id_len + first_line.len();
+                    let content_len: usize = spans.iter().map(|s| s.content.width()).sum();
                     if content_len < max_width {
                         spans.push(Span::styled(
                             " ".repeat(max_width - content_len),
@@ -243,7 +244,7 @@ pub fn render_kanban_card(
 
                 // Pad to full width if selected
                 if is_selected {
-                    let content_len = id_len + title_line.len();
+                    let content_len: usize = spans.iter().map(|s| s.content.width()).sum();
                     if content_len < max_width {
                         spans.push(Span::styled(
                             " ".repeat(max_width - content_len),
@@ -326,7 +327,7 @@ pub fn render_kanban_card(
 
             // Pad metadata line to full width if selected
             if is_selected {
-                let metadata_len: usize = metadata_spans.iter().map(|s| s.content.len()).sum();
+                let metadata_len: usize = metadata_spans.iter().map(|s| s.content.width()).sum();
                 if metadata_len < max_width {
                     metadata_spans.push(Span::styled(
                         " ".repeat(max_width - metadata_len),
@@ -380,7 +381,7 @@ pub fn render_kanban_card(
 
             // Pad row 1
             if is_selected {
-                let row1_len: usize = row1_spans.iter().map(|s| s.content.len()).sum();
+                let row1_len: usize = row1_spans.iter().map(|s| s.content.width()).sum();
                 if row1_len < max_width {
                     row1_spans.push(Span::styled(
                         " ".repeat(max_width - row1_len),
@@ -399,7 +400,7 @@ pub fn render_kanban_card(
 
                 // Pad to full width if selected
                 if is_selected {
-                    let content_len = title_line.len();
+                    let content_len: usize = spans.iter().map(|s| s.content.width()).sum();
                     if content_len < max_width {
                         spans.push(Span::styled(
                             " ".repeat(max_width - content_len),
@@ -437,7 +438,7 @@ pub fn render_kanban_card(
 
             // Pad row 3
             if is_selected {
-                let row3_len: usize = row3_spans.iter().map(|s| s.content.len()).sum();
+                let row3_len: usize = row3_spans.iter().map(|s| s.content.width()).sum();
                 if row3_len < max_width {
                     row3_spans.push(Span::styled(
                         " ".repeat(max_width - row3_len),
@@ -489,7 +490,7 @@ pub fn render_kanban_card(
 
             // Pad row 4
             if is_selected {
-                let row4_len: usize = row4_spans.iter().map(|s| s.content.len()).sum();
+                let row4_len: usize = row4_spans.iter().map(|s| s.content.width()).sum();
                 if row4_len < max_width {
                     row4_spans.push(Span::styled(
                         " ".repeat(max_width - row4_len),
