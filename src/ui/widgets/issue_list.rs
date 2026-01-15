@@ -9,6 +9,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Cell, Row, StatefulWidget, Table, TableState, Widget},
 };
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 /// Sort column for issue list
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -805,8 +806,8 @@ impl<'a> IssueList<'a> {
         self
     }
 
-    /// Wrap text to fit within a given width
-    /// Returns vector of lines, each line is at most max_width characters
+    /// Wrap text to fit within a given width (using display width)
+    /// Returns vector of lines, each line is at most max_width display characters
     fn wrap_text(text: &str, max_width: usize) -> Vec<String> {
         if max_width == 0 {
             return vec![String::new()];
@@ -817,10 +818,11 @@ impl<'a> IssueList<'a> {
         let mut current_width = 0;
 
         for word in text.split_whitespace() {
-            let word_len = word.len();
+            let word_width = word.width();
 
             // If adding this word would exceed width, start a new line
-            if current_width + word_len + (if current_width > 0 { 1 } else { 0 }) > max_width {
+            let space_width = if current_width > 0 { 1 } else { 0 };
+            if current_width + word_width + space_width > max_width {
                 // If current line is not empty, push it
                 if !current_line.is_empty() {
                     lines.push(current_line);
@@ -829,8 +831,19 @@ impl<'a> IssueList<'a> {
                 }
 
                 // If word itself is too long, truncate it
-                if word_len > max_width {
-                    current_line = format!("{}...", &word[..max_width.saturating_sub(3)]);
+                if word_width > max_width {
+                    // Truncate word to fit within max_width
+                    let mut truncated = String::new();
+                    let mut width = 0;
+                    for ch in word.chars() {
+                        let ch_width = ch.width().unwrap_or(1);
+                        if width + ch_width > max_width.saturating_sub(3) {
+                            break;
+                        }
+                        truncated.push(ch);
+                        width += ch_width;
+                    }
+                    current_line = format!("{}...", truncated);
                     lines.push(current_line);
                     current_line = String::new();
                     current_width = 0;
@@ -844,7 +857,7 @@ impl<'a> IssueList<'a> {
                 current_width += 1;
             }
             current_line.push_str(word);
-            current_width += word_len;
+            current_width += word_width;
         }
 
         // Push the last line if not empty
@@ -860,14 +873,29 @@ impl<'a> IssueList<'a> {
         lines
     }
 
-    /// Truncate text with ellipsis if it exceeds max_width
+    /// Truncate text with ellipsis if it exceeds max_width (using display width)
     fn truncate_text(text: &str, max_width: usize) -> String {
-        if text.len() <= max_width {
+        let display_width = text.width();
+
+        if display_width <= max_width {
             text.to_string()
         } else if max_width <= 3 {
             "...".to_string()
         } else {
-            format!("{}...", &text[..max_width - 3])
+            // Find the character boundary that fits within max_width - 3 (for "...")
+            let mut current_width = 0;
+            let mut truncate_at = 0;
+
+            for (idx, ch) in text.char_indices() {
+                let ch_width = ch.width().unwrap_or(1);
+                if current_width + ch_width > max_width - 3 {
+                    break;
+                }
+                current_width += ch_width;
+                truncate_at = idx + ch.len_utf8();
+            }
+
+            format!("{}...", &text[..truncate_at])
         }
     }
 
@@ -970,13 +998,18 @@ impl<'a> IssueList<'a> {
         use crate::models::table_config::ColumnId;
 
         match column_id {
-            ColumnId::Type => Cell::from(Self::type_symbol(&issue.issue_type)),
+            ColumnId::Type => {
+                let symbol = Self::type_symbol(&issue.issue_type);
+                let truncated = Self::truncate_text(symbol, wrap_width);
+                Cell::from(truncated)
+            }
 
             ColumnId::Id => {
+                let truncated = Self::truncate_text(&issue.id, wrap_width);
                 if let Some(ref query) = search_query {
-                    Cell::from(Line::from(Self::highlight_text(&issue.id, query)))
+                    Cell::from(Line::from(Self::highlight_text(&truncated, query)))
                 } else {
-                    Cell::from(issue.id.clone())
+                    Cell::from(truncated)
                 }
             }
 
@@ -1046,8 +1079,10 @@ impl<'a> IssueList<'a> {
                 let theme_ref = theme.unwrap_or(&default_theme);
                 let symbol = Theme::status_symbol(&issue.status);
                 let color = theme_ref.status_color(&issue.status);
+                let text = format!("{} {:?}", symbol, issue.status);
+                let truncated = Self::truncate_text(&text, wrap_width);
                 Cell::from(Span::styled(
-                    format!("{} {:?}", symbol, issue.status),
+                    truncated,
                     Style::default().fg(color),
                 ))
             }
@@ -1058,18 +1093,21 @@ impl<'a> IssueList<'a> {
                 let theme_ref = theme.unwrap_or(&default_theme);
                 let symbol = Theme::priority_symbol(&issue.priority);
                 let color = theme_ref.priority_color(&issue.priority);
+                let text = format!("{} {:?}", symbol, issue.priority);
+                let truncated = Self::truncate_text(&text, wrap_width);
                 Cell::from(Span::styled(
-                    format!("{} {:?}", symbol, issue.priority),
+                    truncated,
                     Style::default().fg(color),
                 ))
             }
 
             ColumnId::Assignee => {
                 let text = issue.assignee.as_deref().unwrap_or("-");
+                let truncated = Self::truncate_text(text, wrap_width);
                 if let Some(ref query) = search_query {
-                    Cell::from(Line::from(Self::highlight_text(text, query)))
+                    Cell::from(Line::from(Self::highlight_text(&truncated, query)))
                 } else {
-                    Cell::from(text.to_string())
+                    Cell::from(truncated)
                 }
             }
 
@@ -1109,9 +1147,17 @@ impl<'a> IssueList<'a> {
                 }
             }
 
-            ColumnId::Updated => Cell::from(Self::format_date(&issue.updated)),
+            ColumnId::Updated => {
+                let date_str = Self::format_date(&issue.updated);
+                let truncated = Self::truncate_text(&date_str, wrap_width);
+                Cell::from(truncated)
+            }
 
-            ColumnId::Created => Cell::from(Self::format_date(&issue.created)),
+            ColumnId::Created => {
+                let date_str = Self::format_date(&issue.created);
+                let truncated = Self::truncate_text(&date_str, wrap_width);
+                Cell::from(truncated)
+            }
         }
     }
 
@@ -1334,6 +1380,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
                     .borders(Borders::ALL)
                     .title(format!("Issues ({}/{})", total_issues, total_issues)),
             )
+            .column_spacing(1)
             .highlight_style(
                 Style::default()
                     .bg(Color::DarkGray)
