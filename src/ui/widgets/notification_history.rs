@@ -183,14 +183,14 @@ impl<'a> StatefulWidget for NotificationHistoryPanel<'a> {
         let help_text = if self.notifications.is_empty() {
             Line::from(vec![
                 Span::styled("No notifications yet", Style::default().fg(Color::DarkGray)),
-                Span::raw("  •  "),
+                Span::raw(" | "),
                 Span::styled("Esc", Style::default().fg(Color::Cyan)),
                 Span::raw(" to close"),
             ])
         } else {
             Line::from(vec![
-                Span::styled("↑↓", Style::default().fg(Color::Cyan)),
-                Span::raw(" Navigate  •  "),
+                Span::styled("Up/Down", Style::default().fg(Color::Cyan)),
+                Span::raw(" Navigate | "),
                 Span::styled("Esc", Style::default().fg(Color::Cyan)),
                 Span::raw(" Close"),
             ])

@@ -414,9 +414,10 @@ impl Widget for GanttView {
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from("Press j/k to navigate issues"),
+            Line::from("Press Up/Down or j/k to navigate tasks"),
             Line::from("Press +/- to zoom in/out"),
-            Line::from("Press g to cycle grouping mode"),
+            Line::from("Press g to change grouping mode"),
+            Line::from("Press c to configure chart settings"),
         ];
 
         let paragraph = Paragraph::new(text);

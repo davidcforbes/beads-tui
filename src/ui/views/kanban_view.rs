@@ -172,7 +172,7 @@ impl KanbanViewState {
             issues,
             selected_column: 0,
             selected_card: 0,
-            card_mode: CardMode::TwoLine,
+            card_mode: CardMode::FourLine,
             column_manager: ColumnManagerState::new(),
             horizontal_scroll: 0,
             collapsed_columns: HashSet::new(),
@@ -251,7 +251,8 @@ impl KanbanViewState {
     pub fn toggle_card_mode(&mut self) {
         self.card_mode = match self.card_mode {
             CardMode::SingleLine => CardMode::TwoLine,
-            CardMode::TwoLine => CardMode::SingleLine,
+            CardMode::TwoLine => CardMode::FourLine,
+            CardMode::FourLine => CardMode::SingleLine,
         };
     }
 
@@ -1658,11 +1659,13 @@ mod tests {
     fn test_toggle_card_mode() {
         let state = &mut KanbanViewState::new(vec![]);
 
-        assert_eq!(state.card_mode, CardMode::TwoLine);
+        assert_eq!(state.card_mode, CardMode::FourLine);
         state.toggle_card_mode();
         assert_eq!(state.card_mode, CardMode::SingleLine);
         state.toggle_card_mode();
         assert_eq!(state.card_mode, CardMode::TwoLine);
+        state.toggle_card_mode();
+        assert_eq!(state.card_mode, CardMode::FourLine);
     }
 
     #[test]

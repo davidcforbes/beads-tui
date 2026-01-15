@@ -26,6 +26,7 @@ pure, centralizes state in AppState, and isolates CLI interactions.
 - View isolation: each view owns its own state to limit coupling.
 - Predictable rendering: render functions avoid allocation-heavy work.
 - Defensive parsing: CLI responses are validated before entering AppState.
+- **Search Engine V2:** See [SEARCH_ARCHITECTURE.md](SEARCH_ARCHITECTURE.md) for details on the query language and scoring engine.
 
 ## Error handling and feedback
 - CLI failures surface as notifications rather than panics.

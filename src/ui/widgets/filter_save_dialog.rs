@@ -353,7 +353,7 @@ impl<'a> FilterSaveDialog<'a> {
                     value: hotkey_text,
                     cursor_pos: 0,
                     is_focused: state.focused_field == FilterSaveField::Hotkey,
-                    placeholder: "Press 1-9 or F12",
+                    placeholder: "Press F3-F11",
                 },
             );
             chunk_index = 3;
@@ -363,7 +363,9 @@ impl<'a> FilterSaveDialog<'a> {
         let help_text = vec![
             Span::styled("Tab", Style::default().fg(Color::Yellow)),
             Span::raw(" Next  "),
-            Span::styled("Ctrl+S", Style::default().fg(Color::Green)),
+            Span::styled("Shift+Tab", Style::default().fg(Color::Yellow)),
+            Span::raw(" Previous  "),
+            Span::styled("Enter", Style::default().fg(Color::Green)),
             Span::raw(" Save  "),
             Span::styled("Esc", Style::default().fg(Color::Red)),
             Span::raw(" Cancel"),

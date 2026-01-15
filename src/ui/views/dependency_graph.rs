@@ -286,7 +286,7 @@ impl<'a> StatefulWidget for DependencyGraphView<'a> {
             let help_text = if self.issues.is_empty() {
                 "No issues to display"
             } else {
-                "↑↓←→: Pan | Tab/Shift+Tab: Select node | C: Center on selected | R: Reset view | Q: Quit"
+                "Up/Down/Left/Right: Pan | Tab/Shift+Tab: Select node | c: Center on selected | r: Reset view | q: Quit"
             };
 
             let help_line = Line::from(Span::styled(

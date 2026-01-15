@@ -88,7 +88,7 @@ context-specific; the same key may do different things depending on the active v
 | `Shift+F` | Clear Filters | Clear current filters |
 | `Alt+S` | Save Filter | Save current filter configuration |
 | `Alt+F` | Filter Menu | Open saved filters menu |
-| `F2`-`F11` | Saved Filters | Apply saved filter hotkeys |
+| `F3`-`F11` | Saved Filters | Apply saved filter hotkeys |
 
 ## Dependencies View
 | Key | Action | Description |

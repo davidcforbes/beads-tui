@@ -1,6 +1,7 @@
 //! Main issues view integrating search, list, and detail/edit capabilities
 
 use crate::beads::models::Issue;
+use crate::models::table_config::{ColumnDefinition, ColumnId};
 use crate::ui::views::{
     CreateIssueFormState, IssueDetailView, IssueEditorState, IssueEditorView, SearchInterfaceState,
     SearchInterfaceView,
@@ -27,6 +28,15 @@ pub enum IssuesViewMode {
     SplitScreen,
 }
 
+/// Which panel is currently focused in split screen mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SplitScreenFocus {
+    /// List panel (left side)
+    List,
+    /// Detail panel (right side)
+    Detail,
+}
+
 /// Issues view state
 #[derive(Debug)]
 pub struct IssuesViewState {
@@ -42,6 +52,8 @@ pub struct IssuesViewState {
     pub filter_bar_state: Option<crate::ui::widgets::FilterBarState>,
     /// Original issues before filter bar filtering (for restoring)
     original_issues: Option<Vec<Issue>>,
+    /// Which panel has focus in split screen mode
+    split_screen_focus: SplitScreenFocus,
 }
 
 impl IssuesViewState {
@@ -57,6 +69,7 @@ impl IssuesViewState {
             detail_scroll: 0,
             filter_bar_state: None,
             original_issues: None,
+            split_screen_focus: SplitScreenFocus::List,
         }
     }
 
@@ -130,6 +143,8 @@ impl IssuesViewState {
         if let Some(issue) = self.search_state.selected_issue() {
             self.selected_issue = Some(Issue::clone(issue));
             self.view_mode = IssuesViewMode::Detail;
+            // Reset scroll position to top
+            self.detail_scroll = 0;
         }
     }
 
@@ -251,6 +266,24 @@ impl IssuesViewState {
             self.search_state.set_issues(original_issues);
         }
     }
+
+    /// Get current split screen focus
+    pub fn split_screen_focus(&self) -> SplitScreenFocus {
+        self.split_screen_focus
+    }
+
+    /// Set split screen focus to a specific panel
+    pub fn set_split_screen_focus(&mut self, focus: SplitScreenFocus) {
+        self.split_screen_focus = focus;
+    }
+
+    /// Toggle split screen focus between list and detail
+    pub fn toggle_split_screen_focus(&mut self) {
+        self.split_screen_focus = match self.split_screen_focus {
+            SplitScreenFocus::List => SplitScreenFocus::Detail,
+            SplitScreenFocus::Detail => SplitScreenFocus::List,
+        };
+    }
 }
 
 /// Issues view widget
@@ -283,7 +316,12 @@ impl<'a> IssuesView<'a> {
     }
 
     fn render_list_mode(&self, area: Rect, buf: &mut Buffer, state: &mut IssuesViewState) {
-        let mut search_view = SearchInterfaceView::new().block_style(self.block_style);
+        // Dynamically determine columns based on available width
+        let columns = Self::select_columns_for_width(area.width);
+
+        let mut search_view = SearchInterfaceView::new()
+            .block_style(self.block_style)
+            .columns(columns);
         if let Some(theme) = self.theme {
             search_view = search_view.theme(theme);
         }
@@ -294,10 +332,10 @@ impl<'a> IssuesView<'a> {
             let default_theme = crate::ui::themes::Theme::default();
             let theme = self.theme.unwrap_or(&default_theme);
 
-            // The filter bar replaces the first line (results info) of the search view
+            // The filter bar is rendered on the 3rd row from the top
             let filter_bar_area = ratatui::layout::Rect {
                 x: area.x,
-                y: area.y,
+                y: area.y + 2,
                 width: area.width,
                 height: 1,
             };
@@ -312,19 +350,39 @@ impl<'a> IssuesView<'a> {
 
             // Render dropdown if one is active
             if let Some(dropdown_type) = filter_bar_state.active_dropdown {
+                // Create an area adjusted for the filter bar position so dropdown appears below it
+                let dropdown_area = ratatui::layout::Rect {
+                    x: area.x,
+                    y: area.y + 2, // Same as filter bar position
+                    width: area.width,
+                    height: area.height.saturating_sub(2),
+                };
+
                 let dropdown = crate::ui::widgets::FilterDropdown::new(dropdown_type, theme);
-                dropdown.render(area, buf, filter_bar_state);
+                dropdown.render(dropdown_area, buf, filter_bar_state);
             }
         }
     }
 
-    fn render_detail_mode(&self, area: Rect, buf: &mut Buffer, state: &IssuesViewState) {
+    fn render_detail_mode(&self, area: Rect, buf: &mut Buffer, state: &mut IssuesViewState) {
+        use ratatui::widgets::Clear;
+
+        // Render list as background
+        self.render_list_mode(area, buf, state);
+
         if let Some(issue) = &state.selected_issue {
+            // Calculate popup area (90% width, 90% height for better readability)
+            let popup_area = crate::ui::layout::centered_rect(90, 90, area);
+
+            // Clear background
+            Clear.render(popup_area, buf);
+
+            // Render detail view as popup
             let mut detail_view = IssueDetailView::new(issue);
             if let Some(theme) = self.theme {
                 detail_view = detail_view.theme(theme);
             }
-            Widget::render(detail_view, area, buf);
+            StatefulWidget::render(detail_view, popup_area, buf, &mut state.detail_scroll);
         }
     }
 
@@ -417,14 +475,112 @@ impl<'a> IssuesView<'a> {
         }
         StatefulWidget::render(search_view, chunks[0], buf, &mut state.search_state);
 
-        // Render the detail view on the right
+        // Render the detail view on the right, offset by 1 row to align with top of issues container
         if let Some(issue) = &state.selected_issue {
+            use ratatui::widgets::Clear;
+
+            let detail_area = ratatui::layout::Rect {
+                x: chunks[1].x,
+                y: chunks[1].y + 1,
+                width: chunks[1].width,
+                height: chunks[1].height.saturating_sub(1),
+            };
+
+            // Clear the background to prevent content from bleeding through
+            Clear.render(detail_area, buf);
+
             let mut detail_view = IssueDetailView::new(issue);
             if let Some(theme) = self.theme {
                 detail_view = detail_view.theme(theme);
             }
-            StatefulWidget::render(detail_view, chunks[1], buf, &mut state.detail_scroll);
+            StatefulWidget::render(detail_view, detail_area, buf, &mut state.detail_scroll);
         }
+    }
+
+    /// Select columns to display based on available width
+    /// Columns are added in priority order, then expanded up to 40 chars when space allows
+    fn select_columns_for_width(width: u16) -> Vec<ColumnDefinition> {
+        let mut columns = Vec::new();
+
+        // Define column priority order with minimum widths
+        let column_specs = vec![
+            (ColumnId::Id, 15),
+            (ColumnId::Title, 30),
+            (ColumnId::Status, 12),
+            (ColumnId::Priority, 8),
+            (ColumnId::Type, 8),
+            (ColumnId::Assignee, 15),
+            (ColumnId::Updated, 16),
+            (ColumnId::Labels, 20),
+            (ColumnId::Created, 16),
+        ];
+
+        // Phase 1: Add columns at minimum widths
+        let mut total_width = 0u16;
+        for (col_id, min_width) in &column_specs {
+            if total_width + min_width <= width {
+                let mut col = ColumnDefinition::new(*col_id);
+                col.width = *min_width;
+                total_width += min_width;
+                columns.push(col);
+            } else {
+                break;
+            }
+        }
+
+        // Phase 2: Expand columns if there's extra space (up to 40 chars per field)
+        if total_width < width && !columns.is_empty() {
+            let remaining_width = (width - total_width) as usize;
+
+            // Prioritize expanding these columns first
+            let expansion_priority = vec![
+                ColumnId::Title,     // Most important - give it the most space
+                ColumnId::Labels,    // Can show more labels
+                ColumnId::Assignee,  // Can show full usernames
+                ColumnId::Id,        // Can show full IDs
+                ColumnId::Updated,   // Can show full timestamps
+                ColumnId::Created,   // Can show full timestamps
+                ColumnId::Status,    // Already compact
+                ColumnId::Type,      // Already compact
+                ColumnId::Priority,  // Already compact
+            ];
+
+            let mut extra_width = remaining_width;
+
+            // Distribute extra width across columns based on priority
+            for priority_col in &expansion_priority {
+                if extra_width == 0 {
+                    break;
+                }
+
+                // Find the column in our list
+                if let Some(col) = columns.iter_mut().find(|c| c.id == *priority_col) {
+                    let max_width = 40u16;
+                    let current_width = col.width;
+                    let possible_expansion = max_width.saturating_sub(current_width);
+
+                    if possible_expansion > 0 {
+                        let expansion = possible_expansion.min(extra_width as u16);
+                        col.width += expansion;
+                        extra_width = extra_width.saturating_sub(expansion as usize);
+                    }
+                }
+            }
+
+            // If there's still extra width, distribute evenly across all columns
+            // (up to max 40 chars each)
+            if extra_width > 0 {
+                let per_column = (extra_width / columns.len()).min(40);
+                for col in &mut columns {
+                    if col.width < 40 {
+                        let expansion = (40 - col.width).min(per_column as u16);
+                        col.width += expansion;
+                    }
+                }
+            }
+        }
+
+        columns
     }
 }
 

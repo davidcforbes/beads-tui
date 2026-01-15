@@ -2445,10 +2445,7 @@ fn run_app<B: ratatui::backend::Backend>(
 
         // Only render if state has changed (dirty checking)
         if app.is_dirty() {
-            let start = Instant::now();
             terminal.draw(|f| ui(f, app))?;
-            let render_time = start.elapsed();
-            app.perf_stats.record_render(render_time);
             app.clear_dirty();
         }
 
@@ -2463,12 +2460,6 @@ fn run_app<B: ratatui::backend::Backend>(
                     .config
                     .keybindings
                     .find_action(&key.code, &key.modifiers);
-
-                // Check for performance stats toggle
-                if matches!(action, Some(Action::TogglePerfStats)) {
-                    app.toggle_perf_stats();
-                    continue;
-                }
 
                 // Check for theme cycle (Ctrl+T) - Not in Action enum yet, keeping hardcoded for now
                 if key.code == KeyCode::Char('t') && key.modifiers.contains(KeyModifiers::CONTROL) {
@@ -3104,7 +3095,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         search_part,
         daemon_status,
     ]);
-    let title = Paragraph::new(title_line).block(Block::default().borders(Borders::ALL));
+    let title = Paragraph::new(title_line).block(Block::default().borders(Borders::ALL).title(" Title Bar "));
     f.render_widget(title, chunks[0]);
 
     // Tabs and content
@@ -3257,18 +3248,6 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         Paragraph::new(spinner_text)
             .style(Style::default().fg(Color::Cyan))
             .block(Block::default().borders(Borders::ALL).title("Loading"))
-    } else if app.show_perf_stats {
-        let perf_info = app.perf_stats.format_stats();
-        let mut lines: Vec<Line> = perf_info
-            .lines()
-            .map(|l| Line::from(l.to_string()))
-            .collect();
-        // Add context-sensitive action hints at the end
-        lines.push(Line::from(""));
-        lines.push(Line::from(get_action_hints(app)));
-        Paragraph::new(lines)
-            .style(Style::default().fg(Color::Cyan))
-            .block(Block::default().borders(Borders::ALL).title("Performance"))
     } else {
         // Show context-sensitive action hints
         Paragraph::new(get_action_hints(app))
@@ -3743,7 +3722,7 @@ fn get_action_hints(app: &models::AppState) -> String {
                     "Up/Down/j/k: Scroll | PgUp/PgDn: Page | e: Edit | d: Delete | Alt+H: History | Esc: Back".to_string()
                 }
                 ui::views::IssuesViewMode::SplitScreen => {
-                    "Up/Down/j/k: Navigate | Enter: View | Tab: Switch Focus | n: Create | e: Edit | d: Delete | /s: Search | f: Filters | ?: Help".to_string()
+                    "Up/Down/j/k: Navigate | [R]ead | [N]ew | [E]dit | [D]elete | [O]pen | [C]lose | Rena[m]e | [S]earch | [F]ilters | [Q]uit | [H]elp".to_string()
                 }
             }
         }
@@ -3768,7 +3747,7 @@ fn get_action_hints(app: &models::AppState) -> String {
         }
         5 => {
             // Kanban view
-            "Up/Down/j/k: Navigate | Enter: View | n: Create | e: Edit | d: Delete | /s: Search | f: Filters | c: Configure | ?: Help".to_string()
+            "Up/Down/j/k: Navigate | [R]ead | [N]ew | [E]dit | [D]elete | [O]pen | [C]lose | Rena[m]e | [S]earch | [F]ilters | [Q]uit | [H]elp".to_string()
         }
         6 => {
             // Molecular view

@@ -12,12 +12,11 @@ use crate::ui::views::{
     PourWizardState, WispManagerState,
 };
 use crate::ui::widgets::{
-    DependencyDialogState, DialogState, FilterQuickSelectState, FilterSaveDialogState,
+    DependencyDialogState, DialogState, FilterQuickSelectState,
+    FilterSaveDialogState,
 };
 use crate::undo::UndoStack;
 use std::collections::VecDeque;
-
-use super::PerfStats;
 
 /// Notification message type for user feedback
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,10 +62,6 @@ pub struct AppState {
     pub label_stats: Vec<LabelStats>,
     /// Dirty flag to track whether UI needs redrawing
     dirty: bool,
-    /// Performance profiling statistics
-    pub perf_stats: PerfStats,
-    /// Whether to show performance stats in UI
-    pub show_perf_stats: bool,
     /// Selected help section
     pub help_section: HelpSection,
     /// Dialog state for confirmations
@@ -266,8 +261,6 @@ impl AppState {
             molecular_tabs: vec!["Formulas", "Wisps", "Bonds", "Squash/Burn"],
             selected_molecular_tab: 0,
             dirty: true, // Initial render required
-            perf_stats: PerfStats::new(),
-            show_perf_stats: false,
             help_section: HelpSection::Global,
             dialog_state: None,
             pending_action: None,
@@ -434,15 +427,6 @@ impl AppState {
     /// Clear the dirty flag after rendering
     pub fn clear_dirty(&mut self) {
         self.dirty = false;
-    }
-
-    /// Toggle performance stats display
-    pub fn toggle_perf_stats(&mut self) {
-        self.show_perf_stats = !self.show_perf_stats;
-        if self.show_perf_stats && !self.perf_stats.is_enabled() {
-            self.perf_stats.set_enabled(true);
-        }
-        self.mark_dirty();
     }
 
     /// Toggle notification history panel visibility
@@ -963,20 +947,23 @@ impl AppState {
                 // Issues view
                 let title = "Issues View Help".to_string();
                 let bindings = vec![
-                    KeyBinding::new("↑/↓ or j/k", "Navigate issues"),
-                    KeyBinding::new("←/→ or h/l", "Navigate columns"),
-                    KeyBinding::new("Enter", "View/edit issue details"),
+                    KeyBinding::new("Up/Down or j/k", "Navigate issues"),
+                    KeyBinding::new("Left/Right or h/l", "Navigate columns"),
+                    KeyBinding::new("Enter", "View issue details"),
                     KeyBinding::new("n", "Create new issue"),
                     KeyBinding::new("e", "Edit selected issue"),
                     KeyBinding::new("d", "Delete selected issue"),
-                    KeyBinding::new("c", "Close selected issue"),
+                    KeyBinding::new("x", "Close selected issue"),
+                    KeyBinding::new("o", "Reopen selected issue"),
+                    KeyBinding::new("F2", "Rename issue"),
                     KeyBinding::new("/", "Search issues"),
-                    KeyBinding::new("f", "Quick filters"),
-                    KeyBinding::new("Ctrl+S", "Save current filter"),
-                    KeyBinding::new("F1-F11", "Apply saved filter"),
-                    KeyBinding::new("Space", "Toggle column sort"),
-                    KeyBinding::new("Tab", "Cycle view modes"),
-                    KeyBinding::new("Esc", "Cancel/return to list"),
+                    KeyBinding::new("f", "Toggle filters"),
+                    KeyBinding::new("Shift+F", "Clear filters"),
+                    KeyBinding::new("Alt+F", "Filter menu"),
+                    KeyBinding::new("Alt+S", "Save current filter"),
+                    KeyBinding::new("F3-F11", "Apply saved filter"),
+                    KeyBinding::new("v", "Cycle issue scope"),
+                    KeyBinding::new("Esc", "Clear search or go back"),
                 ];
                 (title, bindings)
             }
@@ -984,12 +971,13 @@ impl AppState {
                 // Dependencies view
                 let title = "Dependencies View Help".to_string();
                 let bindings = vec![
-                    KeyBinding::new("↑/↓ or j/k", "Navigate dependencies"),
+                    KeyBinding::new("Up/Down or j/k", "Navigate dependencies"),
                     KeyBinding::new("Tab", "Switch between Dependencies/Blocks"),
                     KeyBinding::new("a", "Add dependency"),
                     KeyBinding::new("d", "Remove dependency"),
-                    KeyBinding::new("Enter", "View issue details"),
                     KeyBinding::new("g", "Show dependency graph"),
+                    KeyBinding::new("c", "Check circular dependencies"),
+                    KeyBinding::new("Enter", "View issue details"),
                     KeyBinding::new("Esc", "Return to issues"),
                 ];
                 (title, bindings)
@@ -998,11 +986,12 @@ impl AppState {
                 // Labels view
                 let title = "Labels View Help".to_string();
                 let bindings = vec![
-                    KeyBinding::new("↑/↓ or j/k", "Navigate labels"),
-                    KeyBinding::new("Enter", "Select/apply label"),
-                    KeyBinding::new("a", "Add new label"),
-                    KeyBinding::new("d", "Delete label"),
+                    KeyBinding::new("Up/Down or j/k", "Navigate labels"),
                     KeyBinding::new("/", "Search labels"),
+                    KeyBinding::new("a", "Add new label"),
+                    KeyBinding::new("e", "Edit label"),
+                    KeyBinding::new("d", "Delete label"),
+                    KeyBinding::new("s", "Show label stats"),
                     KeyBinding::new("Esc", "Return to issues"),
                 ];
                 (title, bindings)
@@ -1011,10 +1000,9 @@ impl AppState {
                 // PERT view
                 let title = "PERT Chart View Help".to_string();
                 let bindings = vec![
-                    KeyBinding::new("↑/↓ or j/k", "Navigate nodes"),
+                    KeyBinding::new("Up/Down", "Navigate nodes"),
                     KeyBinding::new("+/-", "Zoom in/out"),
                     KeyBinding::new("c", "Configure chart settings"),
-                    KeyBinding::new("Enter", "View node details"),
                     KeyBinding::new("Esc", "Return to issues"),
                 ];
                 (title, bindings)
@@ -1023,11 +1011,10 @@ impl AppState {
                 // Gantt view
                 let title = "Gantt Chart View Help".to_string();
                 let bindings = vec![
-                    KeyBinding::new("↑/↓ or j/k", "Navigate tasks"),
+                    KeyBinding::new("Up/Down", "Navigate tasks"),
                     KeyBinding::new("+/-", "Zoom timeline in/out"),
                     KeyBinding::new("g", "Change grouping mode"),
                     KeyBinding::new("c", "Configure chart settings"),
-                    KeyBinding::new("Enter", "View task details"),
                     KeyBinding::new("Esc", "Return to issues"),
                 ];
                 (title, bindings)
@@ -1036,10 +1023,14 @@ impl AppState {
                 // Default/unknown view
                 let title = "Help".to_string();
                 let bindings = vec![
-                    KeyBinding::new("1-5", "Switch tabs"),
-                    KeyBinding::new("F1", "Context help (this overlay)"),
-                    KeyBinding::new("q", "Quit application"),
-                    KeyBinding::new("N", "Notification history"),
+                    KeyBinding::new("q / Ctrl+Q / Ctrl+C", "Quit application"),
+                    KeyBinding::new("Tab", "Next tab"),
+                    KeyBinding::new("Shift+Tab", "Previous tab"),
+                    KeyBinding::new("1-9", "Switch tabs"),
+                    KeyBinding::new("Ctrl+H / N", "Notification history"),
+                    KeyBinding::new("Ctrl+P / F12", "Performance stats"),
+                    KeyBinding::new("?", "Shortcut help"),
+                    KeyBinding::new("F1", "Context help"),
                 ];
                 (title, bindings)
             }
@@ -1325,8 +1316,6 @@ mod tests {
             },
             database_status: DatabaseStatus::Ready,
             dirty: false,
-            perf_stats: PerfStats::new(),
-            show_perf_stats: false,
             help_section: HelpSection::Global,
             dialog_state: None,
             pending_action: None,
@@ -1441,22 +1430,6 @@ mod tests {
 
         state.dirty = false;
         assert!(!state.is_dirty());
-    }
-
-    // Performance stats tests
-    #[test]
-    fn test_toggle_perf_stats() {
-        let mut state = create_test_app_state();
-        assert!(!state.show_perf_stats);
-
-        state.toggle_perf_stats();
-        assert!(state.show_perf_stats);
-        assert!(state.is_dirty());
-
-        state.clear_dirty();
-        state.toggle_perf_stats();
-        assert!(!state.show_perf_stats);
-        assert!(state.is_dirty());
     }
 
     // Help section navigation tests
@@ -1676,17 +1649,6 @@ mod tests {
 
         state.previous_tab();
         assert!(state.is_dirty());
-    }
-
-    #[test]
-    fn test_toggle_perf_stats_enables_profiling() {
-        let mut state = create_test_app_state();
-        assert!(!state.show_perf_stats);
-        assert!(!state.perf_stats.is_enabled());
-
-        state.toggle_perf_stats();
-        assert!(state.show_perf_stats);
-        assert!(state.perf_stats.is_enabled());
     }
 
     #[test]

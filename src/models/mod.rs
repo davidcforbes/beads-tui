@@ -9,7 +9,6 @@ pub mod issue_cache;
 pub mod kanban_config;
 pub mod labels;
 pub mod navigation;
-pub mod perf;
 pub mod pert_layout;
 pub mod table_config;
 pub mod undo_history;
@@ -19,7 +18,6 @@ pub use filter::*;
 pub use issue_cache::{IssueCache, IssueCacheStats};
 pub use labels::*;
 pub use navigation::*;
-pub use perf::PerfStats;
 pub use undo_history::{UndoEntry, UndoHistory};
 
 // Re-export table and kanban configs with their full types to avoid ambiguity

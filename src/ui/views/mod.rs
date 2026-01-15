@@ -28,7 +28,7 @@ pub use gantt_view::{GanttView, GanttViewState};
 pub use help_view::{HelpSection, HelpView};
 pub use issue_detail::IssueDetailView;
 pub use issue_editor::{IssueEditorState, IssueEditorView};
-pub use issues_view::{IssuesView, IssuesViewMode, IssuesViewState};
+pub use issues_view::{IssuesView, IssuesViewMode, IssuesViewState, SplitScreenFocus};
 pub use kanban_view::{KanbanView, KanbanViewState};
 pub use labels_view::{compute_label_stats, LabelStats, LabelsView, LabelsViewState};
 pub use molecular::{

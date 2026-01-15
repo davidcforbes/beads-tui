@@ -271,7 +271,7 @@ impl<'a> DescriptionEditorView<'a> {
 
         let help_text = match state.mode() {
             EditorMode::Normal | EditorMode::Insert => {
-                "Ctrl+S: Save | Ctrl+Q: Cancel | Ctrl+H: Toggle Help | Arrow Keys: Navigate"
+                "Esc: Cancel | ?: Help | Up/Down/Left/Right: Navigate"
             }
             EditorMode::Command => "Enter: Confirm | Esc: Cancel",
         };
