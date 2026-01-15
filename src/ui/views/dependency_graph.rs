@@ -298,7 +298,7 @@ impl<'a> StatefulWidget for DependencyGraphView<'a> {
         }
 
         // Render status bar with offset info
-        if graph_area.height > 0 && self.issues.len() > 0 {
+        if graph_area.height > 0 && !self.issues.is_empty() {
             let status_y = graph_area.top();
             let status_text = format!(
                 " Offset: ({}, {}) | Issues: {} | Selected: {} ",

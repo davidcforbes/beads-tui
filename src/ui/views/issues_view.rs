@@ -96,11 +96,67 @@ impl IssuesViewState {
         let mut labels: Vec<String> = labels_set.into_iter().collect();
         labels.sort();
 
+        // Collect unique assignees from all issues
+        let mut assignees_set: HashSet<String> = HashSet::new();
+        for issue in &issues {
+            if let Some(ref assignee) = issue.assignee {
+                assignees_set.insert(assignee.clone());
+            }
+        }
+        assignees_set.insert("-".to_string()); // Add option for unassigned
+        let mut assignees: Vec<String> = assignees_set.into_iter().collect();
+        assignees.sort();
+
+        // Collect unique created dates from all issues
+        let mut created_dates_set: HashSet<String> = HashSet::new();
+        for issue in &issues {
+            use chrono::Datelike;
+            let date_str = format!("{:04}-{:02}-{:02}",
+                issue.created.year(),
+                issue.created.month(),
+                issue.created.day());
+            created_dates_set.insert(date_str);
+        }
+        let mut created_dates: Vec<String> = created_dates_set.into_iter().collect();
+        created_dates.sort();
+
+        // Collect unique updated dates from all issues
+        let mut updated_dates_set: HashSet<String> = HashSet::new();
+        for issue in &issues {
+            use chrono::Datelike;
+            let date_str = format!("{:04}-{:02}-{:02}",
+                issue.updated.year(),
+                issue.updated.month(),
+                issue.updated.day());
+            updated_dates_set.insert(date_str);
+        }
+        let mut updated_dates: Vec<String> = updated_dates_set.into_iter().collect();
+        updated_dates.sort();
+
+        // Collect unique closed dates from all issues
+        let mut closed_dates_set: HashSet<String> = HashSet::new();
+        for issue in &issues {
+            if let Some(ref closed) = issue.closed {
+                use chrono::Datelike;
+                let date_str = format!("{:04}-{:02}-{:02}",
+                    closed.year(),
+                    closed.month(),
+                    closed.day());
+                closed_dates_set.insert(date_str);
+            }
+        }
+        let mut closed_dates: Vec<String> = closed_dates_set.into_iter().collect();
+        closed_dates.sort();
+
         let filter_bar_state = crate::ui::widgets::FilterBarState::new(
             statuses,
             priorities,
             types,
             labels,
+            assignees,
+            created_dates,
+            updated_dates,
+            closed_dates,
         );
 
         Self {

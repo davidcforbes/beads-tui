@@ -6,11 +6,11 @@ use serde_json::Value;
 pub fn parse_issue_list(json: &str) -> Result<Vec<Issue>> {
     // Try to deserialize directly as Vec<Issue> first (most common case)
     match serde_json::from_str::<Vec<Issue>>(json) {
-        Ok(issues) => return Ok(issues),
+        Ok(issues) => Ok(issues),
         Err(vec_err) => {
             // Fall back to single issue
             match serde_json::from_str::<Issue>(json) {
-                Ok(issue) => return Ok(vec![issue]),
+                Ok(issue) => Ok(vec![issue]),
                 Err(_issue_err) => {
                     // Check if it's valid JSON at all (empty array/object is ok)
                     if let Ok(value) = serde_json::from_str::<Value>(json) {
@@ -20,7 +20,7 @@ pub fn parse_issue_list(json: &str) -> Result<Vec<Issue>> {
                         }
                     }
                     // Invalid JSON - return error from Vec attempt
-                    return Err(BeadsError::Json(vec_err, json.to_string()));
+                    Err(BeadsError::Json(vec_err, json.to_string()))
                 }
             }
         }

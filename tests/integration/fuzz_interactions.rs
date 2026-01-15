@@ -16,7 +16,7 @@ proptest! {
             match step {
                 0 => app.next_tab(),
                 1 => app.previous_tab(),
-                2 => app.toggle_perf_stats(),
+                2 => app.mark_dirty(),
                 3 => app.next_help_section(),
                 4 => app.previous_help_section(),
                 5 => {

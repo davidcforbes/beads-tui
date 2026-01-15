@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 /// Fixed column widths for horizontal scrolling mode
 /// These widths are used when displaying all columns with horizontal scrolling enabled
-pub const FIXED_COLUMN_WIDTHS: [(ColumnId, u16); 9] = [
+pub const FIXED_COLUMN_WIDTHS: [(ColumnId, u16); 14] = [
     (ColumnId::Id, 12),
     (ColumnId::Title, 40),
     (ColumnId::Status, 12),
@@ -15,6 +15,11 @@ pub const FIXED_COLUMN_WIDTHS: [(ColumnId, u16); 9] = [
     (ColumnId::Labels, 20),
     (ColumnId::Created, 10),
     (ColumnId::Updated, 10),
+    (ColumnId::Description, 50),
+    (ColumnId::Closed, 10),
+    (ColumnId::Dependencies, 20),
+    (ColumnId::Blocks, 20),
+    (ColumnId::NotesCount, 8),
 ];
 
 /// Column identifier for the issue table
@@ -30,6 +35,11 @@ pub enum ColumnId {
     Labels,
     Updated,
     Created,
+    Description,
+    Closed,
+    Dependencies,
+    Blocks,
+    NotesCount,
 }
 
 impl ColumnId {
@@ -50,6 +60,11 @@ impl ColumnId {
             ColumnId::Labels => "Labels",
             ColumnId::Updated => "Updated",
             ColumnId::Created => "Created",
+            ColumnId::Description => "Description",
+            ColumnId::Closed => "Closed",
+            ColumnId::Dependencies => "Dependencies",
+            ColumnId::Blocks => "Blocks",
+            ColumnId::NotesCount => "Notes",
         }
     }
 }
@@ -174,6 +189,31 @@ impl ColumnDefinition {
             ColumnId::Created => (
                 WidthConstraints::new(10, Some(20), 16),
                 Alignment::Right,
+                WrapBehavior::Truncate,
+            ),
+            ColumnId::Description => (
+                WidthConstraints::new(20, None, 50),
+                Alignment::Left,
+                WrapBehavior::Truncate,
+            ),
+            ColumnId::Closed => (
+                WidthConstraints::new(10, Some(20), 16),
+                Alignment::Right,
+                WrapBehavior::Truncate,
+            ),
+            ColumnId::Dependencies => (
+                WidthConstraints::new(10, None, 20),
+                Alignment::Left,
+                WrapBehavior::Truncate,
+            ),
+            ColumnId::Blocks => (
+                WidthConstraints::new(10, None, 20),
+                Alignment::Left,
+                WrapBehavior::Truncate,
+            ),
+            ColumnId::NotesCount => (
+                WidthConstraints::new(5, Some(10), 8),
+                Alignment::Center,
                 WrapBehavior::Truncate,
             ),
         };
@@ -1409,8 +1449,10 @@ mod tests {
         let config_path = temp_dir.join("beads_tui_test_config.json");
 
         // Create a custom config
-        let mut config = TableConfig::default();
-        config.row_height = 3;
+        let mut config = TableConfig {
+            row_height: 3,
+            ..Default::default()
+        };
         config.set_column_width(ColumnId::Title, 60);
         config.toggle_column_visibility(ColumnId::Labels);
 

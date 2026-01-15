@@ -248,7 +248,7 @@ pub fn build_issue_form(mode: IssueFormMode, issue: Option<&Issue>) -> Vec<FormF
 /// - [KEY ATTRIBUTES]: Core issue metadata
 /// - [DETAILS]: Description and notes
 /// - [RELATIONSHIPS]: Dependencies and blocks
-/// - [METADATA]: Timestamps (read mode only)
+/// - [METADATA][]: Timestamps (read mode only)
 pub fn build_issue_form_with_sections(mode: IssueFormMode, issue: Option<&Issue>) -> Vec<FormField> {
     let mut fields = Vec::new();
     let is_readonly = mode == IssueFormMode::Read;

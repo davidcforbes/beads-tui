@@ -14,7 +14,6 @@ pub enum Action {
     Quit,
     ShowHelp,
     ShowShortcutHelp,
-    TogglePerfStats,
     DismissNotification,
     ShowNotificationHistory,
     Undo,
@@ -103,7 +102,6 @@ impl Action {
             Action::Quit => "Quit application",
             Action::ShowHelp => "Show help",
             Action::ShowShortcutHelp => "Show keyboard shortcuts",
-            Action::TogglePerfStats => "Toggle performance stats",
             Action::DismissNotification => "Dismiss notification",
             Action::ShowNotificationHistory => "Show notification history",
             Action::Undo => "Undo last action",
@@ -355,10 +353,6 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
         vec![Keybinding::new("?"), Keybinding::new("f1")],
     );
     bindings.insert(Action::ShowShortcutHelp, vec![Keybinding::new("?")]); // Same as ShowHelp (they're the same thing)
-    bindings.insert(
-        Action::TogglePerfStats,
-        vec![Keybinding::ctrl("p"), Keybinding::new("f12")],
-    );
     bindings.insert(Action::DismissNotification, vec![Keybinding::new("esc")]); // Context: when notification shown
     bindings.insert(
         Action::ShowNotificationHistory,
@@ -632,8 +626,7 @@ mod tests {
             Action::CloseIssue,      // 'x' in Issues view
             Action::ExportDatabase,  // 'x' in Database view
             Action::UpdateLabels,    // 'l' in Issues view
-            // Preview and performance toggles
-            Action::TogglePerfStats, // Ctrl+p (global)
+            // Preview toggle
             Action::TogglePreview,   // Ctrl+p (file preview context)
         ];
 

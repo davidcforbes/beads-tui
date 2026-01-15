@@ -140,6 +140,10 @@ pub enum FilterDropdownType {
     Priority,
     Type,
     Labels,
+    Assignee,
+    Created,
+    Updated,
+    Closed,
 }
 
 impl FilterDropdownType {
@@ -149,6 +153,10 @@ impl FilterDropdownType {
             FilterDropdownType::Priority => "Priority Filter",
             FilterDropdownType::Type => "Type Filter",
             FilterDropdownType::Labels => "Labels Filter",
+            FilterDropdownType::Assignee => "Assignee Filter",
+            FilterDropdownType::Created => "Created Date Filter",
+            FilterDropdownType::Updated => "Updated Date Filter",
+            FilterDropdownType::Closed => "Closed Date Filter",
         }
     }
 }
@@ -160,6 +168,10 @@ pub struct FilterBarState {
     pub priority_dropdown: MultiSelectDropdownState<Priority>,
     pub type_dropdown: MultiSelectDropdownState<IssueType>,
     pub labels_dropdown: MultiSelectDropdownState<String>,
+    pub assignee_dropdown: MultiSelectDropdownState<String>,
+    pub created_dropdown: MultiSelectDropdownState<String>,
+    pub updated_dropdown: MultiSelectDropdownState<String>,
+    pub closed_dropdown: MultiSelectDropdownState<String>,
     pub active_dropdown: Option<FilterDropdownType>,
 }
 
@@ -169,12 +181,20 @@ impl FilterBarState {
         priorities: Vec<Priority>,
         types: Vec<IssueType>,
         labels: Vec<String>,
+        assignees: Vec<String>,
+        created_dates: Vec<String>,
+        updated_dates: Vec<String>,
+        closed_dates: Vec<String>,
     ) -> Self {
         Self {
             status_dropdown: MultiSelectDropdownState::new(statuses),
             priority_dropdown: MultiSelectDropdownState::new(priorities),
             type_dropdown: MultiSelectDropdownState::new(types),
             labels_dropdown: MultiSelectDropdownState::new(labels),
+            assignee_dropdown: MultiSelectDropdownState::new(assignees),
+            created_dropdown: MultiSelectDropdownState::new(created_dates),
+            updated_dropdown: MultiSelectDropdownState::new(updated_dates),
+            closed_dropdown: MultiSelectDropdownState::new(closed_dates),
             active_dropdown: None,
         }
     }
@@ -223,6 +243,59 @@ impl FilterBarState {
             }
         }
 
+        // Check assignee filter
+        let selected_assignees = self.assignee_dropdown.selected_items();
+        if !selected_assignees.is_empty() {
+            let issue_assignee = issue.assignee.as_deref().unwrap_or("-");
+            if !selected_assignees.iter().any(|a| a == issue_assignee) {
+                return false;
+            }
+        }
+
+        // Check created date filter
+        let selected_created = self.created_dropdown.selected_items();
+        if !selected_created.is_empty() {
+            use chrono::Datelike;
+            let created_str = format!("{:04}-{:02}-{:02}",
+                issue.created.year(),
+                issue.created.month(),
+                issue.created.day());
+            if !selected_created.contains(&created_str) {
+                return false;
+            }
+        }
+
+        // Check updated date filter
+        let selected_updated = self.updated_dropdown.selected_items();
+        if !selected_updated.is_empty() {
+            use chrono::Datelike;
+            let updated_str = format!("{:04}-{:02}-{:02}",
+                issue.updated.year(),
+                issue.updated.month(),
+                issue.updated.day());
+            if !selected_updated.contains(&updated_str) {
+                return false;
+            }
+        }
+
+        // Check closed date filter
+        let selected_closed = self.closed_dropdown.selected_items();
+        if !selected_closed.is_empty() {
+            if let Some(ref closed_date) = issue.closed {
+                use chrono::Datelike;
+                let closed_str = format!("{:04}-{:02}-{:02}",
+                    closed_date.year(),
+                    closed_date.month(),
+                    closed_date.day());
+                if !selected_closed.contains(&closed_str) {
+                    return false;
+                }
+            } else {
+                // If closed date is selected but issue is not closed, filter it out
+                return false;
+            }
+        }
+
         // Issue passed all filters
         true
     }
@@ -267,6 +340,38 @@ impl FilterBarState {
                     self.active_dropdown = None;
                 }
             }
+            FilterDropdownType::Assignee => {
+                self.assignee_dropdown.toggle_open();
+                if self.assignee_dropdown.is_open() {
+                    self.active_dropdown = Some(FilterDropdownType::Assignee);
+                } else {
+                    self.active_dropdown = None;
+                }
+            }
+            FilterDropdownType::Created => {
+                self.created_dropdown.toggle_open();
+                if self.created_dropdown.is_open() {
+                    self.active_dropdown = Some(FilterDropdownType::Created);
+                } else {
+                    self.active_dropdown = None;
+                }
+            }
+            FilterDropdownType::Updated => {
+                self.updated_dropdown.toggle_open();
+                if self.updated_dropdown.is_open() {
+                    self.active_dropdown = Some(FilterDropdownType::Updated);
+                } else {
+                    self.active_dropdown = None;
+                }
+            }
+            FilterDropdownType::Closed => {
+                self.closed_dropdown.toggle_open();
+                if self.closed_dropdown.is_open() {
+                    self.active_dropdown = Some(FilterDropdownType::Closed);
+                } else {
+                    self.active_dropdown = None;
+                }
+            }
         }
     }
 
@@ -277,6 +382,10 @@ impl FilterBarState {
                 FilterDropdownType::Priority => self.priority_dropdown.close(),
                 FilterDropdownType::Type => self.type_dropdown.close(),
                 FilterDropdownType::Labels => self.labels_dropdown.close(),
+                FilterDropdownType::Assignee => self.assignee_dropdown.close(),
+                FilterDropdownType::Created => self.created_dropdown.close(),
+                FilterDropdownType::Updated => self.updated_dropdown.close(),
+                FilterDropdownType::Closed => self.closed_dropdown.close(),
             }
         }
         self.active_dropdown = None;
@@ -296,6 +405,18 @@ impl FilterBarState {
             Some(FilterDropdownType::Labels) => {
                 Some(ActiveDropdownMut::Labels(&mut self.labels_dropdown))
             }
+            Some(FilterDropdownType::Assignee) => {
+                Some(ActiveDropdownMut::Assignee(&mut self.assignee_dropdown))
+            }
+            Some(FilterDropdownType::Created) => {
+                Some(ActiveDropdownMut::Created(&mut self.created_dropdown))
+            }
+            Some(FilterDropdownType::Updated) => {
+                Some(ActiveDropdownMut::Updated(&mut self.updated_dropdown))
+            }
+            Some(FilterDropdownType::Closed) => {
+                Some(ActiveDropdownMut::Closed(&mut self.closed_dropdown))
+            }
             None => None,
         }
     }
@@ -307,6 +428,10 @@ pub enum ActiveDropdownMut<'a> {
     Priority(&'a mut MultiSelectDropdownState<Priority>),
     Type(&'a mut MultiSelectDropdownState<IssueType>),
     Labels(&'a mut MultiSelectDropdownState<String>),
+    Assignee(&'a mut MultiSelectDropdownState<String>),
+    Created(&'a mut MultiSelectDropdownState<String>),
+    Updated(&'a mut MultiSelectDropdownState<String>),
+    Closed(&'a mut MultiSelectDropdownState<String>),
 }
 
 impl<'a> ActiveDropdownMut<'a> {
@@ -316,6 +441,10 @@ impl<'a> ActiveDropdownMut<'a> {
             ActiveDropdownMut::Priority(p) => p.next(),
             ActiveDropdownMut::Type(t) => t.next(),
             ActiveDropdownMut::Labels(l) => l.next(),
+            ActiveDropdownMut::Assignee(a) => a.next(),
+            ActiveDropdownMut::Created(c) => c.next(),
+            ActiveDropdownMut::Updated(u) => u.next(),
+            ActiveDropdownMut::Closed(c) => c.next(),
         }
     }
 
@@ -325,6 +454,10 @@ impl<'a> ActiveDropdownMut<'a> {
             ActiveDropdownMut::Priority(p) => p.previous(),
             ActiveDropdownMut::Type(t) => t.previous(),
             ActiveDropdownMut::Labels(l) => l.previous(),
+            ActiveDropdownMut::Assignee(a) => a.previous(),
+            ActiveDropdownMut::Created(c) => c.previous(),
+            ActiveDropdownMut::Updated(u) => u.previous(),
+            ActiveDropdownMut::Closed(c) => c.previous(),
         }
     }
 
@@ -334,6 +467,10 @@ impl<'a> ActiveDropdownMut<'a> {
             ActiveDropdownMut::Priority(p) => p.toggle_selected(),
             ActiveDropdownMut::Type(t) => t.toggle_selected(),
             ActiveDropdownMut::Labels(l) => l.toggle_selected(),
+            ActiveDropdownMut::Assignee(a) => a.toggle_selected(),
+            ActiveDropdownMut::Created(c) => c.toggle_selected(),
+            ActiveDropdownMut::Updated(u) => u.toggle_selected(),
+            ActiveDropdownMut::Closed(c) => c.toggle_selected(),
         }
     }
 }
@@ -460,6 +597,30 @@ impl<'a> FilterDropdown<'a> {
                     .collect();
                 (items, state.labels_dropdown.selected.clone())
             }
+            FilterDropdownType::Assignee => {
+                let items: Vec<String> = std::iter::once("All".to_string())
+                    .chain(state.assignee_dropdown.items().iter().cloned())
+                    .collect();
+                (items, state.assignee_dropdown.selected.clone())
+            }
+            FilterDropdownType::Created => {
+                let items: Vec<String> = std::iter::once("All".to_string())
+                    .chain(state.created_dropdown.items().iter().cloned())
+                    .collect();
+                (items, state.created_dropdown.selected.clone())
+            }
+            FilterDropdownType::Updated => {
+                let items: Vec<String> = std::iter::once("All".to_string())
+                    .chain(state.updated_dropdown.items().iter().cloned())
+                    .collect();
+                (items, state.updated_dropdown.selected.clone())
+            }
+            FilterDropdownType::Closed => {
+                let items: Vec<String> = std::iter::once("All".to_string())
+                    .chain(state.closed_dropdown.items().iter().cloned())
+                    .collect();
+                (items, state.closed_dropdown.selected.clone())
+            }
         };
 
         // Get mutable list_state reference separately
@@ -468,6 +629,10 @@ impl<'a> FilterDropdown<'a> {
             FilterDropdownType::Priority => state.priority_dropdown.list_state_mut(),
             FilterDropdownType::Type => state.type_dropdown.list_state_mut(),
             FilterDropdownType::Labels => state.labels_dropdown.list_state_mut(),
+            FilterDropdownType::Assignee => state.assignee_dropdown.list_state_mut(),
+            FilterDropdownType::Created => state.created_dropdown.list_state_mut(),
+            FilterDropdownType::Updated => state.updated_dropdown.list_state_mut(),
+            FilterDropdownType::Closed => state.closed_dropdown.list_state_mut(),
         };
 
         // Create list items with checkboxes
@@ -534,6 +699,10 @@ impl<'a> FilterDropdown<'a> {
             FilterDropdownType::Priority => 50,
             FilterDropdownType::Type => 70,
             FilterDropdownType::Labels => 85,
+            FilterDropdownType::Assignee => 105,
+            FilterDropdownType::Created => 125,
+            FilterDropdownType::Updated => 145,
+            FilterDropdownType::Closed => 165,
         };
 
         let x = (area.x + x_offset).min(area.width.saturating_sub(width));

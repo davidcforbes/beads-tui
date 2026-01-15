@@ -693,12 +693,8 @@ impl SearchInterfaceState {
                         .map(|d| self.matches_text(d, query))
                         .unwrap_or(false)
                     || self.matches_text(&issue.id, query)
-                    || issue
-                        .assignee
-                        .as_ref()
-                        .map(|a| self.matches_text(a, query))
-                        .unwrap_or(false)
-                    || issue.labels.iter().any(|l| self.matches_text(l, query))
+                    || issue.dependencies.iter().any(|dep| self.matches_text(dep, query))
+                    || issue.blocks.iter().any(|blk| self.matches_text(blk, query))
                     || issue
                         .notes
                         .iter()

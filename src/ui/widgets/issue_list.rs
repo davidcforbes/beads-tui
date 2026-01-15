@@ -831,8 +831,8 @@ impl IssueListState {
         let mut end_idx = start_idx;
 
         // Accumulate column widths until we exceed viewport width
-        for idx in start_idx..all_columns.len() {
-            let col_width = all_columns[idx].width;
+        for (idx, col) in all_columns.iter().enumerate().skip(start_idx) {
+            let col_width = col.width;
             if accumulated_width + col_width <= viewport_width {
                 accumulated_width += col_width;
                 end_idx = idx + 1;
@@ -855,12 +855,8 @@ impl IssueListState {
             let visible_columns: Vec<ColumnDefinition> = self.table_config.visible_columns().iter().map(|&c| c.clone()).collect();
             let (visible_start, visible_end) = self.visible_column_range(viewport_width, &visible_columns);
 
-            // If focused column is before visible range, scroll left
-            if focused_idx < visible_start {
-                self.horizontal_scroll_offset = focused_idx;
-            }
-            // If focused column is after visible range, scroll right
-            else if focused_idx >= visible_end {
+            // If focused column is outside visible range, adjust scroll offset
+            if focused_idx < visible_start || focused_idx >= visible_end {
                 self.horizontal_scroll_offset = focused_idx;
             }
         }
@@ -1359,6 +1355,56 @@ impl<'a> IssueList<'a> {
                 let date_str = Self::format_date(&issue.created);
                 let truncated = Self::truncate_text(&date_str, wrap_width);
                 Cell::from(truncated)
+            }
+
+            ColumnId::Description => {
+                let text = issue.description.as_deref().unwrap_or("-");
+                let truncated = Self::truncate_text(text, wrap_width);
+                if let Some(ref query) = search_query {
+                    Cell::from(Line::from(Self::highlight_text(&truncated, query)))
+                } else {
+                    Cell::from(truncated)
+                }
+            }
+
+            ColumnId::Closed => {
+                if let Some(ref closed_date) = issue.closed {
+                    let date_str = Self::format_date(closed_date);
+                    let truncated = Self::truncate_text(&date_str, wrap_width);
+                    Cell::from(truncated)
+                } else {
+                    Cell::from("-")
+                }
+            }
+
+            ColumnId::Dependencies => {
+                let text = if issue.dependencies.is_empty() {
+                    "-".to_string()
+                } else {
+                    issue.dependencies.join(", ")
+                };
+                let truncated = Self::truncate_text(&text, wrap_width);
+                Cell::from(truncated)
+            }
+
+            ColumnId::Blocks => {
+                let text = if issue.blocks.is_empty() {
+                    "-".to_string()
+                } else {
+                    issue.blocks.join(", ")
+                };
+                let truncated = Self::truncate_text(&text, wrap_width);
+                Cell::from(truncated)
+            }
+
+            ColumnId::NotesCount => {
+                let count = issue.notes.len();
+                let text = if count == 0 {
+                    "-".to_string()
+                } else {
+                    count.to_string()
+                };
+                Cell::from(text)
             }
         }
     }

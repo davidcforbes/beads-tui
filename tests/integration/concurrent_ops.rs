@@ -132,7 +132,7 @@ async fn test_concurrent_create_race_condition() {
                             // Extract everything after "Created issue: "
                             if let Some(pos) = line.find("Created issue:") {
                                 let id_part = &line[pos + 15..]; // Skip "Created issue: "
-                                let id = id_part.trim().split_whitespace().next().unwrap_or("");
+                                let id = id_part.split_whitespace().next().unwrap_or("");
                                 if !id.is_empty() {
                                     created_ids.push(id.to_string());
                                 }
