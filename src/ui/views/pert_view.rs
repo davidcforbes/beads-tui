@@ -175,8 +175,18 @@ impl PertViewState {
     }
 }
 
+use ratatui::widgets::StatefulWidget;
+
 /// PERT chart view widget
 pub struct PertView;
+
+impl StatefulWidget for PertView {
+    type State = PertViewState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        Self::render_with_state(area, buf, state);
+    }
+}
 
 impl Widget for PertView {
     fn render(self, area: Rect, buf: &mut Buffer) {

@@ -924,12 +924,23 @@ impl KanbanViewState {
     }
 }
 
+use ratatui::widgets::StatefulWidget;
+
 /// Kanban board widget
 pub struct KanbanView;
 
+impl StatefulWidget for KanbanView {
+    type State = KanbanViewState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        Self::render_with_state(area, buf, state);
+    }
+}
+
 impl Widget for KanbanView {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        // Render a placeholder for now
+        // Render a placeholder when no state is provided
+        // This is a fallback, but in practice we use render_stateful_widget
         let block = Block::default()
             .title("Kanban Board")
             .borders(Borders::ALL)

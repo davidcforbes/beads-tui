@@ -2668,11 +2668,15 @@ fn run_app<B: ratatui::backend::Backend>(
 
                 // Tab-specific key bindings
                 match app.selected_tab {
-                    0 => handle_issues_view_event(key, app),
-                    1 => handle_dependencies_view_event(key, app),
-                    2 => handle_labels_view_event(key, app),
-                    3 => handle_database_view_event(key, app),
-                    4 => handle_help_view_event(key, app),
+                    0 | 1 => handle_issues_view_event(key, app), // Issues & Split
+                    2 => handle_kanban_view_event(key, app),     // Kanban
+                    3 => handle_dependencies_view_event(key, app), // Dependencies
+                    4 => handle_labels_view_event(key, app),     // Labels
+                    5 => handle_gantt_view_event(key, app),      // Ghant
+                    6 => handle_pert_view_event(key, app),       // Pert
+                    7 => handle_molecular_view_event(key, app),  // Molecular
+                    8 | 9 => handle_database_view_event(key, app), // Statistics & Utilities
+                    10 => handle_help_view_event(key, app),      // Help
                     _ => {}
                 }
 
@@ -2699,6 +2703,35 @@ fn run_app<B: ratatui::backend::Backend>(
     }
 
     Ok(())
+}
+
+// Placeholder handlers for new views
+fn handle_kanban_view_event(key: KeyEvent, app: &mut models::AppState) {
+    let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+    if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
+        app.clear_notification();
+    }
+}
+
+fn handle_gantt_view_event(key: KeyEvent, app: &mut models::AppState) {
+    let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+    if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
+        app.clear_notification();
+    }
+}
+
+fn handle_pert_view_event(key: KeyEvent, app: &mut models::AppState) {
+    let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+    if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
+        app.clear_notification();
+    }
+}
+
+fn handle_molecular_view_event(key: KeyEvent, app: &mut models::AppState) {
+    let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+    if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
+        app.clear_notification();
+    }
 }
 
 fn ui(f: &mut Frame, app: &mut models::AppState) {
@@ -2760,8 +2793,8 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         .iter()
         .enumerate()
         .map(|(i, &name)| {
-            // Add issue count for Issues tab (index 0)
-            if i == 0 {
+            // Add issue count for Issues and Split tabs (index 0 and 1)
+            if i == 0 || i == 1 {
                 let filtered_count = app.issues_view_state.search_state().filtered_issues().len();
                 let total_count = app.database_stats.total_issues;
                 if filtered_count < total_count {
@@ -2789,11 +2822,26 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     // Content area based on selected tab
     match app.selected_tab {
         0 => {
-            // Issues view (stateful)
+            // Issues view (List mode)
             let issues_view = IssuesView::new();
             f.render_stateful_widget(issues_view, tabs_chunks[1], &mut app.issues_view_state);
         }
         1 => {
+            // Split view (Issues view in SplitScreen mode)
+            use ui::views::IssuesViewMode;
+            if app.issues_view_state.view_mode() != IssuesViewMode::SplitScreen {
+                app.issues_view_state.enter_split_screen();
+            }
+            let issues_view = IssuesView::new();
+            f.render_stateful_widget(issues_view, tabs_chunks[1], &mut app.issues_view_state);
+        }
+        2 => {
+            // Kanban view
+            use ui::views::KanbanView;
+            let kanban_view = KanbanView::new();
+            f.render_stateful_widget(kanban_view, tabs_chunks[1], &mut app.kanban_view_state);
+        }
+        3 => {
             // Dependencies view
             let issues = app.issues_view_state.search_state().filtered_issues();
             let all_issues: Vec<_> = issues.iter().collect();
@@ -2808,13 +2856,55 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 &mut app.dependencies_view_state,
             );
         }
-        2 => {
+        4 => {
             // Labels view
             let labels_view = LabelsView::new().labels(app.label_stats.clone());
             f.render_stateful_widget(labels_view, tabs_chunks[1], &mut app.labels_view_state);
         }
-        3 => {
-            // Database view
+        5 => {
+            // Ghant view (Gantt)
+            use ui::views::GanttView;
+            let gantt_view = GanttView::new();
+            f.render_stateful_widget(gantt_view, tabs_chunks[1], &mut app.gantt_view_state);
+        }
+        6 => {
+            // Pert view
+            use ui::views::PertView;
+            let pert_view = PertView::new();
+            f.render_stateful_widget(pert_view, tabs_chunks[1], &mut app.pert_view_state);
+        }
+        7 => {
+            // Molecular view
+            // Note: Molecular view widget needs to be imported or implemented if missing
+            // Assuming it uses a similar pattern or falls back to placeholder
+            // Searching for MolecularView usage elsewhere...
+            // It seems MolecularView logic might be missing or commented out in previous contexts.
+            // I'll check imports. If not available, I'll render a placeholder.
+            // But wait, AppState has molecular_tabs and selected_molecular_tab.
+            // Let's try to render a placeholder for now as I don't see MolecularView imported.
+            let placeholder = Paragraph::new("Molecular View: Not fully implemented yet")
+                .block(Block::default().borders(Borders::ALL));
+            f.render_widget(placeholder, tabs_chunks[1]);
+        }
+        8 => {
+            // Statistics view (Database dashboard)
+            app.database_view_state
+                .set_mode(ui::views::DatabaseViewMode::Dashboard);
+            let database_view = DatabaseView::new()
+                .status(app.database_status)
+                .stats(app.database_stats.clone())
+                .daemon_running(app.daemon_running);
+            f.render_stateful_widget(database_view, tabs_chunks[1], &mut app.database_view_state);
+        }
+        9 => {
+            // Utilities view (Database maintenance/daemon)
+            use ui::views::DatabaseViewMode;
+            if app.database_view_state.mode != DatabaseViewMode::Maintenance
+                && app.database_view_state.mode != DatabaseViewMode::Daemon
+                && app.database_view_state.mode != DatabaseViewMode::Sync
+            {
+                app.database_view_state.set_mode(DatabaseViewMode::Maintenance);
+            }
             let database_view = DatabaseView::new()
                 .status(app.database_status)
                 .stats(app.database_stats.clone())
@@ -2822,7 +2912,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             f.render_stateful_widget(database_view, tabs_chunks[1], &mut app.database_view_state);
         }
         _ => {
-            // Help view (tab 4 and beyond)
+            // Help view (Index 10 and fallback)
             let help_view = HelpView::new().selected_section(app.help_section);
             f.render_widget(help_view, tabs_chunks[1]);
         }

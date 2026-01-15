@@ -383,8 +383,18 @@ impl GanttViewState {
     }
 }
 
+use ratatui::widgets::StatefulWidget;
+
 /// Gantt chart view widget
 pub struct GanttView;
+
+impl StatefulWidget for GanttView {
+    type State = GanttViewState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        Self::render_with_state(area, buf, state);
+    }
+}
 
 impl Widget for GanttView {
     fn render(self, area: Rect, buf: &mut Buffer) {
