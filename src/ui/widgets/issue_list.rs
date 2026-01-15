@@ -1,6 +1,6 @@
 //! Issue list widget with sorting and filtering
 
-use crate::beads::models::{Issue, IssueStatus, IssueType};
+use crate::beads::models::Issue;
 use crate::models::table_config::{ColumnDefinition, TableConfig};
 use ratatui::{
     buffer::Buffer,
@@ -266,7 +266,7 @@ impl ColumnFilters {
                 &temp_labels_lower
             };
 
-            // Pre-compute lowercase versions of issue labels to avoid O(n²) repeated conversions
+            // Pre-compute lowercase versions of issue labels to avoid O(n^2) repeated conversions
             let issue_labels_lower: Vec<String> =
                 issue.labels.iter().map(|l| l.to_lowercase()).collect();
 
@@ -304,7 +304,7 @@ impl ColumnFilters {
 struct HierarchyInfo {
     /// Depth level in the hierarchy (0 = root)
     depth: usize,
-    /// Tree prefix to display (e.g., "├── ", "└── ", "│   ")
+    /// Tree prefix to display (indentation only)
     prefix: String,
     /// Whether this is the last child at its level
     is_last: bool,
@@ -349,20 +349,8 @@ fn build_hierarchy_map(issues: &[&Issue]) -> std::collections::HashMap<String, H
         children_map: &HashMap<String, Vec<String>>,
         hierarchy_map: &mut HashMap<String, HierarchyInfo>,
     ) {
-        // Build prefix for this node
-        let mut prefix = String::new();
-
-        // Add parent prefixes
-        for (i, &has_sibling_below) in parent_prefixes.iter().enumerate() {
-            if i < parent_prefixes.len() {
-                prefix.push_str(if has_sibling_below { "│   " } else { "    " });
-            }
-        }
-
-        // Add this node's connector
-        if depth > 0 {
-            prefix.push_str(if is_last { "└── " } else { "├── " });
-        }
+        // Build prefix for this node using indentation only (no glyphs)
+        let prefix = "  ".repeat(depth);
 
         hierarchy_map.insert(
             issue_id.to_string(),
@@ -965,25 +953,6 @@ impl<'a> IssueList<'a> {
         });
     }
 
-    fn type_symbol(issue_type: &IssueType) -> &'static str {
-        match issue_type {
-            IssueType::Bug => "🐛",
-            IssueType::Feature => "✨",
-            IssueType::Task => "📋",
-            IssueType::Epic => "🎯",
-            IssueType::Chore => "🔧",
-        }
-    }
-
-    fn status_symbol(status: &IssueStatus) -> &'static str {
-        match status {
-            IssueStatus::Open => "○",
-            IssueStatus::InProgress => "◐",
-            IssueStatus::Blocked => "◩",
-            IssueStatus::Closed => "✓",
-        }
-    }
-
     /// Format a date for display in table cells
     fn format_date(date: &chrono::DateTime<chrono::Utc>) -> String {
         use chrono::Local;
@@ -1053,7 +1022,7 @@ impl<'a> IssueList<'a> {
                     if issue.id.len() > wrap_width {
                         let suffix_len = wrap_width.saturating_sub(1);
                         let start = issue.id.len().saturating_sub(suffix_len);
-                        format!("…{}", &issue.id[start..])
+                        format!(".{}", &issue.id[start..])
                     } else {
                         issue.id.clone()
                     }
@@ -1083,12 +1052,7 @@ impl<'a> IssueList<'a> {
                 };
 
                 let title_with_tree = if let Some(hierarchy_info) = hierarchy_map.get(&issue.id) {
-                    format!(
-                        "{}{} {}",
-                        hierarchy_info.prefix,
-                        Self::status_symbol(&issue.status),
-                        title_text
-                    )
+                    format!("{}{}", hierarchy_info.prefix, title_text)
                 } else {
                     title_text
                 };
@@ -1127,9 +1091,8 @@ impl<'a> IssueList<'a> {
                 use crate::ui::themes::Theme;
                 let default_theme = Theme::default();
                 let theme_ref = theme.unwrap_or(&default_theme);
-                let symbol = Theme::status_symbol(&issue.status);
                 let color = theme_ref.status_color(&issue.status);
-                let text = format!("{} {:?}", symbol, issue.status);
+                let text = format!("{:?}", issue.status);
                 let truncated = Self::truncate_text(&text, wrap_width);
                 Cell::from(Span::styled(
                     truncated,
@@ -1141,9 +1104,8 @@ impl<'a> IssueList<'a> {
                 use crate::ui::themes::Theme;
                 let default_theme = Theme::default();
                 let theme_ref = theme.unwrap_or(&default_theme);
-                let symbol = Theme::priority_symbol(&issue.priority);
                 let color = theme_ref.priority_color(&issue.priority);
-                let text = format!("{} {:?}", symbol, issue.priority);
+                let text = format!("{:?}", issue.priority);
                 let truncated = Self::truncate_text(&text, wrap_width);
                 Cell::from(Span::styled(
                     truncated,
@@ -1152,8 +1114,7 @@ impl<'a> IssueList<'a> {
             }
 
             ColumnId::Type => {
-                let symbol = Self::type_symbol(&issue.issue_type);
-                Cell::from(format!("{} {:?}", symbol, issue.issue_type))
+                Cell::from(format!("{:?}", issue.issue_type))
             }
 
             ColumnId::Assignee => {
@@ -1294,8 +1255,8 @@ impl<'a> StatefulWidget for IssueList<'a> {
 
         // Build header from TableConfig
         let sort_indicator = match state.sort_direction {
-            SortDirection::Ascending => "▲",
-            SortDirection::Descending => "▼",
+            SortDirection::Ascending => "asc",
+            SortDirection::Descending => "desc",
         };
 
         // Get visible columns from table config or override
@@ -1545,7 +1506,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::beads::{IssueStatus, Priority};
+    use crate::beads::{IssueStatus, IssueType, Priority};
     use chrono::Utc;
 
     fn create_test_issue(id: &str, title: &str, priority: Priority, status: IssueStatus) -> Issue {
@@ -2391,7 +2352,7 @@ mod tests {
         // Child should be at depth 1 with tree prefix
         let child_info = hierarchy_map.get("child").unwrap();
         assert_eq!(child_info.depth, 1);
-        assert!(child_info.prefix.contains("└──") || child_info.prefix.contains("├──"));
+        assert_eq!(child_info.prefix, "  ");
     }
 
     #[test]
@@ -2481,13 +2442,13 @@ mod tests {
         assert_eq!(hierarchy_map.get("child2").unwrap().depth, 1);
         assert_eq!(hierarchy_map.get("child3").unwrap().depth, 1);
 
-        // Last child should have └── prefix
-        let child3_prefix = &hierarchy_map.get("child3").unwrap().prefix;
-        assert!(child3_prefix.contains("└──"));
-
-        // Other children should have ├── prefix
+        // All children should have identical indentation prefix
         let child1_prefix = &hierarchy_map.get("child1").unwrap().prefix;
-        assert!(child1_prefix.contains("├──"));
+        let child2_prefix = &hierarchy_map.get("child2").unwrap().prefix;
+        let child3_prefix = &hierarchy_map.get("child3").unwrap().prefix;
+        assert_eq!(child1_prefix, "  ");
+        assert_eq!(child2_prefix, "  ");
+        assert_eq!(child3_prefix, "  ");
     }
 
     #[test]
@@ -2554,11 +2515,9 @@ mod tests {
         assert_eq!(hierarchy_map.get("level1").unwrap().depth, 1);
         assert_eq!(hierarchy_map.get("level2").unwrap().depth, 2);
 
-        // Check prefixes contain tree characters
+        // Check prefixes contain indentation only
         let level2_prefix = &hierarchy_map.get("level2").unwrap().prefix;
-        assert!(level2_prefix.contains("└──") || level2_prefix.contains("├──"));
-        // Should have indentation from parent levels
-        assert!(level2_prefix.len() > 4);
+        assert_eq!(level2_prefix, "    ");
     }
 
     #[test]
