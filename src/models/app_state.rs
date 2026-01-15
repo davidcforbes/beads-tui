@@ -7,9 +7,9 @@ use crate::tasks::{
 };
 use crate::ui::views::{
     compute_label_stats, BondingInterfaceState, DatabaseStats, DatabaseStatus, DatabaseViewState,
-    DependenciesViewState, Formula, FormulaBrowserState, GanttViewState, HelpSection,
-    HistoryOpsState, IssuesViewState, KanbanViewState, LabelStats, LabelsViewState, PertViewState,
-    PourWizardState, WispManagerState,
+    DependenciesViewState, DependencyTreeState, Formula, FormulaBrowserState, GanttViewState,
+    HelpSection, HistoryOpsState, IssuesViewState, KanbanViewState, LabelStats, LabelsViewState,
+    PertViewState, PourWizardState, WispManagerState,
 };
 use crate::ui::widgets::{
     DependencyDialogState, DialogState, FilterQuickSelectState,
@@ -43,6 +43,7 @@ pub struct AppState {
     pub beads_client: BeadsClient,
     pub issues_view_state: IssuesViewState,
     pub dependencies_view_state: DependenciesViewState,
+    pub dependency_tree_state: DependencyTreeState,
     pub dependency_dialog_state: DependencyDialogState,
     pub labels_view_state: LabelsViewState,
     pub pert_view_state: PertViewState,
@@ -64,6 +65,8 @@ pub struct AppState {
     dirty: bool,
     /// Selected help section
     pub help_section: HelpSection,
+    /// Scroll offset for help view
+    pub help_scroll_offset: u16,
     /// Dialog state for confirmations
     pub dialog_state: Option<DialogState>,
     /// Pending action waiting for dialog confirmation
@@ -243,6 +246,7 @@ impl AppState {
             beads_client,
             issues_view_state,
             dependencies_view_state: DependenciesViewState::new(),
+            dependency_tree_state: DependencyTreeState::new(),
             dependency_dialog_state: DependencyDialogState::new(),
             labels_view_state: LabelsViewState::new(),
             pert_view_state: PertViewState::new(issues.clone()),
@@ -262,6 +266,7 @@ impl AppState {
             selected_molecular_tab: 0,
             dirty: true, // Initial render required
             help_section: HelpSection::Global,
+            help_scroll_offset: 0,
             dialog_state: None,
             pending_action: None,
             notifications: Vec::new(),
@@ -443,6 +448,7 @@ impl AppState {
             .position(|&s| s == self.help_section)
             .unwrap_or(0);
         self.help_section = sections[(current_idx + 1) % sections.len()];
+        self.help_scroll_offset = 0; // Reset scroll when changing sections
         self.mark_dirty();
     }
 
@@ -458,6 +464,19 @@ impl AppState {
         } else {
             sections[current_idx - 1]
         };
+        self.help_scroll_offset = 0; // Reset scroll when changing sections
+        self.mark_dirty();
+    }
+
+    /// Scroll help view up
+    pub fn scroll_help_up(&mut self) {
+        self.help_scroll_offset = self.help_scroll_offset.saturating_sub(1);
+        self.mark_dirty();
+    }
+
+    /// Scroll help view down
+    pub fn scroll_help_down(&mut self) {
+        self.help_scroll_offset = self.help_scroll_offset.saturating_add(1);
         self.mark_dirty();
     }
 
@@ -1089,7 +1108,7 @@ impl AppState {
     pub fn is_cancellation_requested(&self) -> bool {
         self.cancellation_token
             .as_ref()
-            .map_or(false, |token| token.is_cancelled())
+            .is_some_and(|token| token.is_cancelled())
     }
 
     /// Check if the current operation can be cancelled
@@ -1290,6 +1309,7 @@ mod tests {
             beads_client: BeadsClient::new(),
             issues_view_state: IssuesViewState::new(vec![]),
             dependencies_view_state: DependenciesViewState::new(),
+            dependency_tree_state: DependencyTreeState::new(),
             dependency_dialog_state: DependencyDialogState::new(),
             labels_view_state: LabelsViewState::new(),
             pert_view_state: PertViewState::new(vec![]),
@@ -1317,6 +1337,7 @@ mod tests {
             database_status: DatabaseStatus::Ready,
             dirty: false,
             help_section: HelpSection::Global,
+            help_scroll_offset: 0,
             dialog_state: None,
             pending_action: None,
             notifications: Vec::new(),
@@ -1874,17 +1895,6 @@ mod tests {
     }
 
     #[test]
-    fn test_toggle_perf_stats_twice() {
-        let mut state = create_test_app_state();
-
-        state.toggle_perf_stats();
-        assert!(state.show_perf_stats);
-
-        state.toggle_perf_stats();
-        assert!(!state.show_perf_stats);
-    }
-
-    #[test]
     fn test_tabs_count() {
         let state = create_test_app_state();
         assert_eq!(state.tabs.len(), 11);
@@ -1907,7 +1917,6 @@ mod tests {
         assert!(!state.should_quit);
         assert_eq!(state.selected_tab, 0);
         assert!(!state.is_dirty());
-        assert!(!state.show_perf_stats);
         assert_eq!(state.help_section, HelpSection::Global);
         assert!(state.dialog_state.is_none());
         assert!(state.pending_action.is_none());

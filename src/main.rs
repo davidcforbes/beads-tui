@@ -31,7 +31,7 @@ use ratatui::{
 use std::io::{self, Write};
 use std::sync::Arc;
 use tasks::TaskOutput;
-use ui::views::{DatabaseView, DependencyTreeView, HelpView, IssuesView, LabelsView};
+use ui::views::{DatabaseView, DependencyTreeView, HelpView, HelpViewState, IssuesView, LabelsView};
 use undo::IssueUpdateCommand;
 
 /// Terminal UI for the beads issue tracker
@@ -1489,6 +1489,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 collect_unique_priorities(issues_state),
                                 collect_unique_types(issues_state),
                                 collect_unique_labels(issues_state),
+                                collect_unique_assignees(issues_state),
+                                collect_unique_created_dates(issues_state),
+                                collect_unique_updated_dates(issues_state),
+                                collect_unique_closed_dates(issues_state),
                             );
                             issues_state.filter_bar_state = Some(filter_bar_state);
                         }
@@ -1505,6 +1509,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 collect_unique_priorities(issues_state),
                                 collect_unique_types(issues_state),
                                 collect_unique_labels(issues_state),
+                                collect_unique_assignees(issues_state),
+                                collect_unique_created_dates(issues_state),
+                                collect_unique_updated_dates(issues_state),
+                                collect_unique_closed_dates(issues_state),
                             );
                             issues_state.filter_bar_state = Some(filter_bar_state);
                         }
@@ -1521,6 +1529,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 collect_unique_priorities(issues_state),
                                 collect_unique_types(issues_state),
                                 collect_unique_labels(issues_state),
+                                collect_unique_assignees(issues_state),
+                                collect_unique_created_dates(issues_state),
+                                collect_unique_updated_dates(issues_state),
+                                collect_unique_closed_dates(issues_state),
                             );
                             issues_state.filter_bar_state = Some(filter_bar_state);
                         }
@@ -1537,6 +1549,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                                 collect_unique_priorities(issues_state),
                                 collect_unique_types(issues_state),
                                 collect_unique_labels(issues_state),
+                                collect_unique_assignees(issues_state),
+                                collect_unique_created_dates(issues_state),
+                                collect_unique_updated_dates(issues_state),
+                                collect_unique_closed_dates(issues_state),
                             );
                             issues_state.filter_bar_state = Some(filter_bar_state);
                         }
@@ -2418,6 +2434,12 @@ fn handle_help_view_event(key: KeyEvent, app: &mut models::AppState) {
     }
 
     match action {
+        Some(Action::MoveUp) => {
+            app.scroll_help_up();
+        }
+        Some(Action::MoveDown) => {
+            app.scroll_help_down();
+        }
         Some(Action::MoveRight) | Some(Action::NextTab) => {
             app.next_help_section();
         }
@@ -3337,7 +3359,9 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         _ => {
             // Help view (Index 10 and fallback)
             let help_view = HelpView::new().selected_section(app.help_section);
-            f.render_widget(help_view, tabs_chunks[1]);
+            let mut help_state = HelpViewState::new();
+            help_state.set_scroll_offset(app.help_scroll_offset);
+            f.render_stateful_widget(help_view, tabs_chunks[1], &mut help_state);
         }
     }
 
@@ -4244,4 +4268,73 @@ fn collect_unique_labels(issues_state: &ui::views::IssuesViewState) -> Vec<Strin
         .collect();
     labels.sort();
     labels
+}
+
+/// Collect unique assignees from issues
+fn collect_unique_assignees(issues_state: &ui::views::IssuesViewState) -> Vec<String> {
+    use std::collections::HashSet;
+    let mut assignees: Vec<_> = issues_state
+        .all_issues()
+        .iter()
+        .filter_map(|i| i.assignee.clone())
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    assignees.push("-".to_string()); // Add option for unassigned
+    assignees.sort();
+    assignees
+}
+
+/// Collect unique created dates from issues
+fn collect_unique_created_dates(issues_state: &ui::views::IssuesViewState) -> Vec<String> {
+    use std::collections::HashSet;
+    use chrono::Datelike;
+    let mut dates: Vec<_> = issues_state
+        .all_issues()
+        .iter()
+        .map(|i| format!("{:04}-{:02}-{:02}",
+            i.created.year(),
+            i.created.month(),
+            i.created.day()))
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    dates.sort();
+    dates
+}
+
+/// Collect unique updated dates from issues
+fn collect_unique_updated_dates(issues_state: &ui::views::IssuesViewState) -> Vec<String> {
+    use std::collections::HashSet;
+    use chrono::Datelike;
+    let mut dates: Vec<_> = issues_state
+        .all_issues()
+        .iter()
+        .map(|i| format!("{:04}-{:02}-{:02}",
+            i.updated.year(),
+            i.updated.month(),
+            i.updated.day()))
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    dates.sort();
+    dates
+}
+
+/// Collect unique closed dates from issues
+fn collect_unique_closed_dates(issues_state: &ui::views::IssuesViewState) -> Vec<String> {
+    use std::collections::HashSet;
+    use chrono::Datelike;
+    let mut dates: Vec<_> = issues_state
+        .all_issues()
+        .iter()
+        .filter_map(|i| i.closed.as_ref().map(|c| format!("{:04}-{:02}-{:02}",
+            c.year(),
+            c.month(),
+            c.day())))
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    dates.sort();
+    dates
 }

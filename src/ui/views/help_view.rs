@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Widget, Wrap},
+    widgets::{Block, Borders, Paragraph, StatefulWidget, Widget, Wrap},
 };
 
 /// Help section category
@@ -64,6 +64,31 @@ impl HelpSection {
             Self::Search => "Search",
             Self::About => "About",
         }
+    }
+}
+
+/// Help view state
+#[derive(Debug, Clone)]
+pub struct HelpViewState {
+    /// Current scroll offset
+    pub scroll_offset: u16,
+}
+
+impl HelpViewState {
+    /// Create a new help view state
+    pub fn new() -> Self {
+        Self { scroll_offset: 0 }
+    }
+
+    /// Set scroll offset
+    pub fn set_scroll_offset(&mut self, offset: u16) {
+        self.scroll_offset = offset;
+    }
+}
+
+impl Default for HelpViewState {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -434,8 +459,13 @@ impl<'a> Default for HelpView<'a> {
     }
 }
 
-impl<'a> Widget for HelpView<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
+impl<'a> StatefulWidget for HelpView<'a> {
+    type State = HelpViewState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        // Update state scroll offset from app state (will be passed in)
+        // Note: The actual scroll offset comes from app.help_scroll_offset
+
         // Create layout: title (1) + content (fill)
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -453,17 +483,37 @@ impl<'a> Widget for HelpView<'a> {
             .block(Block::default().borders(Borders::ALL));
         title.render(chunks[0], buf);
 
-        // Render content
+        // Render content with scroll
         let content_lines = self.get_section_content(self.selected_section);
-        let content = Paragraph::new(content_lines)
+
+        // Calculate visible area height (subtract 2 for borders)
+        let visible_height = chunks[1].height.saturating_sub(2) as usize;
+
+        // Apply scroll offset
+        let start_line = state.scroll_offset as usize;
+        let visible_lines: Vec<Line> = content_lines
+            .into_iter()
+            .skip(start_line)
+            .take(visible_height)
+            .collect();
+
+        let content = Paragraph::new(visible_lines)
             .style(Style::default().fg(Color::White))
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title(self.selected_section.display_name()),
+                    .title(format!("{} (Use ↑/↓ to scroll)", self.selected_section.display_name())),
             )
             .wrap(Wrap { trim: true });
         content.render(chunks[1], buf);
+    }
+}
+
+// Keep the old Widget implementation for backward compatibility in tests
+impl<'a> Widget for HelpView<'a> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let mut state = HelpViewState::new();
+        StatefulWidget::render(self, area, buf, &mut state);
     }
 }
 
