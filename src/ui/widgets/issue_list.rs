@@ -1353,23 +1353,52 @@ impl<'a> StatefulWidget for IssueList<'a> {
         use std::collections::HashMap;
 
         // Adjust column widths if they exceed available space
-        let adjusted_columns: Vec<(crate::models::table_config::ColumnId, u16)> = if total_requested > content_width {
-            // Scale down proportionally - DO NOT enforce minimums here as it would cause overflow
-            let scale_factor = content_width as f64 / total_requested as f64;
+        let adjusted_columns: Vec<(crate::models::table_config::ColumnId, u16)> =
+            if total_requested > content_width && content_width > 0 {
+                // Scale down proportionally, then distribute the rounding remainder so rows fill.
+                let scale_factor = content_width as f64 / total_requested as f64;
+                let mut scaled: Vec<(crate::models::table_config::ColumnId, u16, f64)> =
+                    visible_columns
+                        .iter()
+                        .map(|col| {
+                            let exact_width = col.width as f64 * scale_factor;
+                            let floored = exact_width.floor();
+                            let scaled_width = (floored as u16).max(1);
+                            let remainder = if exact_width > 1.0 {
+                                exact_width - floored
+                            } else {
+                                0.0
+                            };
+                            (col.id, scaled_width, remainder)
+                        })
+                        .collect();
 
-            visible_columns
-                .iter()
-                .map(|col| {
-                    // Scale the width down, clamped to at least 1 to prevent zero-width columns
-                    let scaled_width = ((col.width as f64 * scale_factor).floor() as u16)
-                        .max(1);
-                    (col.id, scaled_width)
-                })
-                .collect()
-        } else {
-            // Use configured widths as-is
-            visible_columns.iter().map(|col| (col.id, col.width)).collect()
-        };
+                let used_width: usize = scaled
+                    .iter()
+                    .map(|(_, width, _)| *width as usize)
+                    .sum();
+                if used_width < content_width && !scaled.is_empty() {
+                    let extra = content_width - used_width;
+                    let mut order: Vec<usize> = (0..scaled.len()).collect();
+                    order.sort_by(|&a, &b| {
+                        scaled[b]
+                            .2
+                            .partial_cmp(&scaled[a].2)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                    for idx in order.into_iter().take(extra) {
+                        scaled[idx].1 = scaled[idx].1.saturating_add(1);
+                    }
+                }
+
+                scaled
+                    .into_iter()
+                    .map(|(id, width, _)| (id, width))
+                    .collect()
+            } else {
+                // Use configured widths as-is
+                visible_columns.iter().map(|col| (col.id, col.width)).collect()
+            };
 
         // Create width lookup map
         let width_map: HashMap<crate::models::table_config::ColumnId, u16> =
