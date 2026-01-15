@@ -96,56 +96,72 @@ impl<'a> HelpView<'a> {
         self
     }
 
+    /// Render a shortcut line with consistent alignment
+    fn render_shortcut(&self, key: &str, desc: &str) -> Line<'static> {
+        // Fixed width for key column
+        const KEY_COL_WIDTH: usize = 35;
+        
+        let mut key_text = key.to_string();
+        let padding = if key_text.len() < KEY_COL_WIDTH {
+            " ".repeat(KEY_COL_WIDTH - key_text.len())
+        } else {
+            " ".to_string()
+        };
+
+        Line::from(vec![
+            Span::styled(key_text, Style::default().fg(Color::Green)),
+            Span::raw(padding),
+            Span::raw("- "),
+            Span::raw(desc.to_string()),
+        ])
+    }
+
     fn render_global_help(&self) -> Vec<Line<'static>> {
-        vec![
+        let mut lines = vec![
             Line::from(Span::styled(
-                "Global Shortcuts",
+                "Global & Navigation Shortcuts",
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("q", Style::default().fg(Color::Green)),
-                Span::raw("         - Quit application"),
-            ]),
-            Line::from(vec![
-                Span::styled("Tab", Style::default().fg(Color::Green)),
-                Span::raw("       - Next tab"),
-            ]),
-            Line::from(vec![
-                Span::styled("Shift+Tab", Style::default().fg(Color::Green)),
-                Span::raw(" - Previous tab"),
-            ]),
-            Line::from(vec![
-                Span::styled("1-5", Style::default().fg(Color::Green)),
-                Span::raw("       - Jump to tab directly"),
-            ]),
-            Line::from(vec![
-                Span::styled("?", Style::default().fg(Color::Green)),
-                Span::raw("         - Toggle help"),
-            ]),
-            Line::from(vec![
-                Span::styled("Ctrl+C", Style::default().fg(Color::Green)),
-                Span::raw("    - Force quit"),
-            ]),
-            Line::from(vec![
-                Span::styled("Ctrl+Z", Style::default().fg(Color::Green)),
-                Span::raw("    - Undo last operation"),
-            ]),
-            Line::from(vec![
-                Span::styled("Ctrl+Y", Style::default().fg(Color::Green)),
-                Span::raw("    - Redo last undone operation"),
-            ]),
-            Line::from(vec![
-                Span::styled("Ctrl+H", Style::default().fg(Color::Green)),
-                Span::raw("    - Show undo/redo history"),
-            ]),
-        ]
+        ];
+
+        // Global Actions
+        lines.push(Line::from(Span::styled("Global Actions", Style::default().add_modifier(Modifier::UNDERLINED))));
+        lines.push(self.render_shortcut("q, Ctrl+Q, Ctrl+C", "Exit the application"));
+        lines.push(self.render_shortcut("?", "Toggle keyboard shortcuts overlay"));
+        lines.push(self.render_shortcut("F1", "Toggle context-sensitive help"));
+        lines.push(self.render_shortcut("Ctrl+P or F12", "Toggle performance statistics"));
+        lines.push(self.render_shortcut("Ctrl+Z", "Undo last action"));
+        lines.push(self.render_shortcut("Ctrl+Y", "Redo last undone action"));
+        lines.push(self.render_shortcut("Esc", "Dismiss notification / close overlays"));
+        lines.push(self.render_shortcut("Ctrl+H", "Show notification history")); // Removed N as per previous fix
+        lines.push(Line::from(""));
+
+        // Navigation
+        lines.push(Line::from(Span::styled("Navigation", Style::default().add_modifier(Modifier::UNDERLINED))));
+        lines.push(self.render_shortcut("Tab", "Switch to the next top-level tab"));
+        lines.push(self.render_shortcut("Shift+Tab", "Switch to the previous tab"));
+        lines.push(self.render_shortcut("1-9", "Jump to tab by number"));
+        lines.push(self.render_shortcut("Up/Down or j/k", "Move selection up/down"));
+        lines.push(self.render_shortcut("Left/Right or h/l", "Move selection left/right or collapse/expand"));
+        lines.push(self.render_shortcut("PageUp/PageDown", "Page up/down in lists"));
+        lines.push(self.render_shortcut("Ctrl+U/Ctrl+D", "Page up/down in lists"));
+        lines.push(self.render_shortcut("Home/End or g/G", "Jump to top/bottom"));
+        lines.push(Line::from(""));
+
+        // General Operations
+        lines.push(Line::from(Span::styled("General Operations", Style::default().add_modifier(Modifier::UNDERLINED))));
+        lines.push(self.render_shortcut("Enter", "Open details, confirm, or toggle expand"));
+        lines.push(self.render_shortcut("Esc", "Close dialogs, clear search, go back"));
+        lines.push(self.render_shortcut("r or F5", "Refresh data"));
+
+        lines
     }
 
     fn render_issues_help(&self) -> Vec<Line<'static>> {
-        vec![
+        let mut lines = vec![
             Line::from(Span::styled(
                 "Issues View Shortcuts",
                 Style::default()
@@ -153,67 +169,54 @@ impl<'a> HelpView<'a> {
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("/", Style::default().fg(Color::Green)),
-                Span::raw("         - Focus search input"),
-            ]),
-            Line::from(vec![
-                Span::styled("Tab", Style::default().fg(Color::Green)),
-                Span::raw("       - Cycle search scope"),
-            ]),
-            Line::from(vec![
-                Span::styled("Esc", Style::default().fg(Color::Green)),
-                Span::raw("       - Clear search"),
-            ]),
-            Line::from(vec![
-                Span::styled("j/k", Style::default().fg(Color::Green)),
-                Span::raw("       - Navigate list (or ↓/↑)"),
-            ]),
-            Line::from(vec![
-                Span::styled("Enter", Style::default().fg(Color::Green)),
-                Span::raw("     - View issue details"),
-            ]),
-            Line::from(vec![
-                Span::styled("e", Style::default().fg(Color::Green)),
-                Span::raw("         - Edit selected issue"),
-            ]),
-            Line::from(vec![
-                Span::styled("c", Style::default().fg(Color::Green)),
-                Span::raw("         - Create new issue"),
-            ]),
-            Line::from(vec![
-                Span::styled("d", Style::default().fg(Color::Green)),
-                Span::raw("         - Delete selected issue"),
-            ]),
-            Line::from(vec![
-                Span::styled("x", Style::default().fg(Color::Green)),
-                Span::raw("         - Close selected issue"),
-            ]),
-            Line::from(vec![
-                Span::styled("o", Style::default().fg(Color::Green)),
-                Span::raw("         - Reopen closed issue"),
-            ]),
-            Line::from(vec![
-                Span::styled("r", Style::default().fg(Color::Green)),
-                Span::raw("         - Rename issue title (in-place edit)"),
-            ]),
-            Line::from(vec![
-                Span::styled(">", Style::default().fg(Color::Green)),
-                Span::raw("         - Indent issue (make child of previous)"),
-            ]),
-            Line::from(vec![
-                Span::styled("<", Style::default().fg(Color::Green)),
-                Span::raw("         - Outdent issue (promote to parent level)"),
-            ]),
-            Line::from(vec![
-                Span::styled("Ctrl+Up/Down", Style::default().fg(Color::Green)),
-                Span::raw(" - Reorder child within parent"),
-            ]),
-        ]
+        ];
+
+        // List View
+        lines.push(Line::from(Span::styled("Issues List", Style::default().add_modifier(Modifier::UNDERLINED))));
+        lines.push(self.render_shortcut("n", "Create a new issue"));
+        lines.push(self.render_shortcut("e", "Edit selected issue"));
+        lines.push(self.render_shortcut("d", "Delete selected issue (with confirmation)"));
+        lines.push(self.render_shortcut("x", "Close selected issue"));
+        lines.push(self.render_shortcut("o", "Reopen selected issue"));
+        lines.push(self.render_shortcut("F2", "Quick edit issue title"));
+        lines.push(self.render_shortcut("p", "Change priority of selected issue"));
+        lines.push(self.render_shortcut("s", "Change status of selected issue"));
+        lines.push(self.render_shortcut("l", "Edit labels for selected issue"));
+        lines.push(self.render_shortcut("a", "Edit assignee for selected issue"));
+        lines.push(self.render_shortcut("+", "Add dependency to selected issue"));
+        lines.push(self.render_shortcut("-", "Remove dependency from selected issue"));
+        lines.push(self.render_shortcut(">", "Indent issue (make child of previous)"));
+        lines.push(self.render_shortcut("<", "Outdent issue (promote to parent level)"));
+        lines.push(self.render_shortcut("Space", "Toggle Select"));
+        lines.push(self.render_shortcut("Ctrl+A", "Select All"));
+        lines.push(self.render_shortcut("Ctrl+N", "Clear selection"));
+        lines.push(self.render_shortcut("c", "Open column manager"));
+        lines.push(self.render_shortcut("v", "Cycle issue scope"));
+        lines.push(Line::from(""));
+
+        // Detail / Split
+        lines.push(Line::from(Span::styled("Detail / Split View", Style::default().add_modifier(Modifier::UNDERLINED))));
+        lines.push(self.render_shortcut("Enter", "Open full detail view"));
+        lines.push(self.render_shortcut("e", "Edit selected issue"));
+        lines.push(self.render_shortcut("d", "Delete selected issue"));
+        lines.push(self.render_shortcut("Esc or q", "Return to list view"));
+        lines.push(self.render_shortcut("Alt+H", "Toggle issue history panel"));
+        lines.push(Line::from(""));
+
+        // Forms
+        lines.push(Line::from(Span::styled("Forms (Create/Edit)", Style::default().add_modifier(Modifier::UNDERLINED))));
+        lines.push(self.render_shortcut("Tab", "Move focus to next form field"));
+        lines.push(self.render_shortcut("Shift+Tab", "Move focus to previous form field"));
+        lines.push(self.render_shortcut("Enter", "Save and close the form"));
+        lines.push(self.render_shortcut("Esc", "Close form without saving"));
+        lines.push(self.render_shortcut("Ctrl+L", "Load description content from file path"));
+        lines.push(self.render_shortcut("Ctrl+P", "Toggle preview mode (Create form only)"));
+
+        lines
     }
 
     fn render_dependencies_help(&self) -> Vec<Line<'static>> {
-        vec![
+        let mut lines = vec![
             Line::from(Span::styled(
                 "Dependencies View Shortcuts",
                 Style::default()
@@ -221,35 +224,22 @@ impl<'a> HelpView<'a> {
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("j/k", Style::default().fg(Color::Green)),
-                Span::raw("       - Navigate tree (or ↓/↑)"),
-            ]),
-            Line::from(vec![
-                Span::styled("Enter", Style::default().fg(Color::Green)),
-                Span::raw("     - Expand/collapse node"),
-            ]),
-            Line::from(vec![
-                Span::styled("a", Style::default().fg(Color::Green)),
-                Span::raw("         - Add dependency"),
-            ]),
-            Line::from(vec![
-                Span::styled("d", Style::default().fg(Color::Green)),
-                Span::raw("         - Remove dependency"),
-            ]),
-            Line::from(vec![
-                Span::styled("g", Style::default().fg(Color::Green)),
-                Span::raw("         - Show dependency graph"),
-            ]),
-            Line::from(vec![
-                Span::styled("c", Style::default().fg(Color::Green)),
-                Span::raw("         - Check for cycles"),
-            ]),
-        ]
+        ];
+
+        lines.push(self.render_shortcut("Up/Down or j/k", "Move selection"));
+        lines.push(self.render_shortcut("Tab", "Switch focus between Dependencies and Blocks"));
+        lines.push(self.render_shortcut("a", "Add dependency (opens dialog)"));
+        lines.push(self.render_shortcut("d", "Remove dependency (with confirmation)"));
+        lines.push(self.render_shortcut("g", "Show dependency graph (stub)"));
+        lines.push(self.render_shortcut("c", "Check circular dependencies (stub)"));
+        lines.push(self.render_shortcut("Enter", "View selected issue details"));
+        lines.push(self.render_shortcut("Esc", "Return to Issues view"));
+
+        lines
     }
 
     fn render_labels_help(&self) -> Vec<Line<'static>> {
-        vec![
+        let mut lines = vec![
             Line::from(Span::styled(
                 "Labels View Shortcuts",
                 Style::default()
@@ -257,43 +247,21 @@ impl<'a> HelpView<'a> {
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("j/k", Style::default().fg(Color::Green)),
-                Span::raw("       - Navigate labels (or ↓/↑)"),
-            ]),
-            Line::from(vec![
-                Span::styled("a", Style::default().fg(Color::Green)),
-                Span::raw("         - Add new label"),
-            ]),
-            Line::from(vec![
-                Span::styled("d", Style::default().fg(Color::Green)),
-                Span::raw("         - Delete label"),
-            ]),
-            Line::from(vec![
-                Span::styled("e", Style::default().fg(Color::Green)),
-                Span::raw("         - Edit label"),
-            ]),
-            Line::from(vec![
-                Span::styled("s", Style::default().fg(Color::Green)),
-                Span::raw("         - Show label statistics"),
-            ]),
-            Line::from(vec![
-                Span::styled("/", Style::default().fg(Color::Green)),
-                Span::raw("         - Search labels"),
-            ]),
-            Line::from(vec![
-                Span::styled("Enter", Style::default().fg(Color::Green)),
-                Span::raw("     - Apply search filter"),
-            ]),
-            Line::from(vec![
-                Span::styled("Esc", Style::default().fg(Color::Green)),
-                Span::raw("       - Clear search filter"),
-            ]),
-        ]
+        ];
+
+        lines.push(self.render_shortcut("Up/Down or j/k", "Move selection"));
+        lines.push(self.render_shortcut("/", "Search labels"));
+        lines.push(self.render_shortcut("a", "Add label"));
+        lines.push(self.render_shortcut("e", "Edit label"));
+        lines.push(self.render_shortcut("d", "Delete label"));
+        lines.push(self.render_shortcut("s", "Show label stats info"));
+        lines.push(self.render_shortcut("Esc", "Return to Issues view"));
+
+        lines
     }
 
     fn render_database_help(&self) -> Vec<Line<'static>> {
-        vec![
+        let mut lines = vec![
             Line::from(Span::styled(
                 "Database View Shortcuts",
                 Style::default()
@@ -301,31 +269,22 @@ impl<'a> HelpView<'a> {
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("s", Style::default().fg(Color::Green)),
-                Span::raw("         - Sync database"),
-            ]),
-            Line::from(vec![
-                Span::styled("i", Style::default().fg(Color::Green)),
-                Span::raw("         - Import data"),
-            ]),
-            Line::from(vec![
-                Span::styled("e", Style::default().fg(Color::Green)),
-                Span::raw("         - Export data"),
-            ]),
-            Line::from(vec![
-                Span::styled("d", Style::default().fg(Color::Green)),
-                Span::raw("         - Start/stop daemon"),
-            ]),
-            Line::from(vec![
-                Span::styled("r", Style::default().fg(Color::Green)),
-                Span::raw("         - Refresh status"),
-            ]),
-        ]
+        ];
+
+        lines.push(self.render_shortcut("r", "Refresh database status"));
+        lines.push(self.render_shortcut("s", "Sync database with remote"));
+        lines.push(self.render_shortcut("x", "Export issues to JSONL"));
+        lines.push(self.render_shortcut("i", "Import issues from JSONL"));
+        lines.push(self.render_shortcut("v", "Verify database integrity"));
+        lines.push(self.render_shortcut("c", "Compact database"));
+        lines.push(self.render_shortcut("t", "Start/stop daemon"));
+        lines.push(self.render_shortcut("Esc", "Return to Issues view"));
+
+        lines
     }
 
     fn render_kanban_help(&self) -> Vec<Line<'static>> {
-        vec![
+        let mut lines = vec![
             Line::from(Span::styled(
                 "Kanban Board View Shortcuts",
                 Style::default()
@@ -333,35 +292,17 @@ impl<'a> HelpView<'a> {
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("↑/↓/←/→", Style::default().fg(Color::Green)),
-                Span::raw("   - Navigate between cards"),
-            ]),
-            Line::from(vec![
-                Span::styled("j/k/h/l", Style::default().fg(Color::Green)),
-                Span::raw("   - Navigate (vim-style)"),
-            ]),
-            Line::from(vec![
-                Span::styled("Space", Style::default().fg(Color::Green)),
-                Span::raw("     - Move card to different column"),
-            ]),
-            Line::from(vec![
-                Span::styled("c", Style::default().fg(Color::Green)),
-                Span::raw("         - Configure board settings"),
-            ]),
-            Line::from(vec![
-                Span::styled("Enter", Style::default().fg(Color::Green)),
-                Span::raw("     - View/edit card details"),
-            ]),
-            Line::from(vec![
-                Span::styled("Esc", Style::default().fg(Color::Green)),
-                Span::raw("       - Go back"),
-            ]),
-        ]
+        ];
+
+        lines.push(self.render_shortcut("Up/Down/Left/Right or h/j/k/l", "Move between cards/columns"));
+        lines.push(self.render_shortcut("Space", "Move card to next column"));
+        lines.push(self.render_shortcut("c", "Configure board columns"));
+
+        lines
     }
 
     fn render_gantt_help(&self) -> Vec<Line<'static>> {
-        vec![
+        let mut lines = vec![
             Line::from(Span::styled(
                 "Gantt Chart View Shortcuts",
                 Style::default()
@@ -369,39 +310,18 @@ impl<'a> HelpView<'a> {
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("↑/↓", Style::default().fg(Color::Green)),
-                Span::raw("       - Navigate through tasks"),
-            ]),
-            Line::from(vec![
-                Span::styled("j/k", Style::default().fg(Color::Green)),
-                Span::raw("       - Navigate (vim-style)"),
-            ]),
-            Line::from(vec![
-                Span::styled("+/-", Style::default().fg(Color::Green)),
-                Span::raw("       - Zoom timeline in/out"),
-            ]),
-            Line::from(vec![
-                Span::styled("g", Style::default().fg(Color::Green)),
-                Span::raw("         - Change grouping mode"),
-            ]),
-            Line::from(vec![
-                Span::styled("c", Style::default().fg(Color::Green)),
-                Span::raw("         - Configure chart settings"),
-            ]),
-            Line::from(vec![
-                Span::styled("Enter", Style::default().fg(Color::Green)),
-                Span::raw("     - View task details"),
-            ]),
-            Line::from(vec![
-                Span::styled("Esc", Style::default().fg(Color::Green)),
-                Span::raw("       - Go back"),
-            ]),
-        ]
+        ];
+
+        lines.push(self.render_shortcut("Up/Down", "Move selection"));
+        lines.push(self.render_shortcut("+ / -", "Zoom in/out"));
+        lines.push(self.render_shortcut("g", "Change grouping mode"));
+        lines.push(self.render_shortcut("c", "Configure chart settings"));
+
+        lines
     }
 
     fn render_pert_help(&self) -> Vec<Line<'static>> {
-        vec![
+        let mut lines = vec![
             Line::from(Span::styled(
                 "PERT Chart View Shortcuts",
                 Style::default()
@@ -411,35 +331,17 @@ impl<'a> HelpView<'a> {
             Line::from(""),
             Line::from("Project Evaluation and Review Technique"),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("↑/↓", Style::default().fg(Color::Green)),
-                Span::raw("       - Navigate through nodes"),
-            ]),
-            Line::from(vec![
-                Span::styled("j/k", Style::default().fg(Color::Green)),
-                Span::raw("       - Navigate (vim-style)"),
-            ]),
-            Line::from(vec![
-                Span::styled("+/-", Style::default().fg(Color::Green)),
-                Span::raw("       - Zoom in/out"),
-            ]),
-            Line::from(vec![
-                Span::styled("c", Style::default().fg(Color::Green)),
-                Span::raw("         - Configure chart settings"),
-            ]),
-            Line::from(vec![
-                Span::styled("Enter", Style::default().fg(Color::Green)),
-                Span::raw("     - View node details"),
-            ]),
-            Line::from(vec![
-                Span::styled("Esc", Style::default().fg(Color::Green)),
-                Span::raw("       - Go back"),
-            ]),
-        ]
+        ];
+
+        lines.push(self.render_shortcut("Up/Down", "Move selection"));
+        lines.push(self.render_shortcut("+ / -", "Zoom in/out"));
+        lines.push(self.render_shortcut("c", "Configure chart settings"));
+
+        lines
     }
 
     fn render_search_help(&self) -> Vec<Line<'static>> {
-        vec![
+        let mut lines = vec![
             Line::from(Span::styled(
                 "Search Interface Shortcuts",
                 Style::default()
@@ -447,39 +349,21 @@ impl<'a> HelpView<'a> {
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("/", Style::default().fg(Color::Green)),
-                Span::raw("         - Focus search input"),
-            ]),
-            Line::from(vec![
-                Span::styled("Tab", Style::default().fg(Color::Green)),
-                Span::raw("       - Cycle search scope (All/Title/Description/etc)"),
-            ]),
-            Line::from(vec![
-                Span::styled("f", Style::default().fg(Color::Green)),
-                Span::raw("         - Open quick filter menu"),
-            ]),
-            Line::from(vec![
-                Span::styled("Ctrl+S", Style::default().fg(Color::Green)),
-                Span::raw("    - Save current filter"),
-            ]),
-            Line::from(vec![
-                Span::styled("F1-F11", Style::default().fg(Color::Green)),
-                Span::raw("    - Apply saved filter (1-11)"),
-            ]),
-            Line::from(vec![
-                Span::styled("Ctrl+R", Style::default().fg(Color::Green)),
-                Span::raw("    - Toggle regex mode"),
-            ]),
-            Line::from(vec![
-                Span::styled("Ctrl+F", Style::default().fg(Color::Green)),
-                Span::raw("    - Toggle fuzzy search"),
-            ]),
-            Line::from(vec![
-                Span::styled("Esc", Style::default().fg(Color::Green)),
-                Span::raw("       - Clear search or go back"),
-            ]),
-        ]
+        ];
+
+        lines.push(self.render_shortcut("/", "Focus search bar"));
+        lines.push(self.render_shortcut("Esc", "Clear search input and return focus"));
+        lines.push(self.render_shortcut("Shift+N", "Jump to next search result"));
+        lines.push(self.render_shortcut("Alt+N", "Jump to previous search result"));
+        lines.push(self.render_shortcut("Alt+Z", "Toggle fuzzy search"));
+        lines.push(self.render_shortcut("Alt+R", "Toggle regex search"));
+        lines.push(self.render_shortcut("f", "Toggle quick filters on/off"));
+        lines.push(self.render_shortcut("Shift+F", "Clear current filters"));
+        lines.push(self.render_shortcut("Alt+S", "Save current filter configuration"));
+        lines.push(self.render_shortcut("Alt+F", "Open saved filters menu"));
+        lines.push(self.render_shortcut("F3-F11", "Apply saved filter hotkeys"));
+
+        lines
     }
 
     fn render_about(&self) -> Vec<Line<'static>> {
