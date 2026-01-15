@@ -189,7 +189,7 @@ fn handle_mouse_event(mouse: MouseEvent, app: &mut models::AppState) {
 /// 5. Exit search/filter modes
 /// 6. Cancel edit/create modes
 /// 7. Return from detail view to list
-/// Each handler returns early, so only the highest-priority applicable action is taken.
+///    Each handler returns early, so only the highest-priority applicable action is taken.
 fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
     use ui::views::IssuesViewMode;
 
@@ -1403,10 +1403,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if issues_state.filter_bar_state.is_none() {
                             // Initialize filter bar state
                             let filter_bar_state = ui::widgets::FilterBarState::new(
-                                collect_unique_statuses(&issues_state),
-                                collect_unique_priorities(&issues_state),
-                                collect_unique_types(&issues_state),
-                                collect_unique_labels(&issues_state),
+                                collect_unique_statuses(issues_state),
+                                collect_unique_priorities(issues_state),
+                                collect_unique_types(issues_state),
+                                collect_unique_labels(issues_state),
                             );
                             issues_state.filter_bar_state = Some(filter_bar_state);
                         }
@@ -1419,10 +1419,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if issues_state.filter_bar_state.is_none() {
                             // Initialize filter bar state
                             let filter_bar_state = ui::widgets::FilterBarState::new(
-                                collect_unique_statuses(&issues_state),
-                                collect_unique_priorities(&issues_state),
-                                collect_unique_types(&issues_state),
-                                collect_unique_labels(&issues_state),
+                                collect_unique_statuses(issues_state),
+                                collect_unique_priorities(issues_state),
+                                collect_unique_types(issues_state),
+                                collect_unique_labels(issues_state),
                             );
                             issues_state.filter_bar_state = Some(filter_bar_state);
                         }
@@ -1435,10 +1435,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if issues_state.filter_bar_state.is_none() {
                             // Initialize filter bar state
                             let filter_bar_state = ui::widgets::FilterBarState::new(
-                                collect_unique_statuses(&issues_state),
-                                collect_unique_priorities(&issues_state),
-                                collect_unique_types(&issues_state),
-                                collect_unique_labels(&issues_state),
+                                collect_unique_statuses(issues_state),
+                                collect_unique_priorities(issues_state),
+                                collect_unique_types(issues_state),
+                                collect_unique_labels(issues_state),
                             );
                             issues_state.filter_bar_state = Some(filter_bar_state);
                         }
@@ -1451,10 +1451,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         if issues_state.filter_bar_state.is_none() {
                             // Initialize filter bar state
                             let filter_bar_state = ui::widgets::FilterBarState::new(
-                                collect_unique_statuses(&issues_state),
-                                collect_unique_priorities(&issues_state),
-                                collect_unique_types(&issues_state),
-                                collect_unique_labels(&issues_state),
+                                collect_unique_statuses(issues_state),
+                                collect_unique_priorities(issues_state),
+                                collect_unique_types(issues_state),
+                                collect_unique_labels(issues_state),
                             );
                             issues_state.filter_bar_state = Some(filter_bar_state);
                         }
@@ -2588,12 +2588,11 @@ fn run_app<B: ratatui::backend::Backend>(
                 }
 
                 // Handle ShowIssueHistory (Ctrl+H or Alt+H)
-                if matches!(action, Some(Action::ShowIssueHistory)) && app.selected_tab == 0 {
-                    if app.issues_view_state.selected_issue().is_some() {
+                if matches!(action, Some(Action::ShowIssueHistory)) && app.selected_tab == 0
+                    && app.issues_view_state.selected_issue().is_some() {
                         app.show_issue_history = !app.show_issue_history;
                         continue;
                     }
-                }
 
                 // Handle notification history panel events if visible
                 if app.show_notification_history {
@@ -3044,8 +3043,8 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         open_count, in_progress_count, blocked_count, closed_count
     );
 
-    // Add search box if on Issues tab (0) or Split tab (1)
-    let search_part = if app.selected_tab == 0 || app.selected_tab == 1 {
+    // Add search box if on Issues tab (0), Split tab (1), or Kanban tab (2)
+    let search_part = if app.selected_tab == 0 || app.selected_tab == 1 || app.selected_tab == 2 {
         let search_state = app.issues_view_state.search_state();
         let query = search_state.search_state().query();
         let is_focused = search_state.search_state().is_focused();
@@ -3716,7 +3715,7 @@ fn get_action_hints(app: &models::AppState) -> String {
     // Tab-specific action hints
     let base_hint = match app.selected_tab {
         0 => {
-            // Issues view
+            // Issues view (List mode)
             let mode = app.issues_view_state.view_mode();
             match mode {
                 ui::views::IssuesViewMode::List => {
@@ -3737,43 +3736,63 @@ fn get_action_hints(app: &models::AppState) -> String {
             }
         }
         1 => {
-            // Dependencies view
+            // Split view (Issues view in SplitScreen mode)
+            let mode = app.issues_view_state.view_mode();
+            match mode {
+                ui::views::IssuesViewMode::List => {
+                    "Up/Down/j/k: Navigate | Enter: View | n: Create | e: Edit | d: Delete | /s: Search | f: Filters | ?: Help".to_string()
+                }
+                ui::views::IssuesViewMode::Create => {
+                    "Tab/Shift+Tab: Move | Enter: Save | Ctrl+L: Load | Ctrl+P: Preview | Esc: Cancel".to_string()
+                }
+                ui::views::IssuesViewMode::Edit => {
+                    "Tab/Shift+Tab: Move | Enter: Save | Ctrl+L: Load | Esc: Cancel".to_string()
+                }
+                ui::views::IssuesViewMode::Detail => {
+                    "Up/Down/j/k: Scroll | PgUp/PgDn: Page | e: Edit | d: Delete | Alt+H: History | Esc: Back".to_string()
+                }
+                ui::views::IssuesViewMode::SplitScreen => {
+                    "Up/Down/j/k: Navigate | [R]ead | [N]ew | [E]dit | [D]elete | [O]pen | [C]lose | Rena[m]e | [S]earch | [F]ilters | [Q]uit | [H]elp".to_string()
+                }
+            }
+        }
+        2 => {
+            // Kanban view
+            "Up/Down/j/k: Navigate | Enter: View | n: Create | e: Edit | d: Delete | /s: Search | f: Filters | ?: Help".to_string()
+        }
+        3 => {
+            // Dependency Tree view
             "Up/Down/j/k: Navigate | Tab: Focus | a: Add | d: Remove | g: Graph | c: Cycle | Enter: View | Esc: Back | ?: Help"
                 .to_string()
         }
-        2 => {
+        4 => {
             // Labels view
             "Up/Down/j/k: Navigate | /: Search | a: Add | e: Edit | d: Delete | s: Stats | Esc: Back | ?: Help"
                 .to_string()
         }
-        3 => {
-            // PERT view
-            "Up/Down: Navigate | +/-: Zoom | c: Configure | Esc: Back | ?: Help".to_string()
-        }
-        4 => {
+        5 => {
             // Gantt view
             "Up/Down: Navigate | +/-: Zoom | g: Group | c: Configure | Esc: Back | ?: Help"
                 .to_string()
         }
-        5 => {
-            // Kanban view
-            "Up/Down/j/k: Navigate | [R]ead | [N]ew | [E]dit | [D]elete | [O]pen | [C]lose | Rena[m]e | [S]earch | [F]ilters | [Q]uit | [H]elp".to_string()
-        }
         6 => {
+            // Pert view
+            "Up/Down: Navigate | +/-: Zoom | c: Configure | Esc: Back | ?: Help".to_string()
+        }
+        7 => {
             // Molecular view
             "Up/Down: Navigate | Tab: Switch molecular tab | Enter: Select | Esc: Back | ?: Help"
                 .to_string()
         }
-        7 => {
-            // Database view
+        8 | 9 => {
+            // Statistics/Database view (8) and Utilities view (9)
             "Up/Down/j/k: Navigate | r: Refresh | s: Sync | x: Export | i: Import | v: Verify | c: Compact | t: Toggle daemon | Esc: Back | ?: Help".to_string()
         }
-        8 => {
-            // Help view
-            "Left/Right or h/l: Navigate sections | Esc: Back | ?: Quick reference".to_string()
+        _ => {
+            // Help view and other tabs
+            "Press 'q' to quit | Tab/Shift+Tab: Switch tabs | 1-9 (1-5 implemented): Direct tab access | ?: Help"
+                .to_string()
         }
-        _ => "Press 'q' to quit | Tab/Shift+Tab: Switch tabs | 1-9 (1-5 implemented): Direct tab access | ?: Help"
-            .to_string(),
     };
 
     format!("{}{}", base_hint, undo_redo_hints)
