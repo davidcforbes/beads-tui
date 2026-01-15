@@ -1581,27 +1581,45 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         }
         IssuesViewMode::SplitScreen => {
             // Split-screen mode: list navigation with live detail updates
+            use ui::views::SplitScreenFocus;
+
             match key_code {
                 KeyCode::Esc | KeyCode::Char('q') => {
                     issues_state.return_to_list();
                 }
                 KeyCode::Char('j') | KeyCode::Down => {
-                    let len = issues_state.search_state().filtered_issues().len();
-                    issues_state
-                        .search_state_mut()
-                        .list_state_mut()
-                        .select_next(len);
-                    // Update detail panel with newly selected issue
-                    issues_state.update_split_screen_detail();
+                    match issues_state.split_screen_focus() {
+                        SplitScreenFocus::List => {
+                            let len = issues_state.search_state().filtered_issues().len();
+                            issues_state
+                                .search_state_mut()
+                                .list_state_mut()
+                                .select_next(len);
+                            // Update detail panel with newly selected issue
+                            issues_state.update_split_screen_detail();
+                        }
+                        SplitScreenFocus::Detail => {
+                            // Scroll detail panel down
+                            issues_state.detail_scroll = issues_state.detail_scroll.saturating_add(1);
+                        }
+                    }
                 }
                 KeyCode::Char('k') | KeyCode::Up => {
-                    let len = issues_state.search_state().filtered_issues().len();
-                    issues_state
-                        .search_state_mut()
-                        .list_state_mut()
-                        .select_previous(len);
-                    // Update detail panel with newly selected issue
-                    issues_state.update_split_screen_detail();
+                    match issues_state.split_screen_focus() {
+                        SplitScreenFocus::List => {
+                            let len = issues_state.search_state().filtered_issues().len();
+                            issues_state
+                                .search_state_mut()
+                                .list_state_mut()
+                                .select_previous(len);
+                            // Update detail panel with newly selected issue
+                            issues_state.update_split_screen_detail();
+                        }
+                        SplitScreenFocus::Detail => {
+                            // Scroll detail panel up
+                            issues_state.detail_scroll = issues_state.detail_scroll.saturating_sub(1);
+                        }
+                    }
                 }
                 KeyCode::Char('g') => {
                     // Go to top
@@ -1629,6 +1647,14 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 KeyCode::Char('e') => {
                     // Enter edit mode
                     issues_state.enter_edit_mode();
+                }
+                KeyCode::Char('r') => {
+                    // Switch focus to detail panel
+                    issues_state.set_split_screen_focus(SplitScreenFocus::Detail);
+                }
+                KeyCode::Char('l') => {
+                    // Switch focus to list panel
+                    issues_state.set_split_screen_focus(SplitScreenFocus::List);
                 }
                 _ => {}
             }
@@ -2910,6 +2936,30 @@ fn handle_kanban_view_event(key: KeyEvent, app: &mut models::AppState) {
     }
 
     match action {
+        // Navigation actions
+        Some(Action::MoveLeft) => {
+            app.kanban_view_state.previous_column();
+            // Note: viewport width will be calculated during render
+            // For now, we assume a reasonable default terminal width
+            app.kanban_view_state.ensure_selected_column_visible(100);
+            app.mark_dirty();
+        }
+        Some(Action::MoveRight) => {
+            app.kanban_view_state.next_column();
+            // Note: viewport width will be calculated during render
+            // For now, we assume a reasonable default terminal width
+            app.kanban_view_state.ensure_selected_column_visible(100);
+            app.mark_dirty();
+        }
+        Some(Action::MoveUp) => {
+            app.kanban_view_state.previous_card();
+            app.mark_dirty();
+        }
+        Some(Action::MoveDown) => {
+            app.kanban_view_state.next_card();
+            app.mark_dirty();
+        }
+        // Column toggle actions
         Some(Action::ToggleKanbanOpenColumn) => app
             .kanban_view_state
             .toggle_column_collapse(models::kanban_config::ColumnId::StatusOpen),
@@ -3661,7 +3711,7 @@ fn get_action_hints(app: &models::AppState) -> String {
             let mode = app.issues_view_state.view_mode();
             match mode {
                 ui::views::IssuesViewMode::List => {
-                    "Up/Down/j/k: Navigate | Enter: View | n: Create | e: Edit | F2: Rename | d: Delete | x: Close | /: Search | f: Filters | v: Scope | ?: Help".to_string()
+                    "Up/Down/j/k: Navigate | Enter: View | n: Create | e: Edit | d: Delete | /: Search | f: Filters | ?: Help".to_string()
                 }
                 ui::views::IssuesViewMode::Create => {
                     "Tab/Shift+Tab: Move | Enter: Save | Ctrl+L: Load | Ctrl+P: Preview | Esc: Cancel".to_string()
@@ -3673,7 +3723,7 @@ fn get_action_hints(app: &models::AppState) -> String {
                     "e: Edit | d: Delete | Alt+H: History | Esc: Back".to_string()
                 }
                 ui::views::IssuesViewMode::SplitScreen => {
-                    "Up/Down/j/k: Navigate | Enter: Full view | e: Edit | Esc/q: Back | ?: Help".to_string()
+                    "Up/Down/j/k: Navigate | Enter: View | Tab: Switch Focus | n: Create | e: Edit | d: Delete | /: Search | f: Filters | ?: Help".to_string()
                 }
             }
         }
@@ -3698,7 +3748,7 @@ fn get_action_hints(app: &models::AppState) -> String {
         }
         5 => {
             // Kanban view
-            "Up/Down/Left/Right or h/j/k/l: Navigate | Space: Move | c: Configure | Esc: Back | ?: Help".to_string()
+            "Up/Down/j/k: Navigate | Enter: View | n: Create | e: Edit | d: Delete | /: Search | f: Filters | c: Configure | ?: Help".to_string()
         }
         6 => {
             // Molecular view
@@ -3866,7 +3916,9 @@ fn get_context_help_content(
                     "Split-Screen View Help".to_string(),
                     "List and Detail View".to_string(),
                     vec![
-                        ("Up/Down or j/k", "Navigate through issues"),
+                        ("Up/Down or j/k", "Navigate/scroll (depending on focus)"),
+                        ("r", "Focus record details panel"),
+                        ("l", "Focus list panel"),
                         ("Enter", "Go to full detail view"),
                         ("e", "Edit selected issue"),
                         ("Alt+H", "Toggle issue history"),
