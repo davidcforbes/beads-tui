@@ -4,10 +4,10 @@ expression: rendered
 ---
 Showing all 3 issues  [Scope: All]                                              
 ┌Issues (3/3)──────────────────────────────────────────────────────────────────┐
-│ID      Title                 Status P... Type Assi... Labels     Updat...    │
-│beads-1 ○ Add state selector  o Open ● P1 ✨  F alex    ui, sta... 2026-...    │
-│beads-1 ◐ Fix label valida... * I... ◆ P0 🐛  B sam     bug, la... 2026-...    │
-│beads-1 ✓ Document workflo... + C... ○ P2 📋  T -       docs       2026-...    │
+│ID       Title                 Status P... Type Assignee Labels      Update...│
+│beads-10 Add state selector    Open   P1   Feat alex     ui, stat... 2026-0...│
+│beads-10 Fix label validation  InP... P0   Bug  sam      bug, labels 2026-0...│
+│beads-10 Document workflow ... Closed P2   Task -        docs        2026-0...│
 │                                                                              │
 │                                                                              │
 │                                                                              │

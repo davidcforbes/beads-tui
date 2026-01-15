@@ -8,6 +8,7 @@ pub mod date_picker;
 pub mod dependency_dialog;
 pub mod dialog;
 pub mod field_editor;
+pub mod filter_bar;
 pub mod filter_builder;
 pub mod filter_panel;
 pub mod filter_quick_select;
@@ -44,6 +45,10 @@ pub use dependency_dialog::{
 };
 pub use dialog::{Dialog, DialogButton, DialogState, DialogType};
 pub use field_editor::{EditorMode, FieldEditor, FieldEditorState};
+pub use filter_bar::{
+    ActiveDropdownMut, FilterBar, FilterBarState, FilterDropdown, FilterDropdownType,
+    MultiSelectDropdownState,
+};
 pub use filter_builder::{FilterBuilder, FilterBuilderState, FilterSection};
 pub use filter_panel::{FilterCriteria, FilterPanel};
 pub use filter_quick_select::{FilterQuickSelectMenu, FilterQuickSelectState};

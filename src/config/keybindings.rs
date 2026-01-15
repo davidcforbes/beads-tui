@@ -58,6 +58,10 @@ pub enum Action {
     ClearFilter,
     SaveFilter,
     QuickSelectFilter,
+    OpenStatusFilter,
+    OpenPriorityFilter,
+    OpenTypeFilter,
+    OpenLabelsFilter,
     Search,
     NextSearchResult,
     PrevSearchResult,
@@ -135,6 +139,10 @@ impl Action {
             Action::ClearFilter => "Clear filter",
             Action::SaveFilter => "Save filter",
             Action::QuickSelectFilter => "Quick select filter",
+            Action::OpenStatusFilter => "Open status filter",
+            Action::OpenPriorityFilter => "Open priority filter",
+            Action::OpenTypeFilter => "Open type filter",
+            Action::OpenLabelsFilter => "Open labels filter",
             Action::Search => "Search",
             Action::NextSearchResult => "Next search result",
             Action::PrevSearchResult => "Previous search result",
@@ -414,8 +422,20 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
     );
     bindings.insert(Action::ToggleFilter, vec![Keybinding::new("f")]);
     bindings.insert(Action::ClearFilter, vec![Keybinding::shift("f")]);
-    bindings.insert(Action::SaveFilter, vec![Keybinding::alt("s")]);
+    bindings.insert(
+        Action::SaveFilter,
+        vec![Keybinding {
+            key: "s".to_string(),
+            ctrl: true,
+            alt: false,
+            shift: true,
+        }],
+    );  // Ctrl+Shift+S to avoid conflict with Ctrl+S (Save)
     bindings.insert(Action::QuickSelectFilter, vec![Keybinding::alt("f")]);
+    bindings.insert(Action::OpenStatusFilter, vec![Keybinding::alt("s")]);
+    bindings.insert(Action::OpenPriorityFilter, vec![Keybinding::alt("p")]);
+    bindings.insert(Action::OpenTypeFilter, vec![Keybinding::alt("t")]);
+    bindings.insert(Action::OpenLabelsFilter, vec![Keybinding::alt("l")]);
     bindings.insert(Action::Search, vec![Keybinding::new("/")]);
     bindings.insert(Action::NextSearchResult, vec![Keybinding::shift("n")]);
     bindings.insert(Action::PrevSearchResult, vec![Keybinding::alt("n")]);

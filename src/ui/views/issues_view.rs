@@ -38,6 +38,10 @@ pub struct IssuesViewState {
     show_help: bool,
     /// Scroll offset for the detail view in split screen
     pub detail_scroll: u16,
+    /// Filter bar state (inline filter bar with dropdowns)
+    pub filter_bar_state: Option<crate::ui::widgets::FilterBarState>,
+    /// Original issues before filter bar filtering (for restoring)
+    original_issues: Option<Vec<Issue>>,
 }
 
 impl IssuesViewState {
@@ -51,6 +55,8 @@ impl IssuesViewState {
             create_form_state: None,
             show_help: true,
             detail_scroll: 0,
+            filter_bar_state: None,
+            original_issues: None,
         }
     }
 
@@ -212,6 +218,39 @@ impl IssuesViewState {
     pub fn set_saved_filters(&mut self, filters: Vec<crate::models::SavedFilter>) {
         self.search_state.set_saved_filters(filters);
     }
+
+    /// Apply filter bar filters to the issues
+    /// This triggers a re-filter of the issues based on the current filter bar selections
+    pub fn apply_filter_bar_filters(&mut self) {
+        if let Some(ref filter_bar_state) = self.filter_bar_state {
+            // Save original issues if not already saved
+            if self.original_issues.is_none() {
+                self.original_issues = Some(self.search_state.all_issues().to_vec());
+            }
+
+            // Get original issues (or current if we haven't saved yet)
+            let all_issues = self.original_issues.as_ref().unwrap();
+
+            // Filter issues based on filter bar state
+            let mut filtered_issues = Vec::new();
+            for issue in all_issues {
+                if filter_bar_state.matches_issue(issue) {
+                    filtered_issues.push(issue.clone());
+                }
+            }
+
+            // Update the search state with filtered issues
+            self.search_state.set_issues(filtered_issues);
+        }
+    }
+
+    /// Clear filter bar filters and restore original issues
+    pub fn clear_filter_bar_filters(&mut self) {
+        if let Some(original_issues) = self.original_issues.take() {
+            // Restore original issues
+            self.search_state.set_issues(original_issues);
+        }
+    }
 }
 
 /// Issues view widget
@@ -249,6 +288,34 @@ impl<'a> IssuesView<'a> {
             search_view = search_view.theme(theme);
         }
         StatefulWidget::render(search_view, area, buf, &mut state.search_state);
+
+        // Render filter bar if it exists
+        if let Some(ref mut filter_bar_state) = state.filter_bar_state {
+            let default_theme = crate::ui::themes::Theme::default();
+            let theme = self.theme.unwrap_or(&default_theme);
+
+            // The filter bar replaces the first line (results info) of the search view
+            let filter_bar_area = ratatui::layout::Rect {
+                x: area.x,
+                y: area.y,
+                width: area.width,
+                height: 1,
+            };
+
+            // Render the filter bar
+            let filter_bar = crate::ui::widgets::FilterBar::new(
+                state.search_state.result_count(),
+                state.search_state.all_issues().len(),
+                theme,
+            );
+            filter_bar.render(filter_bar_area, buf, filter_bar_state);
+
+            // Render dropdown if one is active
+            if let Some(dropdown_type) = filter_bar_state.active_dropdown {
+                let dropdown = crate::ui::widgets::FilterDropdown::new(dropdown_type, theme);
+                dropdown.render(area, buf, filter_bar_state);
+            }
+        }
     }
 
     fn render_detail_mode(&self, area: Rect, buf: &mut Buffer, state: &IssuesViewState) {
