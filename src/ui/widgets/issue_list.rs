@@ -8,7 +8,8 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{
-        Block, Borders, Cell, HighlightSpacing, Row, StatefulWidget, Table, TableState, Widget,
+        Block, Borders, Cell, HighlightSpacing, Row, Scrollbar, ScrollbarOrientation,
+        ScrollbarState, StatefulWidget, Table, TableState, Widget,
     },
 };
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -417,6 +418,15 @@ pub struct IssueListState {
     table_config: TableConfig,
     /// Focused column for resize/reorder operations (index in visible columns)
     focused_column: Option<usize>,
+    /// Horizontal scroll offset in columns (not pixels)
+    horizontal_scroll_offset: usize,
+    /// Vertical scrollbar state for ratatui's Scrollbar widget
+    vertical_scrollbar_state: ScrollbarState,
+    /// Horizontal scrollbar state for ratatui's Scrollbar widget
+    horizontal_scrollbar_state: ScrollbarState,
+    /// Cached viewport dimensions for scroll calculations
+    last_viewport_width: u16,
+    last_viewport_height: u16,
 }
 
 impl Default for IssueListState {
@@ -438,6 +448,11 @@ impl IssueListState {
             column_filters: ColumnFilters::default(),
             table_config: TableConfig::default(),
             focused_column: None,
+            horizontal_scroll_offset: 0,
+            vertical_scrollbar_state: ScrollbarState::default(),
+            horizontal_scrollbar_state: ScrollbarState::default(),
+            last_viewport_width: 0,
+            last_viewport_height: 0,
         }
     }
 
@@ -736,6 +751,145 @@ impl IssueListState {
                 }
             }
         }
+    }
+
+    // ===== Horizontal Scrolling Methods =====
+
+    /// Scroll left by one column
+    pub fn scroll_left(&mut self) -> bool {
+        if self.horizontal_scroll_offset > 0 {
+            self.horizontal_scroll_offset -= 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Scroll right by one column
+    pub fn scroll_right(&mut self) -> bool {
+        let visible_columns = self.table_config.visible_columns();
+        if self.horizontal_scroll_offset < visible_columns.len().saturating_sub(1) {
+            self.horizontal_scroll_offset += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Scroll to a specific column index
+    pub fn scroll_to_column(&mut self, column_index: usize) {
+        let visible_columns = self.table_config.visible_columns();
+        self.horizontal_scroll_offset = column_index.min(visible_columns.len().saturating_sub(1));
+    }
+
+    /// Get the current horizontal scroll offset
+    pub fn horizontal_scroll_offset(&self) -> usize {
+        self.horizontal_scroll_offset
+    }
+
+    /// Calculate the range of visible columns based on viewport width
+    /// Returns (start_index, end_index) of columns to render
+    pub fn visible_column_range(&self, viewport_width: u16, all_columns: &[ColumnDefinition]) -> (usize, usize) {
+        if all_columns.is_empty() {
+            return (0, 0);
+        }
+
+        let start_idx = self.horizontal_scroll_offset.min(all_columns.len().saturating_sub(1));
+        let mut accumulated_width = 0u16;
+        let mut end_idx = start_idx;
+
+        // Accumulate column widths until we exceed viewport width
+        for idx in start_idx..all_columns.len() {
+            let col_width = all_columns[idx].width;
+            if accumulated_width + col_width <= viewport_width {
+                accumulated_width += col_width;
+                end_idx = idx + 1;
+            } else {
+                break;
+            }
+        }
+
+        // Ensure we have at least one column visible
+        if end_idx == start_idx {
+            end_idx = start_idx + 1;
+        }
+
+        (start_idx, end_idx.min(all_columns.len()))
+    }
+
+    /// Ensure the focused column is visible in the viewport
+    pub fn ensure_focused_column_visible(&mut self, viewport_width: u16) {
+        if let Some(focused_idx) = self.focused_column {
+            let visible_columns: Vec<ColumnDefinition> = self.table_config.visible_columns().iter().map(|&c| c.clone()).collect();
+            let (visible_start, visible_end) = self.visible_column_range(viewport_width, &visible_columns);
+
+            // If focused column is before visible range, scroll left
+            if focused_idx < visible_start {
+                self.horizontal_scroll_offset = focused_idx;
+            }
+            // If focused column is after visible range, scroll right
+            else if focused_idx >= visible_end {
+                self.horizontal_scroll_offset = focused_idx;
+            }
+        }
+    }
+
+    // ===== Scrollbar State Management =====
+
+    /// Update vertical scrollbar state
+    pub fn update_vertical_scrollbar(&mut self, total_items: usize, viewport_height: usize) {
+        self.vertical_scrollbar_state = self.vertical_scrollbar_state
+            .content_length(total_items)
+            .viewport_content_length(viewport_height);
+
+        // Update position based on current selection
+        if let Some(selected) = self.table_state.selected() {
+            self.vertical_scrollbar_state = self.vertical_scrollbar_state.position(selected);
+        }
+    }
+
+    /// Update horizontal scrollbar state
+    pub fn update_horizontal_scrollbar(&mut self, total_columns: usize, visible_column_count: usize) {
+        self.horizontal_scrollbar_state = self.horizontal_scrollbar_state
+            .content_length(total_columns)
+            .viewport_content_length(visible_column_count)
+            .position(self.horizontal_scroll_offset);
+    }
+
+    /// Get reference to vertical scrollbar state
+    pub fn vertical_scrollbar_state(&self) -> &ScrollbarState {
+        &self.vertical_scrollbar_state
+    }
+
+    /// Get mutable reference to vertical scrollbar state
+    pub fn vertical_scrollbar_state_mut(&mut self) -> &mut ScrollbarState {
+        &mut self.vertical_scrollbar_state
+    }
+
+    /// Get reference to horizontal scrollbar state
+    pub fn horizontal_scrollbar_state(&self) -> &ScrollbarState {
+        &self.horizontal_scrollbar_state
+    }
+
+    /// Get mutable reference to horizontal scrollbar state
+    pub fn horizontal_scrollbar_state_mut(&mut self) -> &mut ScrollbarState {
+        &mut self.horizontal_scrollbar_state
+    }
+
+    /// Update cached viewport dimensions
+    pub fn update_viewport_dimensions(&mut self, width: u16, height: u16) {
+        self.last_viewport_width = width;
+        self.last_viewport_height = height;
+    }
+
+    /// Get cached viewport width
+    pub fn last_viewport_width(&self) -> u16 {
+        self.last_viewport_width
+    }
+
+    /// Get cached viewport height
+    pub fn last_viewport_height(&self) -> u16 {
+        self.last_viewport_height
     }
 }
 
@@ -1259,18 +1413,43 @@ impl<'a> StatefulWidget for IssueList<'a> {
             SortDirection::Descending => "desc",
         };
 
-        // Get visible columns from table config or override
-        let visible_columns = if let Some(cols) = &self.columns {
-            cols.iter().collect::<Vec<_>>()
-        } else {
-            state.table_config().visible_columns()
-        };
-        let focused_col_idx = state.focused_column();
+        // Apply fixed widths for horizontal scrolling
+        state.table_config_mut().apply_fixed_widths();
 
-        // Get editing state for rendering (clone to avoid borrow conflicts)
-        let editing_state = state
-            .editing_state()
-            .map(|(idx, buf, cursor)| (idx, buf.clone(), cursor));
+        // Get visible columns from table config or override
+        // Clone the column definitions to avoid holding immutable borrow of state
+        let all_visible_columns: Vec<ColumnDefinition> = if let Some(cols) = &self.columns {
+            cols.iter().map(|c| (*c).clone()).collect()
+        } else {
+            state.table_config().visible_columns().iter().map(|c| (*c).clone()).collect()
+        };
+
+        // Reserve space for scrollbars
+        let scrollbar_width = 1u16;
+        let scrollbar_height = 1u16;
+        let content_area_width = table_area.width.saturating_sub(scrollbar_width);
+        let content_area_height = table_area.height.saturating_sub(scrollbar_height);
+
+        // Update viewport dimensions in state
+        state.update_viewport_dimensions(content_area_width, content_area_height);
+
+        // Calculate horizontal scroll range
+        let (h_start_idx, h_end_idx) = state.visible_column_range(
+            content_area_width.saturating_sub(2), // Subtract borders
+            &all_visible_columns
+        );
+
+        // Filter to only visible columns based on horizontal scroll
+        let visible_columns: Vec<&ColumnDefinition> = all_visible_columns[h_start_idx..h_end_idx].iter().collect();
+
+        // Adjust focused column index to be relative to visible range
+        let focused_col_idx = state.focused_column().and_then(|idx| {
+            if idx >= h_start_idx && idx < h_end_idx {
+                Some(idx - h_start_idx)
+            } else {
+                None
+            }
+        });
 
         // Virtual scrolling: Calculate visible range to optimize rendering
         let total_issues = issues.len();
@@ -1296,74 +1475,21 @@ impl<'a> StatefulWidget for IssueList<'a> {
             &[]
         };
 
-        // Calculate available width for table content (subtract borders) BEFORE building rows
-        let available_width = table_area.width.saturating_sub(2) as usize; // 2 for left/right borders
-        let num_columns = visible_columns.len();
-        let spacing_width = num_columns.saturating_sub(1); // 1 space between each column
-
-        // No highlight symbol (using background color only for selection)
-        let highlight_symbol_width = 0;
-        let content_width = available_width
-            .saturating_sub(spacing_width)
-            .saturating_sub(highlight_symbol_width);
-
-        // Calculate total requested width
-        let total_requested: usize = visible_columns.iter().map(|c| c.width as usize).sum();
-
-        // Create a map of column ID to adjusted width for easy lookup
+        // Use fixed widths (no dynamic scaling) since we have horizontal scrolling
         use std::collections::HashMap;
 
-        // Adjust column widths if they exceed available space
+        // Use fixed widths from columns directly
         let adjusted_columns: Vec<(crate::models::table_config::ColumnId, u16)> =
-            if total_requested > content_width && content_width > 0 {
-                // Scale down proportionally, then distribute the rounding remainder so rows fill.
-                let scale_factor = content_width as f64 / total_requested as f64;
-                let mut scaled: Vec<(crate::models::table_config::ColumnId, u16, f64)> =
-                    visible_columns
-                        .iter()
-                        .map(|col| {
-                            let exact_width = col.width as f64 * scale_factor;
-                            let floored = exact_width.floor();
-                            let scaled_width = (floored as u16).max(1);
-                            let remainder = if exact_width > 1.0 {
-                                exact_width - floored
-                            } else {
-                                0.0
-                            };
-                            (col.id, scaled_width, remainder)
-                        })
-                        .collect();
-
-                let used_width: usize = scaled
-                    .iter()
-                    .map(|(_, width, _)| *width as usize)
-                    .sum();
-                if used_width < content_width && !scaled.is_empty() {
-                    let extra = content_width - used_width;
-                    let mut order: Vec<usize> = (0..scaled.len()).collect();
-                    order.sort_by(|&a, &b| {
-                        scaled[b]
-                            .2
-                            .partial_cmp(&scaled[a].2)
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                    });
-                    for idx in order.into_iter().take(extra) {
-                        scaled[idx].1 = scaled[idx].1.saturating_add(1);
-                    }
-                }
-
-                scaled
-                    .into_iter()
-                    .map(|(id, width, _)| (id, width))
-                    .collect()
-            } else {
-                // Use configured widths as-is
-                visible_columns.iter().map(|col| (col.id, col.width)).collect()
-            };
+            visible_columns.iter().map(|col| (col.id, col.width)).collect();
 
         // Create width lookup map
         let width_map: HashMap<crate::models::table_config::ColumnId, u16> =
             adjusted_columns.iter().copied().collect();
+
+        // Get editing state for rendering (clone to avoid borrow conflicts)
+        let editing_state = state
+            .editing_state()
+            .map(|(idx, buf, cursor)| (idx, buf.clone(), cursor));
 
         // Build header using adjusted widths
         let header_cells: Vec<Cell> = visible_columns
@@ -1495,6 +1621,75 @@ impl<'a> StatefulWidget for IssueList<'a> {
 
         // Restore original selection
         state.table_state.select(original_selected);
+
+        // Update scrollbar states
+        state.update_vertical_scrollbar(total_issues, viewport_height);
+        state.update_horizontal_scrollbar(all_visible_columns.len(), visible_columns.len());
+
+        // Render vertical scrollbar on the right edge
+        let vert_scrollbar = Scrollbar::default()
+            .orientation(ScrollbarOrientation::VerticalRight)
+            .begin_symbol(Some("↑"))
+            .end_symbol(Some("↓"));
+
+        let vert_scrollbar_area = Rect {
+            x: table_area.right().saturating_sub(1),
+            y: table_area.y + 1,  // Skip top border
+            width: 1,
+            height: table_area.height.saturating_sub(2),  // Skip borders
+        };
+
+        vert_scrollbar.render(
+            vert_scrollbar_area,
+            buf,
+            state.vertical_scrollbar_state_mut()
+        );
+
+        // Render horizontal scrollbar on the bottom edge
+        let horiz_scrollbar = Scrollbar::default()
+            .orientation(ScrollbarOrientation::HorizontalBottom)
+            .begin_symbol(Some("←"))
+            .end_symbol(Some("→"));
+
+        let horiz_scrollbar_area = Rect {
+            x: table_area.x + 1,  // Skip left border
+            y: table_area.bottom().saturating_sub(1),
+            width: table_area.width.saturating_sub(3),  // Skip borders and vert scrollbar
+            height: 1,
+        };
+
+        horiz_scrollbar.render(
+            horiz_scrollbar_area,
+            buf,
+            state.horizontal_scrollbar_state_mut()
+        );
+
+        // Add visual scroll indicators showing hidden columns
+        if h_start_idx > 0 || h_end_idx < all_visible_columns.len() {
+            let left_hidden = h_start_idx;
+            let right_hidden = all_visible_columns.len().saturating_sub(h_end_idx);
+
+            let indicator_text = if left_hidden > 0 && right_hidden > 0 {
+                format!("◀ {} more | {} more ▶", left_hidden, right_hidden)
+            } else if left_hidden > 0 {
+                format!("◀ {} more", left_hidden)
+            } else {
+                format!("{} more ▶", right_hidden)
+            };
+
+            // Render indicator in the bottom-right corner of the table
+            let indicator_x = table_area.x + table_area.width.saturating_sub(indicator_text.len() as u16 + 2);
+            let indicator_y = table_area.bottom().saturating_sub(1);
+
+            if indicator_x < table_area.right() && indicator_y < table_area.bottom() {
+                buf.set_string(
+                    indicator_x,
+                    indicator_y,
+                    &indicator_text,
+                    Style::default().fg(Color::Cyan).add_modifier(Modifier::DIM)
+                );
+            }
+        }
 
         // Render filter row if enabled
         if let Some(filter_area) = filter_area {

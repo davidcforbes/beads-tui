@@ -1,7 +1,7 @@
 //! Issue detail view
 
 use crate::beads::models::Issue;
-use crate::ui::views::issue_form_builder::{build_issue_form, IssueFormMode};
+use crate::ui::views::issue_form_builder::{build_issue_form_with_sections, IssueFormMode};
 use crate::ui::widgets::{FormState, Form};
 use ratatui::{
     buffer::Buffer,
@@ -52,13 +52,13 @@ impl<'a> IssueDetailView<'a> {
 impl<'a> StatefulWidget for IssueDetailView<'a> {
     type State = u16; // Scroll offset
 
-    fn render(self, area: Rect, buf: &mut Buffer, _scroll: &mut Self::State) {
+    fn render(self, area: Rect, buf: &mut Buffer, scroll: &mut Self::State) {
         if area.width < 2 || area.height < 2 {
             return;
         }
 
-        // Build form fields using unified form builder
-        let mut fields = build_issue_form(IssueFormMode::Read, Some(self.issue));
+        // Build form fields using sectioned form builder
+        let mut fields = build_issue_form_with_sections(IssueFormMode::Read, Some(self.issue));
 
         // Filter fields based on show_dependencies and show_notes flags
         if !self.show_dependencies {
@@ -68,8 +68,9 @@ impl<'a> StatefulWidget for IssueDetailView<'a> {
             fields.retain(|f| f.id != "notes");
         }
 
-        // Create form state and render
+        // Create form state and set scroll offset
         let mut form_state = FormState::new(fields);
+        form_state.set_scroll_offset(*scroll as usize);
 
         let form = Form::new()
             .block(
@@ -81,6 +82,9 @@ impl<'a> StatefulWidget for IssueDetailView<'a> {
             );
 
         StatefulWidget::render(form, area, buf, &mut form_state);
+
+        // Update scroll offset back to state
+        *scroll = form_state.scroll_offset() as u16;
     }
 }
 

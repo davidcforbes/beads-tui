@@ -31,7 +31,7 @@ use ratatui::{
 use std::io::{self, Write};
 use std::sync::Arc;
 use tasks::TaskOutput;
-use ui::views::{DatabaseView, DependenciesView, HelpView, IssuesView, LabelsView};
+use ui::views::{DatabaseView, DependencyTreeView, HelpView, IssuesView, LabelsView};
 use undo::IssueUpdateCommand;
 
 /// Terminal UI for the beads issue tracker
@@ -1119,6 +1119,34 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             .list_state_mut()
                             .select_next(len);
                     }
+                    Some(Action::MoveLeft) if !key.modifiers.contains(KeyModifiers::SHIFT) => {
+                        // Horizontal scroll left by one column
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .scroll_left();
+                    }
+                    Some(Action::MoveRight) if !key.modifiers.contains(KeyModifiers::SHIFT) => {
+                        // Horizontal scroll right by one column
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .scroll_right();
+                    }
+                    Some(Action::MoveLeft) if key.modifiers.contains(KeyModifiers::SHIFT) => {
+                        // Jump to first column (Shift+Left or Shift+Home)
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .scroll_to_column(0);
+                    }
+                    Some(Action::MoveRight) if key.modifiers.contains(KeyModifiers::SHIFT) => {
+                        // Jump to last column (Shift+Right or Shift+End)
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .scroll_to_column(usize::MAX); // Will be clamped to last column
+                    }
                     // TODO: Move child reordering to Action enum (e.g. MoveChildUp/Down)
                     // Keeping hardcoded for now as it uses modifiers
                     _ if key_code == KeyCode::Up
@@ -1576,23 +1604,33 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                     issues_state.enter_edit_mode();
                 }
                 Some(Action::MoveUp) => {
-                    // Scroll up in detail view
+                    // Scroll up in detail view (1 field at a time)
                     issues_state.detail_scroll = issues_state.detail_scroll.saturating_sub(1);
                     app.mark_dirty();
                 }
                 Some(Action::MoveDown) => {
-                    // Scroll down in detail view
+                    // Scroll down in detail view (1 field at a time)
                     issues_state.detail_scroll = issues_state.detail_scroll.saturating_add(1);
                     app.mark_dirty();
                 }
                 Some(Action::PageUp) => {
-                    // Page up in detail view
-                    issues_state.detail_scroll = issues_state.detail_scroll.saturating_sub(10);
+                    // Page up in detail view (5 fields at a time)
+                    issues_state.detail_scroll = issues_state.detail_scroll.saturating_sub(5);
                     app.mark_dirty();
                 }
                 Some(Action::PageDown) => {
-                    // Page down in detail view
-                    issues_state.detail_scroll = issues_state.detail_scroll.saturating_add(10);
+                    // Page down in detail view (5 fields at a time)
+                    issues_state.detail_scroll = issues_state.detail_scroll.saturating_add(5);
+                    app.mark_dirty();
+                }
+                Some(Action::Home) => {
+                    // Scroll to top of form
+                    issues_state.detail_scroll = 0;
+                    app.mark_dirty();
+                }
+                Some(Action::End) => {
+                    // Scroll to bottom of form (set to large value, clamped by render)
+                    issues_state.detail_scroll = u16::MAX;
                     app.mark_dirty();
                 }
                 _ => {}
@@ -1740,6 +1778,15 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         KeyCode::End => {
                             form.move_cursor_to_end();
                         }
+                        // Form scrolling
+                        KeyCode::PageUp => {
+                            form.scroll_up(5);
+                            app.mark_dirty();
+                        }
+                        KeyCode::PageDown => {
+                            form.scroll_down(5);
+                            app.mark_dirty();
+                        }
                         // Save/Cancel
                         KeyCode::Enter => {
                             // Validate and save
@@ -1874,6 +1921,15 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         KeyCode::End => {
                             form.move_cursor_to_end();
                         }
+                        // Form scrolling
+                        KeyCode::PageUp => {
+                            form.scroll_up(5);
+                            app.mark_dirty();
+                        }
+                        KeyCode::PageDown => {
+                            form.scroll_down(5);
+                            app.mark_dirty();
+                        }
                         // Submit/Cancel
                         KeyCode::Enter => {
                             // Validate and submit
@@ -1995,7 +2051,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
     }
 }
 
-/// Handle keyboard events for the Dependencies view
+/// Handle keyboard events for the Dependencies view (Tree View)
 fn handle_dependencies_view_event(key: KeyEvent, app: &mut models::AppState) {
     let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
 
@@ -2005,111 +2061,43 @@ fn handle_dependencies_view_event(key: KeyEvent, app: &mut models::AppState) {
         return;
     }
 
-    let selected_issue = app.issues_view_state.selected_issue();
-
     match action {
         Some(Action::MoveDown) => {
-            // Get the length of the focused list
-            let len = if let Some(issue) = selected_issue {
-                match app.dependencies_view_state.focus() {
-                    ui::views::DependencyFocus::Dependencies => issue.dependencies.len(),
-                    ui::views::DependencyFocus::Blocks => issue.blocks.len(),
-                }
-            } else {
-                0
-            };
-            app.dependencies_view_state.select_next(len);
+            // Navigate down in tree
+            app.dependency_tree_state.select_next();
             app.mark_dirty();
         }
         Some(Action::MoveUp) => {
-            let len = if let Some(issue) = selected_issue {
-                match app.dependencies_view_state.focus() {
-                    ui::views::DependencyFocus::Dependencies => issue.dependencies.len(),
-                    ui::views::DependencyFocus::Blocks => issue.blocks.len(),
-                }
-            } else {
-                0
-            };
-            app.dependencies_view_state.select_previous(len);
+            // Navigate up in tree
+            app.dependency_tree_state.select_previous();
             app.mark_dirty();
         }
-        Some(Action::NextTab) => { // Tab cycles focus between lists here
-            // Toggle focus between dependencies and blocks
-            app.dependencies_view_state.toggle_focus();
+        Some(Action::MoveLeft) => {
+            // Collapse current node
+            app.dependency_tree_state.collapse_current();
             app.mark_dirty();
         }
-        Some(Action::UpdateAssignee) => { // 'a' used for add dependency in this view
-            // Add dependency - open dialog
-            if let Some(current_issue) = selected_issue {
-                let current_id = current_issue.id.clone();
-
-                // Get all issue IDs except the current one
-                let all_issues: Vec<String> = app
-                    .issues_view_state
-                    .search_state()
-                    .filtered_issues()
-                    .iter()
-                    .map(|issue| issue.id.clone())
-                    .filter(|id| id != &current_id)
-                    .collect();
-
-                app.dependency_dialog_state.open(all_issues);
-                app.mark_dirty();
-                tracing::info!("Add dependency dialog opened for issue: {}", current_id);
-            } else {
-                app.set_info("No issue selected".to_string());
-            }
+        Some(Action::MoveRight) => {
+            // Expand current node
+            app.dependency_tree_state.expand_current();
+            app.mark_dirty();
         }
-        Some(Action::DeleteIssue) => { // 'd' used for remove dependency
-            // Remove dependency (with confirmation)
-            if let Some(issue) = selected_issue {
-                let current_id = issue.id.clone();
-                match app.dependencies_view_state.focus() {
-                    ui::views::DependencyFocus::Dependencies => {
-                        if let Some(selected_idx) =
-                            app.dependencies_view_state.selected_dependency()
-                        {
-                            if selected_idx < issue.dependencies.len() {
-                                let dep_id = issue.dependencies[selected_idx].clone();
-                                // Show confirmation dialog before removing
-                                app.show_dependency_removal_confirmation(&current_id, &dep_id);
-                            }
-                        }
-                    }
-                    ui::views::DependencyFocus::Blocks => {
-                        if let Some(selected_idx) = app.dependencies_view_state.selected_block() {
-                            if selected_idx < issue.blocks.len() {
-                                let blocked_id = issue.blocks[selected_idx].clone();
-                                // Show confirmation dialog before removing
-                                app.show_dependency_removal_confirmation(&blocked_id, &current_id);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        _ if key.code == KeyCode::Char('g') => {
-            // Show dependency graph (Keeping hardcoded for now as it's not in standard Action)
-            app.set_info("Show dependency graph: Not yet implemented".to_string());
-            tracing::info!("Show dependency graph requested");
-        }
-        _ if key.code == KeyCode::Char('c') => {
-            // Check for circular dependencies
-            app.set_info("Check circular dependencies: Not yet implemented".to_string());
-            tracing::info!("Check circular dependencies requested");
+        _ if key.code == KeyCode::Char(' ') => {
+            // Toggle expansion with Space
+            app.dependency_tree_state.toggle_expansion();
+            app.mark_dirty();
         }
         Some(Action::ConfirmDialog) => {
-             // Go to issue details if issue selected
-             if selected_issue.is_some() {
-                 // Navigation handled by switching tabs or view modes?
-                 // Dependencies view doesn't have a direct "view detail" state change
-                 // it usually switches back to Issues view tab 0.
-             }
+            // View issue details - for now just provide info
+            // TODO: Implement navigation to selected issue in Issues tab
+            if let Some(issue_id) = app.dependency_tree_state.selected_issue_id() {
+                app.set_info(format!("Selected issue: {}", issue_id));
+            }
         }
         Some(Action::CancelDialog) => {
-             // Esc goes back to Issues tab
-             app.selected_tab = 0;
-             app.mark_dirty();
+            // Esc goes back to Issues tab
+            app.selected_tab = 0;
+            app.mark_dirty();
         }
         _ => {}
     }
@@ -3163,18 +3151,13 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             f.render_stateful_widget(kanban_view, tabs_chunks[1], &mut app.kanban_view_state);
         }
         3 => {
-            // Dependencies view
+            // Dependency Tree view
             let issues = app.issues_view_state.search_state().filtered_issues();
-            let all_issues: Vec<_> = issues.iter().collect();
-            let selected_issue = app.issues_view_state.selected_issue();
-            let mut dependencies_view = DependenciesView::new(all_issues);
-            if let Some(issue) = selected_issue {
-                dependencies_view = dependencies_view.issue(issue);
-            }
+            let dependency_tree_view = DependencyTreeView::new(&issues);
             f.render_stateful_widget(
-                dependencies_view,
+                dependency_tree_view,
                 tabs_chunks[1],
-                &mut app.dependencies_view_state,
+                &mut app.dependency_tree_state,
             );
         }
         4 => {

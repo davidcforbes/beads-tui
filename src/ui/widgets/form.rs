@@ -42,6 +42,12 @@ pub enum FieldType {
     Selector,
     /// Read-only display field
     ReadOnly,
+    /// Section header with horizontal border
+    SectionHeader,
+    /// Radio button group
+    RadioButton,
+    /// Label editor with colon-separated values
+    LabelEditor,
 }
 
 /// Form field definition
@@ -157,6 +163,60 @@ impl FormField {
             error: None,
             placeholder: None,
             help_text: None,
+            options: Vec::new(),
+            validation_rules: Vec::new(),
+            loaded_from_file: None,
+            hidden: false,
+        }
+    }
+
+    /// Create a new section header field
+    pub fn section_header<S: Into<String>>(id: S, label: S) -> Self {
+        Self {
+            id: id.into(),
+            label: label.into(),
+            field_type: FieldType::SectionHeader,
+            value: String::new(),
+            required: false,
+            error: None,
+            placeholder: None,
+            help_text: None,
+            options: Vec::new(),
+            validation_rules: Vec::new(),
+            loaded_from_file: None,
+            hidden: false,
+        }
+    }
+
+    /// Create a new radio button field
+    pub fn radio_button<S: Into<String>>(id: S, label: S, options: Vec<String>) -> Self {
+        Self {
+            id: id.into(),
+            label: label.into(),
+            field_type: FieldType::RadioButton,
+            value: String::new(),
+            required: false,
+            error: None,
+            placeholder: None,
+            help_text: None,
+            options,
+            validation_rules: Vec::new(),
+            loaded_from_file: None,
+            hidden: false,
+        }
+    }
+
+    /// Create a new label editor field (colon-separated labels)
+    pub fn label_editor<S: Into<String>>(id: S, label: S) -> Self {
+        Self {
+            id: id.into(),
+            label: label.into(),
+            field_type: FieldType::LabelEditor,
+            value: String::new(),
+            required: false,
+            error: None,
+            placeholder: Some("Separate labels with ':' (e.g., bug:urgent:frontend)".to_string()),
+            help_text: Some("Enter labels separated by colons. Example: bug:urgent:frontend".to_string()),
             options: Vec::new(),
             validation_rules: Vec::new(),
             loaded_from_file: None,
@@ -344,6 +404,42 @@ impl FormField {
         let (num_part, unit_part) = value.split_at(value.len() - 1);
         num_part.parse::<u32>().is_ok() && matches!(unit_part, "d" | "w" | "m" | "y" | "h")
     }
+
+    /// Parse labels from colon-separated string
+    /// Example: "bug:urgent:frontend" -> ["bug", "urgent", "frontend"]
+    pub fn parse_labels(&self) -> Vec<String> {
+        if self.field_type != FieldType::LabelEditor {
+            return Vec::new();
+        }
+
+        self.value
+            .split(':')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    /// Format labels as colon-separated string
+    /// Example: ["bug", "urgent", "frontend"] -> "bug:urgent:frontend"
+    pub fn set_labels(&mut self, labels: &[String]) {
+        if self.field_type != FieldType::LabelEditor {
+            return;
+        }
+
+        self.value = labels.join(":");
+    }
+}
+
+/// Search state for Ctrl+F functionality
+#[derive(Debug, Clone)]
+pub struct SearchState {
+    /// Search query string
+    pub query: String,
+    /// Matches found: Vec<(field_index, char_offset)>
+    pub matches: Vec<(usize, usize)>,
+    /// Currently selected match index
+    pub current_match: usize,
 }
 
 /// Form state
@@ -353,6 +449,12 @@ pub struct FormState {
     focused_index: usize,
     cursor_position: usize,
     showing_help: bool,
+    /// Scroll offset (top visible field index)
+    scroll_offset: usize,
+    /// Visible height in field rows
+    visible_height: usize,
+    /// Active search state
+    search_state: Option<SearchState>,
 }
 
 impl FormState {
@@ -363,6 +465,9 @@ impl FormState {
             focused_index: 0,
             cursor_position: 0,
             showing_help: false,
+            scroll_offset: 0,
+            visible_height: 20, // Default, will be updated in render
+            search_state: None,
         }
     }
 
@@ -415,6 +520,7 @@ impl FormState {
             if !self.fields[next_index].hidden {
                 self.focused_index = next_index;
                 self.cursor_position = 0;
+                self.ensure_focused_visible();
                 return;
             }
             next_index += 1;
@@ -431,6 +537,7 @@ impl FormState {
             if !self.fields[prev_index].hidden {
                 self.focused_index = prev_index;
                 self.cursor_position = 0;
+                self.ensure_focused_visible();
                 return;
             }
             if prev_index == 0 {
@@ -685,6 +792,134 @@ impl FormState {
     pub fn get_loaded_file_path(&self) -> Option<&String> {
         self.focused_field()?.loaded_from_file.as_ref()
     }
+
+    /// Calculate the height of a field in rows
+    fn calculate_field_height(field: &FormField) -> usize {
+        match field.field_type {
+            FieldType::SectionHeader => 2,
+            FieldType::TextArea => 6,
+            _ => 3,
+        }
+    }
+
+    /// Scroll up by specified number of lines
+    pub fn scroll_up(&mut self, lines: usize) {
+        self.scroll_offset = self.scroll_offset.saturating_sub(lines);
+    }
+
+    /// Scroll down by specified number of lines
+    pub fn scroll_down(&mut self, lines: usize) {
+        let max_offset = self.fields.len().saturating_sub(1);
+        self.scroll_offset = (self.scroll_offset + lines).min(max_offset);
+    }
+
+    /// Scroll to top of form
+    pub fn scroll_to_top(&mut self) {
+        self.scroll_offset = 0;
+    }
+
+    /// Scroll to bottom of form
+    pub fn scroll_to_bottom(&mut self) {
+        self.scroll_offset = self.fields.len().saturating_sub(1);
+    }
+
+    /// Ensure the focused field is visible by auto-scrolling if needed
+    pub fn ensure_focused_visible(&mut self) {
+        if self.focused_index < self.scroll_offset {
+            // Focused field is above visible window, scroll up
+            self.scroll_offset = self.focused_index;
+        } else {
+            // Calculate how many fields fit in visible window
+            let mut cumulative_height = 0;
+            let mut visible_count = 0;
+            for i in self.scroll_offset..self.fields.len() {
+                let height = Self::calculate_field_height(&self.fields[i]);
+                if cumulative_height + height <= self.visible_height {
+                    cumulative_height += height;
+                    visible_count += 1;
+                } else {
+                    break;
+                }
+            }
+
+            let visible_end = self.scroll_offset + visible_count;
+            if self.focused_index >= visible_end {
+                // Focused field is below visible window, scroll down
+                self.scroll_offset = self.focused_index.saturating_sub(visible_count - 1);
+            }
+        }
+    }
+
+    /// Start a new search
+    pub fn start_search(&mut self, query: String) {
+        let mut matches = Vec::new();
+        for (field_idx, field) in self.fields.iter().enumerate() {
+            // Search in label
+            if let Some(pos) = field.label.to_lowercase().find(&query.to_lowercase()) {
+                matches.push((field_idx, pos));
+            }
+            // Search in value
+            if let Some(pos) = field.value.to_lowercase().find(&query.to_lowercase()) {
+                matches.push((field_idx, pos));
+            }
+        }
+
+        if !matches.is_empty() {
+            self.search_state = Some(SearchState {
+                query,
+                matches,
+                current_match: 0,
+            });
+            // Jump to first match
+            if let Some(search) = &self.search_state {
+                self.focused_index = search.matches[0].0;
+                self.ensure_focused_visible();
+            }
+        } else {
+            self.search_state = None;
+        }
+    }
+
+    /// Jump to next search match
+    pub fn next_match(&mut self) {
+        if let Some(ref mut search) = self.search_state {
+            if !search.matches.is_empty() {
+                search.current_match = (search.current_match + 1) % search.matches.len();
+                self.focused_index = search.matches[search.current_match].0;
+                self.ensure_focused_visible();
+            }
+        }
+    }
+
+    /// Jump to previous search match
+    pub fn prev_match(&mut self) {
+        if let Some(ref mut search) = self.search_state {
+            if !search.matches.is_empty() {
+                search.current_match = if search.current_match == 0 {
+                    search.matches.len() - 1
+                } else {
+                    search.current_match - 1
+                };
+                self.focused_index = search.matches[search.current_match].0;
+                self.ensure_focused_visible();
+            }
+        }
+    }
+
+    /// Clear search state
+    pub fn clear_search(&mut self) {
+        self.search_state = None;
+    }
+
+    /// Get the current scroll offset
+    pub fn scroll_offset(&self) -> usize {
+        self.scroll_offset
+    }
+
+    /// Set the scroll offset
+    pub fn set_scroll_offset(&mut self, offset: usize) {
+        self.scroll_offset = offset;
+    }
 }
 
 /// Multi-field form widget
@@ -763,8 +998,11 @@ impl<'a> StatefulWidget for Form<'a> {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        // Filter visible fields
-        let visible_indices: Vec<usize> = state
+        // Update visible height in state (in field rows, not pixels)
+        state.visible_height = inner.height as usize;
+
+        // Filter visible fields (not hidden)
+        let all_visible_indices: Vec<usize> = state
             .fields
             .iter()
             .enumerate()
@@ -772,7 +1010,7 @@ impl<'a> StatefulWidget for Form<'a> {
             .map(|(i, _)| i)
             .collect();
 
-        if visible_indices.is_empty() {
+        if all_visible_indices.is_empty() {
             if state.fields.is_empty() {
                 let empty_msg = Paragraph::new("No fields defined").style(
                     Style::default()
@@ -784,15 +1022,44 @@ impl<'a> StatefulWidget for Form<'a> {
             return;
         }
 
+        // Apply scroll windowing: only show fields within scroll window
+        let scroll_offset = state.scroll_offset;
+        let visible_indices: Vec<usize> = all_visible_indices
+            .into_iter()
+            .skip(scroll_offset)
+            .collect();
+
+        // Determine if we need scroll indicators
+        let can_scroll_up = scroll_offset > 0;
+        let can_scroll_down = scroll_offset + visible_indices.len() < state.fields.len();
+
+        // Show scroll indicators
+        if can_scroll_up {
+            buf.set_string(
+                inner.x + inner.width / 2,
+                inner.y,
+                "▲",
+                Style::default().fg(Color::Yellow),
+            );
+        }
+        if can_scroll_down {
+            buf.set_string(
+                inner.x + inner.width / 2,
+                inner.y + inner.height - 1,
+                "▼",
+                Style::default().fg(Color::Yellow),
+            );
+        }
+
         // Calculate layout for visible fields
         let constraints: Vec<Constraint> = visible_indices
             .iter()
             .map(|&i| {
                 let f = &state.fields[i];
-                if f.field_type == FieldType::TextArea {
-                    Constraint::Min(5)
-                } else {
-                    Constraint::Length(3)
+                match f.field_type {
+                    FieldType::TextArea => Constraint::Min(5),
+                    FieldType::SectionHeader => Constraint::Length(2),
+                    _ => Constraint::Length(3),
                 }
             })
             .collect();
@@ -807,6 +1074,38 @@ impl<'a> StatefulWidget for Form<'a> {
             let field = &state.fields[field_idx];
             let chunk = &chunks[chunk_idx];
             let is_focused = field_idx == state.focused_index;
+
+            // Handle SectionHeader specially (no border, centered text + horizontal line)
+            if field.field_type == FieldType::SectionHeader {
+                let header_text = Span::styled(
+                    &field.label,
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                );
+                let header_line = Line::from(vec![Span::raw(" "), header_text, Span::raw(" ")]);
+
+                // Render centered header
+                let header_paragraph = Paragraph::new(header_line).centered();
+                header_paragraph.render(*chunk, buf);
+
+                // Render horizontal line below
+                if chunk.height > 1 {
+                    let line_area = Rect {
+                        y: chunk.y + 1,
+                        height: 1,
+                        ..*chunk
+                    };
+                    let line = "─".repeat(line_area.width as usize);
+                    buf.set_string(
+                        line_area.x,
+                        line_area.y,
+                        line,
+                        Style::default().fg(Color::DarkGray),
+                    );
+                }
+                continue; // Skip normal field rendering
+            }
 
             // Determine field style
             let field_style = if field.error.is_some() {
@@ -849,7 +1148,28 @@ impl<'a> StatefulWidget for Form<'a> {
                 continue;
             }
 
-            let content: Vec<Line> = if field.value.is_empty() {
+            let content: Vec<Line> = if field.field_type == FieldType::RadioButton {
+                // Render radio buttons horizontally: ( ) Option1  (•) Option2  ( ) Option3
+                let mut spans = Vec::new();
+                for (idx, option) in field.options.iter().enumerate() {
+                    if idx > 0 {
+                        spans.push(Span::raw("  "));
+                    }
+                    let is_selected = field.value == *option;
+                    let marker = if is_selected { "(•)" } else { "( )" };
+                    spans.push(Span::raw(marker));
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled(
+                        option.clone(),
+                        if is_selected {
+                            Style::default().add_modifier(Modifier::BOLD)
+                        } else {
+                            Style::default()
+                        },
+                    ));
+                }
+                vec![Line::from(spans)]
+            } else if field.value.is_empty() {
                 if let Some(ref placeholder) = field.placeholder {
                     vec![Line::from(Span::styled(
                         placeholder.clone(),

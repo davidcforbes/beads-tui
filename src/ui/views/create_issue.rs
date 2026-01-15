@@ -2,7 +2,7 @@
 
 use crate::beads::models::{IssueType, Priority};
 use crate::models::{split_labels, validate_labels};
-use crate::ui::views::issue_form_builder::{build_issue_form, IssueFormMode};
+use crate::ui::views::issue_form_builder::{build_issue_form_with_sections, IssueFormMode};
 use crate::ui::widgets::{Form, FormField, FormState, ValidationRule};
 use ratatui::{
     buffer::Buffer,
@@ -132,8 +132,8 @@ impl CreateIssueFormState {
 
     /// Create a new create issue form state
     pub fn new() -> Self {
-        // Start with unified form fields for core issue fields (Create mode)
-        let mut fields = build_issue_form(IssueFormMode::Create, None);
+        // Start with sectioned form fields for core issue fields (Create mode)
+        let mut fields = build_issue_form_with_sections(IssueFormMode::Create, None);
 
         // Remove the read-only fields that don't make sense in create mode
         fields.retain(|f| !matches!(f.id.as_str(), "id" | "created" | "updated" | "closed"));

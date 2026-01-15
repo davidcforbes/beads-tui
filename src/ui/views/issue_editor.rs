@@ -1,5 +1,5 @@
 use crate::beads::models::Issue;
-use crate::ui::views::issue_form_builder::{build_issue_form, IssueFormMode};
+use crate::ui::views::issue_form_builder::{build_issue_form_with_sections, IssueFormMode};
 use crate::ui::widgets::form::FormState;
 use ratatui::{
     buffer::Buffer,
@@ -85,8 +85,8 @@ pub struct IssueEditorState {
 impl IssueEditorState {
     /// Create a new editor state from an existing issue
     pub fn new(issue: &Issue) -> Self {
-        // Build fields using unified form builder (Edit mode)
-        let fields = build_issue_form(IssueFormMode::Edit, Some(issue));
+        // Build fields using sectioned form builder (Edit mode)
+        let fields = build_issue_form_with_sections(IssueFormMode::Edit, Some(issue));
 
         let mut original_values = HashMap::new();
         let mut field_sections = HashMap::new();
