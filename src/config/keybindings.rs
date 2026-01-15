@@ -346,7 +346,7 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
     bindings.insert(Action::DismissNotification, vec![Keybinding::new("esc")]); // Context: when notification shown
     bindings.insert(
         Action::ShowNotificationHistory,
-        vec![Keybinding::ctrl("h"), Keybinding::new("N")],
+        vec![Keybinding::ctrl("h")],
     );
     bindings.insert(Action::Undo, vec![Keybinding::ctrl("z")]);
     bindings.insert(Action::Redo, vec![Keybinding::ctrl("y")]);

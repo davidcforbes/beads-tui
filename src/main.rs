@@ -1331,6 +1331,20 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             .set_focused(true);
                         issues_state.search_state_mut().update_filtered_issues();
                     }
+                    Some(Action::NextSearchResult) => {
+                        let len = issues_state.search_state().filtered_issues().len();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .select_next(len);
+                    }
+                    Some(Action::PrevSearchResult) => {
+                        let len = issues_state.search_state().filtered_issues().len();
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .select_previous(len);
+                    }
                     Some(Action::CancelDialog) => {
                         // Esc
                         issues_state.search_state_mut().clear_search();
