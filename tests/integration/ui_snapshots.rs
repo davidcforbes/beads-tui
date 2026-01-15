@@ -151,6 +151,7 @@ fn test_database_view_snapshot_80x24() {
     let database_stats = DatabaseStats {
         total_issues: 50,
         open_issues: 0,
+        in_progress_issues: 0,
         closed_issues: 0,
         blocked_issues: 0,
         database_size: 0,
@@ -181,6 +182,7 @@ fn test_database_view_snapshot_120x40() {
     let database_stats = DatabaseStats {
         total_issues: 50,
         open_issues: 0,
+        in_progress_issues: 0,
         closed_issues: 0,
         blocked_issues: 0,
         database_size: 0,

@@ -1407,16 +1407,10 @@ impl<'a> StatefulWidget for IssueList<'a> {
             .collect();
 
         // Build constraints using adjusted widths
+        // Use Length for all columns to ensure exact width calculations
         let widths: Vec<Constraint> = adjusted_columns
             .iter()
-            .map(|(id, width)| {
-                // Allow Title column to be flexible
-                if *id == crate::models::table_config::ColumnId::Title {
-                    Constraint::Min(*width)
-                } else {
-                    Constraint::Length(*width)
-                }
-            })
+            .map(|(_id, width)| Constraint::Length(*width))
             .collect();
 
         let table = Table::new(rows, widths)

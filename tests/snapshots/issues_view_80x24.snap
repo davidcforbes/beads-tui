@@ -2,15 +2,15 @@
 source: tests/integration/ui_snapshots.rs
 expression: rendered
 ---
-┌Search [All] - View: All Issues─Search (↑/↓ for history)──────────────────────┐
-│🔍  Search...                                                                  │
-└──────────────────────────────────────────────────────────────────────────────┘
 Showing all 3 issues  [Scope: All]                                              
 ┌Issues (3/3)──────────────────────────────────────────────────────────────────┐
-│   ID              Title                Status Prior Type   Assig Labels Updat│
-│>> beads-100       ○ Add state selector o Open ● P1  ✨      alex  ui, st 2026-│
-│   beads-101       ◐ Fix label validati * InPr ◆ P0  🐛      sam   bug, l 2026-│
-│   beads-102       ✓ Document workflow  + Clos ○ P2  📋      -     docs   2026-│
+│ID         Title         Status   Pri... Type   Assignee Labels     Updated ▼ │
+│beads-100  ○ Add state s o Open   ● P1   ✨      alex     ui, sta... 2026-01...│
+│beads-101  ◐ Fix label v * InP... ◆ P0   🐛      sam      bug, la... 2026-01...│
+│beads-102  ✓ Document wo + Closed ○ P2   📋      -        docs       2026-01...│
+│                                                                              │
+│                                                                              │
+│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │
