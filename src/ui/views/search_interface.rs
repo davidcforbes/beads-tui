@@ -3,7 +3,7 @@
 use crate::beads::models::{Issue, IssueStatus};
 use crate::models::{filter::LogicOp, IssueFilter, SavedFilter};
 use crate::ui::widgets::{
-    issue_list::LabelMatchMode, IssueList, IssueListState, SearchInput, SearchInputState,
+    issue_list::LabelMatchMode, IssueList, IssueListState, SearchInputState,
 };
 use crate::utils::safe_regex_match;
 use chrono::{Duration, Utc};
@@ -802,21 +802,6 @@ impl<'a> SearchInterfaceView<'a> {
         self
     }
 
-    fn render_search_bar(&self, area: Rect, buf: &mut Buffer, state: &mut SearchInterfaceState) {
-        let search_block = Block::default()
-            .borders(Borders::ALL)
-            .title(format!(
-                "Search [{}] - View: {}",
-                state.search_scope().display_name(),
-                state.current_view().display_name()
-            ))
-            .style(self.block_style);
-
-        let search_input = SearchInput::new().block(search_block);
-
-        StatefulWidget::render(search_input, area, buf, &mut state.search_state);
-    }
-
     fn render_results_info(&self, area: Rect, buf: &mut Buffer, state: &SearchInterfaceState) {
         let total = state.all_issues.len();
         let filtered = state.result_count();
@@ -862,9 +847,9 @@ impl<'a> StatefulWidget for SearchInterfaceView<'a> {
     type State = SearchInterfaceState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        // Create layout: search bar (3) + info (1) + results (fill) + help (1 if visible)
+        // Create layout: info (1) + results (fill) + help (1 if visible)
+        // Search bar is now rendered in the main title bar
         let mut constraints = vec![
-            Constraint::Length(3), // Search bar
             Constraint::Length(1), // Results info
             Constraint::Min(5),    // Results list
         ];
@@ -880,10 +865,6 @@ impl<'a> StatefulWidget for SearchInterfaceView<'a> {
             .split(area);
 
         let mut chunk_idx = 0;
-
-        // Render search bar
-        self.render_search_bar(chunks[chunk_idx], buf, state);
-        chunk_idx += 1;
 
         // Render results info
         self.render_results_info(chunks[chunk_idx], buf, state);

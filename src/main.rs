@@ -2755,6 +2755,35 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         open_count, in_progress_count, blocked_count, closed_count
     );
 
+    // Add search box if on Issues tab (0) or Split tab (1)
+    let search_part = if app.selected_tab == 0 || app.selected_tab == 1 {
+        let query = app.issues_view_state.search_state().search_state().query();
+        let is_focused = app
+            .issues_view_state
+            .search_state()
+            .search_state()
+            .is_focused();
+        
+        let style = if is_focused {
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else if !query.is_empty() {
+            Style::default().fg(Color::White)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+
+        // Ensure visible cursor position if focused (simple approximation)
+        let display_text = if query.is_empty() && !is_focused {
+            "   ".to_string()
+        } else {
+            format!(" {} ", query)
+        };
+
+        Span::styled(format!("Search: [{}]     ", display_text), style)
+    } else {
+        Span::raw("")
+    };
+
     let daemon_status = if app.daemon_running {
         Span::styled(
             "[Daemon: Running]",
@@ -2776,6 +2805,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(stats_text, Style::default().fg(Color::White)),
+        search_part,
         daemon_status,
     ]);
     let title = Paragraph::new(title_line).block(Block::default().borders(Borders::ALL));
