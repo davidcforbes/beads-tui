@@ -1280,7 +1280,12 @@ impl<'a> StatefulWidget for IssueList<'a> {
         let available_width = table_area.width.saturating_sub(2) as usize; // 2 for left/right borders
         let num_columns = visible_columns.len();
         let spacing_width = num_columns.saturating_sub(1); // 1 space between each column
-        let content_width = available_width.saturating_sub(spacing_width);
+
+        // No highlight symbol (using background color only for selection)
+        let highlight_symbol_width = 0;
+        let content_width = available_width
+            .saturating_sub(spacing_width)
+            .saturating_sub(highlight_symbol_width);
 
         // Calculate total requested width
         let total_requested: usize = visible_columns.iter().map(|c| c.width as usize).sum();
@@ -1427,7 +1432,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
                     .bg(Color::DarkGray)
                     .add_modifier(Modifier::BOLD),
             )
-            .highlight_symbol(">> ");
+            .highlight_symbol(""); // Empty - using background color for selection to avoid alignment issues
 
         // Adjust TableState selection to be relative to the windowed view
         let original_selected = state.table_state.selected();
