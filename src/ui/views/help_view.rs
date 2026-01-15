@@ -101,7 +101,7 @@ impl<'a> HelpView<'a> {
         // Fixed width for key column
         const KEY_COL_WIDTH: usize = 35;
         
-        let mut key_text = key.to_string();
+        let key_text = key.to_string();
         let padding = if key_text.len() < KEY_COL_WIDTH {
             " ".repeat(KEY_COL_WIDTH - key_text.len())
         } else {
