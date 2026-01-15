@@ -1,12 +1,12 @@
 //! Issue detail view
 
-use crate::beads::models::{Issue, IssueType, Priority};
+use crate::beads::models::Issue;
+use crate::ui::widgets::{FormField, FormState, Form};
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Paragraph, StatefulWidget, Widget, Wrap},
+    style::{Color, Style},
+    widgets::{Block, BorderType, Borders, StatefulWidget, Widget},
 };
 
 /// Issue detail view widget
@@ -46,216 +46,170 @@ impl<'a> IssueDetailView<'a> {
         self
     }
 
-    fn priority_description(priority: &Priority) -> &'static str {
-        match priority {
-            Priority::P0 => "Critical",
-            Priority::P1 => "High",
-            Priority::P2 => "Medium",
-            Priority::P3 => "Low",
-            Priority::P4 => "Backlog",
-        }
-    }
-
-    fn type_symbol(issue_type: &IssueType) -> &'static str {
-        match issue_type {
-            IssueType::Bug => "🐛",
-            IssueType::Feature => "✨",
-            IssueType::Task => "📋",
-            IssueType::Epic => "🎯",
-            IssueType::Chore => "🔧",
-        }
-    }
-
-    fn separator(width: usize) -> Line<'static> {
-        Line::from(Span::styled(
-            "─".repeat(width),
-            Style::default().fg(Color::DarkGray),
-        ))
-    }
 }
 
 impl<'a> StatefulWidget for IssueDetailView<'a> {
     type State = u16; // Scroll offset
 
-    fn render(self, area: Rect, buf: &mut Buffer, scroll: &mut Self::State) {
+    fn render(self, area: Rect, buf: &mut Buffer, _scroll: &mut Self::State) {
         if area.width < 2 || area.height < 2 {
             return;
         }
 
-        let inner_width = (area.width - 2) as usize; // Account for borders
+        // Build form fields from issue data
+        let mut fields = Vec::new();
 
-        // Theme
-        use crate::ui::themes::Theme;
-        let default_theme = Theme::default();
-        let theme_ref = self.theme.unwrap_or(&default_theme);
+        // ID - Read-only
+        fields.push(
+            FormField::read_only("id", "ID", &self.issue.id)
+        );
 
-        let status_symbol = Theme::status_symbol(&self.issue.status);
-        let status_color = theme_ref.status_color(&self.issue.status);
-        let priority_symbol = Theme::priority_symbol(&self.issue.priority);
-        let priority_color = theme_ref.priority_color(&self.issue.priority);
+        // Title - Read-only (show as display, not editable in detail view)
+        fields.push(
+            FormField::read_only("title", "Title", &self.issue.title)
+        );
 
-        let mut lines = Vec::new();
+        // Status - Selector
+        fields.push(
+            FormField::selector(
+                "status",
+                "Status",
+                vec![
+                    "Open".to_string(),
+                    "InProgress".to_string(),
+                    "Blocked".to_string(),
+                    "Closed".to_string(),
+                ],
+            )
+            .value(format!("{:?}", self.issue.status))
+        );
 
-        // --- Header ---
-        lines.push(Line::from(vec![
-            Span::styled(Self::type_symbol(&self.issue.issue_type), Style::default()),
-            Span::raw(" "),
-            Span::styled(
-                &self.issue.id,
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(" - "),
-            Span::styled(
-                &self.issue.title,
-                Style::default().add_modifier(Modifier::BOLD),
-            ),
-        ]));
-        
-        lines.push(Line::from(vec![
-            Span::styled("Status: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(
-                format!("{} {:?}", status_symbol, self.issue.status),
-                Style::default().fg(status_color),
-            ),
-            Span::raw("  "),
-            Span::styled("Priority: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(
-                format!(
-                    "{} {} ({})",
-                    priority_symbol,
-                    self.issue.priority,
-                    Self::priority_description(&self.issue.priority)
-                ),
-                Style::default().fg(priority_color),
-            ),
-            Span::raw("  "),
-            Span::styled("Type: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:?}", self.issue.issue_type), Style::default()),
-        ]));
+        // Priority - Selector
+        fields.push(
+            FormField::selector(
+                "priority",
+                "Priority",
+                vec![
+                    "P0".to_string(),
+                    "P1".to_string(),
+                    "P2".to_string(),
+                    "P3".to_string(),
+                    "P4".to_string(),
+                ],
+            )
+            .value(format!("{}", self.issue.priority))
+        );
 
-        // --- Separator ---
-        lines.push(Self::separator(inner_width));
+        // Type - Selector
+        fields.push(
+            FormField::selector(
+                "type",
+                "Type",
+                vec![
+                    "Bug".to_string(),
+                    "Feature".to_string(),
+                    "Task".to_string(),
+                    "Epic".to_string(),
+                    "Chore".to_string(),
+                ],
+            )
+            .value(format!("{:?}", self.issue.issue_type))
+        );
 
-        // --- Description ---
-        lines.push(Line::from(Span::styled("Description", Style::default().add_modifier(Modifier::BOLD))));
-        if let Some(ref desc) = self.issue.description {
-            if desc.trim().is_empty() {
-                 lines.push(Line::from(Span::styled("No description provided.", Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC))));
-            } else {
-                // Simple wrapping for description
-                // Note: Paragraph widget handles wrapping for us if we pass text
-                // But we are constructing a single Paragraph for the whole view.
-                // So we should let Paragraph wrap the whole thing or split lines manually.
-                // If we let Paragraph wrap, we just pass the text.
-                for line in desc.lines() {
-                    lines.push(Line::from(line.to_string()));
-                }
-            }
-        } else {
-            lines.push(Line::from(Span::styled("No description provided.", Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC))));
-        }
+        // Assignee - Text field
+        fields.push(
+            FormField::text("assignee", "Assignee")
+                .value(self.issue.assignee.as_deref().unwrap_or(""))
+                .placeholder("Unassigned")
+        );
 
-        // --- Separator ---
-        lines.push(Self::separator(inner_width));
+        // Labels - Text field (comma-separated)
+        fields.push(
+            FormField::text("labels", "Labels")
+                .value(self.issue.labels.join(", "))
+                .placeholder("No labels")
+        );
 
-        // --- Metadata ---
-        lines.push(Line::from(Span::styled("Metadata", Style::default().add_modifier(Modifier::BOLD))));
-        
-        if let Some(ref assignee) = self.issue.assignee {
-            lines.push(Line::from(vec![
-                Span::styled("Assignee: ", Style::default().fg(Color::DarkGray)),
-                Span::raw(assignee),
-            ]));
-        }
+        // Description - Text area
+        fields.push(
+            FormField::text_area("description", "Description")
+                .value(self.issue.description.as_deref().unwrap_or(""))
+                .placeholder("No description")
+        );
 
-        if !self.issue.labels.is_empty() {
-            lines.push(Line::from(vec![
-                Span::styled("Labels: ", Style::default().fg(Color::DarkGray)),
-                Span::raw(self.issue.labels.join(", ")),
-            ]));
-        }
+        // Created - Read-only date
+        let created_str = self.issue.created.format("%Y-%m-%d %H:%M").to_string();
+        fields.push(
+            FormField::read_only("created", "Created", &created_str)
+        );
 
-        lines.push(Line::from(vec![
-            Span::styled("Created: ", Style::default().fg(Color::DarkGray)),
-            Span::raw(self.issue.created.format("%Y-%m-%d %H:%M").to_string()),
-            Span::raw("  "),
-            Span::styled("Updated: ", Style::default().fg(Color::DarkGray)),
-            Span::raw(self.issue.updated.format("%Y-%m-%d %H:%M").to_string()),
-        ]));
+        // Updated - Read-only date
+        let updated_str = self.issue.updated.format("%Y-%m-%d %H:%M").to_string();
+        fields.push(
+            FormField::read_only("updated", "Updated", &updated_str)
+        );
 
+        // Closed - Read-only date (if applicable)
+        let closed_str;
         if let Some(closed) = self.issue.closed {
-            lines.push(Line::from(vec![
-                Span::styled("Closed: ", Style::default().fg(Color::DarkGray)),
-                Span::raw(closed.format("%Y-%m-%d %H:%M").to_string()),
-            ]));
+            closed_str = closed.format("%Y-%m-%d %H:%M").to_string();
+            fields.push(
+                FormField::read_only("closed", "Closed", &closed_str)
+            );
         }
 
-        // --- Separator ---
-        if self.show_dependencies && (!self.issue.dependencies.is_empty() || !self.issue.blocks.is_empty()) {
-            lines.push(Self::separator(inner_width));
-            lines.push(Line::from(Span::styled("Dependencies", Style::default().add_modifier(Modifier::BOLD))));
-
-            if !self.issue.dependencies.is_empty() {
-                lines.push(Line::from(Span::styled(
-                    "Depends on:",
-                    Style::default().fg(Color::Yellow),
-                )));
-                for dep in &self.issue.dependencies {
-                    lines.push(Line::from(format!("  -> {dep}")));
-                }
-            }
-
-            if !self.issue.blocks.is_empty() {
-                lines.push(Line::from(Span::styled(
-                    "Blocks:",
-                    Style::default().fg(Color::Red),
-                )));
-                for blocked in &self.issue.blocks {
-                    lines.push(Line::from(format!("  <- {blocked}")));
-                }
-            }
+        // Dependencies - Read-only list
+        let deps_str;
+        if self.show_dependencies && !self.issue.dependencies.is_empty() {
+            deps_str = self.issue.dependencies.join(", ");
+            fields.push(
+                FormField::read_only("dependencies", "Depends On", &deps_str)
+            );
         }
 
-        // --- Separator ---
+        // Blocks - Read-only list
+        let blocks_str;
+        if self.show_dependencies && !self.issue.blocks.is_empty() {
+            blocks_str = self.issue.blocks.join(", ");
+            fields.push(
+                FormField::read_only("blocks", "Blocks", &blocks_str)
+            );
+        }
+
+        // Notes - Display as read-only if present
+        let notes_text;
         if self.show_notes && !self.issue.notes.is_empty() {
-            lines.push(Self::separator(inner_width));
-            lines.push(Line::from(Span::styled("Notes", Style::default().add_modifier(Modifier::BOLD))));
+            notes_text = self.issue.notes
+                .iter()
+                .map(|note| {
+                    format!(
+                        "{} - {}: {}",
+                        note.timestamp.format("%Y-%m-%d %H:%M"),
+                        note.author,
+                        note.content
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
 
-            for note in &self.issue.notes {
-                let timestamp = note.timestamp.format("%Y-%m-%d %H:%M").to_string();
-                lines.push(Line::from(vec![
-                    Span::styled(timestamp, Style::default().fg(Color::DarkGray)),
-                    Span::raw(" - "),
-                    Span::styled(&note.author, Style::default().fg(Color::Cyan)),
-                ]));
-                // Indent note content
-                for line in note.content.lines() {
-                    lines.push(Line::from(format!("  {}", line)));
-                }
-                lines.push(Line::from("")); // Spacer between notes
-            }
+            fields.push(
+                FormField::read_only("notes", "Notes", &notes_text)
+            );
         }
 
-        // Render everything
-        // Underline 'T' to indicate Tab hotkey for focus
-        let title = Line::from(vec![
-            Span::styled("T", Style::default().add_modifier(Modifier::UNDERLINED)),
-            Span::raw("ab: Selected Record Display"),
-        ]);
+        // Create form state and render
+        let mut form_state = FormState::new(fields);
 
-        let paragraph = Paragraph::new(lines)
+        let form = Form::new()
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .border_type(BorderType::Double) // Double border
-                    .title(title),
-            )
-            .wrap(Wrap { trim: false })
-            .scroll((*scroll, 0));
+                    .border_type(BorderType::Double)
+                    .title("Record Details")
+                    .style(Style::default().bg(Color::Black)),
+            );
 
-        paragraph.render(area, buf);
+        StatefulWidget::render(form, area, buf, &mut form_state);
     }
 }
 
@@ -308,35 +262,6 @@ mod tests {
             .show_notes(false);
         assert!(!view.show_dependencies);
         assert!(!view.show_notes);
-    }
-
-    // Theme color tests moved to src/ui/themes/mod.rs
-
-    #[test]
-    fn test_type_symbol() {
-        assert_eq!(IssueDetailView::type_symbol(&IssueType::Bug), "🐛");
-        assert_eq!(IssueDetailView::type_symbol(&IssueType::Feature), "✨");
-        assert_eq!(IssueDetailView::type_symbol(&IssueType::Task), "📋");
-        assert_eq!(IssueDetailView::type_symbol(&IssueType::Epic), "🎯");
-        assert_eq!(IssueDetailView::type_symbol(&IssueType::Chore), "🔧");
-    }
-
-    #[test]
-    fn test_priority_description() {
-        assert_eq!(
-            IssueDetailView::priority_description(&Priority::P0),
-            "Critical"
-        );
-        assert_eq!(IssueDetailView::priority_description(&Priority::P1), "High");
-        assert_eq!(
-            IssueDetailView::priority_description(&Priority::P2),
-            "Medium"
-        );
-        assert_eq!(IssueDetailView::priority_description(&Priority::P3), "Low");
-        assert_eq!(
-            IssueDetailView::priority_description(&Priority::P4),
-            "Backlog"
-        );
     }
 
     #[test]
