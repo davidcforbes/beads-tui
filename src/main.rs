@@ -2757,12 +2757,17 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
 
     // Add search box if on Issues tab (0) or Split tab (1)
     let search_part = if app.selected_tab == 0 || app.selected_tab == 1 {
-        let query = app.issues_view_state.search_state().search_state().query();
-        let is_focused = app
-            .issues_view_state
-            .search_state()
-            .search_state()
-            .is_focused();
+        let search_state = app.issues_view_state.search_state();
+        let query = search_state.search_state().query();
+        let is_focused = search_state.search_state().is_focused();
+        
+        let label = if search_state.is_regex_enabled() {
+            "RegEx"
+        } else if search_state.is_fuzzy_enabled() {
+            "Fuzzy"
+        } else {
+            "Substring"
+        };
         
         // "Pale yellow" (standard Yellow) for non-focused, Bold Yellow for focused
         let style = if is_focused {
@@ -2780,7 +2785,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             format!("{} {} ", icon, query)
         };
 
-        Span::styled(format!("Search: [{}]     ", display_text), style)
+        Span::styled(format!("{}: [{}]     ", label, display_text), style)
     } else {
         Span::raw("")
     };
