@@ -147,7 +147,7 @@ impl StatefulWidget for FilterQuickSelectMenu {
         if state.is_empty() {
             // Show empty message
             let message =
-                Paragraph::new("No saved filters. Press Ctrl+S to save the current filter.")
+                Paragraph::new("No saved filters. Press Alt+S to save the current filter.")
                     .alignment(Alignment::Center)
                     .style(Style::default().fg(Color::DarkGray));
             message.render(inner_area, buf);
@@ -228,17 +228,15 @@ impl StatefulWidget for FilterQuickSelectMenu {
                     .bg(Color::DarkGray)
                     .add_modifier(Modifier::BOLD),
             )
-            .highlight_symbol("▶ ");
+            .highlight_symbol("> ");
 
         StatefulWidget::render(list, chunks[0], buf, &mut state.list_state);
 
         // Render help text
         let help_text = vec![
             Line::from(vec![
-                Span::styled("↑/↓", Style::default().fg(Color::Yellow)),
+                Span::styled("Up/Down", Style::default().fg(Color::Yellow)),
                 Span::raw(": Navigate | "),
-                Span::styled("1-9", Style::default().fg(Color::Yellow)),
-                Span::raw(": Quick select | "),
                 Span::styled("Enter", Style::default().fg(Color::Green)),
                 Span::raw(": Apply"),
             ]),

@@ -259,11 +259,11 @@ pub fn render_kanban_card(
             // Priority indicator
             if config.priority_colors {
                 let priority_symbol = match issue.priority {
-                    Priority::P0 => "◆",
-                    Priority::P1 => "●",
-                    Priority::P2 => "○",
-                    Priority::P3 => "◇",
-                    Priority::P4 => "·",
+                    Priority::P0 => "P0",
+                    Priority::P1 => "P1",
+                    Priority::P2 => "P2",
+                    Priority::P3 => "P3",
+                    Priority::P4 => "P4",
                 };
                 metadata_spans.push(Span::styled(
                     format!("{priority_symbol} "),

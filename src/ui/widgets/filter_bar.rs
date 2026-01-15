@@ -392,7 +392,7 @@ impl<'a> FilterBar<'a> {
     }
 
     fn filter_section(&self, label: &str, value: &str, is_active: bool) -> Span<'_> {
-        let text = format!("{}: {} ▼", label, value);
+        let text = format!("{}: {} v", label, value);
         let style = if is_active {
             Style::default()
                 .fg(self.theme.accent)
@@ -471,7 +471,7 @@ impl<'a> FilterDropdown<'a> {
                 } else {
                     selections.contains(&idx)
                 };
-                let checkbox = if is_selected { "[✓] " } else { "[ ] " };
+                let checkbox = if is_selected { "[x] " } else { "[ ] " };
                 let text = format!("{}{}", checkbox, item);
                 ListItem::new(text)
             })

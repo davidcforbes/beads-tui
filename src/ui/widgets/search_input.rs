@@ -265,9 +265,9 @@ impl<'a> StatefulWidget for SearchInput<'a> {
         // Build block
         let block = if let Some(mut block) = self.block {
             let title = if state.is_focused {
-                "Search [searching] (↑/↓ for history)"
+                "Search [searching] (Up/Down for history)"
             } else {
-                "Search (↑/↓ for history)"
+                "Search (Up/Down for history)"
             };
             block = block.title(title);
 
@@ -288,7 +288,7 @@ impl<'a> StatefulWidget for SearchInput<'a> {
         let mut spans = Vec::new();
 
         if self.show_icon {
-            spans.push(Span::styled("🔍 ", Style::default().fg(Color::DarkGray)));
+            spans.push(Span::styled("Search: ", Style::default().fg(Color::DarkGray)));
         }
 
         if state.query.is_empty() {

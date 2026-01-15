@@ -103,10 +103,10 @@ impl<'a> Toast<'a> {
         let theme_ref = self.theme.unwrap_or(&default_theme);
 
         match self.notification.notification_type {
-            NotificationType::Error => (theme_ref.error, Color::White, "✖", "Error"),
-            NotificationType::Success => (theme_ref.success, Color::White, "✓", "Success"),
-            NotificationType::Info => (theme_ref.info, Color::White, "ℹ", "Info"),
-            NotificationType::Warning => (theme_ref.warning, Color::Black, "⚠", "Warning"),
+            NotificationType::Error => (theme_ref.error, Color::White, "[X]", "Error"),
+            NotificationType::Success => (theme_ref.success, Color::White, "[OK]", "Success"),
+            NotificationType::Info => (theme_ref.info, Color::White, "[i]", "Info"),
+            NotificationType::Warning => (theme_ref.warning, Color::Black, "[!]", "Warning"),
         }
     }
 
@@ -353,7 +353,7 @@ mod tests {
         let (bg_color, fg_color, icon, label) = toast.get_style();
         assert_eq!(bg_color, Color::Red);
         assert_eq!(fg_color, Color::White);
-        assert_eq!(icon, "✖");
+        assert_eq!(icon, "[X]");
         assert_eq!(label, "Error");
 
         let success = create_test_notification("Success", NotificationType::Success);
@@ -361,7 +361,7 @@ mod tests {
         let (bg_color, fg_color, icon, label) = toast.get_style();
         assert_eq!(bg_color, Color::Green);
         assert_eq!(fg_color, Color::White);
-        assert_eq!(icon, "✓");
+        assert_eq!(icon, "[OK]");
         assert_eq!(label, "Success");
 
         let info = create_test_notification("Info", NotificationType::Info);
@@ -369,7 +369,7 @@ mod tests {
         let (bg_color, fg_color, icon, label) = toast.get_style();
         assert_eq!(bg_color, Color::Blue);
         assert_eq!(fg_color, Color::White);
-        assert_eq!(icon, "ℹ");
+        assert_eq!(icon, "[i]");
         assert_eq!(label, "Info");
 
         let warning = create_test_notification("Warning", NotificationType::Warning);
@@ -377,7 +377,7 @@ mod tests {
         let (bg_color, fg_color, icon, label) = toast.get_style();
         assert_eq!(bg_color, Color::Yellow);
         assert_eq!(fg_color, Color::Black);
-        assert_eq!(icon, "⚠");
+        assert_eq!(icon, "[!]");
         assert_eq!(label, "Warning");
     }
 

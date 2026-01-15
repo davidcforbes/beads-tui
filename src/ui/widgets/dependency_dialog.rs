@@ -302,7 +302,7 @@ impl<'a> StatefulWidget for DependencyDialog<'a> {
         let type_selector = Paragraph::new(Line::from(vec![
             Span::styled(
                 if state.dependency_type == DependencyType::DependsOn {
-                    "▶ Depends On"
+                    "> Depends On"
                 } else {
                     "  Depends On"
                 },
@@ -319,7 +319,7 @@ impl<'a> StatefulWidget for DependencyDialog<'a> {
             Span::raw("    "),
             Span::styled(
                 if state.dependency_type == DependencyType::Blocks {
-                    "▶ Blocks"
+                    "> Blocks"
                 } else {
                     "  Blocks"
                 },
@@ -336,7 +336,7 @@ impl<'a> StatefulWidget for DependencyDialog<'a> {
             Span::raw("    "),
             Span::styled(
                 if state.dependency_type == DependencyType::RelatesTo {
-                    "▶ Relates To"
+                    "> Relates To"
                 } else {
                     "  Relates To"
                 },
@@ -420,11 +420,11 @@ impl<'a> StatefulWidget for DependencyDialog<'a> {
 
         // Render keyboard hints at the bottom
         let hints = if state.focus == DependencyDialogFocus::IssueId {
-            "Tab: Next | Shift+Tab: Previous | ↑/↓: Navigate | Enter: Select | Esc: Cancel"
+            "Tab: Next | Shift+Tab: Previous | Up/Down: Navigate | Enter: Select | Esc: Cancel"
         } else if state.focus == DependencyDialogFocus::Type {
-            "Tab: Next | Shift+Tab: Previous | Space: Toggle | Enter: Confirm"
+            "Tab: Next | Shift+Tab: Previous | Space: Toggle | Enter: Confirm | Esc: Cancel"
         } else {
-            "Tab: Next | Shift+Tab: Previous | ←/→: Navigate | Enter: Confirm | Esc: Cancel"
+            "Tab: Next | Shift+Tab: Previous | Left/Right: Navigate | Enter: Confirm | Esc: Cancel"
         };
 
         let hint_line = Line::from(Span::styled(hints, Style::default().fg(Color::DarkGray)));

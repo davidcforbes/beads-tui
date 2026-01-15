@@ -446,7 +446,7 @@ impl<'a> GanttChart<'a> {
                             if *to_x >= area.x + 20 && *to_x < area.right() && *to_y < area.bottom()
                             {
                                 buf.get_mut(*to_x, *to_y)
-                                    .set_symbol("→")
+                                    .set_symbol(">")
                                     .set_style(line_style);
                             }
                         } else {
@@ -476,7 +476,7 @@ impl<'a> GanttChart<'a> {
                             if *to_x >= area.x + 20 && *to_x < area.right() && *to_y < area.bottom()
                             {
                                 buf.get_mut(*to_x, *to_y)
-                                    .set_symbol("→")
+                                    .set_symbol(">")
                                     .set_style(line_style);
                             }
                         }

@@ -2989,7 +2989,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             Style::default().fg(Color::Yellow)
         };
 
-        let icon = "🔍";
+        let icon = "Search:";
 
         // Truncate query for display in title bar to prevent overflow
         let display_query = if query.len() > 20 {

@@ -69,10 +69,10 @@ impl DatabaseStatus {
     /// Get symbol for the status
     pub fn symbol(&self) -> &'static str {
         match self {
-            Self::Ready => "✓",
-            Self::Syncing => "⏳",
-            Self::Error => "✗",
-            Self::Offline => "⊘",
+            Self::Ready => "[OK]",
+            Self::Syncing => "[...]",
+            Self::Error => "[X]",
+            Self::Offline => "[off]",
         }
     }
 }
@@ -588,7 +588,7 @@ impl<'a> StatefulWidget for DatabaseView<'a> {
         }
 
         // Render Help
-        let help = Paragraph::new("[/]: Switch Modes | s: Sync | r: Refresh")
+        let help = Paragraph::new("Up/Down/j/k: Navigate | r: Refresh | s: Sync | x: Export | i: Import | v: Verify | c: Compact | t: Toggle daemon | Esc: Back")
             .style(Style::default().fg(Color::DarkGray));
         help.render(chunks[2], buf);
 

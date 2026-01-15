@@ -133,7 +133,7 @@ impl<'a> StatefulWidget for IssueHistoryPanel<'a> {
                 )]),
                 Line::from(vec![
                     Span::styled(
-                        "  ✓ ",
+                        "  [+] ",
                         Style::default()
                             .fg(Color::Green)
                             .add_modifier(Modifier::BOLD),
@@ -151,7 +151,7 @@ impl<'a> StatefulWidget for IssueHistoryPanel<'a> {
                         Style::default().fg(Color::DarkGray),
                     )]),
                     Line::from(vec![
-                        Span::styled("  📝 ", Style::default().fg(Color::Cyan)),
+                        Span::styled("  [Note] ", Style::default().fg(Color::Cyan)),
                         Span::styled(&note.author, Style::default().fg(Color::Yellow)),
                         Span::raw(" added note"),
                     ]),
@@ -216,8 +216,8 @@ impl<'a> StatefulWidget for IssueHistoryPanel<'a> {
         // Render help text
         let help_text = if self.issue.is_some() && !self.issue.unwrap().notes.is_empty() {
             Line::from(vec![
-                Span::styled("↑↓", Style::default().fg(Color::Cyan)),
-                Span::raw(" Navigate  •  "),
+                Span::styled("Up/Down", Style::default().fg(Color::Cyan)),
+                Span::raw(" Navigate | "),
                 Span::styled("Esc", Style::default().fg(Color::Cyan)),
                 Span::raw(" Close"),
             ])

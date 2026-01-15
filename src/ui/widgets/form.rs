@@ -891,7 +891,7 @@ impl<'a> StatefulWidget for Form<'a> {
             if let Some(ref error) = field.error {
                 if field_inner.height > 1 {
                     let error_line =
-                        Line::from(Span::styled(format!("⚠ {error}"), self.error_style));
+                        Line::from(Span::styled(format!("[!] {error}"), self.error_style));
                     let error_y = field_inner.y + 1;
                     if error_y < field_inner.y + field_inner.height {
                         error_line.render(

@@ -336,13 +336,13 @@ impl<'a> LabelsView<'a> {
                     .bg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),
             )
-            .highlight_symbol("▶ ");
+            .highlight_symbol("> ");
 
         StatefulWidget::render(labels_list, area, buf, state);
     }
 
     fn render_help(&self, area: Rect, buf: &mut Buffer) {
-        let help_text = "a: Add | d: Delete | e: Edit | s: Stats | /: Search | Esc: Clear";
+        let help_text = "Up/Down/j/k: Navigate | /: Search | a: Add | e: Edit | d: Delete | s: Stats | Esc: Back";
         let help = Paragraph::new(Line::from(Span::styled(
             help_text,
             Style::default().fg(Color::DarkGray),

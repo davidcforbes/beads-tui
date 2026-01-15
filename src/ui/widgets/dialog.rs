@@ -53,11 +53,11 @@ impl DialogType {
 
     fn symbol(&self) -> &'static str {
         match self {
-            DialogType::Info => "ℹ",
-            DialogType::Warning => "⚠",
-            DialogType::Error => "✖",
-            DialogType::Success => "✓",
-            DialogType::Confirm => "?",
+            DialogType::Info => "[i]",
+            DialogType::Warning => "[!]",
+            DialogType::Error => "[X]",
+            DialogType::Success => "[OK]",
+            DialogType::Confirm => "[?]",
         }
     }
 }
@@ -464,11 +464,11 @@ mod tests {
         assert_eq!(DialogType::Success.color(&theme), theme.success);
         assert_eq!(DialogType::Confirm.color(&theme), theme.primary);
 
-        assert_eq!(DialogType::Info.symbol(), "ℹ");
-        assert_eq!(DialogType::Warning.symbol(), "⚠");
-        assert_eq!(DialogType::Error.symbol(), "✖");
-        assert_eq!(DialogType::Success.symbol(), "✓");
-        assert_eq!(DialogType::Confirm.symbol(), "?");
+        assert_eq!(DialogType::Info.symbol(), "[i]");
+        assert_eq!(DialogType::Warning.symbol(), "[!]");
+        assert_eq!(DialogType::Error.symbol(), "[X]");
+        assert_eq!(DialogType::Success.symbol(), "[OK]");
+        assert_eq!(DialogType::Confirm.symbol(), "[?]");
     }
 
     #[test]

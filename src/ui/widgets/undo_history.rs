@@ -78,11 +78,11 @@ impl<'a> Widget for UndoHistoryView<'a> {
             .map(|(idx, entry)| {
                 let time_str = Self::format_timestamp(entry.timestamp);
                 let marker = if entry.is_current {
-                    "→"
+                    ">"
                 } else if entry.can_undo {
-                    "✓"
+                    "*"
                 } else {
-                    "○"
+                    "o"
                 };
 
                 let style = if entry.is_current {

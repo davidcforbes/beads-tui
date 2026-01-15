@@ -315,7 +315,7 @@ where
 
                 // Add checkbox if in selection mode
                 if state.selection_mode {
-                    let checkbox = if is_selected { "[✓] " } else { "[ ] " };
+                    let checkbox = if is_selected { "[x] " } else { "[ ] " };
                     spans.push(Span::styled(checkbox, self.checkbox_style));
                 }
 

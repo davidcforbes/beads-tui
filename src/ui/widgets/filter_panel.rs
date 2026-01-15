@@ -328,7 +328,7 @@ impl<'a> FilterPanel<'a> {
                 self.active_style,
             ))));
             items.push(ListItem::new(Line::from(vec![
-                Span::raw("  🔍 \""),
+                Span::raw("  Search: \""),
                 Span::styled(query, Style::default().fg(Color::Yellow)),
                 Span::raw("\""),
             ])));

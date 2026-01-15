@@ -427,7 +427,7 @@ impl Widget for SkeletonTree {
 
                 // Add indicator
                 if self.show_indicators && depth < self.max_depth {
-                    let indicator = if i % 3 == 0 { "▼ " } else { "▶ " };
+                    let indicator = if i % 3 == 0 { "v " } else { "> " };
                     spans.push(Span::styled(indicator, indicator_style));
                 } else if self.show_indicators {
                     spans.push(Span::raw("  "));

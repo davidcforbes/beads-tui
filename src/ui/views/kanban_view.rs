@@ -997,9 +997,9 @@ impl Widget for KanbanView {
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from("Press Tab/Shift+Tab to navigate columns"),
-            Line::from("Press j/k to navigate cards"),
-            Line::from("Press Enter to view issue details"),
+            Line::from("Press Up/Down/Left/Right or h/j/k/l to navigate"),
+            Line::from("Press Space to move card"),
+            Line::from("Press c to configure columns"),
         ];
 
         let paragraph = Paragraph::new(text);
@@ -1109,7 +1109,7 @@ impl KanbanView {
         // Show scroll indicators if needed
         if scroll_offset > 0 && !use_status_widths {
             // Left scroll indicator
-            let indicator = " ◀ ";
+            let indicator = " < ";
             buf.set_string(
                 columns_area.x,
                 columns_area.y,
@@ -1122,7 +1122,7 @@ impl KanbanView {
 
         if scroll_offset + columns_to_render.len() < visible_columns.len() && !use_status_widths {
             // Right scroll indicator
-            let indicator = " ▶ ";
+            let indicator = " > ";
             let x = columns_area.x + viewport_width.saturating_sub(indicator.len() as u16);
             buf.set_string(
                 x,
@@ -1233,7 +1233,7 @@ impl KanbanView {
 
         spans.push(Span::raw(" "));
         spans.push(Span::styled(
-            "(Press 'f' to edit, 'F' to clear)",
+            "(Press 'f' to edit, Shift+F to clear)",
             Style::default().fg(Color::DarkGray),
         ));
 
@@ -1286,7 +1286,7 @@ impl KanbanView {
         let help_spans = vec![
             Span::styled("j/k", Style::default().fg(Color::Yellow)),
             Span::raw(": Navigate  "),
-            Span::styled("↑/↓", Style::default().fg(Color::Yellow)),
+            Span::styled("Up/Down", Style::default().fg(Color::Yellow)),
             Span::raw(": Reorder  "),
             Span::styled("v", Style::default().fg(Color::Yellow)),
             Span::raw(": Toggle  "),
@@ -1331,7 +1331,7 @@ impl KanbanView {
             }
 
             // Visibility toggle
-            let visibility_marker = if col.visible { "[✓]" } else { "[ ]" };
+            let visibility_marker = if col.visible { "[x]" } else { "[ ]" };
             let visibility_style = if col.visible {
                 Style::default().fg(Color::Green)
             } else {
@@ -1407,13 +1407,13 @@ impl KanbanView {
             ""
         } else {
             match column.card_sort {
-                CardSort::Priority => " [↓P]",
-                CardSort::Title => " [↓A]",
-                CardSort::Created => " [↓C]",
-                CardSort::Updated => " [↓U]",
+                CardSort::Priority => " [vP]",
+                CardSort::Title => " [vA]",
+                CardSort::Created => " [vC]",
+                CardSort::Updated => " [vU]",
             }
         };
-        let active_marker = if is_selected { "◆ " } else { "" };
+        let active_marker = if is_selected { "> " } else { "" };
         let collapse_hint = if state.is_status_grouping()
             && KanbanViewState::is_status_column_id(&column.id)
         {

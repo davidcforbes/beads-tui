@@ -247,7 +247,7 @@ impl<'a> DependenciesView<'a> {
 
         // Add focus indicator to title
         let dep_title = if state.focus == DependencyFocus::Dependencies {
-            format!("▶ Depends On ({})", issue.dependencies.len())
+            format!("> Depends On ({})", issue.dependencies.len())
         } else {
             format!("  Depends On ({})", issue.dependencies.len())
         };
@@ -265,7 +265,7 @@ impl<'a> DependenciesView<'a> {
                     .bg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),
             )
-            .highlight_symbol("▶ ");
+            .highlight_symbol("> ");
 
         StatefulWidget::render(
             dependencies,
@@ -311,7 +311,7 @@ impl<'a> DependenciesView<'a> {
 
         // Add focus indicator to title
         let blocks_title = if state.focus == DependencyFocus::Blocks {
-            format!("▶ Blocks ({})", issue.blocks.len())
+            format!("> Blocks ({})", issue.blocks.len())
         } else {
             format!("  Blocks ({})", issue.blocks.len())
         };
@@ -329,12 +329,12 @@ impl<'a> DependenciesView<'a> {
                     .bg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),
             )
-            .highlight_symbol("▶ ");
+            .highlight_symbol("> ");
 
         StatefulWidget::render(blocks, chunks[2], buf, &mut state.blocks_list_state);
 
         // Render help
-        let help_text = "a: Add Dependency | d: Remove Dependency | g: Show Graph | c: Check Cycles | Esc: Back";
+        let help_text = "Up/Down/j/k: Navigate | Tab: Focus | a: Add | d: Remove | g: Graph | c: Cycle check | Enter: View | Esc: Back";
         let help = Paragraph::new(Line::from(Span::styled(
             help_text,
             Style::default().fg(Color::DarkGray),

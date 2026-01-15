@@ -414,7 +414,7 @@ impl<'a> PertChart<'a> {
                 // Arrow head
                 let arrow_x = area.x + to_vx as u16;
                 if arrow_x > area.x && arrow_x <= area.x + area.width {
-                    buf.set_string(arrow_x.saturating_sub(1), y_pos, "→", style);
+                    buf.set_string(arrow_x.saturating_sub(1), y_pos, ">", style);
                 }
             }
         } else {
@@ -483,7 +483,7 @@ impl<'a> PertChart<'a> {
                 // Arrow head
                 let arrow_x = area.x + to_vx as u16;
                 if arrow_x > area.x && arrow_x <= area.x + area.width {
-                    buf.set_string(arrow_x.saturating_sub(1), y2, "→", style);
+                    buf.set_string(arrow_x.saturating_sub(1), y2, ">", style);
                 }
             }
         }
@@ -530,7 +530,7 @@ impl<'a> Widget for PertChart<'a> {
         // Render cycle warning if any
         if self.graph.cycle_detection.has_cycle {
             let warning = format!(
-                "⚠ {} cycle(s) detected",
+                "[!] {} cycle(s) detected",
                 self.graph.cycle_detection.cycle_edges.len()
             );
             if area.height > 0 {
@@ -547,10 +547,10 @@ impl<'a> Widget for PertChart<'a> {
         if self.config.show_legend && area.height > 3 {
             let legend_y = area.y + 1;
             let legend_items = vec![
-                ("─→", "Dependency", self.config.edge_style),
-                ("─→", "Critical Path", self.config.critical_edge_style),
-                ("□", "Normal", self.config.normal_style),
-                ("■", "Selected", self.config.selected_style),
+                ("->", "Dependency", self.config.edge_style),
+                ("->", "Critical Path", self.config.critical_edge_style),
+                ("[ ]", "Normal", self.config.normal_style),
+                ("[#]", "Selected", self.config.selected_style),
             ];
 
             let mut x_offset = area.x + 2;

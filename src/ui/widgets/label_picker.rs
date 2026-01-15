@@ -402,7 +402,7 @@ impl<'a> StatefulWidget for LabelPicker<'a> {
             .iter()
             .map(|label| {
                 let is_selected = state.is_selected(label);
-                let checkbox = if is_selected { "[✓]" } else { "[ ]" };
+                let checkbox = if is_selected { "[x]" } else { "[ ]" };
                 let style = if is_selected {
                     self.active_style
                 } else {

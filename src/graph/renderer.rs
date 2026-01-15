@@ -266,7 +266,7 @@ impl GraphRenderer {
                     buf.set_line(
                         screen_x,
                         screen_y,
-                        &Line::styled("▼", options.edge_style),
+                        &Line::styled("v", options.edge_style),
                         1,
                     );
                 }

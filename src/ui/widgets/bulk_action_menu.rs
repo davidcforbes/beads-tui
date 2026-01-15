@@ -59,18 +59,18 @@ impl BulkAction {
     /// Get icon/symbol for the action
     pub fn icon(&self) -> &str {
         match self {
-            Self::Close => "✓",
-            Self::Reopen => "↻",
-            Self::SetInProgress => "▶",
-            Self::SetBlocked => "⊘",
-            Self::SetPriority => "!",
-            Self::AddLabels => "+",
-            Self::RemoveLabels => "-",
-            Self::SetAssignee => "@",
-            Self::ClearAssignee => "∅",
-            Self::Delete => "✗",
-            Self::Export => "↓",
-            Self::Cancel => "←",
+            Self::Close => "[x]",
+            Self::Reopen => "[o]",
+            Self::SetInProgress => "[>]",
+            Self::SetBlocked => "[!]",
+            Self::SetPriority => "[P]",
+            Self::AddLabels => "[+]",
+            Self::RemoveLabels => "[-]",
+            Self::SetAssignee => "[@]",
+            Self::ClearAssignee => "[ ]",
+            Self::Delete => "[X]",
+            Self::Export => "[v]",
+            Self::Cancel => "[<]",
         }
     }
 
@@ -560,9 +560,9 @@ mod tests {
 
     #[test]
     fn test_action_icons() {
-        assert_eq!(BulkAction::Close.icon(), "✓");
-        assert_eq!(BulkAction::Delete.icon(), "✗");
-        assert_eq!(BulkAction::Cancel.icon(), "←");
+        assert_eq!(BulkAction::Close.icon(), "[x]");
+        assert_eq!(BulkAction::Delete.icon(), "[X]");
+        assert_eq!(BulkAction::Cancel.icon(), "[<]");
     }
 
     #[test]

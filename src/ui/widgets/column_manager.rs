@@ -198,7 +198,7 @@ impl<'a> StatefulWidget for ColumnManager<'a> {
             .enumerate()
             .map(|(idx, col)| {
                 let is_selected = idx == state.selected;
-                let visibility = if col.visible { "✓" } else { " " };
+                let visibility = if col.visible { "x" } else { " " };
                 let mandatory = if col.id.is_mandatory() { " *" } else { "" };
                 let width_info = format!("({})", col.width);
 
@@ -250,15 +250,15 @@ impl<'a> StatefulWidget for ColumnManager<'a> {
         if self.show_help && chunks.len() > 1 {
             let help_lines = vec![
                 Line::from(vec![
-                    Span::styled("↑/↓", Style::default().fg(Color::Yellow)),
+                    Span::styled("Up/Down", Style::default().fg(Color::Yellow)),
                     Span::raw(" Select  "),
-                    Span::styled("Alt+↑/↓", Style::default().fg(Color::Yellow)),
+                    Span::styled("Alt+Left/Right", Style::default().fg(Color::Yellow)),
                     Span::raw(" Move  "),
                     Span::styled("Space", Style::default().fg(Color::Green)),
                     Span::raw(" Toggle  "),
                 ]),
                 Line::from(vec![
-                    Span::styled("R", Style::default().fg(Color::Cyan)),
+                    Span::styled("r", Style::default().fg(Color::Cyan)),
                     Span::raw(" Reset  "),
                     Span::styled("Enter", Style::default().fg(Color::Green)),
                     Span::raw(" Apply  "),

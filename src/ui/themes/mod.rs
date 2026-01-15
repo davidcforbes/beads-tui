@@ -298,11 +298,11 @@ impl Theme {
     pub fn priority_symbol(priority: &crate::beads::models::Priority) -> &'static str {
         use crate::beads::models::Priority;
         match priority {
-            Priority::P0 => "◆",
-            Priority::P1 => "●",
-            Priority::P2 => "○",
-            Priority::P3 => "◇",
-            Priority::P4 => "·",
+            Priority::P0 => "P0",
+            Priority::P1 => "P1",
+            Priority::P2 => "P2",
+            Priority::P3 => "P3",
+            Priority::P4 => "P4",
         }
     }
 }

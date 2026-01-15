@@ -206,11 +206,9 @@ impl Widget for PertView {
                     .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from("Press j/k to navigate issues"),
-            Line::from("Press arrow keys to pan view"),
+            Line::from("Press Up/Down or j/k to navigate nodes"),
             Line::from("Press +/- to zoom in/out"),
-            Line::from("Press c to toggle critical path"),
-            Line::from("Press f to toggle focus mode"),
+            Line::from("Press c to configure chart settings"),
         ];
 
         let paragraph = Paragraph::new(text);
@@ -250,7 +248,7 @@ impl PertView {
 
                 let text = vec![
                     Line::from(Span::styled(
-                        "⚠ Dependency Cycle Detected",
+                        "[!] Dependency Cycle Detected",
                         Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                     )),
                     Line::from(""),

@@ -287,7 +287,7 @@ impl<'a> FilterBuilder<'a> {
                     .iter()
                     .map(|status| {
                         let is_active = state.criteria.statuses.contains(status);
-                        let checkbox = if is_active { "[✓]" } else { "[ ]" };
+                        let checkbox = if is_active { "[x]" } else { "[ ]" };
                         let style = if is_active {
                             Style::default().fg(Self::status_color(status))
                         } else {
@@ -314,7 +314,7 @@ impl<'a> FilterBuilder<'a> {
                     .iter()
                     .map(|priority| {
                         let is_active = state.criteria.priorities.contains(priority);
-                        let checkbox = if is_active { "[✓]" } else { "[ ]" };
+                        let checkbox = if is_active { "[x]" } else { "[ ]" };
                         let style = if is_active {
                             Style::default().fg(Self::priority_color(priority))
                         } else {
@@ -349,7 +349,7 @@ impl<'a> FilterBuilder<'a> {
                     .iter()
                     .map(|issue_type| {
                         let is_active = state.criteria.types.contains(issue_type);
-                        let checkbox = if is_active { "[✓]" } else { "[ ]" };
+                        let checkbox = if is_active { "[x]" } else { "[ ]" };
                         let style = if is_active {
                             self.active_style
                         } else {
@@ -381,7 +381,7 @@ impl<'a> FilterBuilder<'a> {
                         .iter()
                         .map(|label| {
                             ListItem::new(Line::from(vec![
-                                Span::raw("[✓] 🏷  "),
+                                Span::raw("[x] Label: "),
                                 Span::styled(label.clone(), Style::default().fg(Color::Magenta)),
                             ]))
                         })
@@ -472,13 +472,13 @@ impl<'a> StatefulWidget for FilterBuilder<'a> {
         // Render help text
         if self.show_help && chunks.len() > 2 {
             let help_spans = vec![
-                Span::styled("↑↓", Style::default().fg(Color::Yellow)),
+                Span::styled("Up/Down", Style::default().fg(Color::Yellow)),
                 Span::raw(" Navigate  "),
                 Span::styled("Space", Style::default().fg(Color::Green)),
                 Span::raw(" Toggle  "),
                 Span::styled("Tab", Style::default().fg(Color::Cyan)),
                 Span::raw(" Switch Section  "),
-                Span::styled("C", Style::default().fg(Color::Red)),
+                Span::styled("c", Style::default().fg(Color::Red)),
                 Span::raw(" Clear"),
             ];
 

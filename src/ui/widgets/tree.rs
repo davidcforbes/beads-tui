@@ -292,7 +292,7 @@ impl<'a, T: Display> StatefulWidget for Tree<'a, T> {
 
                 // Add expand/collapse indicator
                 if item.has_children {
-                    let indicator = if item.is_expanded { "▼ " } else { "▶ " };
+                    let indicator = if item.is_expanded { "v " } else { "> " };
                     let indicator_style = if item.is_expanded {
                         self.expanded_style
                     } else {

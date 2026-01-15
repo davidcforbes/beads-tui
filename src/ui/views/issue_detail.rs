@@ -203,7 +203,7 @@ impl<'a> StatefulWidget for IssueDetailView<'a> {
                     Style::default().fg(Color::Yellow),
                 )));
                 for dep in &self.issue.dependencies {
-                    lines.push(Line::from(format!("  → {dep}")));
+                    lines.push(Line::from(format!("  -> {dep}")));
                 }
             }
 
@@ -213,7 +213,7 @@ impl<'a> StatefulWidget for IssueDetailView<'a> {
                     Style::default().fg(Color::Red),
                 )));
                 for blocked in &self.issue.blocks {
-                    lines.push(Line::from(format!("  ← {blocked}")));
+                    lines.push(Line::from(format!("  <- {blocked}")));
                 }
             }
         }
@@ -239,12 +239,18 @@ impl<'a> StatefulWidget for IssueDetailView<'a> {
         }
 
         // Render everything
+        // Underline 'T' to indicate Tab hotkey for focus
+        let title = Line::from(vec![
+            Span::styled("T", Style::default().add_modifier(Modifier::UNDERLINED)),
+            Span::raw("ab: Selected Record Display"),
+        ]);
+
         let paragraph = Paragraph::new(lines)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Double) // Double border
-                    .title("Selected Record Display"),
+                    .title(title),
             )
             .wrap(Wrap { trim: false })
             .scroll((*scroll, 0));
