@@ -1007,10 +1007,6 @@ impl<'a> IssueList<'a> {
     ) -> Cell<'b> {
         use crate::models::table_config::{ColumnId, WrapBehavior};
 
-        // Default theme if none provided
-        let default_theme = crate::ui::themes::Theme::default();
-        let theme_ref = theme.unwrap_or(&default_theme);
-
         // Check if this cell is currently being edited
         // Use ref to avoid moving buffer out of edit_state, so we can use it later if needed
         // But actually we own edit_state here (passed by value Option).
@@ -1456,7 +1452,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
                             col.id,
                             col.wrap,
                             &self.search_query,
-                            state.editing_state().map(|(i, s, p)| if i == row_idx { Some((row_idx, s.clone(), p)) } else { None }).flatten(),
+                            editing_state.as_ref().filter(|(idx, _, _)| *idx == row_idx).cloned(),
                             row_idx,
                             wrap_width,
                             self.row_height,
