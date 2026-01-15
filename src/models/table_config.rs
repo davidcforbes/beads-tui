@@ -3,6 +3,20 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Fixed column widths for horizontal scrolling mode
+/// These widths are used when displaying all columns with horizontal scrolling enabled
+pub const FIXED_COLUMN_WIDTHS: [(ColumnId, u16); 9] = [
+    (ColumnId::Id, 12),
+    (ColumnId::Title, 40),
+    (ColumnId::Status, 12),
+    (ColumnId::Priority, 8),
+    (ColumnId::Type, 10),
+    (ColumnId::Assignee, 15),
+    (ColumnId::Labels, 20),
+    (ColumnId::Created, 10),
+    (ColumnId::Updated, 10),
+];
+
 /// Column identifier for the issue table
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -261,6 +275,7 @@ impl TableConfig {
             ColumnDefinition::new(ColumnId::Type),
             ColumnDefinition::new(ColumnId::Assignee),
             ColumnDefinition::new(ColumnId::Labels),
+            ColumnDefinition::new(ColumnId::Created),
             ColumnDefinition::new(ColumnId::Updated),
         ]
     }
@@ -376,6 +391,40 @@ impl TableConfig {
         // Validate and migrate the loaded config
         Ok(config.validate_and_migrate())
     }
+
+    /// Get fixed widths for all columns (for horizontal scrolling mode)
+    /// Returns a HashMap mapping column IDs to their fixed widths
+    pub fn get_fixed_widths() -> HashMap<ColumnId, u16> {
+        FIXED_COLUMN_WIDTHS.iter().copied().collect()
+    }
+
+    /// Calculate the total width required for all visible columns using fixed widths
+    pub fn total_fixed_width(&self) -> u16 {
+        let fixed_widths = Self::get_fixed_widths();
+        self.columns
+            .iter()
+            .filter(|c| c.visible)
+            .filter_map(|c| fixed_widths.get(&c.id))
+            .sum()
+    }
+
+    /// Apply fixed widths to all visible columns (for horizontal scrolling mode)
+    pub fn apply_fixed_widths(&mut self) {
+        let fixed_widths = Self::get_fixed_widths();
+        for col in &mut self.columns {
+            if let Some(&fixed_width) = fixed_widths.get(&col.id) {
+                col.width = fixed_width;
+            }
+        }
+    }
+
+    /// Get the fixed width for a specific column ID
+    pub fn get_fixed_width(id: ColumnId) -> Option<u16> {
+        FIXED_COLUMN_WIDTHS
+            .iter()
+            .find(|(col_id, _)| *col_id == id)
+            .map(|(_, width)| *width)
+    }
 }
 
 #[cfg(test)]
@@ -424,7 +473,7 @@ mod tests {
     #[test]
     fn test_table_config_default() {
         let config = TableConfig::default();
-        assert_eq!(config.columns.len(), 8);
+        assert_eq!(config.columns.len(), 9);
         assert_eq!(config.row_height, 1);
         assert_eq!(config.sort.column, ColumnId::Updated);
         assert!(!config.sort.ascending);
@@ -706,7 +755,7 @@ mod tests {
     #[test]
     fn test_table_config_new() {
         let config = TableConfig::new();
-        assert_eq!(config.columns.len(), 8);
+        assert_eq!(config.columns.len(), 9);
         assert_eq!(config.row_height, 1);
         assert_eq!(config.sort.column, ColumnId::Updated);
         assert_eq!(config.version, 1);

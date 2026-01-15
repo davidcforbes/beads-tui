@@ -1147,6 +1147,34 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             .list_state_mut()
                             .scroll_to_column(usize::MAX); // Will be clamped to last column
                     }
+                    Some(Action::PageDown) => {
+                        // Scroll down by one page (viewport height)
+                        let len = issues_state.search_state().filtered_issues().len();
+                        let viewport_height = issues_state
+                            .search_state()
+                            .list_state()
+                            .last_viewport_height() as usize;
+                        // Use viewport height, fallback to 10 if not yet rendered
+                        let page_size = if viewport_height > 0 { viewport_height } else { 10 };
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .select_page_down(len, page_size);
+                    }
+                    Some(Action::PageUp) => {
+                        // Scroll up by one page (viewport height)
+                        let len = issues_state.search_state().filtered_issues().len();
+                        let viewport_height = issues_state
+                            .search_state()
+                            .list_state()
+                            .last_viewport_height() as usize;
+                        // Use viewport height, fallback to 10 if not yet rendered
+                        let page_size = if viewport_height > 0 { viewport_height } else { 10 };
+                        issues_state
+                            .search_state_mut()
+                            .list_state_mut()
+                            .select_page_up(len, page_size);
+                    }
                     // TODO: Move child reordering to Action enum (e.g. MoveChildUp/Down)
                     // Keeping hardcoded for now as it uses modifiers
                     _ if key_code == KeyCode::Up

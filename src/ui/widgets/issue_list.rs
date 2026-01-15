@@ -515,6 +515,38 @@ impl IssueListState {
         self.table_state.select(Some(i));
     }
 
+    /// Jump down by page_size (viewport height) for Page Down
+    pub fn select_page_down(&mut self, len: usize, page_size: usize) {
+        if len == 0 {
+            return;
+        }
+        let page_size = page_size.max(1); // Ensure at least 1
+        let i = match self.table_state.selected() {
+            Some(i) => {
+                // Jump down by page_size, clamped to last item
+                (i + page_size).min(len - 1)
+            }
+            None => 0,
+        };
+        self.table_state.select(Some(i));
+    }
+
+    /// Jump up by page_size (viewport height) for Page Up
+    pub fn select_page_up(&mut self, len: usize, page_size: usize) {
+        if len == 0 {
+            return;
+        }
+        let page_size = page_size.max(1); // Ensure at least 1
+        let i = match self.table_state.selected() {
+            Some(i) => {
+                // Jump up by page_size, using saturating_sub to prevent underflow
+                i.saturating_sub(page_size)
+            }
+            None => 0,
+        };
+        self.table_state.select(Some(i));
+    }
+
     pub fn selected(&self) -> Option<usize> {
         self.table_state.selected()
     }
