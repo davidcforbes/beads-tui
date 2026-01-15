@@ -1019,12 +1019,25 @@ impl KanbanView {
 
         if visible_columns.is_empty() {
             // No columns to display
-            let block = Block::default().title("Kanban Board").borders(Borders::ALL);
+            let block = Block::default()
+                .title("Kanban Board")
+                .borders(Borders::ALL)
+                .style(Style::default().bg(Color::Black));
             let inner = block.inner(area);
             block.render(area, buf);
 
+            // Clear the inner area with a solid background
+            for y in inner.y..inner.y + inner.height {
+                for x in inner.x..inner.x + inner.width {
+                    if x < buf.area.right() && y < buf.area.bottom() {
+                        buf.get_mut(x, y).set_style(Style::default().bg(Color::Black));
+                    }
+                }
+            }
+
             let text = Line::from("No columns configured. Press 'c' to configure columns.");
-            let paragraph = Paragraph::new(text).style(Style::default().fg(Color::Yellow));
+            let paragraph = Paragraph::new(text)
+                .style(Style::default().fg(Color::Yellow).bg(Color::Black));
             paragraph.render(inner, buf);
             return;
         }
@@ -1237,8 +1250,17 @@ impl KanbanView {
             Style::default().fg(Color::DarkGray),
         ));
 
+        // Clear the area with a solid background
+        for y in area.y..area.y + area.height {
+            for x in area.x..area.x + area.width {
+                if x < buf.area.right() && y < buf.area.bottom() {
+                    buf.get_mut(x, y).set_style(Style::default().bg(Color::Black));
+                }
+            }
+        }
+
         let line = Line::from(spans);
-        let paragraph = Paragraph::new(line);
+        let paragraph = Paragraph::new(line).style(Style::default().bg(Color::Black));
         paragraph.render(area, buf);
     }
 
@@ -1271,6 +1293,15 @@ impl KanbanView {
 
         let inner = block.inner(overlay_area);
         block.render(overlay_area, buf);
+
+        // Clear the inner area with a solid background
+        for y in inner.y..inner.y + inner.height {
+            for x in inner.x..inner.x + inner.width {
+                if x < buf.area.right() && y < buf.area.bottom() {
+                    buf.get_mut(x, y).set_style(Style::default().bg(Color::Black));
+                }
+            }
+        }
 
         // Split into help line and column list
         let chunks = Layout::default()
@@ -1428,10 +1459,20 @@ impl KanbanView {
         let block = Block::default()
             .title(title)
             .borders(Borders::ALL)
-            .border_style(border_style);
+            .border_style(border_style)
+            .style(Style::default().bg(Color::Black));
 
         let inner = block.inner(area);
         block.render(area, buf);
+
+        // Clear the inner area with a solid background
+        for y in inner.y..inner.y + inner.height {
+            for x in inner.x..inner.x + inner.width {
+                if x < buf.area.right() && y < buf.area.bottom() {
+                    buf.get_mut(x, y).set_style(Style::default().bg(Color::Black));
+                }
+            }
+        }
 
         // Get issues for this column
         let column_issues = state.get_column_issues(column_index);
@@ -1490,9 +1531,19 @@ impl KanbanView {
             let card_block = Block::default()
                 .borders(Borders::ALL)
                 .border_style(card_border)
-                .border_type(BorderType::Plain);
+                .border_type(BorderType::Plain)
+                .style(Style::default().bg(Color::Black));
             let card_inner = card_block.inner(card_area);
             card_block.render(card_area, buf);
+
+            // Clear the card inner area with a solid background
+            for y in card_inner.y..card_inner.y + card_inner.height {
+                for x in card_inner.x..card_inner.x + card_inner.width {
+                    if x < buf.area.right() && y < buf.area.bottom() {
+                        buf.get_mut(x, y).set_style(Style::default().bg(Color::Black));
+                    }
+                }
+            }
 
             let mut line_y = card_inner.y;
             for line in card_lines {
