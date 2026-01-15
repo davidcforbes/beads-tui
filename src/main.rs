@@ -1324,7 +1324,12 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         issues_state
                             .search_state_mut()
                             .search_state_mut()
+                            .clear();
+                        issues_state
+                            .search_state_mut()
+                            .search_state_mut()
                             .set_focused(true);
+                        issues_state.search_state_mut().update_filtered_issues();
                     }
                     Some(Action::CancelDialog) => {
                         // Esc
@@ -2778,11 +2783,18 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
 
         let icon = "🔍";
 
+        // Truncate query for display in title bar to prevent overflow
+        let display_query = if query.len() > 20 {
+            format!("{}...", &query[..20])
+        } else {
+            query.to_string()
+        };
+
         // Search: [ 🔍 Mode {query} ]
         let display_content = if query.is_empty() {
             format!("{} {}", icon, mode_text)
         } else {
-            format!("{} {}: {}", icon, mode_text, query)
+            format!("{} {}: {}", icon, mode_text, display_query)
         };
 
         Span::styled(format!("Search: [{}]     ", display_content), style)
