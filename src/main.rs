@@ -2908,6 +2908,22 @@ fn handle_kanban_view_event(key: KeyEvent, app: &mut models::AppState) {
     if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
         app.clear_notification();
     }
+
+    match action {
+        Some(Action::ToggleKanbanOpenColumn) => app
+            .kanban_view_state
+            .toggle_column_collapse(models::kanban_config::ColumnId::StatusOpen),
+        Some(Action::ToggleKanbanInProgressColumn) => app
+            .kanban_view_state
+            .toggle_column_collapse(models::kanban_config::ColumnId::StatusInProgress),
+        Some(Action::ToggleKanbanBlockedColumn) => app
+            .kanban_view_state
+            .toggle_column_collapse(models::kanban_config::ColumnId::StatusBlocked),
+        Some(Action::ToggleKanbanClosedColumn) => app
+            .kanban_view_state
+            .toggle_column_collapse(models::kanban_config::ColumnId::StatusClosed),
+        _ => {}
+    }
 }
 
 fn handle_gantt_view_event(key: KeyEvent, app: &mut models::AppState) {

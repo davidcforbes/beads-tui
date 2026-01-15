@@ -90,6 +90,10 @@ pub enum Action {
     ToggleExpand,
     ShowIssueHistory,
     ShowColumnManager,
+    ToggleKanbanOpenColumn,
+    ToggleKanbanInProgressColumn,
+    ToggleKanbanBlockedColumn,
+    ToggleKanbanClosedColumn,
 }
 
 impl Action {
@@ -167,6 +171,10 @@ impl Action {
             Action::ToggleExpand => "Toggle expand/collapse",
             Action::ShowIssueHistory => "Show issue history",
             Action::ShowColumnManager => "Show column manager",
+            Action::ToggleKanbanOpenColumn => "Toggle Open column collapse",
+            Action::ToggleKanbanInProgressColumn => "Toggle In Progress column collapse",
+            Action::ToggleKanbanBlockedColumn => "Toggle Blocked column collapse",
+            Action::ToggleKanbanClosedColumn => "Toggle Closed column collapse",
         }
     }
 }
@@ -478,6 +486,42 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
     bindings.insert(Action::ToggleExpand, vec![Keybinding::new("enter")]);
     bindings.insert(Action::ShowIssueHistory, vec![Keybinding::alt("h")]);
     bindings.insert(Action::ShowColumnManager, vec![Keybinding::new("c")]);
+    bindings.insert(
+        Action::ToggleKanbanOpenColumn,
+        vec![Keybinding {
+            key: "f1".to_string(),
+            ctrl: true,
+            alt: false,
+            shift: false,
+        }],
+    );
+    bindings.insert(
+        Action::ToggleKanbanInProgressColumn,
+        vec![Keybinding {
+            key: "f2".to_string(),
+            ctrl: true,
+            alt: false,
+            shift: false,
+        }],
+    );
+    bindings.insert(
+        Action::ToggleKanbanBlockedColumn,
+        vec![Keybinding {
+            key: "f3".to_string(),
+            ctrl: true,
+            alt: false,
+            shift: false,
+        }],
+    );
+    bindings.insert(
+        Action::ToggleKanbanClosedColumn,
+        vec![Keybinding {
+            key: "f4".to_string(),
+            ctrl: true,
+            alt: false,
+            shift: false,
+        }],
+    );
 
     bindings
 }

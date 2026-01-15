@@ -10,8 +10,12 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Widget},
+    widgets::{Block, BorderType, Borders, Paragraph, Widget},
 };
+use std::collections::HashSet;
+
+const COLLAPSED_COLUMN_WIDTH: u16 = 6;
+const STATUS_COLLAPSE_HINT: &str = " [v^<]";
 
 /// Column manager overlay state
 #[derive(Debug, Clone)]
@@ -156,6 +160,8 @@ pub struct KanbanViewState {
     column_manager: ColumnManagerState,
     /// Horizontal scroll offset in columns
     horizontal_scroll: usize,
+    /// Columns that are collapsed (status grouping only)
+    collapsed_columns: HashSet<ColumnId>,
 }
 
 impl KanbanViewState {
@@ -169,6 +175,7 @@ impl KanbanViewState {
             card_mode: CardMode::TwoLine,
             column_manager: ColumnManagerState::new(),
             horizontal_scroll: 0,
+            collapsed_columns: HashSet::new(),
         }
     }
 
@@ -246,6 +253,39 @@ impl KanbanViewState {
             CardMode::SingleLine => CardMode::TwoLine,
             CardMode::TwoLine => CardMode::SingleLine,
         };
+    }
+
+    /// Toggle collapsed state for a status column (status grouping only)
+    pub fn toggle_column_collapse(&mut self, id: ColumnId) {
+        if self.config.grouping_mode != GroupingMode::Status {
+            return;
+        }
+        if !Self::is_status_column_id(&id) {
+            return;
+        }
+        if self.collapsed_columns.contains(&id) {
+            self.collapsed_columns.remove(&id);
+        } else {
+            self.collapsed_columns.insert(id);
+        }
+    }
+
+    fn is_column_collapsed(&self, id: &ColumnId) -> bool {
+        self.collapsed_columns.contains(id)
+    }
+
+    fn is_status_grouping(&self) -> bool {
+        self.config.grouping_mode == GroupingMode::Status
+    }
+
+    fn is_status_column_id(id: &ColumnId) -> bool {
+        matches!(
+            id,
+            ColumnId::StatusOpen
+                | ColumnId::StatusInProgress
+                | ColumnId::StatusBlocked
+                | ColumnId::StatusClosed
+        )
     }
 
     /// Set search query filter
@@ -1009,18 +1049,31 @@ impl KanbanView {
             area
         };
 
-        // Calculate which columns to render based on horizontal scroll
-        let scroll_offset = state.horizontal_scroll();
         let viewport_width = columns_area.width;
+        let status_widths = Self::compute_status_column_widths(state, &visible_columns, viewport_width);
+        let use_status_widths = status_widths.is_some();
+        let column_widths: Vec<u16> = status_widths.unwrap_or_else(|| {
+            visible_columns.iter().map(|col| col.width).collect()
+        });
+        let scroll_offset = if use_status_widths {
+            0
+        } else {
+            state.horizontal_scroll()
+        };
 
         // Determine visible columns that fit in viewport
         let mut columns_to_render = Vec::new();
         let mut accumulated_width = 0u16;
 
-        for (idx, col) in visible_columns.iter().enumerate().skip(scroll_offset) {
-            if accumulated_width + col.width <= viewport_width {
-                columns_to_render.push((idx, col, col.width));
-                accumulated_width += col.width;
+        for (idx, (col, width)) in visible_columns
+            .iter()
+            .zip(column_widths.iter())
+            .enumerate()
+            .skip(scroll_offset)
+        {
+            if accumulated_width + *width <= viewport_width {
+                columns_to_render.push((idx, col, *width));
+                accumulated_width += *width;
             } else {
                 break;
             }
@@ -1054,7 +1107,7 @@ impl KanbanView {
         }
 
         // Show scroll indicators if needed
-        if scroll_offset > 0 {
+        if scroll_offset > 0 && !use_status_widths {
             // Left scroll indicator
             let indicator = " ◀ ";
             buf.set_string(
@@ -1067,7 +1120,7 @@ impl KanbanView {
             );
         }
 
-        if scroll_offset + columns_to_render.len() < visible_columns.len() {
+        if scroll_offset + columns_to_render.len() < visible_columns.len() && !use_status_widths {
             // Right scroll indicator
             let indicator = " ▶ ";
             let x = columns_area.x + viewport_width.saturating_sub(indicator.len() as u16);
@@ -1085,6 +1138,58 @@ impl KanbanView {
         if state.is_column_manager_visible() {
             Self::render_column_manager(area, buf, state);
         }
+    }
+
+    fn compute_status_column_widths(
+        state: &KanbanViewState,
+        visible_columns: &[&ColumnDefinition],
+        available_width: u16,
+    ) -> Option<Vec<u16>> {
+        if !state.is_status_grouping() {
+            return None;
+        }
+
+        let collapsed_count = visible_columns
+            .iter()
+            .filter(|col| state.is_column_collapsed(&col.id))
+            .count() as u16;
+        let total_collapsed = collapsed_count * COLLAPSED_COLUMN_WIDTH;
+        if total_collapsed > available_width {
+            return None;
+        }
+
+        let expanded_count = visible_columns.len() as u16 - collapsed_count;
+        let remaining_width = available_width.saturating_sub(total_collapsed);
+        if expanded_count > 0 && remaining_width < expanded_count {
+            return None;
+        }
+
+        let base_width = if expanded_count > 0 {
+            remaining_width / expanded_count
+        } else {
+            0
+        };
+        let mut extra = if expanded_count > 0 {
+            remaining_width % expanded_count
+        } else {
+            0
+        };
+
+        let mut widths = Vec::with_capacity(visible_columns.len());
+        for col in visible_columns {
+            if state.is_column_collapsed(&col.id) {
+                widths.push(COLLAPSED_COLUMN_WIDTH);
+            } else {
+                let mut width = base_width;
+                if extra > 0 {
+                    width += 1;
+                    extra -= 1;
+                }
+                widths.push(width);
+            }
+        }
+
+        Some(widths)
     }
 
     /// Render the filter row showing active filters
@@ -1288,6 +1393,7 @@ impl KanbanView {
         column_index: usize,
         is_selected: bool,
     ) {
+        let is_collapsed = state.is_column_collapsed(&column.id);
         let border_style = if is_selected {
             Style::default()
                 .fg(Color::Cyan)
@@ -1297,14 +1403,28 @@ impl KanbanView {
         };
 
         // Add sort indicator and active marker to title
-        let sort_indicator = match column.card_sort {
-            CardSort::Priority => " [↓P]",
-            CardSort::Title => " [↓A]",
-            CardSort::Created => " [↓C]",
-            CardSort::Updated => " [↓U]",
+        let sort_indicator = if is_collapsed {
+            ""
+        } else {
+            match column.card_sort {
+                CardSort::Priority => " [↓P]",
+                CardSort::Title => " [↓A]",
+                CardSort::Created => " [↓C]",
+                CardSort::Updated => " [↓U]",
+            }
         };
         let active_marker = if is_selected { "◆ " } else { "" };
-        let title = format!(" {}{}{} ", active_marker, column.label, sort_indicator);
+        let collapse_hint = if state.is_status_grouping()
+            && KanbanViewState::is_status_column_id(&column.id)
+        {
+            STATUS_COLLAPSE_HINT
+        } else {
+            ""
+        };
+        let title = format!(
+            " {}{}{}{} ",
+            active_marker, column.label, collapse_hint, sort_indicator
+        );
         let block = Block::default()
             .title(title)
             .borders(Borders::ALL)
@@ -1325,9 +1445,20 @@ impl KanbanView {
         }
 
         // Render cards
+        let card_outer_width = inner.width.saturating_sub(2);
+        if card_outer_width < 4 {
+            let count_text = format!("{}", column_issues.len());
+            let line = Line::from(Span::styled(
+                count_text,
+                Style::default().fg(Color::DarkGray),
+            ));
+            buf.set_line(inner.x, inner.y, &line, inner.width);
+            return;
+        }
+        let card_inner_width = card_outer_width.saturating_sub(2);
         let card_config = KanbanCardConfig::default()
             .mode(state.card_mode)
-            .max_width(inner.width.saturating_sub(2));
+            .max_width(card_inner_width);
 
         let mut y = inner.y;
         for (card_idx, issue) in column_issues.iter().enumerate() {
@@ -1338,16 +1469,41 @@ impl KanbanView {
             let is_card_selected = is_selected && card_idx == state.selected_card;
             let card_lines = render_kanban_card(issue, &card_config, is_card_selected);
 
-            for line in card_lines {
-                if y >= inner.y + inner.height {
-                    break;
-                }
-                buf.set_line(inner.x + 1, y, &line, inner.width.saturating_sub(2));
-                y += 1;
+            let card_height = card_lines.len() as u16 + 2;
+            if y + card_height > inner.y + inner.height {
+                break;
             }
 
-            // Add spacing between cards
-            y += 1;
+            let card_area = Rect {
+                x: inner.x + 1,
+                y,
+                width: card_outer_width,
+                height: card_height,
+            };
+            let card_border = if is_card_selected {
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            };
+            let card_block = Block::default()
+                .borders(Borders::ALL)
+                .border_style(card_border)
+                .border_type(BorderType::Plain);
+            let card_inner = card_block.inner(card_area);
+            card_block.render(card_area, buf);
+
+            let mut line_y = card_inner.y;
+            for line in card_lines {
+                if line_y >= card_inner.y + card_inner.height {
+                    break;
+                }
+                buf.set_line(card_inner.x, line_y, &line, card_inner.width);
+                line_y += 1;
+            }
+
+            y += card_height;
         }
     }
 }

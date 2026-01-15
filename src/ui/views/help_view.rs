@@ -297,6 +297,10 @@ impl<'a> HelpView<'a> {
         lines.push(self.render_shortcut("Up/Down/Left/Right or h/j/k/l", "Move between cards/columns"));
         lines.push(self.render_shortcut("Space", "Move card to next column"));
         lines.push(self.render_shortcut("c", "Configure board columns"));
+        lines.push(self.render_shortcut("Ctrl+F1", "Toggle Open column collapse"));
+        lines.push(self.render_shortcut("Ctrl+F2", "Toggle In Progress column collapse"));
+        lines.push(self.render_shortcut("Ctrl+F3", "Toggle Blocked column collapse"));
+        lines.push(self.render_shortcut("Ctrl+F4", "Toggle Closed column collapse"));
 
         lines
     }
