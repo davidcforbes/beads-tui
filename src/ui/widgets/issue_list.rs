@@ -7,7 +7,9 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, Row, StatefulWidget, Table, TableState, Widget},
+    widgets::{
+        Block, Borders, Cell, HighlightSpacing, Row, StatefulWidget, Table, TableState, Widget,
+    },
 };
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
@@ -1426,7 +1428,8 @@ impl<'a> StatefulWidget for IssueList<'a> {
                     .bg(Color::DarkGray)
                     .add_modifier(Modifier::BOLD),
             )
-            .highlight_symbol(""); // Empty - using background color for selection to avoid alignment issues
+            .highlight_symbol("") // Empty - using background color for selection
+            .highlight_spacing(HighlightSpacing::Never); // Never reserve space for highlight symbol
 
         // Adjust TableState selection to be relative to the windowed view
         let original_selected = state.table_state.selected();
