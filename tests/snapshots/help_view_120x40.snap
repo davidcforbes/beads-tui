@@ -6,32 +6,32 @@ expression: rendered
 │                                               Help & Keyboard Shortcuts                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ┌Global────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│Global Shortcuts                                                                                                      │
+│Global & Navigation Shortcuts                                                                                         │
 │                                                                                                                      │
-│q / Ctrl+Q / Ctrl+C - Quit application                                                                                │
-│?         - Shortcut help                                                                                             │
-│F1        - Context help                                                                                              │
-│Ctrl+P / F12 - Performance stats                                                                                      │
-│Ctrl+Z    - Undo last action                                                                                          │
-│Ctrl+Y    - Redo last action                                                                                          │
-│Ctrl+H / N - Notification history                                                                                     │
-│Esc       - Dismiss overlays                                                                                          │
-│Tab       - Next tab                                                                                                  │
-│Shift+Tab - Previous tab                                                                                              │
-│1-9       - Jump to tab (1-5 implemented)                                                                             │
-│Up/Down or j/k - Navigate lists                                                                                       │
-│Left/Right or h/l - Navigate columns/sections                                                                         │
-│PageUp/PageDown - Page up/down (or Ctrl+U/Ctrl+D)                                                                     │
-│Home/End or g/G - Jump to top/bottom                                                                                  │
-│r / F5    - Refresh data                                                                                              │
+│Global Actions                                                                                                        │
+│q, Ctrl+Q, Ctrl+C                  - Exit the application                                                             │
+│?                                  - Toggle keyboard shortcuts overlay                                                │
+│F1                                 - Toggle context-sensitive help                                                    │
+│Ctrl+P or F12                      - Toggle performance statistics                                                    │
+│Ctrl+Z                             - Undo last action                                                                 │
+│Ctrl+Y                             - Redo last undone action                                                          │
+│Esc                                - Dismiss notification / close overlays                                            │
+│Ctrl+H                             - Show notification history                                                        │
 │                                                                                                                      │
+│Navigation                                                                                                            │
+│Tab                                - Switch to the next top-level tab                                                 │
+│Shift+Tab                          - Switch to the previous tab                                                       │
+│1-9                                - Jump to tab by number                                                            │
+│Up/Down or j/k                     - Move selection up/down                                                           │
+│Left/Right or h/l                  - Move selection left/right or collapse/expand                                     │
+│PageUp/PageDown                    - Page up/down in lists                                                            │
+│Ctrl+U/Ctrl+D                      - Page up/down in lists                                                            │
+│Home/End or g/G                    - Jump to top/bottom                                                               │
 │                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
+│General Operations                                                                                                    │
+│Enter                              - Open details, confirm, or toggle expand                                          │
+│Esc                                - Close dialogs, clear search, go back                                             │
+│r or F5                            - Refresh data                                                                     │
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │

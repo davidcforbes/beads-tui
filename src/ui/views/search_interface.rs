@@ -770,7 +770,6 @@ use crate::models::table_config::ColumnDefinition;
 /// Search interface view widget
 pub struct SearchInterfaceView<'a> {
     block_style: Style,
-    help_style: Style,
     theme: Option<&'a crate::ui::themes::Theme>,
     columns: Option<Vec<ColumnDefinition>>,
     _phantom: std::marker::PhantomData<&'a ()>,
@@ -781,7 +780,6 @@ impl<'a> SearchInterfaceView<'a> {
     pub fn new() -> Self {
         Self {
             block_style: Style::default().fg(Color::Cyan),
-            help_style: Style::default().fg(Color::DarkGray),
             theme: None,
             columns: None,
             _phantom: std::marker::PhantomData,
@@ -791,12 +789,6 @@ impl<'a> SearchInterfaceView<'a> {
     /// Set block style
     pub fn block_style(mut self, style: Style) -> Self {
         self.block_style = style;
-        self
-    }
-
-    /// Set help style
-    pub fn help_style(mut self, style: Style) -> Self {
-        self.help_style = style;
         self
     }
 
@@ -837,14 +829,6 @@ impl<'a> SearchInterfaceView<'a> {
         paragraph.render(area, buf);
     }
 
-    fn render_help_bar(&self, area: Rect, buf: &mut Buffer) {
-        let help_text =
-            "/: Search | Esc: Clear | Shift+N/Alt+N: Next/Prev | Alt+Z: Fuzzy | Alt+R: Regex | f: Filters | Shift+F: Clear | Alt+F: Menu | Alt+S: Save | F3-F11: Apply | v: Scope | Up/Down/j/k: Navigate | Enter: View | ?: Help";
-
-        let line = Line::from(Span::styled(help_text, self.help_style));
-        let paragraph = Paragraph::new(line);
-        paragraph.render(area, buf);
-    }
 }
 
 impl<'a> Default for SearchInterfaceView<'a> {
@@ -857,17 +841,12 @@ impl<'a> StatefulWidget for SearchInterfaceView<'a> {
     type State = SearchInterfaceState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        // Create layout: info (1) + results (fill) + help (1 if visible)
+        // Create layout: info (1) + results (fill)
         // Search bar is now rendered in the main title bar
-        let mut constraints = vec![
+        let constraints = vec![
             Constraint::Length(1), // Results info
             Constraint::Min(5),    // Results list
         ];
-
-        // Help bar (if visible)
-        if state.is_help_visible() {
-            constraints.push(Constraint::Length(1));
-        }
 
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -897,12 +876,6 @@ impl<'a> StatefulWidget for SearchInterfaceView<'a> {
         }
 
         StatefulWidget::render(issue_list, chunks[chunk_idx], buf, &mut state.list_state);
-        chunk_idx += 1;
-
-        // Render help bar if visible
-        if state.is_help_visible() {
-            self.render_help_bar(chunks[chunk_idx], buf);
-        }
 
         // Render filter menu overlay if open
         if state.filter_menu_open {
@@ -1428,14 +1401,12 @@ mod tests {
     fn test_search_interface_view_new() {
         let view = SearchInterfaceView::new();
         assert_eq!(view.block_style, Style::default().fg(Color::Cyan));
-        assert_eq!(view.help_style, Style::default().fg(Color::DarkGray));
     }
 
     #[test]
     fn test_search_interface_view_default() {
         let view = SearchInterfaceView::default();
         assert_eq!(view.block_style, Style::default().fg(Color::Cyan));
-        assert_eq!(view.help_style, Style::default().fg(Color::DarkGray));
     }
 
     #[test]
@@ -1446,23 +1417,13 @@ mod tests {
     }
 
     #[test]
-    fn test_search_interface_view_help_style() {
-        let custom_style = Style::default().fg(Color::Magenta);
-        let view = SearchInterfaceView::new().help_style(custom_style);
-        assert_eq!(view.help_style, custom_style);
-    }
-
-    #[test]
     fn test_search_interface_view_builder_chain() {
         let block_style = Style::default().fg(Color::Red);
-        let help_style = Style::default().fg(Color::Blue);
 
         let view = SearchInterfaceView::new()
-            .block_style(block_style)
-            .help_style(help_style);
+            .block_style(block_style);
 
         assert_eq!(view.block_style, block_style);
-        assert_eq!(view.help_style, help_style);
     }
 
     // ========== Additional Comprehensive Tests ==========
@@ -1512,22 +1473,6 @@ mod tests {
         assert_ne!(scopes[2], scopes[3]);
     }
 
-    #[test]
-    fn test_search_interface_view_builder_order_independence() {
-        let block_style = Style::default().fg(Color::Green);
-        let help_style = Style::default().fg(Color::Yellow);
-
-        let view1 = SearchInterfaceView::new()
-            .block_style(block_style)
-            .help_style(help_style);
-
-        let view2 = SearchInterfaceView::new()
-            .help_style(help_style)
-            .block_style(block_style);
-
-        assert_eq!(view1.block_style, view2.block_style);
-        assert_eq!(view1.help_style, view2.help_style);
-    }
 
     #[test]
     fn test_search_interface_view_multiple_setter_applications() {
