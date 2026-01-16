@@ -499,29 +499,36 @@ impl<'a> FilterBar<'a> {
     }
 
     pub fn render(&self, area: Rect, buf: &mut Buffer, state: &FilterBarState) {
-        let status_text = self.dropdown_text(&state.status_dropdown, "All");
-        let priority_text = self.dropdown_text(&state.priority_dropdown, "All");
-        let type_text = self.dropdown_text(&state.type_dropdown, "All");
-        let labels_text = self.dropdown_text(&state.labels_dropdown, "All");
+        let status_text = self.dropdown_text(&state.status_dropdown, "All...▼");
+        let type_text = self.dropdown_text(&state.type_dropdown, "All...▼");
+        let priority_text = self.dropdown_text(&state.priority_dropdown, "All...▼");
+        let labels_text = self.dropdown_text(&state.labels_dropdown, "All...▼");
+        let created_text = self.dropdown_text(&state.created_dropdown, "All...▼");
+        let updated_text = self.dropdown_text(&state.updated_dropdown, "All...▼");
 
         // Create bordered block with FILTERS header
         let block = Block::default()
             .borders(Borders::ALL)
-            .title(" FILTERS ");
+            .title("[FILTERS]");
 
         let inner = block.inner(area);
         block.render(area, buf);
 
-        // Build filter line with hotkeys
+        // Build filter line with hotkeys - showing all 6 filters
         let line = Line::from(vec![
             Span::raw(" "),
-            self.filter_with_hotkey("Stat", "u", "s", &status_text, state.active_dropdown == Some(FilterDropdownType::Status)),
-            Span::raw(" | "),
-            self.filter_with_hotkey("T", "y", "pe", &type_text, state.active_dropdown == Some(FilterDropdownType::Type)),
-            Span::raw(" | "),
-            self.filter_with_hotkey("", "L", "abels", &labels_text, state.active_dropdown == Some(FilterDropdownType::Labels)),
-            Span::raw(" | "),
-            self.filter_with_hotkey("Pr", "i", "ority", &priority_text, state.active_dropdown == Some(FilterDropdownType::Priority)),
+            self.filter_with_hotkey_prefix("S:Status", &status_text, state.active_dropdown == Some(FilterDropdownType::Status)),
+            Span::raw(" │ "),
+            self.filter_with_hotkey_prefix("T:Type", &type_text, state.active_dropdown == Some(FilterDropdownType::Type)),
+            Span::raw(" │ "),
+            self.filter_with_hotkey_prefix("P:Priority", &priority_text, state.active_dropdown == Some(FilterDropdownType::Priority)),
+            Span::raw(" │ "),
+            self.filter_with_hotkey_prefix("L:Labels", &labels_text, state.active_dropdown == Some(FilterDropdownType::Labels)),
+            Span::raw(" │ "),
+            self.filter_with_hotkey_prefix("C:Created", &created_text, state.active_dropdown == Some(FilterDropdownType::Created)),
+            Span::raw(" │ "),
+            self.filter_with_hotkey_prefix("U:Updated", &updated_text, state.active_dropdown == Some(FilterDropdownType::Updated)),
+            Span::raw("    "),
         ]);
 
         line.render(inner, buf);
@@ -536,12 +543,8 @@ impl<'a> FilterBar<'a> {
         }
     }
 
-    fn filter_with_hotkey(&self, prefix: &str, hotkey: &str, suffix: &str, value: &str, is_active: bool) -> Span<'_> {
-        let text = if prefix.is_empty() {
-            format!("[{}]{}: {}", hotkey, suffix, value)
-        } else {
-            format!("{}[{}]{}: {}", prefix, hotkey, suffix, value)
-        };
+    fn filter_with_hotkey_prefix(&self, label: &str, value: &str, is_active: bool) -> Span<'_> {
+        let text = format!("{} [{}]", label, value);
         let style = if is_active {
             Style::default()
                 .fg(self.theme.accent)

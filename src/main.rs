@@ -208,7 +208,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
     // Handle filter dropdown hotkeys (u, y, L, i)
     if app.issues_view_state.filter_bar_state.is_some() {
         match key_code {
-            KeyCode::Char('u') if key.modifiers.is_empty() => {
+            KeyCode::Char('S') if key.modifiers.contains(KeyModifiers::SHIFT) => {
                 // Toggle Status filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Status);
@@ -216,7 +216,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('y') if key.modifiers.is_empty() => {
+            KeyCode::Char('T') if key.modifiers.contains(KeyModifiers::SHIFT) => {
                 // Toggle Type filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Type);
@@ -224,7 +224,15 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('L') if key.modifiers.is_empty() => {
+            KeyCode::Char('P') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+                // Toggle Priority filter dropdown
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Priority);
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Char('L') if key.modifiers.contains(KeyModifiers::SHIFT) => {
                 // Toggle Labels filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Labels);
@@ -232,10 +240,18 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('i') if key.modifiers.is_empty() => {
-                // Toggle Priority filter dropdown
+            KeyCode::Char('C') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+                // Toggle Created date filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
-                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Priority);
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Created);
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Char('U') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+                // Toggle Updated date filter dropdown
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Updated);
                     app.mark_dirty();
                 }
                 return;
@@ -3142,63 +3158,6 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     let blocked_count = app.database_stats.blocked_issues;
     let closed_count = app.database_stats.closed_issues;
 
-    let stats_text = format!(
-        " Open: {}, In Progress: {}, Blocked: {}, Closed: {}     ",
-        open_count, in_progress_count, blocked_count, closed_count
-    );
-
-    // Add search box if on Issues tab (0), Split tab (1), or Kanban tab (2)
-    let search_part = if app.selected_tab == 0 || app.selected_tab == 1 || app.selected_tab == 2 {
-        let search_state = app.issues_view_state.search_state();
-        let query = search_state.search_state().query();
-        let is_focused = search_state.search_state().is_focused();
-        let cursor_pos = search_state.search_state().cursor_position();
-
-        // Brighter color (Bold Yellow) for focused, standard Yellow for non-focused
-        let style = if is_focused {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::Yellow)
-        };
-
-        // Truncate query for display in title bar to prevent overflow
-        let display_query = if query.len() > 30 {
-            format!("{}...", &query[..30])
-        } else {
-            query.to_string()
-        };
-
-        // When focused and empty, show blank box with cursor placeholder
-        // When focused with text, show text with cursor (represented by █ at cursor position)
-        // When not focused, just show the query
-        let display_content = if is_focused {
-            if query.is_empty() {
-                // Show empty box with spaces indicating cursor can be placed
-                "        ".to_string()
-            } else {
-                // Insert cursor marker at cursor position
-                let mut chars: Vec<char> = display_query.chars().collect();
-                let safe_cursor_pos = cursor_pos.min(chars.len());
-                if safe_cursor_pos < chars.len() {
-                    // Insert cursor character before the character at cursor position
-                    chars.insert(safe_cursor_pos, '█');
-                } else {
-                    // Cursor at end
-                    chars.push('█');
-                }
-                chars.into_iter().collect()
-            }
-        } else if query.is_empty() {
-            "".to_string()
-        } else {
-            display_query
-        };
-
-        Span::styled(format!("Search: [{}]     ", display_content), style)
-    } else {
-        Span::raw("")
-    };
-
     let daemon_status = if app.daemon_running {
         Span::styled(
             "[Daemon: Running]",
@@ -3212,19 +3171,62 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         )
     };
-    let title_line = Line::from(vec![
-        Span::styled(
-            "Beads-TUI (v0.1.0)",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::styled(stats_text, Style::default().fg(Color::White)),
-        search_part,
-        daemon_status,
-    ]);
-    let title = Paragraph::new(title_line).block(Block::default().borders(Borders::ALL).title(" Title Bar "));
-    f.render_widget(title, chunks[0]);
+    // Create columnar title bar layout
+    let title_block = Block::default().borders(Borders::ALL).title("[TITLE]");
+    let title_inner = title_block.inner(chunks[0]);
+    f.render_widget(title_block, chunks[0]);
+
+    let title_columns = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Length(20),  // Beads-TUI version
+            Constraint::Min(30),     // Issue counts
+            Constraint::Length(40),  // Search box
+            Constraint::Length(18),  // Daemon status
+        ])
+        .split(title_inner);
+
+    // Column 1: Beads-TUI version
+    let version = Paragraph::new(Span::styled(
+        "Beads-TUI (v0.1.0)",
+        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+    ));
+    f.render_widget(version, title_columns[0]);
+
+    // Column 2: Issue counts
+    let stats = Paragraph::new(Span::styled(
+        format!(" Open: {}, In-Progress: {}, Blocked: {}, Closed: {}",
+                open_count, in_progress_count, blocked_count, closed_count),
+        Style::default().fg(Color::White),
+    ));
+    f.render_widget(stats, title_columns[1]);
+
+    // Column 3: Search box
+    let search_state = app.issues_view_state.search_state();
+    let query = search_state.search_state().query();
+    let is_focused = search_state.search_state().is_focused();
+
+    let search_display = if is_focused && query.is_empty() {
+        "Search: [...........................]".to_string()
+    } else if query.is_empty() {
+        "Search: [...........................]".to_string()
+    } else {
+        // Truncate if too long
+        if query.len() > 25 {
+            format!("Search: [{}...]", &query[..22])
+        } else {
+            format!("Search: [{}]", query)
+        }
+    };
+    let search_widget = Paragraph::new(Span::styled(
+        search_display,
+        Style::default().fg(Color::Yellow),
+    ));
+    f.render_widget(search_widget, title_columns[2]);
+
+    // Column 4: Daemon status
+    let daemon = Paragraph::new(daemon_status);
+    f.render_widget(daemon, title_columns[3]);
 
     // Tabs and content
     let tabs_chunks = Layout::default()
@@ -3232,29 +3234,25 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         .constraints([Constraint::Length(3), Constraint::Min(0)])
         .split(chunks[1]);
 
-    // Tab bar
+    // Tab bar with numbered shortcuts
     let tabs: Vec<Line> = app
         .tabs
         .iter()
         .enumerate()
         .map(|(i, &name)| {
-            // Add issue count for Issues and Split tabs (index 0 and 1)
-            if i == 0 || i == 1 {
-                let filtered_count = app.issues_view_state.search_state().filtered_issues().len();
-                let total_count = app.database_stats.total_issues;
-                if filtered_count < total_count {
-                    Line::from(format!("{name} ({}/{})", filtered_count, total_count))
-                } else {
-                    Line::from(format!("{name} ({})", total_count))
-                }
-            } else {
-                Line::from(name.to_string())
-            }
+            // Map indices to shortcut numbers
+            let shortcut = match i {
+                0..=8 => format!("{}:", i + 1),  // 1-9
+                9 => "0:".to_string(),            // 0 for Utilities
+                10 => "?:".to_string(),           // ? for Help
+                _ => "".to_string(),
+            };
+            Line::from(format!(" {}{}", shortcut, name))
         })
         .collect();
 
     let tabs_widget = Tabs::new(tabs)
-        .block(Block::default().borders(Borders::ALL).title(" Views "))
+        .block(Block::default().borders(Borders::ALL).title("[VIEWS]"))
         .select(app.selected_tab)
         .style(Style::default().fg(Color::Cyan))
         .highlight_style(
