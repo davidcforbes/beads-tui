@@ -3,6 +3,20 @@
 This guide outlines the intended keyboard shortcuts for the application. Some shortcuts are
 context-specific; the same key may do different things depending on the active view or dialog.
 
+## UI Layout Overview
+
+The beads-tui interface consists of five main sections:
+
+1. **TITLE Bar** (Rows 1-3): Displays project name, issue count summary (Open/In Progress/Blocked/Closed), active search status, and daemon status
+2. **VIEWS Container** (Rows 4-6): Tab navigation bar for switching between views (Issues, Split, Kanban, Dependencies, Labels, Gantt, PERT, Molecular, Statistics, Utilities, Help)
+3. **FILTERS Container** (Rows 7-9): Quick filter controls with hotkeys - Stat[u]s, T[y]pe, [L]abels, Pr[i]ority. This container appears directly below the VIEWS container
+4. **Content Area** (Row 10 onwards): Main content display area showing the current view (issue list, Kanban board, dependency tree, etc.)
+5. **ACTIONS Bar** (Bottom 3 rows): Context-sensitive keyboard shortcuts and navigation hints displayed in a columnar format with vertical separators
+
+The FILTERS container (rows 7-9) provides quick access to common filters via single-key hotkeys. Press the letter shown in square brackets to activate each filter dropdown.
+
+The ACTIONS Bar dynamically updates to show relevant shortcuts for the current view and context, organized into navigation actions and context-specific action items.
+
 ## Global Actions
 | Key | Action | Description |
 |---|---|---|

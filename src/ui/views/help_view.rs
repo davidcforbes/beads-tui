@@ -13,6 +13,8 @@ use ratatui::{
 pub enum HelpSection {
     /// Global keyboard shortcuts
     Global,
+    /// UI Layout overview
+    UILayout,
     /// Issues view shortcuts
     Issues,
     /// Dependencies view shortcuts
@@ -38,6 +40,7 @@ impl HelpSection {
     pub fn all() -> Vec<HelpSection> {
         vec![
             Self::Global,
+            Self::UILayout,
             Self::Issues,
             Self::Dependencies,
             Self::Labels,
@@ -54,6 +57,7 @@ impl HelpSection {
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::Global => "Global",
+            Self::UILayout => "UI Layout",
             Self::Issues => "Issues",
             Self::Dependencies => "Dependencies",
             Self::Labels => "Labels",
@@ -181,6 +185,77 @@ impl<'a> HelpView<'a> {
         lines.push(self.render_shortcut("Enter", "Open details, confirm, or toggle expand"));
         lines.push(self.render_shortcut("Esc", "Close dialogs, clear search, go back"));
         lines.push(self.render_shortcut("r or F5", "Refresh data"));
+
+        lines
+    }
+
+    fn render_ui_layout_help(&self) -> Vec<Line<'static>> {
+        let mut lines = vec![
+            Line::from(Span::styled(
+                "UI Layout Overview",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )),
+            Line::from(""),
+        ];
+
+        lines.push(Line::from(Span::styled("Screen Layout", Style::default().add_modifier(Modifier::UNDERLINED))));
+        lines.push(Line::from("The screen is organized into distinct sections:"));
+        lines.push(Line::from(""));
+        
+        lines.push(Line::from(vec![
+            Span::styled("1. TITLE Bar", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw(" (Top)"),
+        ]));
+        lines.push(Line::from("   - Application title and version"));
+        lines.push(Line::from("   - Issue counts (Open, In Progress, Blocked, Closed)"));
+        lines.push(Line::from("   - Global search bar"));
+        lines.push(Line::from("   - Daemon status indicator"));
+        lines.push(Line::from(""));
+
+        lines.push(Line::from(vec![
+            Span::styled("2. VIEWS Container", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ]));
+        lines.push(Line::from("   - Tab selection: Issues | Split | Kanban | Dependencies | etc."));
+        lines.push(Line::from("   - Use 1-9 or Tab/Shift+Tab to switch views"));
+        lines.push(Line::from("   - Each tab shows count of items in that view"));
+        lines.push(Line::from(""));
+
+        lines.push(Line::from(vec![
+            Span::styled("3. FILTERS Container", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw(" (Issues View Only)"),
+        ]));
+        lines.push(Line::from("   - Quick filter dropdowns for Status, Type, Labels, Priority"));
+        lines.push(Line::from("   - Created/Updated date filters"));
+        lines.push(Line::from("   - Press hotkeys (S, T, L, I, C, U) to open dropdowns"));
+        lines.push(Line::from("   - Shows filtered count vs total: (filtered/total)"));
+        lines.push(Line::from(""));
+
+        lines.push(Line::from(vec![
+            Span::styled("4. Content Area", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ]));
+        lines.push(Line::from("   - Main workspace displaying current view"));
+        lines.push(Line::from("   - Issues list, Kanban board, Gantt chart, etc."));
+        lines.push(Line::from("   - Scrollable with Up/Down or PgUp/PgDn"));
+        lines.push(Line::from(""));
+
+        lines.push(Line::from(vec![
+            Span::styled("5. ACTIONS Bar", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw(" (Bottom)"),
+        ]));
+        lines.push(Line::from("   - Context-sensitive action hints"));
+        lines.push(Line::from("   - Navigation: ↓:Up ↑:Down →:Scroll-Right ←:Scroll-Left"));
+        lines.push(Line::from("   - Quick actions: R:Read | N:New | E:Edit | D:Delete | F:Find | O:Open | X:Close"));
+        lines.push(Line::from("   - Actions change based on current view/mode"));
+        lines.push(Line::from(""));
+
+        lines.push(Line::from(Span::styled("Navigation Tips", Style::default().add_modifier(Modifier::UNDERLINED))));
+        lines.push(Line::from("• Use arrow keys or hjkl (Vim-style) for navigation"));
+        lines.push(Line::from("• PgUp/PgDn or Ctrl+U/Ctrl+D for page scrolling"));
+        lines.push(Line::from("• Home/End or g/G to jump to top/bottom"));
+        lines.push(Line::from("• Tab to cycle through UI elements"));
+        lines.push(Line::from("• ? to open this help at any time"));
 
         lines
     }
@@ -372,7 +447,7 @@ impl<'a> HelpView<'a> {
     fn render_search_help(&self) -> Vec<Line<'static>> {
         let mut lines = vec![
             Line::from(Span::styled(
-                "Search Interface Shortcuts",
+                "Search & Filter Shortcuts",
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
@@ -380,21 +455,34 @@ impl<'a> HelpView<'a> {
             Line::from(""),
         ];
 
+        lines.push(Line::from(Span::styled("Search Bar", Style::default().add_modifier(Modifier::UNDERLINED))));
         lines.push(self.render_shortcut("/", "Focus search bar"));
         lines.push(self.render_shortcut("Esc", "Clear search input and return focus"));
         lines.push(self.render_shortcut("Shift+N", "Jump to next search result"));
         lines.push(self.render_shortcut("Alt+N", "Jump to previous search result"));
         lines.push(self.render_shortcut("Alt+Z", "Toggle fuzzy search"));
         lines.push(self.render_shortcut("Alt+R", "Toggle regex search"));
+        lines.push(Line::from(""));
+
+        lines.push(Line::from(Span::styled("Filter Bar", Style::default().add_modifier(Modifier::UNDERLINED))));
+        lines.push(Line::from("The FILTERS container appears below the VIEWS tabs in Issues view."));
+        lines.push(Line::from("Use hotkeys to quickly filter issues:"));
+        lines.push(Line::from(""));
+        lines.push(self.render_shortcut("S", "Open Status filter dropdown (All, Open, In Progress, Blocked, Closed)"));
+        lines.push(self.render_shortcut("T", "Open Type filter dropdown (All, Bug, Feature, Task, Epic, Chore)"));
+        lines.push(self.render_shortcut("L", "Open Labels filter dropdown"));
+        lines.push(self.render_shortcut("I", "Open Priority filter dropdown (P0-P4)"));
+        lines.push(self.render_shortcut("C", "Open Created date filter dropdown"));
+        lines.push(self.render_shortcut("U", "Open Updated date filter dropdown"));
+        lines.push(Line::from(""));
         lines.push(self.render_shortcut("f", "Toggle quick filters on/off"));
         lines.push(self.render_shortcut("Shift+F", "Clear current filters"));
+        lines.push(Line::from(""));
+
+        lines.push(Line::from(Span::styled("Saved Filters", Style::default().add_modifier(Modifier::UNDERLINED))));
         lines.push(self.render_shortcut("Alt+S", "Save current filter configuration"));
         lines.push(self.render_shortcut("Alt+F", "Open saved filters menu"));
         lines.push(self.render_shortcut("F3-F11", "Apply saved filter hotkeys"));
-        lines.push(self.render_shortcut("u", "Open Status filter dropdown"));
-        lines.push(self.render_shortcut("y", "Open Type filter dropdown"));
-        lines.push(self.render_shortcut("L", "Open Labels filter dropdown"));
-        lines.push(self.render_shortcut("i", "Open Priority filter dropdown"));
 
         lines
     }
@@ -440,6 +528,7 @@ impl<'a> HelpView<'a> {
     fn get_section_content(&self, section: HelpSection) -> Vec<Line<'static>> {
         match section {
             HelpSection::Global => self.render_global_help(),
+            HelpSection::UILayout => self.render_ui_layout_help(),
             HelpSection::Issues => self.render_issues_help(),
             HelpSection::Dependencies => self.render_dependencies_help(),
             HelpSection::Labels => self.render_labels_help(),

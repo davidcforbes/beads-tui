@@ -768,6 +768,7 @@ pub struct SearchInterfaceView<'a> {
     block_style: Style,
     theme: Option<&'a crate::ui::themes::Theme>,
     columns: Option<Vec<ColumnDefinition>>,
+    show_results_info: bool,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
@@ -778,6 +779,7 @@ impl<'a> SearchInterfaceView<'a> {
             block_style: Style::default().fg(Color::Cyan),
             theme: None,
             columns: None,
+            show_results_info: true,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -797,6 +799,12 @@ impl<'a> SearchInterfaceView<'a> {
     /// Set custom columns for the issue list
     pub fn columns(mut self, columns: Vec<ColumnDefinition>) -> Self {
         self.columns = Some(columns);
+        self
+    }
+
+    /// Set whether to show results info line
+    pub fn show_results_info(mut self, show: bool) -> Self {
+        self.show_results_info = show;
         self
     }
 
@@ -837,23 +845,29 @@ impl<'a> StatefulWidget for SearchInterfaceView<'a> {
     type State = SearchInterfaceState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        // Create layout: info (1) + results (fill)
+        // Create layout: conditionally include info line based on show_results_info
         // Search bar is now rendered in the main title bar
-        let constraints = vec![
-            Constraint::Length(1), // Results info
-            Constraint::Min(5),    // Results list
-        ];
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(constraints)
-            .split(area);
-
-        let mut chunk_idx = 0;
-
-        // Render results info
-        self.render_results_info(chunks[chunk_idx], buf, state);
-        chunk_idx += 1;
+        let (chunks, results_chunk_idx) = if self.show_results_info {
+            let constraints = vec![
+                Constraint::Length(1), // Results info
+                Constraint::Min(5),    // Results list
+            ];
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints(constraints)
+                .split(area);
+            
+            // Render results info
+            self.render_results_info(chunks[0], buf, state);
+            (chunks, 1)
+        } else {
+            // Skip results info, use full area for results list
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints(vec![Constraint::Min(5)])
+                .split(area);
+            (chunks, 0)
+        };
 
         // Render results list
         let issues = state.filtered_issues();
@@ -871,7 +885,7 @@ impl<'a> StatefulWidget for SearchInterfaceView<'a> {
             issue_list = issue_list.columns(cols.clone());
         }
 
-        StatefulWidget::render(issue_list, chunks[chunk_idx], buf, &mut state.list_state);
+        StatefulWidget::render(issue_list, chunks[results_chunk_idx], buf, &mut state.list_state);
 
         // Render filter menu overlay if open
         if state.filter_menu_open {

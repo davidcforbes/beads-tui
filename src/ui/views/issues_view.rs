@@ -416,50 +416,66 @@ impl<'a> IssuesView<'a> {
     }
 
     fn render_list_mode(&self, area: Rect, buf: &mut Buffer, state: &mut IssuesViewState) {
-        // Dynamically determine columns based on available width
-        let columns = Self::select_columns_for_width(area.width);
-
-        let mut search_view = SearchInterfaceView::new()
-            .block_style(self.block_style)
-            .columns(columns);
-        if let Some(theme) = self.theme {
-            search_view = search_view.theme(theme);
-        }
-        StatefulWidget::render(search_view, area, buf, &mut state.search_state);
-
-        // Render filter bar if it exists
-        if let Some(ref mut filter_bar_state) = state.filter_bar_state {
-            let default_theme = crate::ui::themes::Theme::default();
-            let theme = self.theme.unwrap_or(&default_theme);
-
-            // The filter bar is rendered on the 3rd row from the top with 3 lines height for border + content
-            let filter_bar_area = ratatui::layout::Rect {
+        // Render filter bar if it exists and adjust search view area accordingly
+        let (search_area, filter_bar_area) = if state.filter_bar_state.is_some() {
+            // Filter bar takes the top 3 rows, search view starts below it
+            let filter_area = ratatui::layout::Rect {
                 x: area.x,
-                y: area.y + 2,
+                y: area.y,
                 width: area.width,
                 height: 3,
             };
+            let search_area = ratatui::layout::Rect {
+                x: area.x,
+                y: area.y + 3,
+                width: area.width,
+                height: area.height.saturating_sub(3),
+            };
+            (search_area, Some(filter_area))
+        } else {
+            // No filter bar, search view uses full area
+            (area, None)
+        };
 
-            // Render the filter bar
-            let filter_bar = crate::ui::widgets::FilterBar::new(
-                state.search_state.result_count(),
-                state.search_state.all_issues().len(),
-                theme,
-            );
-            filter_bar.render(filter_bar_area, buf, filter_bar_state);
+        // Dynamically determine columns based on available width
+        let columns = Self::select_columns_for_width(search_area.width);
 
-            // Render dropdown if one is active
-            if let Some(dropdown_type) = filter_bar_state.active_dropdown {
-                // Create an area adjusted for the filter bar position so dropdown appears below it
-                let dropdown_area = ratatui::layout::Rect {
-                    x: area.x,
-                    y: area.y + 2, // Same as filter bar position
-                    width: area.width,
-                    height: area.height.saturating_sub(2),
-                };
+        let mut search_view = SearchInterfaceView::new()
+            .block_style(self.block_style)
+            .columns(columns)
+            .show_results_info(filter_bar_area.is_none()); // Hide results info when filter bar is shown
+        if let Some(theme) = self.theme {
+            search_view = search_view.theme(theme);
+        }
+        StatefulWidget::render(search_view, search_area, buf, &mut state.search_state);
 
-                let dropdown = crate::ui::widgets::FilterDropdown::new(dropdown_type, theme);
-                dropdown.render(dropdown_area, buf, filter_bar_state);
+        // Render filter bar if it exists
+        if let Some(filter_area) = filter_bar_area {
+            if let Some(ref mut filter_bar_state) = state.filter_bar_state {
+                let default_theme = crate::ui::themes::Theme::default();
+                let theme = self.theme.unwrap_or(&default_theme);
+
+                // Render the filter bar
+                let filter_bar = crate::ui::widgets::FilterBar::new(
+                    state.search_state.result_count(),
+                    state.search_state.all_issues().len(),
+                    theme,
+                );
+                filter_bar.render(filter_area, buf, filter_bar_state);
+
+                // Render dropdown if one is active
+                if let Some(dropdown_type) = filter_bar_state.active_dropdown {
+                    // Dropdown uses the full area to position itself relative to filter bar
+                    let dropdown_area = ratatui::layout::Rect {
+                        x: area.x,
+                        y: area.y,
+                        width: area.width,
+                        height: area.height,
+                    };
+
+                    let dropdown = crate::ui::widgets::FilterDropdown::new(dropdown_type, theme);
+                    dropdown.render(dropdown_area, buf, filter_bar_state);
+                }
             }
         }
     }

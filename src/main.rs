@@ -25,7 +25,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph, Tabs},
+    widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, Tabs},
     Frame, Terminal,
 };
 use std::io::{self, Write};
@@ -3374,10 +3374,10 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             .style(Style::default().fg(Color::Cyan))
             .block(Block::default().borders(Borders::ALL).title("Loading"))
     } else {
-        // Show context-sensitive action hints
-        Paragraph::new(get_action_hints(app))
-            .style(Style::default().fg(Color::Gray))
-            .block(Block::default().borders(Borders::ALL).title("Actions"))
+        // Show context-sensitive action hints in columnar format
+        let action_table = render_action_bar(app);
+        f.render_widget(action_table, chunks[2]);
+        return; // Return early to skip the old rendering
     };
     f.render_widget(status_text, chunks[2]);
 
@@ -3753,6 +3753,94 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         let area = centered_rect(60, 70, f.size());
         f.render_widget(history_view, area);
     }
+}
+
+/// Render action bar with columnar layout
+fn render_action_bar(app: &models::AppState) -> Paragraph<'static> {
+    // Create action cells based on context
+    let (nav_actions, action_items) = get_contextual_actions(app);
+    
+    // Build formatted text with vertical separators
+    let action_text = format!(
+        " {} │ {} │ {} │ {} │ {} │ {} │ {} │ {} ",
+        nav_actions,
+        action_items.get(0).unwrap_or(&String::new()),
+        action_items.get(1).unwrap_or(&String::new()),
+        action_items.get(2).unwrap_or(&String::new()),
+        action_items.get(3).unwrap_or(&String::new()),
+        action_items.get(4).unwrap_or(&String::new()),
+        action_items.get(5).unwrap_or(&String::new()),
+        action_items.get(6).unwrap_or(&String::new()),
+    );
+    
+    Paragraph::new(action_text)
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default().borders(Borders::ALL).title("[ACTIONS]"))
+}
+
+/// Get contextual actions for action bar
+fn get_contextual_actions(app: &models::AppState) -> (String, Vec<String>) {
+    // Navigation actions (first column)
+    let nav = "↓:Up ↑:Down (row) PgUp/PgDn (page) →:Scroll-Right ←:Scroll-Left".to_string();
+    
+    // Context-specific action items (remaining columns)
+    let actions = match app.selected_tab {
+        0 | 1 => {
+            // Issues view
+            let mode = app.issues_view_state.view_mode();
+            match mode {
+                ui::views::IssuesViewMode::List | ui::views::IssuesViewMode::SplitScreen => {
+                    vec![
+                        "R:Read".to_string(),
+                        "N:New".to_string(),
+                        "E:Edit".to_string(),
+                        "D:Delete".to_string(),
+                        "F:Find".to_string(),
+                        "O:Open".to_string(),
+                        "X:Close".to_string(),
+                    ]
+                }
+                _ => {
+                    // For Create/Edit modes
+                    vec![
+                        "Tab:Mv".to_string(),
+                        "↵:Save".to_string(),
+                        "^L:Load".to_string(),
+                        "^P:Prev".to_string(),
+                        "Esc:Cnl".to_string(),
+                        "".to_string(),
+                        "".to_string(),
+                    ]
+                }
+            }
+        }
+        2 => {
+            // Kanban view
+            vec![
+                "R:Read".to_string(),
+                "N:New".to_string(),
+                "E:Edit".to_string(),
+                "D:Delete".to_string(),
+                "F:Find".to_string(),
+                "O:Open".to_string(),
+                "X:Close".to_string(),
+            ]
+        }
+        _ => {
+            // Other views - generic actions
+            vec![
+                "R:Read".to_string(),
+                "N:New".to_string(),
+                "E:Edit".to_string(),
+                "D:Delete".to_string(),
+                "↵:View".to_string(),
+                "Esc:Bck".to_string(),
+                "?:Help".to_string(),
+            ]
+        }
+    };
+    
+    (nav, actions)
 }
 
 /// Generate context-sensitive action hints based on current application state
