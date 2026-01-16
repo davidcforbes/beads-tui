@@ -122,7 +122,7 @@ fn handle_mouse_event(mouse: MouseEvent, app: &mut models::AppState) {
                 kind: KeyEventKind::Press,
                 state: crossterm::event::KeyEventState::empty(),
             };
-            
+
             // Route to active view
             match app.selected_tab {
                 0 | 1 => handle_issues_view_event(key, app),
@@ -146,7 +146,7 @@ fn handle_mouse_event(mouse: MouseEvent, app: &mut models::AppState) {
                 kind: KeyEventKind::Press,
                 state: crossterm::event::KeyEventState::empty(),
             };
-            
+
             // Route to active view
             match app.selected_tab {
                 0 | 1 => handle_issues_view_event(key, app),
@@ -163,19 +163,135 @@ fn handle_mouse_event(mouse: MouseEvent, app: &mut models::AppState) {
             app.mark_dirty();
         }
         MouseEventKind::Down(MouseButton::Left) => {
-            // Basic hit testing for global UI elements
-            let x = mouse.column;
-            let y = mouse.row;
+            // Store mouse down position for click detection
+            app.mouse_down_pos = Some((mouse.column, mouse.row));
+            tracing::debug!("Mouse down at {}, {}", mouse.column, mouse.row);
+        }
+        MouseEventKind::Up(MouseButton::Left) => {
+            // Check if this is a click (down and up at same/similar position)
+            if let Some((down_col, down_row)) = app.mouse_down_pos {
+                let col_diff = (mouse.column as i16 - down_col as i16).abs();
+                let row_diff = (mouse.row as i16 - down_row as i16).abs();
 
-            // Title bar is usually 0-2 (height 3)
-            // Tabs are usually 3-5 (height 3)
-            // If user clicks in tab area (row 4 usually middle of tab), we could try to switch tabs.
-            // For now, just logging click.
-            tracing::debug!("Mouse click at {}, {}", x, y);
-            
-            // TODO: Implement proper hit testing for tabs and list items
+                // Allow 1-2 character tolerance for click detection
+                if col_diff <= 2 && row_diff <= 1 {
+                    tracing::debug!("Mouse click detected at {}, {}", mouse.column, mouse.row);
+                    handle_mouse_click(mouse.column, mouse.row, app);
+                }
+            }
+            app.mouse_down_pos = None;
         }
         _ => {}
+    }
+}
+
+/// Capture the current terminal screen as text
+fn capture_screen_to_text<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> String {
+    let buffer = terminal.current_buffer_mut();
+    let area = buffer.area;
+    let (width, height) = (area.width, area.height);
+
+    let mut output = String::new();
+
+    for y in 0..height {
+        let mut line = String::new();
+        for x in 0..width {
+            let index = (y * width + x) as usize;
+            if let Some(cell) = buffer.content.get(index) {
+                line.push_str(cell.symbol());
+            }
+        }
+        // Trim trailing whitespace from each line
+        output.push_str(line.trim_end());
+        output.push('\n');
+    }
+
+    output
+}
+
+/// Handle F12 screen capture
+fn handle_screen_capture<B: ratatui::backend::Backend>(
+    terminal: &mut Terminal<B>,
+    app: &mut models::AppState,
+) {
+    let screen_text = capture_screen_to_text(terminal);
+
+    // Try to copy to clipboard
+    let mut clipboard_success = false;
+    match arboard::Clipboard::new() {
+        Ok(mut clipboard) => {
+            if let Ok(_) = clipboard.set_text(&screen_text) {
+                clipboard_success = true;
+                tracing::info!("Screen captured to clipboard");
+            } else {
+                tracing::warn!("Failed to write to clipboard");
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to access clipboard: {}", e);
+        }
+    }
+
+    // Always save to file as backup
+    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+    let filename = format!("screen_capture_{}.txt", timestamp);
+
+    match std::fs::write(&filename, &screen_text) {
+        Ok(_) => {
+            if clipboard_success {
+                app.set_success(format!("Screen captured to clipboard and {}", filename));
+            } else {
+                app.set_success(format!("Screen captured to {}", filename));
+            }
+            tracing::info!("Screen captured to {}", filename);
+        }
+        Err(e) => {
+            if clipboard_success {
+                app.set_success("Screen captured to clipboard".to_string());
+            } else {
+                app.set_error(format!("Failed to capture screen: {}", e));
+                tracing::error!("Failed to save screen capture: {}", e);
+            }
+        }
+    }
+}
+
+/// Handle mouse click events (after detecting down+up at same position)
+fn handle_mouse_click(col: u16, row: u16, app: &mut models::AppState) {
+    // Hit test for tabs (typically row 3-4 based on layout)
+    // Title bar is rows 0-2, tabs are row 3-4
+    if row >= 3 && row <= 4 {
+        // Calculate which tab was clicked based on column
+        // Each tab is approximately 20 characters wide
+        let tab_width = 20;
+        let clicked_tab = (col / tab_width) as usize;
+
+        if clicked_tab < app.tabs.len() {
+            tracing::info!("Tab {} clicked: {}", clicked_tab, app.tabs[clicked_tab]);
+            app.selected_tab = clicked_tab;
+            app.mark_dirty();
+            return;
+        }
+    }
+
+    // Hit test for list items (Issues view)
+    // List typically starts at row 6+ (after title, tabs, filters)
+    if app.selected_tab == 0 && row >= 6 {
+        // Calculate which list item was clicked
+        // Header is typically at row 6, items start at row 7
+        if row >= 7 {
+            let item_index = (row - 7) as usize;
+            let filtered_issues_len = app.issues_view_state.search_state().filtered_issues().len();
+
+            if item_index < filtered_issues_len {
+                tracing::info!("List item {} clicked", item_index);
+                app.issues_view_state
+                    .search_state_mut()
+                    .list_state_mut()
+                    .select(Some(item_index));
+                app.mark_dirty();
+            }
+        }
     }
 }
 
@@ -205,10 +321,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         return;
     }
 
-    // Handle filter dropdown hotkeys (u, y, L, i)
+    // Handle filter dropdown hotkeys (s, t, p, l, c, u - both lowercase and uppercase)
     if app.issues_view_state.filter_bar_state.is_some() {
         match key_code {
-            KeyCode::Char('S') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            KeyCode::Char('S') | KeyCode::Char('s') => {
                 // Toggle Status filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Status);
@@ -216,7 +332,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('T') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            KeyCode::Char('T') | KeyCode::Char('t') => {
                 // Toggle Type filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Type);
@@ -224,7 +340,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('P') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            KeyCode::Char('P') | KeyCode::Char('p') => {
                 // Toggle Priority filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Priority);
@@ -232,7 +348,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('L') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            KeyCode::Char('L') | KeyCode::Char('l') => {
                 // Toggle Labels filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Labels);
@@ -240,7 +356,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('C') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            KeyCode::Char('C') | KeyCode::Char('c') => {
                 // Toggle Created date filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Created);
@@ -248,7 +364,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('U') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            KeyCode::Char('U') | KeyCode::Char('u') => {
                 // Toggle Updated date filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Updated);
@@ -1202,6 +1318,13 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
             } else {
                 // List mode: navigation and quick actions
+
+                // Check for 'r' or 'R' key to open detail view (before action matching)
+                if matches!(key_code, KeyCode::Char('r') | KeyCode::Char('R')) {
+                    issues_state.enter_detail_view();
+                    return;
+                }
+
                 match action {
                     Some(Action::MoveUp) => {
                         let len = issues_state.search_state().filtered_issues().len();
@@ -1850,6 +1973,17 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 KeyCode::Char('r') => {
                     // Enter read-only detail view
                     issues_state.enter_detail_view();
+                }
+                KeyCode::Tab => {
+                    // Toggle focus between list and detail panels
+                    match issues_state.split_screen_focus() {
+                        SplitScreenFocus::List => {
+                            issues_state.set_split_screen_focus(SplitScreenFocus::Detail);
+                        }
+                        SplitScreenFocus::Detail => {
+                            issues_state.set_split_screen_focus(SplitScreenFocus::List);
+                        }
+                    }
                 }
                 KeyCode::Char('l') => {
                     // Switch focus to list panel
@@ -2608,6 +2742,12 @@ fn run_app<B: ratatui::backend::Backend>(
                     continue;
                 }
 
+                // Check for F12 screen capture
+                if key.code == KeyCode::F(12) {
+                    handle_screen_capture(terminal, app);
+                    continue;
+                }
+
                 // Check for saved filter hotkeys (F1-F11) - Special handling
                 if let KeyCode::F(num) = key.code {
                     // F1 is Help in our new bindings, so exclude it here if mapped
@@ -3046,8 +3186,13 @@ fn run_app<B: ratatui::backend::Backend>(
                 }
 
                 // Handle global tab navigation after view-specific handling
+                // Skip Tab navigation in split screen mode (Tab toggles focus there)
+                let is_split_screen = matches!(
+                    app.issues_view_state.view_mode(),
+                    ui::views::IssuesViewMode::SplitScreen
+                );
                 match key.code {
-                    KeyCode::Tab => app.next_tab(),
+                    KeyCode::Tab if !is_split_screen => app.next_tab(),
                     KeyCode::BackTab => app.previous_tab(),
                     _ => {}
                 }
@@ -3160,14 +3305,14 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
 
     let daemon_status = if app.daemon_running {
         Span::styled(
-            "[Daemon: Running]",
+            "[DAEMON: Running]",
             Style::default()
                 .fg(Color::Green)
                 .add_modifier(Modifier::BOLD),
         )
     } else {
         Span::styled(
-            "[Daemon: Stopped]",
+            "[DAEMON: Stopped]",
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         )
     };

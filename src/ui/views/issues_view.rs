@@ -590,8 +590,9 @@ impl<'a> IssuesView<'a> {
         // Render the list on the left with compact view
         let mut search_view = SearchInterfaceView::new()
             .block_style(self.block_style)
-            .columns(compact_columns);
-            
+            .columns(compact_columns)
+            .show_results_info(false);
+
         if let Some(theme) = self.theme {
             search_view = search_view.theme(theme);
         }
@@ -758,6 +759,7 @@ mod tests {
             dependencies: vec![],
             blocks: vec![],
             notes: vec![],
+            ..Default::default()
         }
     }
 

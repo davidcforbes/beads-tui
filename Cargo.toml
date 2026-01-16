@@ -49,6 +49,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Date/time handling
 chrono = { version = "0.4", features = ["serde"] }
 
+# Clipboard support for screen capture
+arboard = "3.4"
+
 # Terminal utilities
 unicode-width = "0.1"
 textwrap = "0.16"

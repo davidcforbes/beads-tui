@@ -135,6 +135,8 @@ pub struct AppState {
     pub active_tasks: Vec<TaskHandle>,
     /// Completed tasks (last 20)
     pub completed_tasks: VecDeque<TaskHandle>,
+    /// Mouse down position for click detection (column, row)
+    pub mouse_down_pos: Option<(u16, u16)>,
 }
 
 impl AppState {
@@ -301,6 +303,7 @@ impl AppState {
             task_manager: TaskManager::new(),
             active_tasks: Vec::new(),
             completed_tasks: VecDeque::new(),
+            mouse_down_pos: None,
         }
     }
 
@@ -1372,6 +1375,7 @@ mod tests {
             task_manager: TaskManager::new(),
             active_tasks: Vec::new(),
             completed_tasks: VecDeque::new(),
+            mouse_down_pos: None,
         }
     }
 

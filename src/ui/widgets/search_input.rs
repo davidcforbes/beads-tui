@@ -288,7 +288,7 @@ impl<'a> StatefulWidget for SearchInput<'a> {
         let mut spans = Vec::new();
 
         if self.show_icon {
-            spans.push(Span::styled("Search: ", Style::default().fg(Color::DarkGray)));
+            spans.push(Span::styled("Find: ", Style::default().fg(Color::DarkGray)));
         }
 
         if state.query.is_empty() {

@@ -1588,6 +1588,7 @@ mod tests {
             dependencies: vec![],
             blocks: vec![],
             notes: vec![],
+            ..Default::default()
         }
     }
 
@@ -1817,6 +1818,7 @@ mod tests {
                 dependencies: vec![],
                 blocks: vec![],
                 notes: vec![],
+                ..Default::default()
             },
             Issue {
                 id: "TEST-2".to_string(),
@@ -1833,6 +1835,7 @@ mod tests {
                 dependencies: vec![],
                 blocks: vec![],
                 notes: vec![],
+                ..Default::default()
             },
         ];
 

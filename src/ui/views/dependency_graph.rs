@@ -343,6 +343,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: Vec::new(),
+            ..Default::default()
         }
     }
 

@@ -310,7 +310,20 @@ impl<'a> HelpView<'a> {
         lines.push(self.render_shortcut("Enter", "Save and close the form"));
         lines.push(self.render_shortcut("Esc", "Close form without saving"));
         lines.push(self.render_shortcut("Ctrl+L", "Load description content from file path"));
-        lines.push(self.render_shortcut("Ctrl+P", "Toggle preview mode (Create form only)"));
+        lines.push(Line::from(""));
+
+        // Record Detail Form Actions
+        lines.push(Line::from(Span::styled("Record Detail Form", Style::default().add_modifier(Modifier::UNDERLINED))));
+        lines.push(self.render_shortcut("r/R", "Open selected issue in Read Mode"));
+        lines.push(self.render_shortcut("e/E", "Open selected issue in Edit Mode"));
+        lines.push(self.render_shortcut("Tab", "Switch focus (list/detail in split view)"));
+        lines.push(self.render_shortcut("Ctrl+S", "Save changes"));
+        lines.push(self.render_shortcut("Ctrl+X", "Cancel editing and revert changes"));
+        lines.push(self.render_shortcut("Ctrl+Del", "Soft delete issue"));
+        lines.push(self.render_shortcut("Ctrl+J", "Copy issue as JSON to clipboard"));
+        lines.push(self.render_shortcut("Ctrl+P", "Export issue to Markdown file"));
+        lines.push(self.render_shortcut("Up/Down", "Scroll detail view"));
+        lines.push(self.render_shortcut("PgUp/PgDn", "Page up/down in detail view"));
 
         lines
     }
@@ -627,9 +640,9 @@ mod tests {
     #[test]
     fn test_help_section_all() {
         let sections = HelpSection::all();
-        assert_eq!(sections.len(), 10);
+        assert_eq!(sections.len(), 11);
         assert_eq!(sections[0], HelpSection::Global);
-        assert_eq!(sections[9], HelpSection::About);
+        assert_eq!(sections[10], HelpSection::About);
     }
 
     #[test]
@@ -661,15 +674,16 @@ mod tests {
     fn test_help_section_all_order() {
         let sections = HelpSection::all();
         assert_eq!(sections[0], HelpSection::Global);
-        assert_eq!(sections[1], HelpSection::Issues);
-        assert_eq!(sections[2], HelpSection::Dependencies);
-        assert_eq!(sections[3], HelpSection::Labels);
-        assert_eq!(sections[4], HelpSection::Database);
-        assert_eq!(sections[5], HelpSection::Kanban);
-        assert_eq!(sections[6], HelpSection::Gantt);
-        assert_eq!(sections[7], HelpSection::Pert);
-        assert_eq!(sections[8], HelpSection::Search);
-        assert_eq!(sections[9], HelpSection::About);
+        assert_eq!(sections[1], HelpSection::UILayout);
+        assert_eq!(sections[2], HelpSection::Issues);
+        assert_eq!(sections[3], HelpSection::Dependencies);
+        assert_eq!(sections[4], HelpSection::Labels);
+        assert_eq!(sections[5], HelpSection::Database);
+        assert_eq!(sections[6], HelpSection::Kanban);
+        assert_eq!(sections[7], HelpSection::Gantt);
+        assert_eq!(sections[8], HelpSection::Pert);
+        assert_eq!(sections[9], HelpSection::Search);
+        assert_eq!(sections[10], HelpSection::About);
     }
 
     #[test]
@@ -1119,7 +1133,7 @@ mod tests {
         let area = Rect::new(0, 0, 80, 24);
         let mut buffer = Buffer::empty(area);
 
-        view.render(area, &mut buffer);
+        Widget::render(view, area, &mut buffer);
 
         // Buffer should be modified
         let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
@@ -1135,7 +1149,7 @@ mod tests {
             let view = HelpView::new().selected_section(section);
             let mut buffer = Buffer::empty(area);
 
-            view.render(area, &mut buffer);
+            Widget::render(view, area, &mut buffer);
 
             let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
             assert!(has_content, "Section {:?} should render content", section);
@@ -1148,7 +1162,7 @@ mod tests {
         let area = Rect::new(0, 0, 80, 24);
         let mut buffer = Buffer::empty(area);
 
-        view.render(area, &mut buffer);
+        Widget::render(view, area, &mut buffer);
 
         // Should render without panic
         let has_content = buffer.content.iter().any(|cell| cell.symbol() != " ");
@@ -1162,7 +1176,7 @@ mod tests {
         let mut buffer = Buffer::empty(area);
 
         // Should handle small areas gracefully
-        view.render(area, &mut buffer);
+        Widget::render(view, area, &mut buffer);
 
         // Should not panic
     }
@@ -1170,8 +1184,8 @@ mod tests {
     #[test]
     fn test_help_section_all_matches_variant_count() {
         let all_sections = HelpSection::all();
-        // Should have exactly 10 variants
-        assert_eq!(all_sections.len(), 10);
+        // Should have exactly 11 variants
+        assert_eq!(all_sections.len(), 11);
     }
 
     #[test]
@@ -1181,7 +1195,7 @@ mod tests {
         let mut buffer = Buffer::empty(area);
 
         // Should handle zero-sized areas gracefully
-        view.render(area, &mut buffer);
+        Widget::render(view, area, &mut buffer);
 
         // Should not panic
     }

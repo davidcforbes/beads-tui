@@ -26,6 +26,7 @@ proptest! {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let json = serde_json::to_string(&issue).unwrap();

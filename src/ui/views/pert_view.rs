@@ -305,6 +305,7 @@ mod tests {
             dependencies,
             blocks: vec![],
             notes: vec![],
+            ..Default::default()
         }
     }
 

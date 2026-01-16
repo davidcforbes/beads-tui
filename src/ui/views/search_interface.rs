@@ -693,6 +693,12 @@ impl SearchInterfaceState {
                         .map(|d| self.matches_text(d, query))
                         .unwrap_or(false)
                     || self.matches_text(&issue.id, query)
+                    || issue
+                        .assignee
+                        .as_ref()
+                        .map(|a| self.matches_text(a, query))
+                        .unwrap_or(false)
+                    || issue.labels.iter().any(|lbl| self.matches_text(lbl, query))
                     || issue.dependencies.iter().any(|dep| self.matches_text(dep, query))
                     || issue.blocks.iter().any(|blk| self.matches_text(blk, query))
                     || issue
@@ -742,11 +748,41 @@ impl SearchInterfaceState {
         self.show_help
     }
 
-    /// Get selected issue
+    /// Get selected issue (accounting for current sort order)
     pub fn selected_issue(&self) -> Option<&Issue> {
         let index = self.list_state.selected()?;
-        let idx = *self.filtered_indices.get(index)?;
-        self.all_issues.get(idx)
+
+        // Get filtered issues
+        let mut filtered_issues: Vec<&Issue> = self.filtered_indices
+            .iter()
+            .filter_map(|&idx| self.all_issues.get(idx))
+            .collect();
+
+        // Sort them according to the list state's sort settings
+        let sort_column = self.list_state.sort_column();
+        let sort_direction = self.list_state.sort_direction();
+
+        filtered_issues.sort_by(|a, b| {
+            use crate::ui::widgets::issue_list::{SortColumn, SortDirection};
+
+            let ordering = match sort_column {
+                SortColumn::Id => a.id.cmp(&b.id),
+                SortColumn::Title => a.title.cmp(&b.title),
+                SortColumn::Status => a.status.cmp(&b.status),
+                SortColumn::Priority => a.priority.cmp(&b.priority),
+                SortColumn::Type => a.issue_type.cmp(&b.issue_type),
+                SortColumn::Created => a.created.cmp(&b.created),
+                SortColumn::Updated => a.updated.cmp(&b.updated),
+            };
+
+            match sort_direction {
+                SortDirection::Ascending => ordering,
+                SortDirection::Descending => ordering.reverse(),
+            }
+        });
+
+        // Return the issue at the selected index in the sorted list
+        filtered_issues.get(index).copied()
     }
 
     /// Get number of results
@@ -953,6 +989,7 @@ mod tests {
                 dependencies: vec![],
                 blocks: vec![],
                 notes: vec![],
+                ..Default::default()
             },
             Issue {
                 id: "beads-002".to_string(),
@@ -969,6 +1006,7 @@ mod tests {
                 dependencies: vec![],
                 blocks: vec![],
                 notes: vec![],
+                ..Default::default()
             },
             Issue {
                 id: "beads-003".to_string(),
@@ -985,6 +1023,7 @@ mod tests {
                 dependencies: vec![],
                 blocks: vec![],
                 notes: vec![],
+                ..Default::default()
             },
         ]
     }
@@ -1032,6 +1071,7 @@ mod tests {
         let mut issues = create_test_issues();
         // Add notes to the first issue
         issues[0].notes.push(Note {
+            id: "test-note-1".to_string(),
             timestamp: Utc::now(),
             author: "alice".to_string(),
             content: "Investigation complete, ready to implement".to_string(),
@@ -1178,6 +1218,7 @@ mod tests {
             dependencies: vec![],
             blocks: vec![],
             notes: vec![],
+            ..Default::default()
         }];
 
         state.set_issues(new_issues);
@@ -1814,6 +1855,7 @@ mod tests {
 
         use crate::beads::models::Note;
         issues[2].notes.push(Note {
+            id: "test-note-1".to_string(),
             timestamp: Utc::now(),
             author: "test".to_string(),
             content: "notes_match".to_string(),
@@ -2825,11 +2867,13 @@ mod tests {
 
         // Add notes with patterns
         issues[0].notes.push(Note {
+            id: "test-note-1".to_string(),
             timestamp: chrono::Utc::now(),
             author: "test".to_string(),
             content: "Note with ERROR-123 code".to_string(),
         });
         issues[1].notes.push(Note {
+            id: "test-note-2".to_string(),
             timestamp: chrono::Utc::now(),
             author: "test".to_string(),
             content: "Normal note".to_string(),
@@ -3043,11 +3087,13 @@ mod tests {
 
         // Add notes with searchable content
         issues[0].notes.push(Note {
+            id: "test-note-1".to_string(),
             timestamp: chrono::Utc::now(),
             author: "test".to_string(),
             content: "Important milestone reached".to_string(),
         });
         issues[1].notes.push(Note {
+            id: "test-note-2".to_string(),
             timestamp: chrono::Utc::now(),
             author: "test".to_string(),
             content: "Normal note".to_string(),

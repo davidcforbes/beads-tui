@@ -564,6 +564,7 @@ mod tests {
             updated: Utc.with_ymd_and_hms(2024, 1, 2, 0, 0, 0).unwrap(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         }
     }
 

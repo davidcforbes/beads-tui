@@ -30,6 +30,76 @@ pub struct Issue {
     pub closed: Option<DateTime<Utc>>,
     #[serde(default, deserialize_with = "deserialize_notes")]
     pub notes: Vec<Note>,
+    // Extended fields for comprehensive issue management
+    #[serde(default)]
+    pub est_minutes: Option<u32>,
+    #[serde(default)]
+    pub due_date: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub defer_date: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub close_reason: Option<String>,
+    #[serde(default)]
+    pub external_reference: Option<String>,
+    #[serde(default)]
+    pub flags: IssueFlags,
+    #[serde(default)]
+    pub design_notes: Option<String>,
+    #[serde(default)]
+    pub acceptance_criteria: Option<String>,
+    // Relationship fields
+    #[serde(default)]
+    pub parent_id: Option<String>,
+    #[serde(default)]
+    pub children_ids: Vec<String>,
+    #[serde(default)]
+    pub event_ids: Vec<String>,
+    #[serde(default)]
+    pub discovered_ids: Vec<String>,
+}
+
+/// Issue flags for special behaviors
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IssueFlags {
+    #[serde(default)]
+    pub pinned: bool,
+    #[serde(default)]
+    pub template: bool,
+    #[serde(default)]
+    pub ephemeral: bool,
+}
+
+impl Default for Issue {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            title: String::new(),
+            status: IssueStatus::Open,
+            priority: Priority::P2,
+            issue_type: IssueType::Task,
+            description: None,
+            assignee: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            blocks: Vec::new(),
+            created: Utc::now(),
+            updated: Utc::now(),
+            closed: None,
+            notes: Vec::new(),
+            est_minutes: None,
+            due_date: None,
+            defer_date: None,
+            close_reason: None,
+            external_reference: None,
+            flags: IssueFlags::default(),
+            design_notes: None,
+            acceptance_criteria: None,
+            parent_id: None,
+            children_ids: Vec::new(),
+            event_ids: Vec::new(),
+            discovered_ids: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -201,14 +271,26 @@ impl FromStr for IssueType {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Note {
+    #[serde(default = "generate_note_id")]
+    pub id: String,
     pub timestamp: DateTime<Utc>,
     pub author: String,
     pub content: String,
 }
 
+fn generate_note_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    format!("note-{}", nanos)
+}
+
 impl Note {
     fn legacy(content: String) -> Self {
         Self {
+            id: generate_note_id(),
             timestamp: Utc::now(),
             author: "legacy".to_string(),
             content,
@@ -647,6 +729,7 @@ mod tests {
     #[test]
     fn test_note_clone() {
         let note = Note {
+            id: generate_note_id(),
             timestamp: Utc::now(),
             author: "test_author".to_string(),
             content: "test content".to_string(),
@@ -734,6 +817,7 @@ mod tests {
             updated: now,
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let json = serde_json::to_string(&issue).unwrap();
@@ -885,6 +969,7 @@ mod tests {
     #[test]
     fn test_note_debug() {
         let note = Note {
+            id: generate_note_id(),
             timestamp: Utc::now(),
             author: "author".to_string(),
             content: "content".to_string(),
@@ -961,6 +1046,7 @@ mod tests {
             updated: now,
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
         let debug_str = format!("{:?}", issue);
         assert!(debug_str.contains("Issue"));
@@ -972,6 +1058,7 @@ mod tests {
     fn test_issue_creation_with_all_fields() {
         let now = Utc::now();
         let note = Note {
+            id: generate_note_id(),
             timestamp: now,
             author: "author".to_string(),
             content: "note content".to_string(),
@@ -991,6 +1078,7 @@ mod tests {
             updated: now,
             closed: None,
             notes: vec![note],
+            ..Default::default()
         };
 
         assert_eq!(issue.id, "beads-test");
@@ -1025,6 +1113,7 @@ mod tests {
             updated: now,
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         assert_eq!(issue.id, "beads-minimal");
@@ -1056,6 +1145,7 @@ mod tests {
             updated: closed_time,
             closed: Some(closed_time),
             notes: vec![],
+            ..Default::default()
         };
 
         assert_eq!(issue.status, IssueStatus::Closed);
@@ -1067,6 +1157,7 @@ mod tests {
     fn test_note_creation() {
         let now = Utc::now();
         let note = Note {
+            id: generate_note_id(),
             timestamp: now,
             author: "test_author".to_string(),
             content: "This is a test note".to_string(),
@@ -1149,6 +1240,7 @@ mod tests {
             updated: now,
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let cloned = issue.clone();

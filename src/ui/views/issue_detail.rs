@@ -118,6 +118,7 @@ mod tests {
             dependencies: vec!["beads-000".to_string()],
             blocks: vec!["beads-002".to_string()],
             notes: vec![],
+            ..Default::default()
         }
     }
 
@@ -236,11 +237,13 @@ mod tests {
         let mut issue = create_test_issue();
         issue.notes = vec![
             Note {
+                id: "test-note-1".to_string(),
                 timestamp: Utc::now(),
                 author: "alice".to_string(),
                 content: "First note".to_string(),
             },
             Note {
+                id: "test-note-2".to_string(),
                 timestamp: Utc::now(),
                 author: "bob".to_string(),
                 content: "Second note".to_string(),
@@ -486,6 +489,7 @@ mod tests {
 
         let mut issue = create_test_issue();
         issue.notes = vec![Note {
+            id: "test-note-1".to_string(),
             timestamp: Utc::now(),
             author: "alice".to_string(),
             content: "Single note".to_string(),
@@ -547,10 +551,12 @@ mod tests {
             dependencies: vec!["beads-001".to_string()],
             blocks: vec!["beads-002".to_string()],
             notes: vec![Note {
+                id: "test-note-1".to_string(),
                 timestamp: Utc::now(),
                 author: "bob".to_string(),
                 content: "Note content".to_string(),
             }],
+            ..Default::default()
         };
 
         let view = IssueDetailView::new(&issue);
@@ -570,11 +576,13 @@ mod tests {
         let mut issue = create_test_issue();
         issue.notes = vec![
             Note {
+                id: "test-note-1".to_string(),
                 timestamp: Utc::now(),
                 author: "alice".to_string(),
                 content: "First note from alice".to_string(),
             },
             Note {
+                id: "test-note-2".to_string(),
                 timestamp: Utc::now(),
                 author: "alice".to_string(),
                 content: "Second note from alice".to_string(),

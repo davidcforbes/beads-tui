@@ -318,10 +318,12 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![Note {
+                id: "test-note-1".to_string(),
                 timestamp: Utc::now(),
                 author: "test-user".to_string(),
                 content: "Test note".to_string(),
             }],
+            ..Default::default()
         };
 
         let panel = IssueHistoryPanel::new(Some(&issue));

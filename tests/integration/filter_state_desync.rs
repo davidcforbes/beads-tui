@@ -23,6 +23,7 @@ fn create_test_issue(id: &str, title: &str, status: IssueStatus) -> Issue {
         dependencies: vec![],
         blocks: vec![],
         notes: vec![],
+        ..Default::default()
     }
 }
 

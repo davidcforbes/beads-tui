@@ -324,11 +324,11 @@ impl<'a> FilterPanel<'a> {
                 items.push(ListItem::new(""));
             }
             items.push(ListItem::new(Line::from(Span::styled(
-                "Search:",
+                "Find:",
                 self.active_style,
             ))));
             items.push(ListItem::new(Line::from(vec![
-                Span::raw("  Search: \""),
+                Span::raw("  Find: \""),
                 Span::styled(query, Style::default().fg(Color::Yellow)),
                 Span::raw("\""),
             ])));

@@ -48,16 +48,19 @@ fn create_test_issue(id: u32) -> Issue {
         blocks: vec![],
         notes: vec![
             Note {
+                id: format!("bench-note-{}-1", id),
                 timestamp: Utc::now(),
                 author: "benchmark".to_string(),
                 content: format!("Note 1 for issue {id}"),
             },
             Note {
+                id: format!("bench-note-{}-2", id),
                 timestamp: Utc::now(),
                 author: "benchmark".to_string(),
                 content: format!("Follow-up required: {}", id % 2 == 0),
             },
         ],
+        ..Default::default()
     }
 }
 

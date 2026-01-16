@@ -119,7 +119,15 @@ impl<T: Clone> MultiSelectDropdownState<T> {
         } else {
             self.selected
                 .iter()
-                .filter_map(|&idx| self.items.get(idx).cloned())
+                // Subtract 1 from idx because idx includes "All" at position 0,
+                // but self.items doesn't include "All"
+                .filter_map(|&idx| {
+                    if idx > 0 {
+                        self.items.get(idx - 1).cloned()
+                    } else {
+                        None
+                    }
+                })
                 .collect()
         }
     }
@@ -499,12 +507,12 @@ impl<'a> FilterBar<'a> {
     }
 
     pub fn render(&self, area: Rect, buf: &mut Buffer, state: &FilterBarState) {
-        let status_text = self.dropdown_text(&state.status_dropdown, "All...▼");
-        let type_text = self.dropdown_text(&state.type_dropdown, "All...▼");
-        let priority_text = self.dropdown_text(&state.priority_dropdown, "All...▼");
-        let labels_text = self.dropdown_text(&state.labels_dropdown, "All...▼");
-        let created_text = self.dropdown_text(&state.created_dropdown, "All...▼");
-        let updated_text = self.dropdown_text(&state.updated_dropdown, "All...▼");
+        let status_text = self.dropdown_text(&state.status_dropdown, "All.▼");
+        let type_text = self.dropdown_text(&state.type_dropdown, "All.▼");
+        let priority_text = self.dropdown_text(&state.priority_dropdown, "All.▼");
+        let labels_text = self.dropdown_text(&state.labels_dropdown, "All.▼");
+        let created_text = self.dropdown_text(&state.created_dropdown, "All.▼");
+        let updated_text = self.dropdown_text(&state.updated_dropdown, "All.▼");
 
         // Create bordered block with FILTERS header
         let block = Block::default()
@@ -528,7 +536,9 @@ impl<'a> FilterBar<'a> {
             self.filter_with_hotkey_prefix("C:Created", &created_text, state.active_dropdown == Some(FilterDropdownType::Created)),
             Span::raw(" │ "),
             self.filter_with_hotkey_prefix("U:Updated", &updated_text, state.active_dropdown == Some(FilterDropdownType::Updated)),
-            Span::raw("    "),
+            Span::raw(" │ "),
+            Span::styled("F11:Reset", Style::default().fg(Color::Yellow)),
+            Span::raw("      "),
         ]);
 
         line.render(inner, buf);
@@ -700,15 +710,17 @@ impl<'a> FilterDropdown<'a> {
         let width = 35u16;
         let height = 12u16;
 
+        // Calculate x_offset to align dropdown under each filter label
+        // Based on the layout in render(): " S:Status [...] │ T:Type [...] │ P:Priority [...] │ ..."
         let x_offset = match self.dropdown_type {
-            FilterDropdownType::Status => 30,
-            FilterDropdownType::Priority => 50,
-            FilterDropdownType::Type => 70,
-            FilterDropdownType::Labels => 85,
-            FilterDropdownType::Assignee => 105,
-            FilterDropdownType::Created => 125,
-            FilterDropdownType::Updated => 145,
-            FilterDropdownType::Closed => 165,
+            FilterDropdownType::Status => 1,    // After initial " "
+            FilterDropdownType::Type => 23,     // After "S:Status [...]" + " │ "
+            FilterDropdownType::Priority => 43, // After Type
+            FilterDropdownType::Labels => 66,   // After Priority
+            FilterDropdownType::Created => 87,  // After Labels
+            FilterDropdownType::Updated => 108, // After Created
+            FilterDropdownType::Assignee => 129, // After Updated (not shown but for completeness)
+            FilterDropdownType::Closed => 150,  // After Assignee
         };
 
         let x = (area.x + x_offset).min(area.width.saturating_sub(width));

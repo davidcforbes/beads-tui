@@ -7,17 +7,82 @@ context-specific; the same key may do different things depending on the active v
 
 The beads-tui interface consists of five main sections:
 
-1. **TITLE Bar** (Rows 1-3): Displays project name, issue count summary (Open/In Progress/Blocked/Closed), active search status, and daemon status
+1. **TITLE Container** (Rows 1-3): Displays project name, issue count summary (Open/In Progress/Blocked/Closed), active search status, and daemon status
 2. **VIEWS Container** (Rows 4-6): Tab navigation bar for switching between views (Issues, Split, Kanban, Dependencies, Labels, Gantt, PERT, Molecular, Statistics, Utilities, Help)
 3. **FILTERS Container** (Rows 7-9): Quick filter controls with hotkeys - Stat[u]s, T[y]pe, [L]abels, Pr[i]ority. This container appears directly below the VIEWS container
-4. **Content Area** (Row 10 onwards): Main content display area showing the current view (issue list, Kanban board, dependency tree, etc.)
-5. **ACTIONS Bar** (Bottom 3 rows): Context-sensitive keyboard shortcuts and navigation hints displayed in a columnar format with vertical separators
+4. **Issues Section** (Row 10 onwards): Main content display area showing the current view (issue list, Kanban board, dependency tree, etc.)
+5. **ACTIONS Container** (Bottom 3 rows): Context-sensitive keyboard shortcuts and navigation hints displayed in a columnar format with vertical separators
 
 The FILTERS container (rows 7-9) provides quick access to common filters via single-key hotkeys. Press the letter shown in square brackets to activate each filter dropdown.
 
 The ACTIONS Bar dynamically updates to show relevant shortcuts for the current view and context, organized into navigation actions and context-specific action items.
 
 ## Global Actions
+
+| Key | Action   | Description                            |
+| --- | -------- | -------------------------------------- |
+|  1  | Issues   | Switch to the Issues View              |
+|  2  | Split    | Switch to the Split View               |
+|  3  | Split    | Switch to the Kanban View              |
+|  4  | Depend   | Switch to the Dependencies View        |
+|  5  | Labels   | Switch to the Labels View              |
+|  6  | Ghantt   | Switch to the Ghantt  View             |
+|  7  | Pert     | Switch to the Pert View                |
+|  8  | Molecule | Switch to the Molecule View            |
+|  9  | Stats    | Switch to the Statistics View          |
+|  0  | Utilities| Switch to the Utilities View           |
+|  ?  | Help     | Switch to the Help View                |
+
+## Filter ACTIONS
+
+| Key | Action   | Description                            |
+| --- | -------- | -------------------------------------- |
+|  S  | Status   | Open the Status Filter Dropdown        |
+|  T  | Status   | Open the Type Filter Dropdown          |
+|  P  | Priority | Open the Priority Filter Dropdown      |
+|  L  | Labels   | Open the Labels Filter Dropdown        |
+|  C  | Created  | Open the Created Date Filter Dropdown  |
+|  U  | Updated  | Open the Updated Date Filter Dropdown  |
+| F11 | Reset    | Reset the Filters to "All"             |
+
+## List ACTIONS
+
+| Key  | Action      | Description                            |
+| ---- | ----------- | -------------------------------------- |
+|  ↑   | Up 1 Row    | Navigate up 1 Rows                     |
+|  ↓   | Down 1 Row  | Navigate down 1 Rows                   |
+| PgUp | Page Up 1   | Navigate up 1 Page of Rows             |
+| PgDn | Page Down 1 | Navigate down 1 Page of Rows           |
+| Home | List Top    | Navigate to the Top of the List        |
+| End  | List Bottom | Navigate to the Bottom of the List     |
+
+## Screen Actions
+| Key  | Action      | Description                             |
+| ---- | ----------- | --------------------------------------- |
+| Ctrl+↑ | Scroll Up 1 Row | Scroll the Viewport up 1 Row      |
+| Ctrl+↓ | Scroll Dn 1 Row | Scroll the Viewport down 1 Row    |
+| Ctrl+→ | Scroll Rt 1 Row | Scroll the Viewport right 1 frame |
+| Ctrl+← | Scroll Lf 1 Row | Scroll the Viewport left 1 frame  |
+| F10    | Maximize Screen | Maximize the view to full screen  |
+| F11    | Restore Screen | Restore view to normal screen size |
+| F12    | Screen shot   | Save the screen to clipboard or file |
+
+
+## Record ACTIONS
+
+| Key | Action | Description                            |
+| --- | ------ | -------------------------------------- |
+|  R  | Read   | Read Mode for Selected Record Detail   |
+|  N  | New    | Create Mode for New Record Detail      |
+|  E  | Edit   | Edit Mode for Selected Record Detail   |
+|  D  | Delete | Delete (Soft) The Selected Record      |
+|  F  | Find   | Enter a Find String to Match Records   |
+|  O  | Open   | Mark the Selected Record Status=Open   |
+|  X  | Close  | Mark the Selected Record Status=Closed |
+|  B  | Block  | Mark the Selected Record Status=Blocked|
+|  Q  | Quit   | Exit the application                   |
+| --- | ------ | -------------------------------------- |
+
 | Key | Action | Description |
 |---|---|---|
 | `q`, `Ctrl+Q`, `Ctrl+C` | Quit | Exit the application |
@@ -42,9 +107,14 @@ The ACTIONS Bar dynamically updates to show relevant shortcuts for the current v
 ## General Operations
 | Key | Action | Description |
 |---|---|---|
+| `Ctrl+Z` | Undo | Undo last action |
+| `Ctrl+Y` | Redo | Redo last undone action |
+| `Esc` | Dismiss | Dismiss notification / close overlays |
+| `Ctrl+H` | Notifications | Show notification history |
 | `Enter` | Confirm/View | Open details, confirm dialog, or toggle expand |
 | `Esc` | Cancel/Back | Close dialogs, clear search, go back |
 | `r` or `F5` | Refresh | Refresh data |
+
 
 ## Issues View - List
 | Key | Action | Description |
@@ -86,7 +156,21 @@ The ACTIONS Bar dynamically updates to show relevant shortcuts for the current v
 | `Enter` | Submit | Save and close the form |
 | `Esc` | Cancel | Close form without saving |
 | `Ctrl+L` | Load File | Load description content from file path |
-| `Ctrl+P` | Preview | Toggle preview mode (Create form only) |
+
+## Record Detail Form
+| Key | Action | Description |
+|---|---|---|
+| `r` or `R` | Read Mode | Open selected issue in read-only mode |
+| `e` or `E` | Edit Mode | Open selected issue in edit mode |
+| `Tab` | Switch Focus | Switch focus between list and detail (split view) |
+| `Ctrl+S` | Save | Save changes in edit mode |
+| `Ctrl+X` | Cancel | Cancel editing and revert changes |
+| `Ctrl+Del` | Soft Delete | Soft delete issue |
+| `Ctrl+J` | Copy JSON | Copy issue as JSON to clipboard |
+| `Ctrl+P` | Export Markdown | Export issue to Markdown file |
+| `Up`/`Down` | Scroll | Scroll detail view |
+| `PgUp`/`PgDn` | Page Scroll | Page up/down in detail view |
+| `Home`/`End` | Jump | Jump to start/end of detail view |
 
 ## Issues View - Search and Filters
 | Key | Action | Description |

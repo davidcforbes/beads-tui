@@ -162,6 +162,11 @@ impl CreateIssueFormState {
             .with_validation(ValidationRule::BeadsIdFormat)
             .with_validation(ValidationRule::MaxLength(64)));
 
+        fields.push(FormField::text("dependencies", "Dependencies")
+            .placeholder("beads-xxx, beads-yyy (optional)")
+            .help_text("Press F1: Comma-separated list of issue IDs this issue depends on (e.g., beads-abc123, beads-def456).")
+            .with_validation(ValidationRule::MaxLength(256)));
+
         // Text section (design, acceptance, notes are create-specific)
         fields.push(FormField::text_area("design", "Design")
             .placeholder("Design notes and approach (optional)")
@@ -874,7 +879,7 @@ mod tests {
     #[test]
     fn test_create_issue_form_state_creation() {
         let state = CreateIssueFormState::new();
-        assert_eq!(state.form_state().fields().len(), 15); // Updated for all fields
+        assert_eq!(state.form_state().fields().len(), 18); // Updated for all fields including dependencies
         assert_eq!(state.current_section(), FormSection::Summary);
         assert!(!state.is_preview_mode());
     }

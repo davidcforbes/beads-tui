@@ -42,6 +42,7 @@ fn create_test_issue(id: u32) -> Issue {
         dependencies: vec![],
         blocks: vec![],
         notes: vec![],
+        ..Default::default()
     }
 }
 

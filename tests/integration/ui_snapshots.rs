@@ -76,6 +76,7 @@ fn sample_issues() -> Vec<Issue> {
             updated,
             closed: None,
             notes: vec![],
+            ..Default::default()
         },
         Issue {
             id: "beads-101".to_string(),
@@ -92,6 +93,7 @@ fn sample_issues() -> Vec<Issue> {
             updated,
             closed: None,
             notes: vec![],
+            ..Default::default()
         },
         Issue {
             id: "beads-102".to_string(),
@@ -108,6 +110,7 @@ fn sample_issues() -> Vec<Issue> {
             updated,
             closed: Some(updated),
             notes: vec![],
+            ..Default::default()
         },
     ]
 }

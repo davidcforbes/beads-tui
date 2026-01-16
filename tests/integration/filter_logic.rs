@@ -24,6 +24,7 @@ fn create_test_issue(
         updated: Utc::now(),
         closed: None,
         notes: vec![],
+        ..Default::default()
     }
 }
 

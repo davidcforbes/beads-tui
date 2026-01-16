@@ -62,6 +62,7 @@ impl MockBeadsBackend {
                 blocks: Vec::new(),
                 closed: None,
                 notes: Vec::new(),
+                ..Default::default()
             },
             Issue {
                 id: "beads-test-002".to_string(),
@@ -78,6 +79,7 @@ impl MockBeadsBackend {
                 blocks: Vec::new(),
                 closed: None,
                 notes: Vec::new(),
+                ..Default::default()
             },
             Issue {
                 id: "beads-test-003".to_string(),
@@ -94,6 +96,7 @@ impl MockBeadsBackend {
                 blocks: Vec::new(),
                 closed: None,
                 notes: Vec::new(),
+                ..Default::default()
             },
         ];
 
@@ -222,6 +225,7 @@ impl MockBeadsBackend {
             blocks: Vec::new(),
             closed: None,
             notes: Vec::new(),
+            ..Default::default()
         };
 
         let mut issues = self

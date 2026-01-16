@@ -527,6 +527,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         }
     }
 

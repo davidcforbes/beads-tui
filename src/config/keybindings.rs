@@ -85,6 +85,13 @@ pub enum Action {
     LoadFile,
     TogglePreview,
 
+    // Record Detail Form Actions
+    SaveIssue,
+    CancelEdit,
+    SoftDeleteIssue,
+    CopyJsonToClipboard,
+    ExportToMarkdown,
+
     // Other
     ToggleExpand,
     ShowIssueHistory,
@@ -166,6 +173,12 @@ impl Action {
             Action::LoadFile => "Load from file",
             Action::TogglePreview => "Toggle preview",
 
+            Action::SaveIssue => "Save issue changes",
+            Action::CancelEdit => "Cancel edit and revert",
+            Action::SoftDeleteIssue => "Soft delete issue",
+            Action::CopyJsonToClipboard => "Copy JSON to clipboard",
+            Action::ExportToMarkdown => "Export to Markdown",
+
             Action::ToggleExpand => "Toggle expand/collapse",
             Action::ShowIssueHistory => "Show issue history",
             Action::ShowColumnManager => "Show column manager",
@@ -239,13 +252,18 @@ impl Keybinding {
         if self.alt != modifiers.contains(KeyModifiers::ALT) {
             return false;
         }
-        if self.shift != modifiers.contains(KeyModifiers::SHIFT) {
+        // For character keys, ignore shift modifier to make matching case-insensitive
+        // (unless shift is explicitly required by the keybinding)
+        if self.shift && !modifiers.contains(KeyModifiers::SHIFT) {
             return false;
         }
 
         // Check key
         match code {
-            KeyCode::Char(c) => self.key == c.to_string(),
+            KeyCode::Char(c) => {
+                // Case-insensitive matching for character keys
+                self.key.eq_ignore_ascii_case(&c.to_string())
+            }
             KeyCode::Enter => self.key == "enter",
             KeyCode::Esc => self.key == "esc",
             KeyCode::Tab => self.key == "tab",
@@ -422,7 +440,7 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
         Action::Refresh,
         vec![Keybinding::new("r"), Keybinding::new("f5")],
     );
-    bindings.insert(Action::ToggleFilter, vec![Keybinding::new("f")]);
+    bindings.insert(Action::ToggleFilter, vec![Keybinding::ctrl("f")]);
     bindings.insert(Action::ClearFilter, vec![Keybinding::shift("f")]);
     bindings.insert(
         Action::SaveFilter,
@@ -438,7 +456,7 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
     bindings.insert(Action::OpenPriorityFilter, vec![Keybinding::alt("p")]);
     bindings.insert(Action::OpenTypeFilter, vec![Keybinding::alt("t")]);
     bindings.insert(Action::OpenLabelsFilter, vec![Keybinding::alt("l")]);
-    bindings.insert(Action::Search, vec![Keybinding::new("/"), Keybinding::new("s")]);
+    bindings.insert(Action::Search, vec![Keybinding::new("/"), Keybinding::new("s"), Keybinding::new("f")]);
     bindings.insert(Action::NextSearchResult, vec![Keybinding::shift("n")]);
     bindings.insert(Action::PrevSearchResult, vec![Keybinding::alt("n")]);
     bindings.insert(Action::ToggleFuzzySearch, vec![Keybinding::alt("z")]);
@@ -474,7 +492,14 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
     // Generic
     bindings.insert(Action::Save, vec![Keybinding::ctrl("s")]);
     bindings.insert(Action::LoadFile, vec![Keybinding::ctrl("l")]);
-    bindings.insert(Action::TogglePreview, vec![Keybinding::ctrl("p")]);
+    bindings.insert(Action::TogglePreview, vec![Keybinding::ctrl("v")]);
+
+    // Record Detail Form Actions
+    bindings.insert(Action::SaveIssue, vec![Keybinding::ctrl("s")]);  // Save issue in edit mode
+    bindings.insert(Action::CancelEdit, vec![Keybinding::ctrl("x")]);
+    bindings.insert(Action::SoftDeleteIssue, vec![Keybinding::ctrl("delete")]);
+    bindings.insert(Action::CopyJsonToClipboard, vec![Keybinding::ctrl("j")]);
+    bindings.insert(Action::ExportToMarkdown, vec![Keybinding::ctrl("p")]);
 
     // Other
     bindings.insert(Action::ToggleExpand, vec![Keybinding::new("enter")]);
@@ -621,6 +646,7 @@ mod tests {
             // View-specific actions (Issues vs Database view contexts)
             Action::UpdateStatus,    // 's' in Issues view
             Action::SyncDatabase,    // 's' in Database view
+            Action::Search,          // 's' in search context
             Action::ShowColumnManager, // 'c' in Issues view
             Action::CompactDatabase, // 'c' in Database view
             Action::CloseIssue,      // 'x' in Issues view
@@ -628,6 +654,9 @@ mod tests {
             Action::UpdateLabels,    // 'l' in Issues view
             // Preview toggle
             Action::TogglePreview,   // Ctrl+p (file preview context)
+            // Editor-specific actions (Issue Editor context)
+            Action::Save,            // Ctrl+s in general save contexts
+            Action::SaveIssue,       // Ctrl+s in issue editor context
         ];
 
         let non_contextual_conflicts: Vec<_> = conflicts

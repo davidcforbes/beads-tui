@@ -558,7 +558,7 @@ mod tests {
         config.columns[2].visible = false; // Hide Status
 
         let visible = config.visible_columns();
-        assert_eq!(visible.len(), 7);
+        assert_eq!(visible.len(), 8); // 9 default columns - 1 hidden = 8 visible
         assert!(!visible.iter().any(|c| c.id == ColumnId::Status));
     }
 

@@ -1462,19 +1462,9 @@ impl<'a> StatefulWidget for IssueList<'a> {
     type State = IssueListState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        // Split area if filters are enabled
-        let (table_area, filter_area) = if state.filters_enabled() {
-            let chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Min(5),    // Table area
-                    Constraint::Length(3), // Filter row area
-                ])
-                .split(area);
-            (chunks[0], Some(chunks[1]))
-        } else {
-            (area, None)
-        };
+        // Use full area for table (filter row removed)
+        let table_area = area;
+        let filter_area: Option<Rect> = None;
 
         // Update sorting if state has changed
         let mut issues = self.issues;
@@ -1672,7 +1662,7 @@ impl<'a> StatefulWidget for IssueList<'a> {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title(format!("Issues ({}/{})", total_issues, total_issues)),
+                    .title(format!("ISSUES ({}/{})", total_issues, total_issues)),
             )
             .column_spacing(1)
             .highlight_style(
@@ -1798,6 +1788,7 @@ mod tests {
             dependencies: vec![],
             blocks: vec![],
             notes: vec![],
+            ..Default::default()
         }
     }
 
@@ -2591,6 +2582,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let child = Issue {
@@ -2608,6 +2600,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let issues = vec![&parent, &child];
@@ -2651,6 +2644,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let child1 = Issue {
@@ -2668,6 +2662,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let child2 = Issue {
@@ -2685,6 +2680,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let child3 = Issue {
@@ -2702,6 +2698,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let issues = vec![&parent, &child1, &child2, &child3];
@@ -2744,6 +2741,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let level1 = Issue {
@@ -2761,6 +2759,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let level2 = Issue {
@@ -2778,6 +2777,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let issues = vec![&root, &level1, &level2];
@@ -2813,6 +2813,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let issue2 = Issue {
@@ -2830,6 +2831,7 @@ mod tests {
             updated: Utc::now(),
             closed: None,
             notes: vec![],
+            ..Default::default()
         };
 
         let issues = vec![&issue1, &issue2];

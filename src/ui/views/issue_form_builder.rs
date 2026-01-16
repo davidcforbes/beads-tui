@@ -205,6 +205,217 @@ pub fn build_issue_form(mode: IssueFormMode, issue: Option<&Issue>) -> Vec<FormF
         }
     }
 
+    // ========== Est Minutes ==========
+    let est_minutes_value = issue
+        .as_ref()
+        .and_then(|i| i.est_minutes.as_ref())
+        .map(|m| m.to_string())
+        .unwrap_or_default();
+
+    if is_readonly {
+        let display_value = if est_minutes_value.is_empty() {
+            "Not estimated"
+        } else {
+            &est_minutes_value
+        };
+        fields.push(FormField::read_only("est_minutes", "Est Minutes", display_value));
+    } else {
+        fields.push(
+            FormField::text("est_minutes", "Est Minutes")
+                .value(&est_minutes_value)
+                .placeholder("Estimated time in minutes"),
+        );
+    }
+
+    // ========== Due Date ==========
+    let due_date_value = issue
+        .as_ref()
+        .and_then(|i| i.due_date.as_ref())
+        .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+        .unwrap_or_default();
+
+    if is_readonly {
+        let display_value = if due_date_value.is_empty() {
+            "No due date"
+        } else {
+            &due_date_value
+        };
+        fields.push(FormField::read_only("due_date", "Due Date", display_value));
+    } else {
+        fields.push(
+            FormField::text("due_date", "Due Date")
+                .value(&due_date_value)
+                .placeholder("YYYY-MM-DD HH:MM"),
+        );
+    }
+
+    // ========== Defer Date ==========
+    let defer_date_value = issue
+        .as_ref()
+        .and_then(|i| i.defer_date.as_ref())
+        .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+        .unwrap_or_default();
+
+    if is_readonly {
+        let display_value = if defer_date_value.is_empty() {
+            "No defer date"
+        } else {
+            &defer_date_value
+        };
+        fields.push(FormField::read_only("defer_date", "Defer Date", display_value));
+    } else {
+        fields.push(
+            FormField::text("defer_date", "Defer Date")
+                .value(&defer_date_value)
+                .placeholder("YYYY-MM-DD HH:MM"),
+        );
+    }
+
+    // ========== Close Reason ==========
+    let close_reason_value = issue
+        .as_ref()
+        .and_then(|i| i.close_reason.as_ref())
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    if is_readonly {
+        let display_value = if close_reason_value.is_empty() {
+            "N/A"
+        } else {
+            close_reason_value
+        };
+        fields.push(FormField::read_only("close_reason", "Close Reason", display_value));
+    } else {
+        fields.push(
+            FormField::text("close_reason", "Close Reason")
+                .value(close_reason_value)
+                .placeholder("Reason for closing"),
+        );
+    }
+
+    // ========== External Reference ==========
+    let external_ref_value = issue
+        .as_ref()
+        .and_then(|i| i.external_reference.as_ref())
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    if is_readonly {
+        let display_value = if external_ref_value.is_empty() {
+            "No reference"
+        } else {
+            external_ref_value
+        };
+        fields.push(FormField::read_only("external_reference", "External Ref", display_value));
+    } else {
+        fields.push(
+            FormField::text("external_reference", "External Ref")
+                .value(external_ref_value)
+                .placeholder("External link or reference"),
+        );
+    }
+
+    // ========== Flags ==========
+    let flags_value = issue
+        .as_ref()
+        .map(|i| {
+            let mut flags = Vec::new();
+            if i.flags.pinned { flags.push("Pinned"); }
+            if i.flags.template { flags.push("Template"); }
+            if i.flags.ephemeral { flags.push("Ephemeral"); }
+            flags.join(", ")
+        })
+        .unwrap_or_default();
+
+    let display_value = if flags_value.is_empty() {
+        "No flags"
+    } else {
+        &flags_value
+    };
+    fields.push(FormField::read_only("flags", "Flags", display_value));
+
+    // ========== Design Notes ==========
+    let design_notes_value = issue
+        .as_ref()
+        .and_then(|i| i.design_notes.as_ref())
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    if is_readonly {
+        let display_value = if design_notes_value.is_empty() {
+            "No design notes"
+        } else {
+            design_notes_value
+        };
+        fields.push(FormField::read_only("design_notes", "Design Notes", display_value));
+    } else {
+        fields.push(
+            FormField::text_area("design_notes", "Design Notes")
+                .value(design_notes_value)
+                .placeholder("Technical design notes"),
+        );
+    }
+
+    // ========== Acceptance Criteria ==========
+    let acceptance_criteria_value = issue
+        .as_ref()
+        .and_then(|i| i.acceptance_criteria.as_ref())
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    if is_readonly {
+        let display_value = if acceptance_criteria_value.is_empty() {
+            "No acceptance criteria"
+        } else {
+            acceptance_criteria_value
+        };
+        fields.push(FormField::read_only("acceptance_criteria", "Accept Criteria", display_value));
+    } else {
+        fields.push(
+            FormField::text_area("acceptance_criteria", "Accept Criteria")
+                .value(acceptance_criteria_value)
+                .placeholder("Acceptance criteria"),
+        );
+    }
+
+    // ========== Parent ID ==========
+    let parent_id_value = issue
+        .as_ref()
+        .and_then(|i| i.parent_id.as_ref())
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    let display_value = if parent_id_value.is_empty() {
+        "No parent"
+    } else {
+        parent_id_value
+    };
+    fields.push(FormField::read_only("parent_id", "Parent ID", display_value));
+
+    // ========== Children IDs ==========
+    if let Some(issue) = issue {
+        if !issue.children_ids.is_empty() {
+            let children_str = issue.children_ids.join(", ");
+            fields.push(FormField::read_only("children_ids", "Children", &children_str));
+        }
+    }
+
+    // ========== Event IDs ==========
+    if let Some(issue) = issue {
+        if !issue.event_ids.is_empty() {
+            let events_str = issue.event_ids.join(", ");
+            fields.push(FormField::read_only("event_ids", "Events", &events_str));
+        }
+    }
+
+    // ========== Discovered IDs ==========
+    if let Some(issue) = issue {
+        if !issue.discovered_ids.is_empty() {
+            let discovered_str = issue.discovered_ids.join(", ");
+            fields.push(FormField::read_only("discovered_ids", "Discovered", &discovered_str));
+        }
+    }
+
     // ========== Dependencies (Read-only) ==========
     if let Some(issue) = issue {
         if !issue.dependencies.is_empty() {
@@ -460,37 +671,39 @@ pub fn build_issue_form_with_sections(mode: IssueFormMode, issue: Option<&Issue>
 
     // Dependencies
     if let Some(issue) = issue {
-        if !issue.dependencies.is_empty() {
-            let deps_str = issue.dependencies.join(", ");
-            fields.push(FormField::read_only("dependencies", "Depends On", &deps_str));
-        }
+        let deps_str = if issue.dependencies.is_empty() {
+            "(none)".to_string()
+        } else {
+            issue.dependencies.join(", ")
+        };
+        fields.push(FormField::read_only("dependencies", "Depends On", &deps_str));
     }
 
     // Blocks
     if let Some(issue) = issue {
-        if !issue.blocks.is_empty() {
-            let blocks_str = issue.blocks.join(", ");
-            fields.push(FormField::read_only("blocks", "Blocks", &blocks_str));
-        }
+        let blocks_str = if issue.blocks.is_empty() {
+            "(none)".to_string()
+        } else {
+            issue.blocks.join(", ")
+        };
+        fields.push(FormField::read_only("blocks", "Blocks", &blocks_str));
     }
 
     // ========================================
-    // SECTION 4: METADATA (Read mode only)
+    // SECTION 4: METADATA
     // ========================================
-    if mode == IssueFormMode::Read {
-        if let Some(issue) = issue {
-            fields.push(FormField::section_header("section_metadata", "[METADATA]"));
+    if let Some(issue) = issue {
+        fields.push(FormField::section_header("section_metadata", "[METADATA]"));
 
-            let created_str = issue.created.format("%Y-%m-%d %H:%M").to_string();
-            fields.push(FormField::read_only("created", "Created", &created_str));
+        let created_str = issue.created.format("%Y-%m-%d %H:%M").to_string();
+        fields.push(FormField::read_only("created", "Created", &created_str));
 
-            let updated_str = issue.updated.format("%Y-%m-%d %H:%M").to_string();
-            fields.push(FormField::read_only("updated", "Updated", &updated_str));
+        let updated_str = issue.updated.format("%Y-%m-%d %H:%M").to_string();
+        fields.push(FormField::read_only("updated", "Updated", &updated_str));
 
-            if let Some(closed) = issue.closed {
-                let closed_str = closed.format("%Y-%m-%d %H:%M").to_string();
-                fields.push(FormField::read_only("closed", "Closed", &closed_str));
-            }
+        if let Some(closed) = issue.closed {
+            let closed_str = closed.format("%Y-%m-%d %H:%M").to_string();
+            fields.push(FormField::read_only("closed", "Closed", &closed_str));
         }
     }
 
