@@ -3944,15 +3944,15 @@ fn get_contextual_actions(app: &models::AppState) -> (String, Vec<String>) {
                     ]
                 }
                 _ => {
-                    // For Create/Edit modes
+                    // For Create/Edit modes - Record Detail Form actions
                     vec![
-                        "Tab:Mv".to_string(),
-                        "↵:Save".to_string(),
-                        "^L:Load".to_string(),
-                        "^P:Prev".to_string(),
-                        "Esc:Cnl".to_string(),
-                        "".to_string(),
-                        "".to_string(),
+                        "^S:Save".to_string(),
+                        "^X:Cancel".to_string(),
+                        "^Del:Delete".to_string(),
+                        "^J:JSON".to_string(),
+                        "^P:Export".to_string(),
+                        "Esc:Close".to_string(),
+                        "Tab:Move".to_string(),
                     ]
                 }
             }
