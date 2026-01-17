@@ -527,7 +527,7 @@ impl StatefulWidget for IssueEditorView {
     type State = IssueEditorState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        use crate::ui::widgets::form::Form;
+        use crate::ui::widgets::CompactForm;
         use ratatui::widgets::BorderType;
 
         // Create a block with double borders to match the Split View Selected Record container
@@ -536,8 +536,8 @@ impl StatefulWidget for IssueEditorView {
             .border_type(BorderType::Double)
             .title("Selected Record Display");
 
-        // Delegate to the Form widget with custom block
-        let form = Form::default().block(block);
+        // Delegate to the CompactForm widget with custom block
+        let form = CompactForm::default().block(block);
         StatefulWidget::render(form, area, buf, state.form_state_mut());
     }
 }

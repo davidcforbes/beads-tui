@@ -4,6 +4,7 @@ pub mod autocomplete;
 pub mod bulk_action_menu;
 pub mod checkbox_list;
 pub mod column_manager;
+pub mod compact_form;
 pub mod date_picker;
 pub mod dependency_dialog;
 pub mod dialog;
@@ -39,6 +40,7 @@ pub use autocomplete::{Autocomplete, AutocompleteState};
 pub use bulk_action_menu::{BulkAction, BulkActionMenu, BulkActionMenuState};
 pub use checkbox_list::{CheckboxList, CheckboxListState};
 pub use column_manager::{ColumnManager, ColumnManagerAction, ColumnManagerState};
+pub use compact_form::CompactForm;
 pub use date_picker::{DateRange, DateRangePicker, DateRangePickerState, DateRangePreset};
 pub use dependency_dialog::{
     DependencyDialog, DependencyDialogFocus, DependencyDialogState, DependencyType,
@@ -53,7 +55,7 @@ pub use filter_builder::{FilterBuilder, FilterBuilderState, FilterSection};
 pub use filter_panel::{FilterCriteria, FilterPanel};
 pub use filter_quick_select::{FilterQuickSelectMenu, FilterQuickSelectState};
 pub use filter_save_dialog::{FilterSaveDialog, FilterSaveDialogState, FilterSaveField};
-pub use form::{FieldType, Form, FormField, FormState, ValidationRule};
+pub use form::{FieldType, Form, FormField, FormState, LayoutHint, ValidationRule};
 pub use gantt_chart::{GanttChart, GanttChartConfig, GroupingMode};
 pub use help_overlay::{HelpOverlay, HelpOverlayPosition, KeyBinding};
 pub use inline_metadata::{

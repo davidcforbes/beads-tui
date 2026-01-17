@@ -8,6 +8,20 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
 };
 
+/// Layout hint for form field positioning
+#[derive(Debug, Clone, PartialEq)]
+pub enum LayoutHint {
+    /// Field takes full width (default for vertical layout)
+    FullWidth,
+    /// Field is part of a horizontal group
+    HorizontalGroup {
+        /// Group identifier (fields with same group_id render on same row)
+        group_id: String,
+        /// Width constraint for this field within the group
+        width: Constraint,
+    },
+}
+
 /// Validation rules for form fields
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValidationRule {
@@ -77,6 +91,8 @@ pub struct FormField {
     pub loaded_from_file: Option<String>,
     /// Is field hidden
     pub hidden: bool,
+    /// Layout hint for positioning
+    pub layout_hint: Option<LayoutHint>,
 }
 
 impl FormField {
@@ -95,6 +111,7 @@ impl FormField {
             validation_rules: Vec::new(),
             loaded_from_file: None,
             hidden: false,
+            layout_hint: None,
         }
     }
 
@@ -113,6 +130,7 @@ impl FormField {
             validation_rules: Vec::new(),
             loaded_from_file: None,
             hidden: false,
+            layout_hint: None,
         }
     }
 
@@ -131,6 +149,7 @@ impl FormField {
             validation_rules: Vec::new(),
             loaded_from_file: None,
             hidden: false,
+            layout_hint: None,
         }
     }
 
@@ -149,6 +168,7 @@ impl FormField {
             validation_rules: Vec::new(),
             loaded_from_file: None,
             hidden: false,
+            layout_hint: None,
         }
     }
 
@@ -167,6 +187,7 @@ impl FormField {
             validation_rules: Vec::new(),
             loaded_from_file: None,
             hidden: false,
+            layout_hint: None,
         }
     }
 
@@ -185,6 +206,7 @@ impl FormField {
             validation_rules: Vec::new(),
             loaded_from_file: None,
             hidden: false,
+            layout_hint: None,
         }
     }
 
@@ -203,6 +225,7 @@ impl FormField {
             validation_rules: Vec::new(),
             loaded_from_file: None,
             hidden: false,
+            layout_hint: None,
         }
     }
 
@@ -221,6 +244,7 @@ impl FormField {
             validation_rules: Vec::new(),
             loaded_from_file: None,
             hidden: false,
+            layout_hint: None,
         }
     }
 
@@ -257,6 +281,21 @@ impl FormField {
     /// Add a validation rule
     pub fn with_validation(mut self, rule: ValidationRule) -> Self {
         self.validation_rules.push(rule);
+        self
+    }
+
+    /// Mark field as part of a horizontal group with specified width
+    pub fn in_horizontal_group(mut self, group_id: &str, width: Constraint) -> Self {
+        self.layout_hint = Some(LayoutHint::HorizontalGroup {
+            group_id: group_id.to_string(),
+            width,
+        });
+        self
+    }
+
+    /// Mark field as full-width (default)
+    pub fn full_width(mut self) -> Self {
+        self.layout_hint = Some(LayoutHint::FullWidth);
         self
     }
 
@@ -919,6 +958,82 @@ impl FormState {
     /// Set the scroll offset
     pub fn set_scroll_offset(&mut self, offset: usize) {
         self.scroll_offset = offset;
+    }
+
+    /// Find the next field in the same horizontal group (for right arrow navigation)
+    /// Returns None if not in a horizontal group or if at the end of the group
+    pub fn find_next_in_horizontal_group(&self) -> Option<usize> {
+        let current_field = self.focused_field()?;
+
+        if let Some(LayoutHint::HorizontalGroup { group_id, .. }) = &current_field.layout_hint {
+            // Find next field with the same group_id
+            for i in (self.focused_index + 1)..self.fields.len() {
+                if self.fields[i].hidden {
+                    continue;
+                }
+
+                if let Some(LayoutHint::HorizontalGroup { group_id: next_group_id, .. }) = &self.fields[i].layout_hint {
+                    if next_group_id == group_id {
+                        return Some(i);
+                    }
+                }
+                // If we hit a different group or full-width field, we're at the end of this group
+                break;
+            }
+        }
+
+        None
+    }
+
+    /// Find the previous field in the same horizontal group (for left arrow navigation)
+    /// Returns None if not in a horizontal group or if at the start of the group
+    pub fn find_prev_in_horizontal_group(&self) -> Option<usize> {
+        let current_field = self.focused_field()?;
+
+        if let Some(LayoutHint::HorizontalGroup { group_id, .. }) = &current_field.layout_hint {
+            // Find previous field with the same group_id
+            for i in (0..self.focused_index).rev() {
+                if self.fields[i].hidden {
+                    continue;
+                }
+
+                if let Some(LayoutHint::HorizontalGroup { group_id: prev_group_id, .. }) = &self.fields[i].layout_hint {
+                    if prev_group_id == group_id {
+                        return Some(i);
+                    }
+                }
+                // If we hit a different group or full-width field, we're at the start of this group
+                break;
+            }
+        }
+
+        None
+    }
+
+    /// Move to the next field within the same horizontal group (right arrow)
+    /// Returns true if moved, false if not in a group or at the end
+    pub fn move_right_in_group(&mut self) -> bool {
+        if let Some(next_idx) = self.find_next_in_horizontal_group() {
+            self.focused_index = next_idx;
+            self.cursor_position = 0;
+            self.ensure_focused_visible();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Move to the previous field within the same horizontal group (left arrow)
+    /// Returns true if moved, false if not in a group or at the start
+    pub fn move_left_in_group(&mut self) -> bool {
+        if let Some(prev_idx) = self.find_prev_in_horizontal_group() {
+            self.focused_index = prev_idx;
+            self.cursor_position = 0;
+            self.ensure_focused_visible();
+            true
+        } else {
+            false
+        }
     }
 }
 
