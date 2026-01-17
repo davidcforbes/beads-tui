@@ -1305,65 +1305,6 @@ impl KanbanView {
         Some(widths)
     }
 
-    /// Render the filter row showing active filters
-    fn render_filter_row(area: Rect, buf: &mut Buffer, state: &KanbanViewState) {
-        let filters = &state.config.filters;
-        let mut spans = vec![Span::styled(
-            "Filters: ",
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )];
-
-        let mut filter_parts = Vec::new();
-
-        if let Some(query) = &filters.search_query {
-            filter_parts.push(format!("\"{}\"", query));
-        }
-
-        if !filters.labels.is_empty() {
-            filter_parts.push(format!("labels:{}", filters.labels.join(",")));
-        }
-
-        if !filters.assignees.is_empty() {
-            filter_parts.push(format!("assignees:{}", filters.assignees.join(",")));
-        }
-
-        if !filters.statuses.is_empty() {
-            filter_parts.push(format!("status:{}", filters.statuses.join(",")));
-        }
-
-        if filter_parts.is_empty() {
-            spans.push(Span::raw("(none)"));
-        } else {
-            for (i, part) in filter_parts.iter().enumerate() {
-                if i > 0 {
-                    spans.push(Span::raw(" | "));
-                }
-                spans.push(Span::styled(part, Style::default().fg(Color::Cyan)));
-            }
-        }
-
-        spans.push(Span::raw(" "));
-        spans.push(Span::styled(
-            "(Press 'f' to edit, Shift+F to clear)",
-            Style::default().fg(Color::DarkGray),
-        ));
-
-        // Clear the area with a solid background
-        for y in area.y..area.y + area.height {
-            for x in area.x..area.x + area.width {
-                if x < buf.area.right() && y < buf.area.bottom() {
-                    buf.get_mut(x, y).set_style(Style::default().bg(Color::Black));
-                }
-            }
-        }
-
-        let line = Line::from(spans);
-        let paragraph = Paragraph::new(line).style(Style::default().bg(Color::Black));
-        paragraph.render(area, buf);
-    }
-
     /// Render the column manager overlay
     fn render_column_manager(area: Rect, buf: &mut Buffer, state: &KanbanViewState) {
         // Calculate centered overlay area (60% width, 80% height)
