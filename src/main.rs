@@ -272,28 +272,46 @@ fn handle_screen_capture<B: ratatui::backend::Backend>(
 }
 
 /// Handle mouse click events (after detecting down+up at same position)
-fn handle_mouse_click(col: u16, row: u16, terminal_width: u16, app: &mut models::AppState) {
+fn handle_mouse_click(col: u16, row: u16, _terminal_width: u16, app: &mut models::AppState) {
     // Hit test for tabs (row 4 is the tab content row)
     // Layout: Row 0-2: Title, Row 3: Top border, Row 4: Tab content, Row 5: Bottom border
     if row == 4 {
         // Calculate which tab was clicked based on column
-        // Tabs are rendered in a block with borders, so subtract 1 for left border
-        // The Tabs widget divides the available width equally among all tabs
-        let inner_width = terminal_width.saturating_sub(2); // Account for left and right borders
-        let tab_count = app.tabs.len() as u16;
-        let tab_width = inner_width / tab_count;
+        // Tabs are rendered sequentially with their actual text width, not evenly divided
+        // Each tab has format: " {shortcut}:{name}" and tabs are separated by " │ " divider (3 chars)
 
-        // Adjust column for left border
+        // Adjust column for left border (block border is 1 char)
         if col > 0 {
             let adjusted_col = col - 1;
-            let clicked_tab = (adjusted_col / tab_width) as usize;
 
-            if clicked_tab < app.tabs.len() {
-                tracing::info!("Tab {} clicked at col {} (adjusted {}): {}",
-                    clicked_tab, col, adjusted_col, app.tabs[clicked_tab]);
-                app.selected_tab = clicked_tab;
-                app.mark_dirty();
-                return;
+            // Calculate cumulative tab positions
+            // Tab format: " 1:Issues", " 2:Split", etc.
+            let divider_width = 3u16; // " │ " between tabs
+            let mut current_pos = 0u16;
+
+            for (i, &name) in app.tabs.iter().enumerate() {
+                // Calculate tab text width including shortcut
+                let shortcut = match i {
+                    0..=8 => format!("{}:", i + 1),  // 1-9
+                    9 => "0:".to_string(),            // 0 for Utilities
+                    10 => "H:".to_string(),           // H for Help
+                    _ => "".to_string(),
+                };
+                let tab_text = format!(" {}{}", shortcut, name);
+                let tab_width = tab_text.len() as u16;
+
+                // Check if click is within this tab's range
+                let tab_end = current_pos + tab_width;
+                if adjusted_col >= current_pos && adjusted_col < tab_end {
+                    tracing::info!("Tab {} clicked at col {} (adjusted {}): range {}-{} '{}'",
+                        i, col, adjusted_col, current_pos, tab_end, app.tabs[i]);
+                    app.selected_tab = i;
+                    app.mark_dirty();
+                    return;
+                }
+
+                // Move to next tab position (tab width + divider)
+                current_pos = tab_end + divider_width;
             }
         }
     }
@@ -3224,7 +3242,12 @@ fn run_app<B: ratatui::backend::Backend>(
                         app.mark_dirty();
                         continue;
                     }
-                    // No direct shortcut for Help tab; use Tab/Shift+Tab to reach it.
+                    KeyCode::Char('h') => {
+                        app.selected_tab = 10;
+                        app.tts_manager.announce("Help tab");
+                        app.mark_dirty();
+                        continue;
+                    }
                     _ => {}
                 }
 
@@ -3446,7 +3469,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             let shortcut = match i {
                 0..=8 => format!("{}:", i + 1),  // 1-9
                 9 => "0:".to_string(),            // 0 for Utilities
-                10 => "".to_string(),            // Help tab uses Tab/Shift+Tab for navigation
+                10 => "H:".to_string(),           // H for Help
                 _ => "".to_string(),
             };
             Line::from(format!(" {}{}", shortcut, name))
