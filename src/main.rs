@@ -2753,6 +2753,8 @@ fn run_app<B: ratatui::backend::Backend>(
 
                 // Check for F12 screen capture
                 if key.code == KeyCode::F(12) {
+                    // Force a redraw to ensure buffer is up-to-date
+                    terminal.draw(|f| ui(f, app))?;
                     handle_screen_capture(terminal, app);
                     continue;
                 }
