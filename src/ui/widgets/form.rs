@@ -33,6 +33,8 @@ pub enum ValidationRule {
     PositiveInteger,
     /// Value must match beads ID format (beads-xxx-xxxx)
     BeadsIdFormat,
+    /// Value must be newline-separated beads IDs
+    BeadsIdListFormat,
     /// Value must not contain spaces
     NoSpaces,
     /// Value must be a valid date (RFC3339 or relative)
@@ -365,6 +367,31 @@ impl FormField {
                     } else {
                         Some(format!("{label} must match format: beads-xxxx-xxxx"))
                     }
+                } else {
+                    None
+                }
+            }
+            ValidationRule::BeadsIdListFormat => {
+                if !value.is_empty() {
+                    for line in value.lines() {
+                        let trimmed = line.trim();
+                        if !trimmed.is_empty() {
+                            let parts: Vec<&str> = trimmed.split('-').collect();
+                            if !(parts.len() == 3
+                                && parts[0] == "beads"
+                                && parts[1].len() == 4
+                                && parts[2].len() == 4
+                                && parts[1].chars().all(|c| c.is_alphanumeric())
+                                && parts[2].chars().all(|c| c.is_alphanumeric()))
+                            {
+                                return Some(format!(
+                                    "{label} contains invalid ID '{}'. Expected format: beads-xxxx-xxxx",
+                                    trimmed
+                                ));
+                            }
+                        }
+                    }
+                    None
                 } else {
                     None
                 }

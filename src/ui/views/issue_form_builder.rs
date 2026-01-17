@@ -950,7 +950,9 @@ fn add_text_section_fields(fields: &mut Vec<FormField>, issue: Option<&Issue>, i
 }
 
 /// Helper function to add relationship section fields (parent, children, blocks, events, discovered)
-fn add_relationship_fields(fields: &mut Vec<FormField>, issue: Option<&Issue>) {
+fn add_relationship_fields(fields: &mut Vec<FormField>, issue: Option<&Issue>, mode: IssueFormMode) {
+    let is_readonly = mode == IssueFormMode::Read;
+    let is_edit = mode == IssueFormMode::Edit;
     // ========================================
     // SECTION: Parent Section
     // ========================================
@@ -961,12 +963,22 @@ fn add_relationship_fields(fields: &mut Vec<FormField>, issue: Option<&Issue>) {
         .and_then(|i| i.parent_id.as_ref())
         .map_or("", String::as_str);
 
-    let display_value = if parent_id_value.is_empty() {
-        "No parent"
-    } else {
-        parent_id_value
-    };
-    fields.push(FormField::read_only("parent_id", "PARENT-ID#", display_value));
+    if is_readonly {
+        let display_value = if parent_id_value.is_empty() {
+            "No parent"
+        } else {
+            parent_id_value
+        };
+        fields.push(FormField::read_only("parent_id", "PARENT-ID#", display_value));
+    } else if is_edit {
+        fields.push(
+            FormField::text("parent_id", "PARENT-ID#")
+                .value(parent_id_value)
+                .placeholder("Enter parent issue ID")
+                .help_text("Parent issue ID (format: beads-xxxx-xxxx)")
+                .with_validation(ValidationRule::BeadsIdFormat)
+        );
+    }
 
     // ========================================
     // SECTION: Children Section
@@ -974,16 +986,32 @@ fn add_relationship_fields(fields: &mut Vec<FormField>, issue: Option<&Issue>) {
     fields.push(FormField::section_header("section_children", "(Children Section)"));
 
     if let Some(issue) = issue {
-        if issue.children_ids.is_empty() {
-            fields.push(FormField::read_only("children", "ADD-CHILD", "No children"));
-        } else {
-            for (idx, child_id) in issue.children_ids.iter().enumerate() {
-                fields.push(FormField::read_only(
-                    &format!("child_{idx}"),
-                    &format!("C#{}-ID", idx + 1),
-                    child_id
-                ));
+        if is_readonly || !is_edit {
+            if issue.children_ids.is_empty() {
+                fields.push(FormField::read_only("children_ids", "ADD-CHILD", "No children"));
+            } else {
+                for (idx, child_id) in issue.children_ids.iter().enumerate() {
+                    fields.push(FormField::read_only(
+                        &format!("child_{idx}"),
+                        &format!("C#{}-ID", idx + 1),
+                        child_id
+                    ));
+                }
             }
+        } else {
+            let children_value = if issue.children_ids.is_empty() {
+                String::new()
+            } else {
+                issue.children_ids.join("\n")
+            };
+
+            fields.push(
+                FormField::text_area("children_ids", "ADD-CHILD")
+                    .value(&children_value)
+                    .placeholder("Enter child issue IDs (one per line)\nExample: beads-1234-5678")
+                    .help_text("List of child issue IDs. Format: beads-xxxx-xxxx (one per line)")
+                    .with_validation(ValidationRule::BeadsIdListFormat)
+            );
         }
     }
 
@@ -993,16 +1021,32 @@ fn add_relationship_fields(fields: &mut Vec<FormField>, issue: Option<&Issue>) {
     fields.push(FormField::section_header("section_blocks", "(Block Section)"));
 
     if let Some(issue) = issue {
-        if issue.blocks.is_empty() {
-            fields.push(FormField::read_only("blocks", "ADD-BLOCK", "No blocks"));
-        } else {
-            for (idx, block_id) in issue.blocks.iter().enumerate() {
-                fields.push(FormField::read_only(
-                    &format!("block_{idx}"),
-                    &format!("B#{}-ID", idx + 1),
-                    block_id
-                ));
+        if is_readonly || !is_edit {
+            if issue.blocks.is_empty() {
+                fields.push(FormField::read_only("blocks", "ADD-BLOCK", "No blocks"));
+            } else {
+                for (idx, block_id) in issue.blocks.iter().enumerate() {
+                    fields.push(FormField::read_only(
+                        &format!("block_{idx}"),
+                        &format!("B#{}-ID", idx + 1),
+                        block_id
+                    ));
+                }
             }
+        } else {
+            let blocks_value = if issue.blocks.is_empty() {
+                String::new()
+            } else {
+                issue.blocks.join("\n")
+            };
+
+            fields.push(
+                FormField::text_area("blocks", "ADD-BLOCK")
+                    .value(&blocks_value)
+                    .placeholder("Enter issue IDs that this blocks (one per line)\nExample: beads-1234-5678")
+                    .help_text("List of issue IDs that this issue blocks. Format: beads-xxxx-xxxx (one per line)")
+                    .with_validation(ValidationRule::BeadsIdListFormat)
+            );
         }
     }
 
@@ -1012,16 +1056,32 @@ fn add_relationship_fields(fields: &mut Vec<FormField>, issue: Option<&Issue>) {
     fields.push(FormField::section_header("section_events", "(Event Section)"));
 
     if let Some(issue) = issue {
-        if issue.event_ids.is_empty() {
-            fields.push(FormField::read_only("events", "ADD-EVENT", "No events"));
-        } else {
-            for (idx, event_id) in issue.event_ids.iter().enumerate() {
-                fields.push(FormField::read_only(
-                    &format!("event_{idx}"),
-                    &format!("E#{}-ID", idx + 1),
-                    event_id
-                ));
+        if is_readonly || !is_edit {
+            if issue.event_ids.is_empty() {
+                fields.push(FormField::read_only("event_ids", "ADD-EVENT", "No events"));
+            } else {
+                for (idx, event_id) in issue.event_ids.iter().enumerate() {
+                    fields.push(FormField::read_only(
+                        &format!("event_{idx}"),
+                        &format!("E#{}-ID", idx + 1),
+                        event_id
+                    ));
+                }
             }
+        } else {
+            let events_value = if issue.event_ids.is_empty() {
+                String::new()
+            } else {
+                issue.event_ids.join("\n")
+            };
+
+            fields.push(
+                FormField::text_area("event_ids", "ADD-EVENT")
+                    .value(&events_value)
+                    .placeholder("Enter event issue IDs (one per line)\nExample: beads-1234-5678")
+                    .help_text("List of event issue IDs. Format: beads-xxxx-xxxx (one per line)")
+                    .with_validation(ValidationRule::BeadsIdListFormat)
+            );
         }
     }
 
@@ -1031,16 +1091,32 @@ fn add_relationship_fields(fields: &mut Vec<FormField>, issue: Option<&Issue>) {
     fields.push(FormField::section_header("section_dependencies", "(Dependencies Section)"));
 
     if let Some(issue) = issue {
-        if issue.dependencies.is_empty() {
-            fields.push(FormField::read_only("dependencies", "DEPENDS-ON", "No dependencies"));
-        } else {
-            for (idx, dep_id) in issue.dependencies.iter().enumerate() {
-                fields.push(FormField::read_only(
-                    &format!("dependency_{idx}"),
-                    &format!("DEP#{}-ID", idx + 1),
-                    dep_id
-                ));
+        if is_readonly || !is_edit {
+            if issue.dependencies.is_empty() {
+                fields.push(FormField::read_only("dependencies", "DEPENDS-ON", "No dependencies"));
+            } else {
+                for (idx, dep_id) in issue.dependencies.iter().enumerate() {
+                    fields.push(FormField::read_only(
+                        &format!("dependency_{idx}"),
+                        &format!("DEP#{}-ID", idx + 1),
+                        dep_id
+                    ));
+                }
             }
+        } else {
+            let deps_value = if issue.dependencies.is_empty() {
+                String::new()
+            } else {
+                issue.dependencies.join("\n")
+            };
+
+            fields.push(
+                FormField::text_area("dependencies", "DEPENDS-ON")
+                    .value(&deps_value)
+                    .placeholder("Enter issue IDs this depends on (one per line)\nExample: beads-1234-5678")
+                    .help_text("List of issue IDs this issue depends on. Format: beads-xxxx-xxxx (one per line)")
+                    .with_validation(ValidationRule::BeadsIdListFormat)
+            );
         }
     }
 
@@ -1050,16 +1126,32 @@ fn add_relationship_fields(fields: &mut Vec<FormField>, issue: Option<&Issue>) {
     fields.push(FormField::section_header("section_discovered", "(Discovered Section)"));
 
     if let Some(issue) = issue {
-        if issue.discovered_ids.is_empty() {
-            fields.push(FormField::read_only("discovered", "ADD-DISCOVERY", "No discovered items"));
-        } else {
-            for (idx, discovered_id) in issue.discovered_ids.iter().enumerate() {
-                fields.push(FormField::read_only(
-                    &format!("discovered_{idx}"),
-                    &format!("D#{}-ID", idx + 1),
-                    discovered_id
-                ));
+        if is_readonly || !is_edit {
+            if issue.discovered_ids.is_empty() {
+                fields.push(FormField::read_only("discovered_ids", "ADD-DISCOVERY", "No discovered items"));
+            } else {
+                for (idx, discovered_id) in issue.discovered_ids.iter().enumerate() {
+                    fields.push(FormField::read_only(
+                        &format!("discovered_{idx}"),
+                        &format!("D#{}-ID", idx + 1),
+                        discovered_id
+                    ));
+                }
             }
+        } else {
+            let discovered_value = if issue.discovered_ids.is_empty() {
+                String::new()
+            } else {
+                issue.discovered_ids.join("\n")
+            };
+
+            fields.push(
+                FormField::text_area("discovered_ids", "ADD-DISCOVERY")
+                    .value(&discovered_value)
+                    .placeholder("Enter discovered issue IDs (one per line)\nExample: beads-1234-5678")
+                    .help_text("List of discovered issue IDs. Format: beads-xxxx-xxxx (one per line)")
+                    .with_validation(ValidationRule::BeadsIdListFormat)
+            );
         }
     }
 }
@@ -1088,7 +1180,7 @@ pub fn build_issue_form_with_sections(mode: IssueFormMode, issue: Option<&Issue>
     add_header_fields(&mut fields, issue, is_readonly);
     add_label_flags_fields(&mut fields, issue, is_readonly);
     add_text_section_fields(&mut fields, issue, is_readonly);
-    add_relationship_fields(&mut fields, issue);
+    add_relationship_fields(&mut fields, issue, mode);
 
     // ========================================
     // SECTION: Record Actions Section

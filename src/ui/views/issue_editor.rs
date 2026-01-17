@@ -100,7 +100,7 @@ impl IssueEditorState {
             let section = match field_id.as_str() {
                 "id" | "created" | "updated" | "closed" => Section::Metadata,
                 "title" | "status" | "priority" | "type" | "assignee" => Section::Summary,
-                "dependencies" | "blocks" | "parent_id" => Section::Relationships,
+                "dependencies" | "blocks" | "parent_id" | "children_ids" | "event_ids" | "discovered_ids" => Section::Relationships,
                 "labels" => Section::Labels,
                 "description" => Section::Text,
                 _ if field_id.starts_with("dependency_")
@@ -392,8 +392,61 @@ impl IssueEditorState {
                         .collect();
                     update = update.labels(labels);
                 }
+                "dependencies" => {
+                    let deps: Vec<String> = change
+                        .new_value
+                        .lines()
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    update = update.dependencies(deps);
+                }
+                "blocks" => {
+                    let blocks: Vec<String> = change
+                        .new_value
+                        .lines()
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    update = update.blocks(blocks);
+                }
+                "parent_id" => {
+                    let parent = if change.new_value.trim().is_empty() {
+                        None
+                    } else {
+                        Some(change.new_value.trim().to_string())
+                    };
+                    update = update.parent_id(parent);
+                }
+                "children_ids" => {
+                    let children: Vec<String> = change
+                        .new_value
+                        .lines()
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    update = update.children_ids(children);
+                }
+                "event_ids" => {
+                    let events: Vec<String> = change
+                        .new_value
+                        .lines()
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    update = update.event_ids(events);
+                }
+                "discovered_ids" => {
+                    let discovered: Vec<String> = change
+                        .new_value
+                        .lines()
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    update = update.discovered_ids(discovered);
+                }
                 _ => {
-                    // dependencies and blocks are not supported in IssueUpdate yet
+                    // Other fields not handled
                 }
             }
         }

@@ -407,6 +407,12 @@ pub struct IssueUpdate {
     pub assignee: Option<String>,
     pub labels: Option<Vec<String>>,
     pub description: Option<String>,
+    pub dependencies: Option<Vec<String>>,
+    pub blocks: Option<Vec<String>>,
+    pub parent_id: Option<Option<String>>,
+    pub children_ids: Option<Vec<String>>,
+    pub event_ids: Option<Vec<String>>,
+    pub discovered_ids: Option<Vec<String>>,
 }
 
 impl IssueUpdate {
@@ -446,6 +452,36 @@ impl IssueUpdate {
 
     pub fn description(mut self, description: String) -> Self {
         self.description = Some(description);
+        self
+    }
+
+    pub fn dependencies(mut self, dependencies: Vec<String>) -> Self {
+        self.dependencies = Some(dependencies);
+        self
+    }
+
+    pub fn blocks(mut self, blocks: Vec<String>) -> Self {
+        self.blocks = Some(blocks);
+        self
+    }
+
+    pub fn parent_id(mut self, parent_id: Option<String>) -> Self {
+        self.parent_id = Some(parent_id);
+        self
+    }
+
+    pub fn children_ids(mut self, children_ids: Vec<String>) -> Self {
+        self.children_ids = Some(children_ids);
+        self
+    }
+
+    pub fn event_ids(mut self, event_ids: Vec<String>) -> Self {
+        self.event_ids = Some(event_ids);
+        self
+    }
+
+    pub fn discovered_ids(mut self, discovered_ids: Vec<String>) -> Self {
+        self.discovered_ids = Some(discovered_ids);
         self
     }
 }
