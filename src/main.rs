@@ -3151,7 +3151,7 @@ fn run_app<B: ratatui::backend::Backend>(
                         app.should_quit = true;
                         continue;
                     }
-                    KeyCode::Char('N') => {
+                    KeyCode::Char('H') => {
                         app.toggle_notification_history();
                         continue;
                     }
@@ -3224,12 +3224,7 @@ fn run_app<B: ratatui::backend::Backend>(
                         app.mark_dirty();
                         continue;
                     }
-                    KeyCode::Char('H') | KeyCode::Char('h') => {
-                        app.selected_tab = 10;
-                        app.tts_manager.announce("Help tab");
-                        app.mark_dirty();
-                        continue;
-                    }
+                    // No direct shortcut for Help tab; use Tab/Shift+Tab to reach it.
                     _ => {}
                 }
 
@@ -3451,7 +3446,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             let shortcut = match i {
                 0..=8 => format!("{}:", i + 1),  // 1-9
                 9 => "0:".to_string(),            // 0 for Utilities
-                10 => "H:".to_string(),           // H for Help
+                10 => "".to_string(),            // Help tab uses Tab/Shift+Tab for navigation
                 _ => "".to_string(),
             };
             Line::from(format!(" {}{}", shortcut, name))
