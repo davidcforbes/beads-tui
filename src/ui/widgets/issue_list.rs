@@ -4,7 +4,7 @@ use crate::beads::models::Issue;
 use crate::models::table_config::{ColumnDefinition, TableConfig};
 use ratatui::{
     buffer::Buffer,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{
