@@ -77,8 +77,6 @@ struct FieldRow {
     field_indices: Vec<usize>,
     /// Whether this is a horizontal group or single full-width field
     is_horizontal: bool,
-    /// Group ID if horizontal group
-    group_id: Option<String>,
 }
 
 impl CompactForm<'_> {
@@ -105,7 +103,6 @@ impl CompactForm<'_> {
                                 rows.push(FieldRow {
                                     field_indices: current_group_indices.clone(),
                                     is_horizontal: true,
-                                    group_id: current_group.clone(),
                                 });
                                 current_group_indices.clear();
                             }
@@ -124,7 +121,6 @@ impl CompactForm<'_> {
                         rows.push(FieldRow {
                             field_indices: current_group_indices.clone(),
                             is_horizontal: true,
-                            group_id: current_group.clone(),
                         });
                         current_group_indices.clear();
                         current_group = None;
@@ -133,7 +129,6 @@ impl CompactForm<'_> {
                     rows.push(FieldRow {
                         field_indices: vec![idx],
                         is_horizontal: false,
-                        group_id: None,
                     });
                 }
             }
@@ -144,7 +139,6 @@ impl CompactForm<'_> {
             rows.push(FieldRow {
                 field_indices: current_group_indices,
                 is_horizontal: true,
-                group_id: current_group,
             });
         }
 
