@@ -1026,6 +1026,25 @@ fn add_relationship_fields(fields: &mut Vec<FormField>, issue: Option<&Issue>) {
     }
 
     // ========================================
+    // SECTION: Dependencies Section
+    // ========================================
+    fields.push(FormField::section_header("section_dependencies", "(Dependencies Section)"));
+
+    if let Some(issue) = issue {
+        if issue.dependencies.is_empty() {
+            fields.push(FormField::read_only("dependencies", "DEPENDS-ON", "No dependencies"));
+        } else {
+            for (idx, dep_id) in issue.dependencies.iter().enumerate() {
+                fields.push(FormField::read_only(
+                    &format!("dependency_{idx}"),
+                    &format!("DEP#{}-ID", idx + 1),
+                    dep_id
+                ));
+            }
+        }
+    }
+
+    // ========================================
     // SECTION: Discovered Section
     // ========================================
     fields.push(FormField::section_header("section_discovered", "(Discovered Section)"));
@@ -1057,6 +1076,7 @@ fn add_relationship_fields(fields: &mut Vec<FormField>, issue: Option<&Issue>) {
 /// - Parent Section
 /// - Children Section
 /// - Block Section
+/// - Dependencies Section
 /// - Event Section
 /// - Discovered Section
 #[must_use]

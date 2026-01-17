@@ -2,43 +2,43 @@
 source: tests/integration/ui_snapshots.rs
 expression: rendered
 ---
-Showing all 3 issues  [Scope: All]                                                                                      
-┌Issues (3/3)──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ID           Title                             Status     Prio... Type    Assignee     Labels            Updated desc │
-│beads-100    Add state selector                Open       P1      Feature alex         ui, state:patrol  2026-01-02...│
-│beads-101    Fix label validation              InProgress P0      Bug     sam          bug, labels       2026-01-02...│
-│beads-102    Document workflow examples        Closed     P2      Task    -            docs              2026-01-02...│
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
+┌[FILTERS]─────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ S:Status [All.▼] │ T:Type [All.▼] │ P:Priority [All.▼] │ L:Labels [All.▼] │ C:Created [All.▼] │ U:Updated [All.▼] │ F│
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌ISSUES (3/3)──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ID              Title                                    Status       Priority Type     Assignee                      ↑
+│beads-100       Add state selector                       Open         P1       Feature  alex                          █
+│beads-101       Fix label validation                     InProgress   P0       Bug      sam                           █
+│beads-102       Document workflow examples               Closed       P2       Task     -                             █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      █
+│                                                                                                                      ║
+│                                                                                                                      ║
+│                                                                                                                      ↓
+└←██████████████████████████████████████████████████████████════════════════════════════════════════════════1 more ▶═→─┘

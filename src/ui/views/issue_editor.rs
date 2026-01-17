@@ -100,9 +100,14 @@ impl IssueEditorState {
             let section = match field_id.as_str() {
                 "id" | "created" | "updated" | "closed" => Section::Metadata,
                 "title" | "status" | "priority" | "type" | "assignee" => Section::Summary,
-                "dependencies" | "blocks" => Section::Relationships,
+                "dependencies" | "blocks" | "parent_id" => Section::Relationships,
                 "labels" => Section::Labels,
                 "description" => Section::Text,
+                _ if field_id.starts_with("dependency_")
+                    || field_id.starts_with("block_")
+                    || field_id.starts_with("child_")
+                    || field_id.starts_with("event_")
+                    || field_id.starts_with("discovered_") => Section::Relationships,
                 _ => Section::Metadata,
             };
 
@@ -557,7 +562,7 @@ mod tests {
             priority: Priority::P2,
             issue_type: IssueType::Task,
             assignee: Some("user1".to_string()),
-            dependencies: vec!["beads-dep1-0001".to_string()],
+            dependencies: vec![], // Empty to test placeholder field creation
             blocks: vec![],
             labels: vec!["label1".to_string(), "label2".to_string()],
             created: Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap(),
