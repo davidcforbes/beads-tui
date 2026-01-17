@@ -162,11 +162,76 @@ pub struct KanbanViewState {
     horizontal_scroll: usize,
     /// Columns that are collapsed (status grouping only)
     collapsed_columns: HashSet<ColumnId>,
+    /// Filter bar state (inline filter bar with dropdowns)
+    pub filter_bar_state: Option<crate::ui::widgets::FilterBarState>,
 }
 
 impl KanbanViewState {
     /// Create a new Kanban view state
     pub fn new(issues: Vec<Issue>) -> Self {
+        // Initialize filter bar with all available statuses, priorities, types, and labels
+        use crate::beads::models::{IssueStatus, IssueType, Priority};
+        use std::collections::HashSet;
+
+        let statuses = vec![
+            IssueStatus::Open,
+            IssueStatus::InProgress,
+            IssueStatus::Blocked,
+            IssueStatus::Closed,
+        ];
+
+        let priorities = vec![
+            Priority::P0,
+            Priority::P1,
+            Priority::P2,
+            Priority::P3,
+            Priority::P4,
+        ];
+
+        let types = vec![
+            IssueType::Bug,
+            IssueType::Feature,
+            IssueType::Task,
+            IssueType::Epic,
+            IssueType::Chore,
+        ];
+
+        // Collect unique labels from all issues
+        let mut labels_set: HashSet<String> = HashSet::new();
+        for issue in &issues {
+            for label in &issue.labels {
+                labels_set.insert(label.clone());
+            }
+        }
+        let mut labels: Vec<String> = labels_set.into_iter().collect();
+        labels.sort();
+
+        // Collect unique assignees from all issues
+        let mut assignees_set: HashSet<String> = HashSet::new();
+        for issue in &issues {
+            if let Some(ref assignee) = issue.assignee {
+                assignees_set.insert(assignee.clone());
+            }
+        }
+        let mut assignees: Vec<String> = assignees_set.into_iter().collect();
+        assignees.sort();
+
+        // Date filters (empty for now - can be populated based on issue dates)
+        let created_dates = Vec::new();
+        let updated_dates = Vec::new();
+        let closed_dates = Vec::new();
+
+        let filter_bar_state = crate::ui::widgets::FilterBarState::new(
+            statuses,
+            priorities,
+            types,
+            labels,
+            assignees,
+            created_dates,
+            updated_dates,
+            closed_dates,
+        );
+
         Self {
             config: KanbanConfig::default(),
             issues,
@@ -176,6 +241,7 @@ impl KanbanViewState {
             column_manager: ColumnManagerState::new(),
             horizontal_scroll: 0,
             collapsed_columns: HashSet::new(),
+            filter_bar_state: Some(filter_bar_state),
         }
     }
 
@@ -1015,7 +1081,28 @@ impl KanbanView {
     }
 
     /// Render the Kanban board with state
-    pub fn render_with_state(area: Rect, buf: &mut Buffer, state: &KanbanViewState) {
+    pub fn render_with_state(area: Rect, buf: &mut Buffer, state: &mut KanbanViewState) {
+        // Render filter bar if it exists and adjust content area accordingly
+        let (content_area, filter_bar_area) = if state.filter_bar_state.is_some() {
+            // Filter bar takes the top 3 rows, content starts below it
+            let filter_area = ratatui::layout::Rect {
+                x: area.x,
+                y: area.y,
+                width: area.width,
+                height: 3,
+            };
+            let content_area = ratatui::layout::Rect {
+                x: area.x,
+                y: area.y + 3,
+                width: area.width,
+                height: area.height.saturating_sub(3),
+            };
+            (content_area, Some(filter_area))
+        } else {
+            // No filter bar, content uses full area
+            (area, None)
+        };
+
         let visible_columns = state.visible_columns();
 
         if visible_columns.is_empty() {
@@ -1024,8 +1111,8 @@ impl KanbanView {
                 .title("Kanban Board")
                 .borders(Borders::ALL)
                 .style(Style::default().bg(Color::Black));
-            let inner = block.inner(area);
-            block.render(area, buf);
+            let inner = block.inner(content_area);
+            block.render(content_area, buf);
 
             // Clear the inner area with a solid background
             for y in inner.y..inner.y + inner.height {
@@ -1043,25 +1130,8 @@ impl KanbanView {
             return;
         }
 
-        // Split area into filter row and columns
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(if state.has_active_filters() { 2 } else { 0 }),
-                Constraint::Min(0),
-            ])
-            .split(area);
-
-        // Render filter row if filters are active
-        if state.has_active_filters() {
-            Self::render_filter_row(chunks[0], buf, state);
-        }
-
-        let columns_area = if state.has_active_filters() {
-            chunks[1]
-        } else {
-            area
-        };
+        // Use content_area for columns (filter bar is already allocated above)
+        let columns_area = content_area;
 
         let viewport_width = columns_area.width;
         let status_widths = Self::compute_status_column_widths(state, &visible_columns, viewport_width);
@@ -1150,7 +1220,36 @@ impl KanbanView {
 
         // Render column manager overlay on top if visible
         if state.is_column_manager_visible() {
-            Self::render_column_manager(area, buf, state);
+            Self::render_column_manager(content_area, buf, state);
+        }
+
+        // Render filter bar if it exists
+        if let Some(filter_area) = filter_bar_area {
+            if let Some(ref mut filter_bar_state) = state.filter_bar_state {
+                let theme = crate::ui::themes::Theme::default();
+
+                // Render the filter bar
+                let filter_bar = crate::ui::widgets::FilterBar::new(
+                    state.issues.len(), // filtered count (TODO: apply actual filtering)
+                    state.issues.len(), // total count
+                    &theme,
+                );
+                filter_bar.render(filter_area, buf, filter_bar_state);
+
+                // Render dropdown if one is active
+                if let Some(dropdown_type) = filter_bar_state.active_dropdown {
+                    // Dropdown uses the full area to position itself relative to filter bar
+                    let dropdown_area = ratatui::layout::Rect {
+                        x: area.x,
+                        y: area.y,
+                        width: area.width,
+                        height: area.height,
+                    };
+
+                    let dropdown = crate::ui::widgets::FilterDropdown::new(dropdown_type, &theme);
+                    dropdown.render(dropdown_area, buf, filter_bar_state);
+                }
+            }
         }
     }
 

@@ -3121,8 +3121,8 @@ fn run_app<B: ratatui::backend::Backend>(
                             app.status_selector_state.close();
                             continue;
                         }
-                        KeyCode::Char('q') | KeyCode::Char('?') => {
-                            // Let '?' and 'q' fall through to global handlers
+                        KeyCode::Char('q') | KeyCode::Char('H') | KeyCode::Char('h') => {
+                            // Let 'H', 'h' and 'q' fall through to global handlers
                         }
                         _ => {
                             continue;
@@ -3209,7 +3209,7 @@ fn run_app<B: ratatui::backend::Backend>(
                         app.mark_dirty();
                         continue;
                     }
-                    KeyCode::Char('?') => {
+                    KeyCode::Char('H') | KeyCode::Char('h') => {
                         app.selected_tab = 10;
                         app.tts_manager.announce("Help tab");
                         app.mark_dirty();
@@ -3399,15 +3399,15 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     let is_focused = search_state.search_state().is_focused();
 
     let search_display = if is_focused && query.is_empty() {
-        "Search: [...........................]".to_string()
+        "Find: [...........................]".to_string()
     } else if query.is_empty() {
-        "Search: [...........................]".to_string()
+        "Find: [...........................]".to_string()
     } else {
         // Truncate if too long
         if query.len() > 25 {
-            format!("Search: [{}...]", &query[..22])
+            format!("Find: [{}...]", &query[..22])
         } else {
-            format!("Search: [{}]", query)
+            format!("Find: [{}]", query)
         }
     };
     let search_widget = Paragraph::new(Span::styled(
@@ -3436,7 +3436,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
             let shortcut = match i {
                 0..=8 => format!("{}:", i + 1),  // 1-9
                 9 => "0:".to_string(),            // 0 for Utilities
-                10 => "?:".to_string(),           // ? for Help
+                10 => "H:".to_string(),           // H for Help
                 _ => "".to_string(),
             };
             Line::from(format!(" {}{}", shortcut, name))

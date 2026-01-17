@@ -539,14 +539,35 @@ impl<'a> IssuesView<'a> {
         use ratatui::layout::{Constraint, Direction, Layout};
         use crate::models::table_config::{ColumnId, ColumnDefinition, WidthConstraints, WrapBehavior};
 
-        // Split the area into left (list) and right (detail) panels
+        // Render filter bar if it exists and adjust content area accordingly
+        let (content_area, filter_bar_area) = if state.filter_bar_state.is_some() {
+            // Filter bar takes the top 3 rows, content starts below it
+            let filter_area = ratatui::layout::Rect {
+                x: area.x,
+                y: area.y,
+                width: area.width,
+                height: 3,
+            };
+            let content_area = ratatui::layout::Rect {
+                x: area.x,
+                y: area.y + 3,
+                width: area.width,
+                height: area.height.saturating_sub(3),
+            };
+            (content_area, Some(filter_area))
+        } else {
+            // No filter bar, content uses full area
+            (area, None)
+        };
+
+        // Split the content area into left (list) and right (detail) panels
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
                 Constraint::Percentage(40), // Left panel (list)
                 Constraint::Percentage(60), // Right panel (detail)
             ])
-            .split(area);
+            .split(content_area);
 
         // Define compact columns for split view
         let compact_columns = vec![
@@ -617,6 +638,36 @@ impl<'a> IssuesView<'a> {
                 detail_view = detail_view.theme(theme);
             }
             StatefulWidget::render(detail_view, detail_area, buf, &mut state.detail_scroll);
+        }
+
+        // Render filter bar if it exists
+        if let Some(filter_area) = filter_bar_area {
+            if let Some(ref mut filter_bar_state) = state.filter_bar_state {
+                let default_theme = crate::ui::themes::Theme::default();
+                let theme = self.theme.unwrap_or(&default_theme);
+
+                // Render the filter bar
+                let filter_bar = crate::ui::widgets::FilterBar::new(
+                    state.search_state.result_count(),
+                    state.search_state.all_issues().len(),
+                    theme,
+                );
+                filter_bar.render(filter_area, buf, filter_bar_state);
+
+                // Render dropdown if one is active
+                if let Some(dropdown_type) = filter_bar_state.active_dropdown {
+                    // Dropdown uses the full area to position itself relative to filter bar
+                    let dropdown_area = ratatui::layout::Rect {
+                        x: area.x,
+                        y: area.y,
+                        width: area.width,
+                        height: area.height,
+                    };
+
+                    let dropdown = crate::ui::widgets::FilterDropdown::new(dropdown_type, theme);
+                    dropdown.render(dropdown_area, buf, filter_bar_state);
+                }
+            }
         }
     }
 

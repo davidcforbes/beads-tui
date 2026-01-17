@@ -30,7 +30,7 @@ context-specific; the same key may do different things depending on the active v
 |  8  | Molecule | Switch to the Molecule View            |
 |  9  | Stats    | Switch to the Statistics View          |
 |  0  | Utility  | Switch to the Utilities View           |
-|  -  | History  | Switch to the Notice History View      |
+|  H  | History  | Switch to the Notice History View      |
 
 ## Filter ACTIONS (Active on Issues View, Split View, Kanban View)
 
@@ -50,7 +50,7 @@ context-specific; the same key may do different things depending on the active v
 
 | Key     | Action      | Description                             |
 | ------- | ----------- | --------------------------------------- |
-|   F     | Find        | Focus search bar and enter search text  |
+|    F    | Find        | Focus search bar and enter search text  |
 | Shift+F | Clear Find  | Clear search input and return focus     |
 | Shift+N | Next Result | Jump to next search result              |
 | Shift+P | Prev Result | Jump to previous search result          |

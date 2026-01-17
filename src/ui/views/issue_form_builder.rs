@@ -453,13 +453,20 @@ pub fn build_issue_form(mode: IssueFormMode, issue: Option<&Issue>) -> Vec<FormF
     fields
 }
 
-/// Build an issue form with organized sections
+/// Build an issue form with organized sections matching the Record Detail Form layout
 ///
-/// Organizes fields into logical sections:
-/// - [KEY ATTRIBUTES]: Core issue metadata
-/// - [DETAILS]: Description and notes
-/// - [RELATIONSHIPS]: Dependencies and blocks
-/// - [METADATA][]: Timestamps (read mode only)
+/// Organizes fields into the following sections:
+/// - Header Section: ID, TITLE, STATUS, TYPE, PRIORITY, ASSIGNEE, dates, etc.
+/// - Label & Flags Section: Labels and boolean flags
+/// - Description Section
+/// - Design Notes Section
+/// - Acceptance Criteria Section
+/// - Notes/Comments Section
+/// - Parent Section
+/// - Children Section
+/// - Block Section
+/// - Event Section
+/// - Discovered Section
 pub fn build_issue_form_with_sections(mode: IssueFormMode, issue: Option<&Issue>) -> Vec<FormField> {
     let mut fields = Vec::new();
     let is_readonly = mode == IssueFormMode::Read;
@@ -470,22 +477,22 @@ pub fn build_issue_form_with_sections(mode: IssueFormMode, issue: Option<&Issue>
     };
 
     // ========================================
-    // SECTION 1: KEY ATTRIBUTES
+    // SECTION: Header Section
     // ========================================
-    fields.push(FormField::section_header("section_key_attributes", "[KEY ATTRIBUTES]"));
+    fields.push(FormField::section_header("section_header", "(Header Section)"));
 
     // ID (Read-only, only in Read/Edit modes)
     if let Some(issue) = issue {
-        fields.push(FormField::read_only("id", "ID", &issue.id));
+        fields.push(FormField::read_only("id", "ID#", &issue.id));
     }
 
     // Title
     let title_value = get_value(&issue, |i| i.title.clone());
     if is_readonly {
-        fields.push(FormField::read_only("title", "Title", &title_value));
+        fields.push(FormField::read_only("title", "TITLE", &title_value));
     } else {
         fields.push(
-            FormField::text("title", "Title")
+            FormField::text("title", "TITLE")
                 .value(&title_value)
                 .placeholder("Brief description of the issue")
                 .required()
@@ -494,19 +501,44 @@ pub fn build_issue_form_with_sections(mode: IssueFormMode, issue: Option<&Issue>
         );
     }
 
-    // Type (Selector for better UX)
+    // Status (Selector)
+    let status_value = issue
+        .as_ref()
+        .map(|i| format!("{:?}", i.status))
+        .unwrap_or_else(|| "Open".to_string());
+
+    if is_readonly {
+        fields.push(FormField::read_only("status", "STATUS", &status_value));
+    } else {
+        fields.push(
+            FormField::selector(
+                "status",
+                "STATUS",
+                vec![
+                    "Open".to_string(),
+                    "InProgress".to_string(),
+                    "Blocked".to_string(),
+                    "Closed".to_string(),
+                ],
+            )
+            .value(&status_value)
+            .required(),
+        );
+    }
+
+    // Type (Selector)
     let type_value = issue
         .as_ref()
         .map(|i| format!("{:?}", i.issue_type))
         .unwrap_or_else(|| "Task".to_string());
 
     if is_readonly {
-        fields.push(FormField::read_only("type", "Type", &type_value));
+        fields.push(FormField::read_only("type", "TYPE", &type_value));
     } else {
         fields.push(
             FormField::selector(
                 "type",
-                "Type",
+                "TYPE",
                 vec![
                     "Epic".to_string(),
                     "Feature".to_string(),
@@ -520,31 +552,6 @@ pub fn build_issue_form_with_sections(mode: IssueFormMode, issue: Option<&Issue>
         );
     }
 
-    // Status (Selector)
-    let status_value = issue
-        .as_ref()
-        .map(|i| format!("{:?}", i.status))
-        .unwrap_or_else(|| "Open".to_string());
-
-    if is_readonly {
-        fields.push(FormField::read_only("status", "Status", &status_value));
-    } else {
-        fields.push(
-            FormField::selector(
-                "status",
-                "Status",
-                vec![
-                    "Open".to_string(),
-                    "InProgress".to_string(),
-                    "Blocked".to_string(),
-                    "Closed".to_string(),
-                ],
-            )
-            .value(&status_value)
-            .required(),
-        );
-    }
-
     // Priority (Selector)
     let priority_value = issue
         .as_ref()
@@ -552,12 +559,12 @@ pub fn build_issue_form_with_sections(mode: IssueFormMode, issue: Option<&Issue>
         .unwrap_or_else(|| "P2".to_string());
 
     if is_readonly {
-        fields.push(FormField::read_only("priority", "Priority", &priority_value));
+        fields.push(FormField::read_only("priority", "PRIORITY", &priority_value));
     } else {
         fields.push(
             FormField::selector(
                 "priority",
-                "Priority",
+                "PRIORITY",
                 vec![
                     "P0".to_string(),
                     "P1".to_string(),
@@ -584,14 +591,146 @@ pub fn build_issue_form_with_sections(mode: IssueFormMode, issue: Option<&Issue>
         } else {
             assignee_value
         };
-        fields.push(FormField::read_only("assignee", "Assignee", display_value));
+        fields.push(FormField::read_only("assignee", "ASSIGNEE", display_value));
     } else {
         fields.push(
-            FormField::text("assignee", "Assignee")
+            FormField::text("assignee", "ASSIGNEE")
                 .value(assignee_value)
                 .placeholder("Unassigned"),
         );
     }
+
+    // Est Minutes
+    let est_minutes_value = issue
+        .as_ref()
+        .and_then(|i| i.est_minutes.as_ref())
+        .map(|m| m.to_string())
+        .unwrap_or_default();
+
+    if is_readonly {
+        let display_value = if est_minutes_value.is_empty() {
+            "Not estimated"
+        } else {
+            &est_minutes_value
+        };
+        fields.push(FormField::read_only("est_minutes", "EST-MINUTES", display_value));
+    } else {
+        fields.push(
+            FormField::text("est_minutes", "EST-MINUTES")
+                .value(&est_minutes_value)
+                .placeholder("Estimated time in minutes"),
+        );
+    }
+
+    // Dates
+    if let Some(issue) = issue {
+        let created_str = issue.created.format("%Y-%m-%d %H:%M").to_string();
+        fields.push(FormField::read_only("created", "CREATED", &created_str));
+
+        let updated_str = issue.updated.format("%Y-%m-%d %H:%M").to_string();
+        fields.push(FormField::read_only("updated", "UPDATED", &updated_str));
+    }
+
+    // Due Date
+    let due_date_value = issue
+        .as_ref()
+        .and_then(|i| i.due_date.as_ref())
+        .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+        .unwrap_or_default();
+
+    if is_readonly {
+        let display_value = if due_date_value.is_empty() {
+            "No due date"
+        } else {
+            &due_date_value
+        };
+        fields.push(FormField::read_only("due_date", "DUE", display_value));
+    } else {
+        fields.push(
+            FormField::text("due_date", "DUE")
+                .value(&due_date_value)
+                .placeholder("YYYY-MM-DD HH:MM"),
+        );
+    }
+
+    // Defer Date
+    let defer_date_value = issue
+        .as_ref()
+        .and_then(|i| i.defer_date.as_ref())
+        .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+        .unwrap_or_default();
+
+    if is_readonly {
+        let display_value = if defer_date_value.is_empty() {
+            "No defer date"
+        } else {
+            &defer_date_value
+        };
+        fields.push(FormField::read_only("defer_date", "DEFER", display_value));
+    } else {
+        fields.push(
+            FormField::text("defer_date", "DEFER")
+                .value(&defer_date_value)
+                .placeholder("YYYY-MM-DD HH:MM"),
+        );
+    }
+
+    // Closed Date
+    if let Some(issue) = issue {
+        if let Some(closed) = issue.closed {
+            let closed_str = closed.format("%Y-%m-%d %H:%M").to_string();
+            fields.push(FormField::read_only("closed", "CLOSED", &closed_str));
+        }
+    }
+
+    // Close Reason
+    let close_reason_value = issue
+        .as_ref()
+        .and_then(|i| i.close_reason.as_ref())
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    if is_readonly {
+        let display_value = if close_reason_value.is_empty() {
+            "N/A"
+        } else {
+            close_reason_value
+        };
+        fields.push(FormField::read_only("close_reason", "CLOSE-REASON", display_value));
+    } else {
+        fields.push(
+            FormField::text("close_reason", "CLOSE-REASON")
+                .value(close_reason_value)
+                .placeholder("Reason for closing"),
+        );
+    }
+
+    // External Reference
+    let external_ref_value = issue
+        .as_ref()
+        .and_then(|i| i.external_reference.as_ref())
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    if is_readonly {
+        let display_value = if external_ref_value.is_empty() {
+            "No reference"
+        } else {
+            external_ref_value
+        };
+        fields.push(FormField::read_only("external_reference", "EXTERNAL-REFERENCE", display_value));
+    } else {
+        fields.push(
+            FormField::text("external_reference", "EXTERNAL-REFERENCE")
+                .value(external_ref_value)
+                .placeholder("External link or reference"),
+        );
+    }
+
+    // ========================================
+    // SECTION: Label & Flags Section
+    // ========================================
+    fields.push(FormField::section_header("section_labels_flags", "(Label & Flags Section)"));
 
     // Labels (Using LabelEditor for Edit/Create modes)
     if is_readonly {
@@ -604,24 +743,40 @@ pub fn build_issue_form_with_sections(mode: IssueFormMode, issue: Option<&Issue>
         } else {
             &labels_value
         };
-        fields.push(FormField::read_only("labels", "Labels", display_value));
+        fields.push(FormField::read_only("labels", "ADD-LABEL", display_value));
     } else {
         // Use LabelEditor with colon-separated format for Edit/Create modes
         let labels_colon = issue
             .as_ref()
             .map(|i| i.labels.join(":"))
             .unwrap_or_default();
-        let mut label_field = FormField::label_editor("labels", "Labels");
+        let mut label_field = FormField::label_editor("labels", "ADD-LABEL");
         label_field.value = labels_colon;
         fields.push(label_field);
     }
 
-    // ========================================
-    // SECTION 2: DETAILS
-    // ========================================
-    fields.push(FormField::section_header("section_details", "[DETAILS]"));
+    // Flags
+    let flags_value = issue
+        .as_ref()
+        .map(|i| {
+            let mut flags = Vec::new();
+            if i.flags.pinned { flags.push("Pinned"); }
+            if i.flags.template { flags.push("Template"); }
+            if i.flags.ephemeral { flags.push("Ephemeral"); }
+            if flags.is_empty() {
+                "None".to_string()
+            } else {
+                flags.join(", ")
+            }
+        })
+        .unwrap_or_else(|| "None".to_string());
+    fields.push(FormField::read_only("flags", "FLAGS", &flags_value));
 
-    // Description
+    // ========================================
+    // SECTION: Description Section
+    // ========================================
+    fields.push(FormField::section_header("section_description", "(Description Section)"));
+
     let description_value = issue
         .as_ref()
         .and_then(|i| i.description.as_ref())
@@ -643,7 +798,63 @@ pub fn build_issue_form_with_sections(mode: IssueFormMode, issue: Option<&Issue>
         );
     }
 
-    // Notes (Read-only)
+    // ========================================
+    // SECTION: Design Notes Section
+    // ========================================
+    fields.push(FormField::section_header("section_design_notes", "(Design Notes Section)"));
+
+    let design_notes_value = issue
+        .as_ref()
+        .and_then(|i| i.design_notes.as_ref())
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    if is_readonly {
+        let display_value = if design_notes_value.is_empty() {
+            "No design notes"
+        } else {
+            design_notes_value
+        };
+        fields.push(FormField::read_only("design_notes", "Design Notes", display_value));
+    } else {
+        fields.push(
+            FormField::text_area("design_notes", "Design Notes")
+                .value(design_notes_value)
+                .placeholder("Technical design notes"),
+        );
+    }
+
+    // ========================================
+    // SECTION: Acceptance Criteria Section
+    // ========================================
+    fields.push(FormField::section_header("section_acceptance_criteria", "(Acceptance Criteria Section)"));
+
+    let acceptance_criteria_value = issue
+        .as_ref()
+        .and_then(|i| i.acceptance_criteria.as_ref())
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    if is_readonly {
+        let display_value = if acceptance_criteria_value.is_empty() {
+            "No acceptance criteria"
+        } else {
+            acceptance_criteria_value
+        };
+        fields.push(FormField::read_only("acceptance_criteria", "Acceptance Criteria", display_value));
+    } else {
+        fields.push(
+            FormField::text_area("acceptance_criteria", "Acceptance Criteria")
+                .value(acceptance_criteria_value)
+                .placeholder("Acceptance criteria"),
+        );
+    }
+
+    // ========================================
+    // SECTION: Notes Section
+    // ========================================
+    fields.push(FormField::section_header("section_notes", "(Notes Section)"));
+
     if let Some(issue) = issue {
         if !issue.notes.is_empty() {
             let notes_text = issue
@@ -661,51 +872,143 @@ pub fn build_issue_form_with_sections(mode: IssueFormMode, issue: Option<&Issue>
                 .join("\n");
 
             fields.push(FormField::read_only("notes", "Notes", &notes_text));
+        } else {
+            fields.push(FormField::read_only("notes", "Notes", "No notes"));
         }
     }
 
     // ========================================
-    // SECTION 3: RELATIONSHIPS
+    // SECTION: Comments Section
     // ========================================
-    fields.push(FormField::section_header("section_relationships", "[RELATIONSHIPS]"));
+    fields.push(FormField::section_header("section_comments", "(Comments Section)"));
 
-    // Dependencies
+    // Comments are the same as notes in the beads model
     if let Some(issue) = issue {
-        let deps_str = if issue.dependencies.is_empty() {
-            "(none)".to_string()
+        if !issue.notes.is_empty() {
+            for (idx, note) in issue.notes.iter().enumerate() {
+                let comment_header = format!("M#{}-ID: {}, M#{}-AUTHOR: {}, M#{}-DATE: {}",
+                    idx + 1, note.id,
+                    idx + 1, note.author,
+                    idx + 1, note.timestamp.format("%Y-%m-%d %H:%M"));
+                fields.push(FormField::read_only(
+                    &format!("comment_{}_header", idx),
+                    &format!("COMMENT#{}", idx + 1),
+                    &comment_header
+                ));
+                fields.push(FormField::read_only(
+                    &format!("comment_{}", idx),
+                    &format!("COMMENT#{}", idx + 1),
+                    &note.content
+                ));
+            }
         } else {
-            issue.dependencies.join(", ")
-        };
-        fields.push(FormField::read_only("dependencies", "Depends On", &deps_str));
-    }
-
-    // Blocks
-    if let Some(issue) = issue {
-        let blocks_str = if issue.blocks.is_empty() {
-            "(none)".to_string()
-        } else {
-            issue.blocks.join(", ")
-        };
-        fields.push(FormField::read_only("blocks", "Blocks", &blocks_str));
-    }
-
-    // ========================================
-    // SECTION 4: METADATA
-    // ========================================
-    if let Some(issue) = issue {
-        fields.push(FormField::section_header("section_metadata", "[METADATA]"));
-
-        let created_str = issue.created.format("%Y-%m-%d %H:%M").to_string();
-        fields.push(FormField::read_only("created", "Created", &created_str));
-
-        let updated_str = issue.updated.format("%Y-%m-%d %H:%M").to_string();
-        fields.push(FormField::read_only("updated", "Updated", &updated_str));
-
-        if let Some(closed) = issue.closed {
-            let closed_str = closed.format("%Y-%m-%d %H:%M").to_string();
-            fields.push(FormField::read_only("closed", "Closed", &closed_str));
+            fields.push(FormField::read_only("comments", "ADD-COMMENT", "No comments"));
         }
     }
+
+    // ========================================
+    // SECTION: Parent Section
+    // ========================================
+    fields.push(FormField::section_header("section_parent", "(Parent Section)"));
+
+    let parent_id_value = issue
+        .as_ref()
+        .and_then(|i| i.parent_id.as_ref())
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    let display_value = if parent_id_value.is_empty() {
+        "No parent"
+    } else {
+        parent_id_value
+    };
+    fields.push(FormField::read_only("parent_id", "PARENT-ID#", display_value));
+
+    // ========================================
+    // SECTION: Children Section
+    // ========================================
+    fields.push(FormField::section_header("section_children", "(Children Section)"));
+
+    if let Some(issue) = issue {
+        if !issue.children_ids.is_empty() {
+            for (idx, child_id) in issue.children_ids.iter().enumerate() {
+                fields.push(FormField::read_only(
+                    &format!("child_{}", idx),
+                    &format!("C#{}-ID", idx + 1),
+                    child_id
+                ));
+            }
+        } else {
+            fields.push(FormField::read_only("children", "ADD-CHILD", "No children"));
+        }
+    }
+
+    // ========================================
+    // SECTION: Block Section
+    // ========================================
+    fields.push(FormField::section_header("section_blocks", "(Block Section)"));
+
+    if let Some(issue) = issue {
+        if !issue.blocks.is_empty() {
+            for (idx, block_id) in issue.blocks.iter().enumerate() {
+                fields.push(FormField::read_only(
+                    &format!("block_{}", idx),
+                    &format!("B#{}-ID", idx + 1),
+                    block_id
+                ));
+            }
+        } else {
+            fields.push(FormField::read_only("blocks", "ADD-BLOCK", "No blocks"));
+        }
+    }
+
+    // ========================================
+    // SECTION: Event Section
+    // ========================================
+    fields.push(FormField::section_header("section_events", "(Event Section)"));
+
+    if let Some(issue) = issue {
+        if !issue.event_ids.is_empty() {
+            for (idx, event_id) in issue.event_ids.iter().enumerate() {
+                fields.push(FormField::read_only(
+                    &format!("event_{}", idx),
+                    &format!("E#{}-ID", idx + 1),
+                    event_id
+                ));
+            }
+        } else {
+            fields.push(FormField::read_only("events", "ADD-EVENT", "No events"));
+        }
+    }
+
+    // ========================================
+    // SECTION: Discovered Section
+    // ========================================
+    fields.push(FormField::section_header("section_discovered", "(Discovered Section)"));
+
+    if let Some(issue) = issue {
+        if !issue.discovered_ids.is_empty() {
+            for (idx, discovered_id) in issue.discovered_ids.iter().enumerate() {
+                fields.push(FormField::read_only(
+                    &format!("discovered_{}", idx),
+                    &format!("D#{}-ID", idx + 1),
+                    discovered_id
+                ));
+            }
+        } else {
+            fields.push(FormField::read_only("discovered", "ADD-DISCOVERY", "No discovered items"));
+        }
+    }
+
+    // ========================================
+    // SECTION: Record Actions Section
+    // ========================================
+    fields.push(FormField::section_header("section_actions", "(Record Actions Section)"));
+    fields.push(FormField::read_only(
+        "actions",
+        "Actions",
+        "Ctrl+S:Save | Ctrl+X:Cancel | Ctrl+Del:Soft Delete | Ctrl+J:Copy JSON to Clipboard | CTRL+P:Export to Markdown"
+    ));
 
     fields
 }
