@@ -66,12 +66,21 @@ fn main() -> Result<()> {
         default_panic(info);
     }));
 
-    // Setup logging
+    // Setup logging to file to avoid interfering with TUI
+    use std::fs::OpenOptions;
+    let log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("beads-tui.log")
+        .expect("Failed to open log file");
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::from_default_env()
                 .add_directive(tracing::Level::INFO.into()),
         )
+        .with_writer(move || log_file.try_clone().expect("Failed to clone log file"))
+        .with_ansi(false) // Disable ANSI colors in log file
         .init();
 
     // Setup terminal
@@ -3146,25 +3155,61 @@ fn run_app<B: ratatui::backend::Backend>(
                     }
                     KeyCode::Char('2') => {
                         app.selected_tab = 1;
-                        app.tts_manager.announce("Dependencies tab");
+                        app.tts_manager.announce("Split tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('3') => {
                         app.selected_tab = 2;
-                        app.tts_manager.announce("Labels tab");
+                        app.tts_manager.announce("Kanban tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('4') => {
                         app.selected_tab = 3;
-                        app.tts_manager.announce("PERT view tab");
+                        app.tts_manager.announce("Dependencies tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('5') => {
                         app.selected_tab = 4;
-                        app.tts_manager.announce("Gantt view tab");
+                        app.tts_manager.announce("Labels tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('6') => {
+                        app.selected_tab = 5;
+                        app.tts_manager.announce("Gantt tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('7') => {
+                        app.selected_tab = 6;
+                        app.tts_manager.announce("Pert tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('8') => {
+                        app.selected_tab = 7;
+                        app.tts_manager.announce("Molecular tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('9') => {
+                        app.selected_tab = 8;
+                        app.tts_manager.announce("Statistics tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('0') => {
+                        app.selected_tab = 9;
+                        app.tts_manager.announce("Utilities tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('?') => {
+                        app.selected_tab = 10;
+                        app.tts_manager.announce("Help tab");
                         app.mark_dirty();
                         continue;
                     }
@@ -3509,20 +3554,19 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     }
 
     // Status bar with optional performance stats, loading indicator, or action hints
-    let status_text = if let Some(ref spinner) = app.loading_spinner {
+    if let Some(ref spinner) = app.loading_spinner {
         // Show loading indicator using Spinner widget
         let label = app.loading_message.as_deref().unwrap_or("Loading...");
         let spinner_text = format!("{} {}", spinner.frame_char(), label);
-        Paragraph::new(spinner_text)
+        let status_text = Paragraph::new(spinner_text)
             .style(Style::default().fg(Color::Cyan))
-            .block(Block::default().borders(Borders::ALL).title("Loading"))
+            .block(Block::default().borders(Borders::ALL).title("Loading"));
+        f.render_widget(status_text, chunks[2]);
     } else {
         // Show context-sensitive action hints in columnar format
         let action_table = render_action_bar(app);
         f.render_widget(action_table, chunks[2]);
-        return; // Return early to skip the old rendering
-    };
-    f.render_widget(status_text, chunks[2]);
+    }
 
     // Render dialog overlay if active
     if let Some(ref dialog_state) = app.dialog_state {
