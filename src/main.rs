@@ -121,7 +121,11 @@ fn main() -> Result<()> {
 // App struct moved to models::AppState
 
 /// Handle mouse events
-fn handle_mouse_event(mouse: MouseEvent, app: &mut models::AppState) {
+fn handle_mouse_event<B: ratatui::backend::Backend>(
+    mouse: MouseEvent,
+    terminal: &mut Terminal<B>,
+    app: &mut models::AppState,
+) {
     match mouse.kind {
         MouseEventKind::ScrollDown => {
             // Simulate Down key press for scrolling
@@ -185,7 +189,9 @@ fn handle_mouse_event(mouse: MouseEvent, app: &mut models::AppState) {
                 // Allow 1-2 character tolerance for click detection
                 if col_diff <= 2 && row_diff <= 1 {
                     tracing::debug!("Mouse click detected at {}, {}", mouse.column, mouse.row);
-                    handle_mouse_click(mouse.column, mouse.row, app);
+                    // Get terminal width from current buffer
+                    let terminal_width = terminal.current_buffer_mut().area.width;
+                    handle_mouse_click(mouse.column, mouse.row, terminal_width, app);
                 }
             }
             app.mouse_down_pos = None;
@@ -266,20 +272,29 @@ fn handle_screen_capture<B: ratatui::backend::Backend>(
 }
 
 /// Handle mouse click events (after detecting down+up at same position)
-fn handle_mouse_click(col: u16, row: u16, app: &mut models::AppState) {
-    // Hit test for tabs (typically row 3-4 based on layout)
-    // Title bar is rows 0-2, tabs are row 3-4
-    if row >= 3 && row <= 4 {
+fn handle_mouse_click(col: u16, row: u16, terminal_width: u16, app: &mut models::AppState) {
+    // Hit test for tabs (row 4 is the tab content row)
+    // Layout: Row 0-2: Title, Row 3: Top border, Row 4: Tab content, Row 5: Bottom border
+    if row == 4 {
         // Calculate which tab was clicked based on column
-        // Each tab is approximately 20 characters wide
-        let tab_width = 20;
-        let clicked_tab = (col / tab_width) as usize;
+        // Tabs are rendered in a block with borders, so subtract 1 for left border
+        // The Tabs widget divides the available width equally among all tabs
+        let inner_width = terminal_width.saturating_sub(2); // Account for left and right borders
+        let tab_count = app.tabs.len() as u16;
+        let tab_width = inner_width / tab_count;
 
-        if clicked_tab < app.tabs.len() {
-            tracing::info!("Tab {} clicked: {}", clicked_tab, app.tabs[clicked_tab]);
-            app.selected_tab = clicked_tab;
-            app.mark_dirty();
-            return;
+        // Adjust column for left border
+        if col > 0 {
+            let adjusted_col = col - 1;
+            let clicked_tab = (adjusted_col / tab_width) as usize;
+
+            if clicked_tab < app.tabs.len() {
+                tracing::info!("Tab {} clicked at col {} (adjusted {}): {}",
+                    clicked_tab, col, adjusted_col, app.tabs[clicked_tab]);
+                app.selected_tab = clicked_tab;
+                app.mark_dirty();
+                return;
+            }
         }
     }
 
@@ -3252,7 +3267,7 @@ fn run_app<B: ratatui::backend::Backend>(
                 app.mark_dirty();
             }
             Event::Mouse(mouse) => {
-                handle_mouse_event(mouse, app);
+                handle_mouse_event(mouse, terminal, app);
             }
             _ => {}
         }
