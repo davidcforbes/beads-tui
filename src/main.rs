@@ -1510,18 +1510,60 @@ fn render_issues_view_fullscreen(f: &mut Frame, app: &mut models::AppState) {
         // Add leading space
         tab_spans.push(Span::styled(" ", base_style));
 
-        // Split tab name into first char (hotkey) and rest
-        if let Some((first_char, rest)) = tab_name.split_at_checked(1) {
-            // First character: bold and underlined
-            tab_spans.push(Span::styled(
-                first_char,
-                base_style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
-            ));
-            // Rest of the name: normal (with bold for selected tab)
-            if i == app.selected_tab {
-                tab_spans.push(Span::styled(rest, base_style.add_modifier(Modifier::BOLD)));
+        // Split tab name to find and style the hotkey character
+        // For most tabs, the first character is the hotkey (uppercase)
+        // For special cases like "sTatistics", find the first uppercase letter
+        if let Some(first_char) = tab_name.chars().next() {
+            if first_char.is_uppercase() {
+                // Standard case: first character is the hotkey
+                if let Some((hotkey, rest)) = tab_name.split_at_checked(1) {
+                    tab_spans.push(Span::styled(
+                        hotkey,
+                        base_style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
+                    ));
+                    if i == app.selected_tab {
+                        tab_spans.push(Span::styled(rest, base_style.add_modifier(Modifier::BOLD)));
+                    } else {
+                        tab_spans.push(Span::styled(rest, base_style));
+                    }
+                }
             } else {
-                tab_spans.push(Span::styled(rest, base_style));
+                // Special case: first char is lowercase, find first uppercase as hotkey
+                if let Some(hotkey_pos) = tab_name.chars().position(|c| c.is_uppercase()) {
+                    let (before, from_hotkey) = tab_name.split_at(hotkey_pos);
+                    let (hotkey, after) = from_hotkey.split_at_checked(1).unwrap_or((from_hotkey, ""));
+
+                    // Before hotkey: normal
+                    if i == app.selected_tab {
+                        tab_spans.push(Span::styled(before, base_style.add_modifier(Modifier::BOLD)));
+                    } else {
+                        tab_spans.push(Span::styled(before, base_style));
+                    }
+                    // Hotkey: bold and underlined
+                    tab_spans.push(Span::styled(
+                        hotkey,
+                        base_style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
+                    ));
+                    // After hotkey: normal
+                    if i == app.selected_tab {
+                        tab_spans.push(Span::styled(after, base_style.add_modifier(Modifier::BOLD)));
+                    } else {
+                        tab_spans.push(Span::styled(after, base_style));
+                    }
+                } else {
+                    // Fallback: no uppercase found, style first character
+                    if let Some((hotkey, rest)) = tab_name.split_at_checked(1) {
+                        tab_spans.push(Span::styled(
+                            hotkey,
+                            base_style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
+                        ));
+                        if i == app.selected_tab {
+                            tab_spans.push(Span::styled(rest, base_style.add_modifier(Modifier::BOLD)));
+                        } else {
+                            tab_spans.push(Span::styled(rest, base_style));
+                        }
+                    }
+                }
             }
         } else {
             // Fallback if tab name is empty
