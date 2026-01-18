@@ -549,6 +549,123 @@ where
     stats
 }
 
+// Event handling implementation
+use super::ViewEventHandler;
+use crate::models::AppState;
+use crate::config::Action;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+
+impl ViewEventHandler for LabelsViewState {
+    fn handle_key_event(app: &mut AppState, key: KeyEvent) -> bool {
+        let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+
+        // Handle notification dismissal with Esc
+        if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
+            app.clear_notification();
+            return true;
+        }
+
+        let filtered_labels = app.labels_view_state.filtered_labels(&app.label_stats);
+        let labels_len = filtered_labels.len();
+
+        // Handle search mode
+        if app.labels_view_state.is_searching() {
+            match action {
+                Some(Action::CancelDialog) => {
+                    app.labels_view_state.stop_search();
+                    app.labels_view_state.clear_search();
+                }
+                Some(Action::ConfirmDialog) => {
+                    app.labels_view_state.stop_search();
+                }
+                _ => {
+                    match key.code {
+                        KeyCode::Backspace => {
+                            app.labels_view_state.delete_search_char();
+                        }
+                        KeyCode::Char(c) => {
+                            app.labels_view_state.insert_search_char(c);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            app.mark_dirty();
+            return true;
+        }
+
+        // Handle normal mode
+        match action {
+            Some(Action::MoveDown) => {
+                app.labels_view_state.select_next(labels_len);
+                app.mark_dirty();
+                true
+            }
+            Some(Action::MoveUp) => {
+                app.labels_view_state.select_previous(labels_len);
+                app.mark_dirty();
+                true
+            }
+            Some(Action::UpdateAssignee) => { // 'a' used for add label in this view
+                // Add label - show notification for now (needs input dialog widget)
+                app.set_info("Add label: Not yet implemented (requires input dialog)".to_string());
+                tracing::info!("Add label requested");
+                true
+            }
+            Some(Action::DeleteIssue) => { // 'd' used for delete label
+                // Delete selected label
+                if let Some(selected_idx) = app.labels_view_state.selected() {
+                    if let Some(label_stat) = filtered_labels.get(selected_idx) {
+                        let label_name = label_stat.name.clone();
+                        app.set_info(format!(
+                            "Delete label '{}': Not yet implemented",
+                            label_name
+                        ));
+                        tracing::info!("Delete label requested: {}", label_name);
+                    }
+                }
+                true
+            }
+            Some(Action::EditIssue) => { // 'e' used for edit label
+                // Edit selected label
+                if let Some(selected_idx) = app.labels_view_state.selected() {
+                    if let Some(label_stat) = filtered_labels.get(selected_idx) {
+                        let label_name = label_stat.name.clone();
+                        app.set_info(format!("Edit label '{}': Not yet implemented", label_name));
+                        tracing::info!("Edit label requested: {}", label_name);
+                    }
+                }
+                true
+            }
+            Some(Action::UpdateStatus) => { // 's' used for stats in this view
+                // Show statistics - already visible in the view
+                app.set_info("Label statistics are displayed in the summary panel".to_string());
+                true
+            }
+            Some(Action::Search) => { // '/'
+                // Search labels
+                app.labels_view_state.start_search();
+                tracing::info!("Search labels started");
+                true
+            }
+            Some(Action::CancelDialog) => { // Esc
+                if !app.labels_view_state.search_query().is_empty() {
+                    app.labels_view_state.clear_search();
+                    true
+                } else {
+                    app.selected_tab = 0; // Go back to issues
+                    true
+                }
+            }
+            _ => false,
+        }
+    }
+
+    fn view_name() -> &'static str {
+        "LabelsView"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -354,6 +354,75 @@ impl<'a> StatefulWidget for DependenciesView<'a> {
     }
 }
 
+// Event handling implementation
+use super::ViewEventHandler;
+use crate::models::AppState;
+use crate::config::Action;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+
+impl ViewEventHandler for DependenciesViewState {
+    fn handle_key_event(app: &mut AppState, key: KeyEvent) -> bool {
+        let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+
+        // Handle notification dismissal with Esc
+        if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
+            app.clear_notification();
+            return true;
+        }
+
+        match action {
+            Some(Action::MoveDown) => {
+                // Navigate down in tree
+                app.dependency_tree_state.select_next();
+                app.mark_dirty();
+                true
+            }
+            Some(Action::MoveUp) => {
+                // Navigate up in tree
+                app.dependency_tree_state.select_previous();
+                app.mark_dirty();
+                true
+            }
+            Some(Action::MoveLeft) => {
+                // Collapse current node
+                app.dependency_tree_state.collapse_current();
+                app.mark_dirty();
+                true
+            }
+            Some(Action::MoveRight) => {
+                // Expand current node
+                app.dependency_tree_state.expand_current();
+                app.mark_dirty();
+                true
+            }
+            _ if key.code == KeyCode::Char(' ') => {
+                // Toggle expansion with Space
+                app.dependency_tree_state.toggle_expansion();
+                app.mark_dirty();
+                true
+            }
+            Some(Action::ConfirmDialog) => {
+                // View issue details - for now just provide info
+                if let Some(issue_id) = app.dependency_tree_state.selected_issue_id() {
+                    app.set_info(format!("Selected issue: {}", issue_id));
+                }
+                true
+            }
+            Some(Action::CancelDialog) => {
+                // Esc goes back to Issues tab
+                app.selected_tab = 0;
+                app.mark_dirty();
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn view_name() -> &'static str {
+        "DependenciesView"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

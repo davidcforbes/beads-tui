@@ -1606,6 +1606,76 @@ impl Default for KanbanView {
     }
 }
 
+// Event handling implementation
+use super::ViewEventHandler;
+use crate::models::AppState;
+use crate::config::Action;
+use crossterm::event::{KeyEvent, MouseEvent};
+
+impl ViewEventHandler for KanbanViewState {
+    fn handle_key_event(app: &mut AppState, key: KeyEvent) -> bool {
+        let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+
+        // Handle notification dismissal with Esc
+        if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
+            app.clear_notification();
+            return true;
+        }
+
+        match action {
+            // Navigation actions
+            Some(Action::MoveLeft) => {
+                app.kanban_view_state.previous_column();
+                // Note: viewport width will be calculated during render
+                // For now, we assume a reasonable default terminal width
+                app.kanban_view_state.ensure_selected_column_visible(100);
+                app.mark_dirty();
+                true
+            }
+            Some(Action::MoveRight) => {
+                app.kanban_view_state.next_column();
+                // Note: viewport width will be calculated during render
+                // For now, we assume a reasonable default terminal width
+                app.kanban_view_state.ensure_selected_column_visible(100);
+                app.mark_dirty();
+                true
+            }
+            Some(Action::MoveUp) => {
+                app.kanban_view_state.previous_card();
+                app.mark_dirty();
+                true
+            }
+            Some(Action::MoveDown) => {
+                app.kanban_view_state.next_card();
+                app.mark_dirty();
+                true
+            }
+            // Column toggle actions
+            Some(Action::ToggleKanbanOpenColumn) => {
+                app.kanban_view_state.toggle_column_collapse(ColumnId::StatusOpen);
+                true
+            }
+            Some(Action::ToggleKanbanInProgressColumn) => {
+                app.kanban_view_state.toggle_column_collapse(ColumnId::StatusInProgress);
+                true
+            }
+            Some(Action::ToggleKanbanBlockedColumn) => {
+                app.kanban_view_state.toggle_column_collapse(ColumnId::StatusBlocked);
+                true
+            }
+            Some(Action::ToggleKanbanClosedColumn) => {
+                app.kanban_view_state.toggle_column_collapse(ColumnId::StatusClosed);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn view_name() -> &'static str {
+        "KanbanView"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -523,6 +523,31 @@ impl Default for GanttView {
     }
 }
 
+// Event handling implementation
+use super::ViewEventHandler;
+use crate::models::AppState;
+use crate::config::Action;
+use crossterm::event::{KeyEvent, MouseEvent};
+
+impl ViewEventHandler for GanttViewState {
+    fn handle_key_event(app: &mut AppState, key: KeyEvent) -> bool {
+        let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+
+        // Handle notification dismissal with Esc
+        if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
+            app.clear_notification();
+            return true;
+        }
+
+        // Currently no view-specific actions for Gantt view
+        false
+    }
+
+    fn view_name() -> &'static str {
+        "GanttView"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

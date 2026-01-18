@@ -8,8 +8,8 @@ use crate::tasks::{
 use crate::ui::views::{
     compute_label_stats, BondingInterfaceState, DatabaseStats, DatabaseStatus, DatabaseViewState,
     DependenciesViewState, DependencyTreeState, Formula, FormulaBrowserState, GanttViewState,
-    HelpSection, HistoryOpsState, IssuesViewState, KanbanViewState, LabelStats, LabelsViewState,
-    PertViewState, PourWizardState, WispManagerState,
+    HelpSection, HelpViewState, HistoryOpsState, IssuesViewState, KanbanViewState, LabelStats,
+    LabelsViewState, PertViewState, PourWizardState, WispManagerState,
 };
 use crate::ui::widgets::{
     DependencyDialogState, DialogState, FilterQuickSelectState,
@@ -49,6 +49,7 @@ pub struct AppState {
     pub pert_view_state: PertViewState,
     pub gantt_view_state: GanttViewState,
     pub kanban_view_state: KanbanViewState,
+    pub help_view_state: HelpViewState,
     pub database_stats: DatabaseStats,
     pub database_status: DatabaseStatus,
     pub database_view_state: DatabaseViewState,
@@ -256,6 +257,7 @@ impl AppState {
             pert_view_state: PertViewState::new(issues.clone()),
             gantt_view_state: GanttViewState::new(issues.clone()),
             kanban_view_state: KanbanViewState::new(issues),
+            help_view_state: HelpViewState::new(),
             label_stats,
             database_stats,
             database_status: DatabaseStatus::Ready,
@@ -415,6 +417,7 @@ impl AppState {
             pert_view_state: PertViewState::new(issues.clone()),
             gantt_view_state: GanttViewState::new(issues.clone()),
             kanban_view_state: KanbanViewState::new(issues.clone()),
+            help_view_state: HelpViewState::new(),
             label_stats,
             database_stats,
             database_status: DatabaseStatus::Ready,
@@ -1473,6 +1476,7 @@ mod tests {
             pert_view_state: PertViewState::new(vec![]),
             gantt_view_state: GanttViewState::new(vec![]),
             kanban_view_state: KanbanViewState::new(vec![]),
+            help_view_state: HelpViewState::new(),
             database_view_state: DatabaseViewState::new(),
             formulas: vec![],
             formula_browser_state: FormulaBrowserState::new(),

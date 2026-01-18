@@ -1,5 +1,8 @@
 //! Main application views
 
+pub mod event_utils;
+pub mod view_event_handler;
+
 pub mod create_issue;
 pub mod database_view;
 pub mod dependencies_view;
@@ -40,3 +43,4 @@ pub use molecular::{
 };
 pub use pert_view::{PertView, PertViewState};
 pub use search_interface::{SearchInterfaceState, SearchInterfaceView, SearchScope, ViewType};
+pub use view_event_handler::ViewEventHandler;

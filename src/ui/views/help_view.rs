@@ -619,6 +619,52 @@ impl<'a> Widget for HelpView<'a> {
     }
 }
 
+// Event handling implementation
+use super::ViewEventHandler;
+use crate::models::AppState;
+use crate::config::Action;
+use crossterm::event::{KeyEvent, MouseEvent};
+
+impl ViewEventHandler for HelpViewState {
+    fn handle_key_event(app: &mut AppState, key: KeyEvent) -> bool {
+        let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+
+        // Handle notification dismissal with Esc
+        if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
+            app.clear_notification();
+            return true;
+        }
+
+        match action {
+            Some(Action::MoveUp) => {
+                app.scroll_help_up();
+                true
+            }
+            Some(Action::MoveDown) => {
+                app.scroll_help_down();
+                true
+            }
+            Some(Action::MoveRight) | Some(Action::NextTab) => {
+                app.next_help_section();
+                true
+            }
+            Some(Action::MoveLeft) | Some(Action::PrevTab) => {
+                app.previous_help_section();
+                true
+            }
+            Some(Action::CancelDialog) => {
+                app.selected_tab = 0; // Go back to issues
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn view_name() -> &'static str {
+        "HelpView"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

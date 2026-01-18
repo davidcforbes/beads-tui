@@ -652,6 +652,114 @@ fn format_size(bytes: u64) -> String {
     }
 }
 
+// Event handling implementation
+use super::ViewEventHandler;
+use crate::models::AppState;
+use crate::config::Action;
+use crate::tasks::TaskOutput;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+
+impl ViewEventHandler for DatabaseViewState {
+    fn handle_key_event(app: &mut AppState, key: KeyEvent) -> bool {
+        let action = app.config.keybindings.find_action(&key.code, &key.modifiers);
+
+        // Handle notification dismissal with Esc
+        if !app.notifications.is_empty() && matches!(action, Some(Action::DismissNotification)) {
+            app.clear_notification();
+            return true;
+        }
+
+        let _client = app.beads_client.clone();
+
+        match action {
+            Some(Action::Refresh) => {
+                // Refresh database status
+                tracing::info!("Refreshing database status");
+                app.start_loading("Refreshing database...");
+                app.reload_issues();
+                app.stop_loading();
+                true
+            }
+            _ if key.code == KeyCode::Char('t') => {
+                // Toggle daemon (start/stop)
+                if app.daemon_running {
+                    // Stop daemon
+                    let _ = app.spawn_task("Stopping daemon", |client| async move {
+                        client.stop_daemon().await?;
+                        Ok(TaskOutput::DaemonStopped)
+                    });
+                } else {
+                    // Start daemon
+                    let _ = app.spawn_task("Starting daemon", |client| async move {
+                        client.start_daemon().await?;
+                        Ok(TaskOutput::DaemonStarted)
+                    });
+                }
+                true
+            }
+            Some(Action::SyncDatabase) => {
+                // Sync database with remote
+                tracing::info!("Syncing database with remote");
+                let _ = app.spawn_task("Syncing database", |client| async move {
+                    let output = client.sync_database().await?;
+                    tracing::info!("Database synced successfully: {}", output);
+                    Ok(TaskOutput::DatabaseSynced)
+                });
+                true
+            }
+            Some(Action::ExportDatabase) => {
+                // Export issues to file
+                tracing::info!("Exporting issues to beads_export.jsonl");
+                let _ = app.spawn_task("Exporting issues", |client| async move {
+                    client.export_issues("beads_export.jsonl").await?;
+                    tracing::info!("Issues exported successfully");
+                    Ok(TaskOutput::IssuesExported(
+                        "beads_export.jsonl".to_string(),
+                    ))
+                });
+                true
+            }
+            Some(Action::ImportDatabase) => {
+                // Import issues from file
+                tracing::info!("Importing issues from beads_import.jsonl");
+                let _ = app.spawn_task("Importing issues", |client| async move {
+                    client.import_issues("beads_import.jsonl").await?;
+                    tracing::info!("Issues imported successfully");
+                    Ok(TaskOutput::IssuesImported(0))
+                });
+                true
+            }
+            Some(Action::VerifyDatabase) => {
+                // Verify database integrity
+                tracing::info!("Verifying database integrity");
+                let _ = app.spawn_task("Verifying database", |client| async move {
+                    let output = client.verify_database().await?;
+                    tracing::info!("Database verification result: {}", output);
+                    Ok(TaskOutput::Success(output))
+                });
+                true
+            }
+            Some(Action::CompactDatabase) => {
+                // Compact database (requires confirmation)
+                tracing::info!("Compact database requested - showing confirmation dialog");
+                app.dialog_state = Some(crate::ui::widgets::DialogState::new());
+                app.pending_action = Some("compact_database".to_string());
+                app.mark_dirty();
+                true
+            }
+            Some(Action::CancelDialog) => {
+                app.selected_tab = 0; // Go back to issues
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn view_name() -> &'static str {
+        "DatabaseView"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
