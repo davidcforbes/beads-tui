@@ -5,10 +5,12 @@
 
 pub mod beads;
 pub mod config;
+pub mod demo;
 pub mod graph;
 pub mod models;
 pub mod runtime;
 pub mod tasks;
+pub mod test_mode;
 pub mod tts;
 pub mod ui;
 pub mod undo;

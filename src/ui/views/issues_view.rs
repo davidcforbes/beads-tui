@@ -269,7 +269,11 @@ impl IssuesViewState {
     pub fn enter_edit_mode(&mut self) {
         if let Some(issue) = self.search_state.selected_issue() {
             self.selected_issue = Some(Issue::clone(issue));
-            self.editor_state = Some(IssueEditorState::new(issue));
+            let mut editor_state = IssueEditorState::new(issue);
+            // Reset scroll to top and ensure first field is focused
+            editor_state.form_state_mut().scroll_to_top();
+            editor_state.form_state_mut().set_focused_index(0);
+            self.editor_state = Some(editor_state);
             self.view_mode = IssuesViewMode::Edit;
         }
     }
@@ -304,7 +308,10 @@ impl IssuesViewState {
 
     /// Enter create mode to create a new issue
     pub fn enter_create_mode(&mut self) {
-        self.create_form_state = Some(CreateIssueFormState::new());
+        let mut create_state = CreateIssueFormState::new();
+        // Ensure form starts at the top
+        create_state.form_state_mut().scroll_to_top();
+        self.create_form_state = Some(create_state);
         self.view_mode = IssuesViewMode::Create;
     }
 

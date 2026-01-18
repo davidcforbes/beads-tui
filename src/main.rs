@@ -1,9 +1,11 @@
 pub mod beads;
 pub mod config;
+pub mod demo;
 pub mod graph;
 pub mod models;
 pub mod runtime;
 pub mod tasks;
+pub mod test_mode;
 pub mod tts;
 pub mod ui;
 pub mod undo;
@@ -42,10 +44,53 @@ struct Args {
     /// Enable text-to-speech announcements for screen readers
     #[arg(long)]
     tts: bool,
+
+    /// Run in demo mode with generated test data
+    #[arg(long)]
+    demo: bool,
+
+    /// Open specific view (0-10)
+    #[arg(long, value_name = "TAB_INDEX")]
+    view: Option<usize>,
+
+    /// Test data set (small|medium|large|deps|edge)
+    #[arg(long, value_name = "DATASET", default_value = "small")]
+    dataset: String,
+
+    /// Render view to text and exit (for testing)
+    #[arg(long)]
+    snapshot: bool,
+
+    /// Output file for snapshot mode
+    #[arg(long, value_name = "FILE")]
+    output: Option<String>,
+
+    /// Terminal dimensions (WIDTHxHEIGHT)
+    #[arg(long, value_name = "WxH", default_value = "120x40")]
+    size: String,
+
+    /// List all available views and exit
+    #[arg(long)]
+    list_views: bool,
+
+    /// Run test sequence through all views
+    #[arg(long)]
+    test_all_views: bool,
+
+    /// Duration per view in test mode (seconds)
+    #[arg(long, default_value = "2")]
+    test_duration: u64,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    // Handle --list-views early (before terminal setup)
+    if args.list_views {
+        test_mode::print_view_list();
+        return Ok(());
+    }
+
     // Setup panic hook to restore terminal on panic
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -96,8 +141,82 @@ fn main() -> Result<()> {
         tracing::info!("Screen reader support enabled");
     }
 
-    // Create app state
-    let mut app = models::AppState::with_tts(tts_manager);
+    // Create app state (demo or real)
+    let mut app = if args.demo {
+        let dataset = demo::DemoDataset::generate(&args.dataset).map_err(|e| {
+            anyhow::anyhow!("Failed to generate demo dataset: {}", e)
+        })?;
+        models::AppState::with_demo_data(dataset, tts_manager)
+    } else {
+        models::AppState::with_tts(tts_manager)
+    };
+
+    // Set initial view if specified
+    if let Some(view_index) = args.view {
+        if view_index < app.tabs.len() {
+            app.selected_tab = view_index;
+        } else {
+            // Clean up terminal before error
+            disable_raw_mode()?;
+            execute!(
+                terminal.backend_mut(),
+                LeaveAlternateScreen,
+                DisableMouseCapture
+            )?;
+            return Err(anyhow::anyhow!(
+                "Invalid view index: {}. Valid range: 0-{} (use --list-views to see all views)",
+                view_index,
+                app.tabs.len() - 1
+            ));
+        }
+    }
+
+    // Run in snapshot mode if requested
+    if args.snapshot {
+        let view_index = args.view.unwrap_or(0);
+        let size = test_mode::parse_terminal_size(&args.size)?;
+
+        let result = test_mode::run_snapshot_mode(
+            &mut terminal,
+            &mut app,
+            view_index,
+            args.output,
+            size,
+            |f, app| ui(f, app),
+        );
+
+        // Clean up terminal
+        disable_raw_mode()?;
+        execute!(
+            terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )?;
+
+        return result;
+    }
+
+    // Run test sequence if requested
+    if args.test_all_views {
+        let result = test_mode::run_test_sequence(
+            &mut terminal,
+            &mut app,
+            args.test_duration,
+            |f, app| ui(f, app),
+        );
+
+        // Clean up terminal
+        disable_raw_mode()?;
+        execute!(
+            terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )?;
+
+        return result;
+    }
+
+    // Normal interactive mode continues below...
 
     // Run the app
     let res = run_app(&mut terminal, &mut app);
@@ -189,9 +308,9 @@ fn handle_mouse_event<B: ratatui::backend::Backend>(
                 // Allow 1-2 character tolerance for click detection
                 if col_diff <= 2 && row_diff <= 1 {
                     tracing::debug!("Mouse click detected at {}, {}", mouse.column, mouse.row);
-                    // Get terminal width from current buffer
-                    let terminal_width = terminal.current_buffer_mut().area.width;
-                    handle_mouse_click(mouse.column, mouse.row, terminal_width, app);
+                    // Get terminal dimensions from current buffer
+                    let terminal_area = terminal.current_buffer_mut().area;
+                    handle_mouse_click(mouse.column, mouse.row, terminal_area.width, terminal_area.height, app);
                 }
             }
             app.mouse_down_pos = None;
@@ -272,9 +391,29 @@ fn handle_screen_capture<B: ratatui::backend::Backend>(
 }
 
 /// Handle mouse click events (after detecting down+up at same position)
-fn handle_mouse_click(col: u16, row: u16, _terminal_width: u16, app: &mut models::AppState) {
+fn handle_mouse_click(col: u16, row: u16, _terminal_width: u16, terminal_height: u16, app: &mut models::AppState) {
+    // Layout:
+    // Row 0-2: TITLE block (with Find field at row 1)
+    // Row 3-5: VIEWS/Tabs block (tab content at row 4)
+    // Row 6-8: Filter bar (if visible) - filter content at row 7
+    // Row 9+: Content area (when filter bar visible)
+    // Row 6+: Content area (when filter bar NOT visible)
+    // Last 3 rows: ACTION bar block (content at terminal_height - 2)
+
+    // Hit test for Find field in title bar (row 1)
+    if row == 1 {
+        // Find field is in the third column of the title layout
+        // Approximate column range: starts around col 50-90
+        // For now, clicking anywhere in row 1 will focus the search
+        tracing::info!("Title bar clicked at col {}, focusing search", col);
+        if !app.issues_view_state.search_state().search_state().is_focused() {
+            app.issues_view_state.search_state_mut().search_state_mut().set_focused(true);
+            app.mark_dirty();
+        }
+        return;
+    }
+
     // Hit test for tabs (row 4 is the tab content row)
-    // Layout: Row 0-2: Title, Row 3: Top border, Row 4: Tab content, Row 5: Bottom border
     if row == 4 {
         // Calculate which tab was clicked based on column
         // Tabs are rendered sequentially with their actual text width, not evenly divided
@@ -314,19 +453,42 @@ fn handle_mouse_click(col: u16, row: u16, _terminal_width: u16, app: &mut models
                 current_pos = tab_end + divider_width;
             }
         }
+        return;
+    }
+
+    // Hit test for filter bar (row 7 is the filter content row)
+    if row == 7 && app.issues_view_state.filter_bar_state.is_some() {
+        tracing::info!("Filter bar clicked at col {}", col);
+        // For now, just log the click. Future enhancement: detect which filter field was clicked
+        // and open the corresponding dropdown
+        return;
     }
 
     // Hit test for list items (Issues view)
-    // List typically starts at row 6+ (after title, tabs, filters)
-    if app.selected_tab == 0 && row >= 6 {
-        // Calculate which list item was clicked
-        // Header is typically at row 6, items start at row 7
-        if row >= 7 {
-            let item_index = (row - 7) as usize;
+    if app.selected_tab == 0 || app.selected_tab == 1 {
+        // Calculate row offset based on filter bar visibility
+        let filter_bar_visible = app.issues_view_state.filter_bar_state.is_some();
+
+        // When filter bar is visible:
+        //   Row 6-8: Filter bar
+        //   Row 9: Table top border
+        //   Row 10: Table header
+        //   Row 11+: Table data rows
+        // When filter bar is NOT visible:
+        //   Row 6: Results info line
+        //   Row 7: Table top border
+        //   Row 8: Table header
+        //   Row 9+: Table data rows
+
+        let first_data_row = if filter_bar_visible { 11 } else { 9 };
+
+        if row >= first_data_row {
+            let item_index = (row - first_data_row) as usize;
             let filtered_issues_len = app.issues_view_state.search_state().filtered_issues().len();
 
             if item_index < filtered_issues_len {
-                tracing::info!("List item {} clicked", item_index);
+                tracing::info!("List item {} clicked at row {} (first_data_row: {}, filter_bar_visible: {})",
+                    item_index, row, first_data_row, filter_bar_visible);
                 app.issues_view_state
                     .search_state_mut()
                     .list_state_mut()
@@ -334,6 +496,136 @@ fn handle_mouse_click(col: u16, row: u16, _terminal_width: u16, app: &mut models
                 app.mark_dirty();
             }
         }
+    }
+
+    // Hit test for action bar (last 3 rows of terminal)
+    let action_bar_content_row = terminal_height.saturating_sub(2);
+    if row == action_bar_content_row {
+        // Get the contextual actions to determine what was clicked
+        let (_nav_actions, action_items) = get_contextual_actions(app);
+
+        // The action bar has this format (adjusting for border):
+        // " nav_actions │ action0 │ action1 │ action2 │ action3 │ action4 │ action5 │ action6 "
+        // Each section is separated by " │ " (3 chars)
+
+        // Adjust for left border
+        if col > 0 {
+            let adjusted_col = col - 1;
+
+            // Skip navigation section (approximate width ~67 chars + separator)
+            // Navigation: "↓:Up ↑:Down (row) PgUp/PgDn (page) →:Scroll-Right ←:Scroll-Left"
+            let nav_width = 67u16;
+            let separator_width = 3u16;
+
+            if adjusted_col > nav_width + separator_width {
+                // We're in the action items section
+                let action_section_start = nav_width + separator_width;
+                let action_col = adjusted_col - action_section_start;
+
+                // Each action has approximate format "X:Action" (varies)
+                // Calculate which action section we're in based on separators
+                let mut current_pos = 0u16;
+
+                for (idx, action_text) in action_items.iter().enumerate() {
+                    let action_width = action_text.len() as u16;
+                    let section_end = current_pos + action_width + separator_width;
+
+                    if action_col >= current_pos && action_col < current_pos + action_width {
+                        // Clicked on this action
+                        tracing::info!("Action bar item {} clicked: '{}' at col {}", idx, action_text, col);
+
+                        // Parse the action key from the format "X:Label" or "^X:Label"
+                        if let Some((key_char, has_ctrl)) = parse_action_key(action_text) {
+                            // Simulate the key press
+                            let key = create_key_event_from_action(key_char, has_ctrl);
+                            simulate_key_press(key, app);
+                            app.mark_dirty();
+                        }
+                        return;
+                    }
+
+                    current_pos = section_end;
+                }
+            }
+        }
+    }
+}
+
+/// Parse the key character from an action label like "R:Read" or "^S:Save"
+/// Returns (character, has_ctrl_modifier)
+fn parse_action_key(action_text: &str) -> Option<(char, bool)> {
+    if let Some(colon_pos) = action_text.find(':') {
+        let key_part = &action_text[..colon_pos];
+        // Handle special cases like "^S", "^X", "^Del", etc.
+        if key_part.starts_with('^') && key_part.len() > 1 {
+            if let Some(ch) = key_part.chars().nth(1) {
+                return Some((ch, true));
+            }
+        } else if key_part.len() == 1 {
+            if let Some(ch) = key_part.chars().next() {
+                return Some((ch, false));
+            }
+        } else if key_part == "Esc" {
+            // Special handling for Esc key
+            return Some(('\x1b', false)); // ESC character
+        } else if key_part == "Tab" {
+            // Special handling for Tab key
+            return Some(('\t', false));
+        }
+    }
+    None
+}
+
+/// Create a KeyEvent from an action character
+fn create_key_event_from_action(key_char: char, has_ctrl: bool) -> KeyEvent {
+    use crossterm::event::{KeyCode, KeyModifiers, KeyEvent, KeyEventKind};
+
+    // Map special characters to their key codes
+    let (code, mut modifiers) = match key_char {
+        '↵' => (KeyCode::Enter, KeyModifiers::empty()),
+        '\x1b' => (KeyCode::Esc, KeyModifiers::empty()),
+        '\t' => (KeyCode::Tab, KeyModifiers::empty()),
+        'D' if key_char.is_uppercase() && has_ctrl => {
+            // ^Del becomes Ctrl+Delete
+            (KeyCode::Delete, KeyModifiers::CONTROL)
+        }
+        _ => {
+            // Regular character, check if it should be uppercase or lowercase
+            let base_modifiers = if key_char.is_uppercase() {
+                KeyModifiers::SHIFT
+            } else {
+                KeyModifiers::empty()
+            };
+            (KeyCode::Char(key_char.to_ascii_lowercase()), base_modifiers)
+        }
+    };
+
+    // Add CONTROL modifier if specified
+    if has_ctrl && !matches!(key_char, 'D') {
+        modifiers |= KeyModifiers::CONTROL;
+    }
+
+    KeyEvent {
+        code,
+        modifiers,
+        kind: KeyEventKind::Press,
+        state: crossterm::event::KeyEventState::empty(),
+    }
+}
+
+/// Simulate a key press by routing it to the appropriate handler
+fn simulate_key_press(key: KeyEvent, app: &mut models::AppState) {
+    match app.selected_tab {
+        0 | 1 => handle_issues_view_event(key, app),
+        2 => handle_kanban_view_event(key, app),
+        3 => handle_dependencies_view_event(key, app),
+        4 => handle_labels_view_event(key, app),
+        5 => handle_gantt_view_event(key, app),
+        6 => handle_pert_view_event(key, app),
+        7 => handle_molecular_view_event(key, app),
+        8 | 9 => handle_database_view_event(key, app),
+        10 => handle_help_view_event(key, app),
+        _ => {}
     }
 }
 
@@ -3490,14 +3782,39 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
     // Content area based on selected tab
     match app.selected_tab {
         0 => {
-            // Issues view (List mode)
-            use ui::views::IssuesViewMode;
-            // If coming from Split Screen, revert to List mode to avoid stuck split layout
-            if app.issues_view_state.view_mode() == IssuesViewMode::SplitScreen {
-                app.issues_view_state.return_to_list();
+            // Issues view - render based on current view mode
+            use ui::views::{IssuesViewMode, IssueDetailView};
+
+            // Check current view mode to determine which view to render
+            match app.issues_view_state.view_mode() {
+                IssuesViewMode::Detail => {
+                    // Render full-screen Record Detail View
+                    // Extract scroll to avoid borrow conflicts
+                    let mut detail_scroll = app.issues_view_state.detail_scroll;
+                    if let Some(issue) = app.issues_view_state.selected_issue() {
+                        let detail_view = IssueDetailView::new(issue);
+                        f.render_stateful_widget(detail_view, tabs_chunks[1], &mut detail_scroll);
+                        // Write scroll back
+                        app.issues_view_state.detail_scroll = detail_scroll;
+                    } else {
+                        // No issue selected, return to list
+                        app.issues_view_state.return_to_list();
+                        let issues_view = IssuesView::new();
+                        f.render_stateful_widget(issues_view, tabs_chunks[1], &mut app.issues_view_state);
+                    }
+                }
+                IssuesViewMode::SplitScreen => {
+                    // Revert to List mode when on Issues tab (Split Screen is tab 1)
+                    app.issues_view_state.return_to_list();
+                    let issues_view = IssuesView::new();
+                    f.render_stateful_widget(issues_view, tabs_chunks[1], &mut app.issues_view_state);
+                }
+                _ => {
+                    // List or Edit mode - render IssuesView
+                    let issues_view = IssuesView::new();
+                    f.render_stateful_widget(issues_view, tabs_chunks[1], &mut app.issues_view_state);
+                }
             }
-            let issues_view = IssuesView::new();
-            f.render_stateful_widget(issues_view, tabs_chunks[1], &mut app.issues_view_state);
         }
         1 => {
             // Split view (Issues view in SplitScreen mode)

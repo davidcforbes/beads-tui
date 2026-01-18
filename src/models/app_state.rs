@@ -315,6 +315,155 @@ impl AppState {
         state
     }
 
+    /// Create app state with demo data (no BeadsClient needed)
+    /// Used for testing and viewing UI without a real beads database
+    pub fn with_demo_data(
+        dataset: crate::demo::DemoDataset,
+        tts_manager: crate::tts::TtsManager,
+    ) -> Self {
+        let issues = dataset.issues;
+        let label_stats = dataset.label_stats;
+        let database_stats = dataset.database_stats;
+
+        // Create a dummy BeadsClient (won't be used in demo mode)
+        let beads_client = BeadsClient::new();
+
+        // Initialize label picker with demo labels
+        let label_picker_labels: Vec<String> =
+            label_stats.iter().map(|stat| stat.name.clone()).collect();
+
+        // Load configuration
+        let config = Config::load().unwrap_or_else(|e| {
+            tracing::warn!("Failed to load config: {:?}, using defaults", e);
+            Config::default()
+        });
+
+        // Load theme from config
+        let theme =
+            if let Some(theme_type) = crate::ui::themes::ThemeType::from_name(&config.theme.name) {
+                crate::ui::themes::Theme::new(theme_type)
+            } else {
+                tracing::warn!("Unknown theme '{}', using default", config.theme.name);
+                crate::ui::themes::Theme::default()
+            };
+
+        // Create formulas
+        let formulas = vec![
+            Formula {
+                name: "Feature".to_string(),
+                description: "Standard feature template with estimate and labels".to_string(),
+                variables: vec![
+                    "title".to_string(),
+                    "description".to_string(),
+                    "estimate".to_string(),
+                ],
+            },
+            Formula {
+                name: "Bug".to_string(),
+                description: "Bug report template with steps to reproduce and priority".to_string(),
+                variables: vec![
+                    "title".to_string(),
+                    "repro_steps".to_string(),
+                    "priority".to_string(),
+                ],
+            },
+            Formula {
+                name: "Chore".to_string(),
+                description: "Maintenance task or internal improvement".to_string(),
+                variables: vec!["title".to_string(), "details".to_string()],
+            },
+            Formula {
+                name: "Release".to_string(),
+                description: "Release checklist and deployment steps".to_string(),
+                variables: vec!["version".to_string(), "date".to_string()],
+            },
+        ];
+
+        let mut issues_view_state = IssuesViewState::new(issues.clone());
+        issues_view_state.set_saved_filters(config.filters.clone());
+        issues_view_state
+            .search_state_mut()
+            .list_state_mut()
+            .set_table_config(config.table.clone());
+
+        Self {
+            should_quit: false,
+            selected_tab: 0,
+            tabs: vec![
+                "Issues",
+                "Split",
+                "Kanban",
+                "Dependencies",
+                "Labels",
+                "Ghant",
+                "Pert",
+                "Molecular",
+                "Statistics",
+                "Utilities",
+                "Help",
+            ],
+            beads_client,
+            issues_view_state,
+            dependencies_view_state: DependenciesViewState::new(),
+            dependency_tree_state: DependencyTreeState::new(),
+            dependency_dialog_state: DependencyDialogState::new(),
+            labels_view_state: LabelsViewState::new(),
+            pert_view_state: PertViewState::new(issues.clone()),
+            gantt_view_state: GanttViewState::new(issues.clone()),
+            kanban_view_state: KanbanViewState::new(issues.clone()),
+            label_stats,
+            database_stats,
+            database_status: DatabaseStatus::Ready,
+            database_view_state: DatabaseViewState::new(),
+            formulas,
+            formula_browser_state: FormulaBrowserState::new(),
+            pour_wizard_state: None,
+            wisp_manager_state: WispManagerState::new(),
+            bonding_interface_state: BondingInterfaceState::new(),
+            history_ops_state: HistoryOpsState::new(),
+            molecular_tabs: vec!["Formulas", "Wisps", "Bonds", "Squash/Burn"],
+            selected_molecular_tab: 0,
+            dirty: true,
+            help_section: HelpSection::Global,
+            help_scroll_offset: 0,
+            dialog_state: None,
+            pending_action: None,
+            notifications: Vec::new(),
+            notification_history: VecDeque::new(),
+            show_notification_history: false,
+            notification_history_state: crate::ui::widgets::NotificationHistoryState::new(),
+            show_issue_history: false,
+            issue_history_state: crate::ui::widgets::IssueHistoryState::new(),
+            show_label_picker: false,
+            priority_selector_state: crate::ui::widgets::SelectorState::new(),
+            status_selector_state: crate::ui::widgets::SelectorState::new(),
+            label_picker_state: crate::ui::widgets::LabelPickerState::new(label_picker_labels),
+            column_manager_state: None,
+            daemon_running: false, // Demo mode: no daemon
+            config,
+            theme,
+            filter_save_dialog_state: None,
+            filter_quick_select_state: None,
+            editing_filter_name: None,
+            delete_confirmation_filter: None,
+            delete_dialog_state: None,
+            pending_dependency_removal: None,
+            dependency_removal_dialog_state: None,
+            show_shortcut_help: false,
+            show_context_help: false,
+            show_undo_history: false,
+            loading_spinner: None,
+            loading_message: None,
+            cancellation_token: None,
+            tts_manager,
+            undo_stack: UndoStack::new(),
+            task_manager: TaskManager::new(),
+            active_tasks: Vec::new(),
+            completed_tasks: VecDeque::new(),
+            mouse_down_pos: None,
+        }
+    }
+
     /// Load issues synchronously using tokio runtime
     /// Limits to 10,000 issues to prevent memory exhaustion on large projects
     fn load_issues_sync(client: &BeadsClient) -> Vec<crate::beads::models::Issue> {
