@@ -394,7 +394,95 @@ fn handle_screen_capture<B: ratatui::backend::Backend>(
 
 /// Handle mouse click events (after detecting down+up at same position)
 fn handle_mouse_click(col: u16, row: u16, _terminal_width: u16, terminal_height: u16, app: &mut models::AppState) {
-    // Layout:
+    // FULLSCREEN ISSUES VIEW (tab 0) - New layout:
+    // Row 0: Title bar
+    // Row 1: Tab bar
+    // Rows 2-3: FILTERS section
+    // Row 4+: Issues table
+    // Last row: Action bar
+    if app.selected_tab == 0 {
+        // Handle tab bar clicks (row 1)
+        if row == 1 {
+            // Tab bar layout: " Issues | Record | Split | ..."
+            // Parse tab positions by finding the pipe separators
+            let mut current_col = 1u16; // Start after leading space
+
+            // Tab names in order
+            let tab_names = vec![
+                "Issues", "Record", "Split", "Kanban", "Dependencies",
+                "Labels", "Ghant", "Pert", "Molecule", "Statistics",
+                "Utilities", "History", "Quit"
+            ];
+
+            for (i, name) in tab_names.iter().enumerate() {
+                let tab_end = current_col + name.len() as u16;
+                if col >= current_col && col < tab_end {
+                    tracing::info!("Fullscreen tab {} '{}' clicked at col {}", i, name, col);
+
+                    // "Quit" tab should quit the app
+                    if i == 12 {
+                        app.should_quit = true;
+                    } else {
+                        app.selected_tab = i;
+                        app.tts_manager.announce(&format!("{} tab", name));
+                    }
+                    app.mark_dirty();
+                    return;
+                }
+                // Move past tab name + separator " | " (3 chars)
+                current_col = tab_end + 3;
+            }
+            return;
+        }
+
+        // Handle filter bar clicks (row 3 - the second line of FILTERS section)
+        if row == 3 && app.issues_view_state.filter_bar_state.is_some() {
+            // Filter bar layout: "1:Status [ALL ▼] | 2:Type [ALL ▼] | ..."
+            // Approximate click zones for each filter
+            if col >= 0 && col < 20 {
+                // Status filter
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Status);
+                    app.mark_dirty();
+                }
+            } else if col >= 20 && col < 40 {
+                // Type filter
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Type);
+                    app.mark_dirty();
+                }
+            } else if col >= 40 && col < 63 {
+                // Priority filter
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Priority);
+                    app.mark_dirty();
+                }
+            } else if col >= 63 && col < 85 {
+                // Labels filter
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Labels);
+                    app.mark_dirty();
+                }
+            } else if col >= 85 && col < 107 {
+                // Created filter
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Created);
+                    app.mark_dirty();
+                }
+            } else if col >= 107 && col < 129 {
+                // Updated filter
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Updated);
+                    app.mark_dirty();
+                }
+            }
+            return;
+        }
+
+        // For other rows in fullscreen view, continue to existing handling below
+    }
+
+    // OLD LAYOUT (for other tabs):
     // Row 0-2: TITLE block (with Find field at row 1)
     // Row 3-5: VIEWS/Tabs block (tab content at row 4)
     // Row 6-8: Filter bar (if visible) - filter content at row 7
@@ -2170,6 +2258,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                         // Esc
                         issues_state.search_state_mut().clear_search();
                     }
+                    Some(Action::ClearFilter) => {
+                        // Shift+F - Clear/reset search
+                        issues_state.search_state_mut().clear_search();
+                    }
 
                     // Column manipulation (Alt+Left/Right etc)
                     // These are Actions now: MoveLeft + Alt, etc.
@@ -3495,46 +3587,67 @@ fn run_app<B: ratatui::backend::Backend>(
                         continue;
                     }
                     KeyCode::Char('1') => {
-                        app.selected_tab = 0;
-                        app.tts_manager.announce("Issues tab");
-                        app.mark_dirty();
-                        continue;
+                        // On Issues view (tab 0), keys 1-7 are for filters, not tab switching
+                        if app.selected_tab != 0 {
+                            app.selected_tab = 0;
+                            app.tts_manager.announce("Issues tab");
+                            app.mark_dirty();
+                            continue;
+                        }
                     }
                     KeyCode::Char('2') => {
-                        app.selected_tab = 1;
-                        app.tts_manager.announce("Split tab");
-                        app.mark_dirty();
-                        continue;
+                        // On Issues view (tab 0), keys 1-7 are for filters, not tab switching
+                        if app.selected_tab != 0 {
+                            app.selected_tab = 1;
+                            app.tts_manager.announce("Split tab");
+                            app.mark_dirty();
+                            continue;
+                        }
                     }
                     KeyCode::Char('3') => {
-                        app.selected_tab = 2;
-                        app.tts_manager.announce("Kanban tab");
-                        app.mark_dirty();
-                        continue;
+                        // On Issues view (tab 0), keys 1-7 are for filters, not tab switching
+                        if app.selected_tab != 0 {
+                            app.selected_tab = 2;
+                            app.tts_manager.announce("Kanban tab");
+                            app.mark_dirty();
+                            continue;
+                        }
                     }
                     KeyCode::Char('4') => {
-                        app.selected_tab = 3;
-                        app.tts_manager.announce("Dependencies tab");
-                        app.mark_dirty();
-                        continue;
+                        // On Issues view (tab 0), keys 1-7 are for filters, not tab switching
+                        if app.selected_tab != 0 {
+                            app.selected_tab = 3;
+                            app.tts_manager.announce("Dependencies tab");
+                            app.mark_dirty();
+                            continue;
+                        }
                     }
                     KeyCode::Char('5') => {
-                        app.selected_tab = 4;
-                        app.tts_manager.announce("Labels tab");
-                        app.mark_dirty();
-                        continue;
+                        // On Issues view (tab 0), keys 1-7 are for filters, not tab switching
+                        if app.selected_tab != 0 {
+                            app.selected_tab = 4;
+                            app.tts_manager.announce("Labels tab");
+                            app.mark_dirty();
+                            continue;
+                        }
                     }
                     KeyCode::Char('6') => {
-                        app.selected_tab = 5;
-                        app.tts_manager.announce("Gantt tab");
-                        app.mark_dirty();
-                        continue;
+                        // On Issues view (tab 0), keys 1-7 are for filters, not tab switching
+                        if app.selected_tab != 0 {
+                            app.selected_tab = 5;
+                            app.tts_manager.announce("Gantt tab");
+                            app.mark_dirty();
+                            continue;
+                        }
                     }
                     KeyCode::Char('7') => {
-                        app.selected_tab = 6;
-                        app.tts_manager.announce("Pert tab");
-                        app.mark_dirty();
-                        continue;
+                        // On Issues view (tab 0), keys 1-7 are for filters, not tab switching
+                        if app.selected_tab != 0 {
+                            app.selected_tab = 6;
+                            app.tts_manager.announce("Pert tab");
+                            app.mark_dirty();
+                            continue;
+                        }
                     }
                     KeyCode::Char('8') => {
                         app.selected_tab = 7;
@@ -3683,6 +3796,21 @@ fn handle_molecular_view_event(key: KeyEvent, app: &mut models::AppState) {
 /// Render full-screen Issues View with new design (solid backgrounds, no borders)
 fn render_issues_view_fullscreen(f: &mut Frame, app: &mut models::AppState) {
     let area = f.size();
+
+    // Initialize filter_bar_state if not already initialized (needed for filter hotkeys 1-7)
+    if app.issues_view_state.filter_bar_state.is_none() {
+        let filter_bar_state = ui::widgets::FilterBarState::new(
+            collect_unique_statuses(&app.issues_view_state),
+            collect_unique_priorities(&app.issues_view_state),
+            collect_unique_types(&app.issues_view_state),
+            collect_unique_labels(&app.issues_view_state),
+            collect_unique_assignees(&app.issues_view_state),
+            collect_unique_created_dates(&app.issues_view_state),
+            collect_unique_updated_dates(&app.issues_view_state),
+            collect_unique_closed_dates(&app.issues_view_state),
+        );
+        app.issues_view_state.filter_bar_state = Some(filter_bar_state);
+    }
 
     // Layout: Title(1) | Tabs(1) | Filters(2) | Issues(min) | Actions(1)
     let chunks = Layout::default()

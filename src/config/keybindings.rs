@@ -456,9 +456,9 @@ fn default_bindings() -> HashMap<Action, Vec<Keybinding>> {
     bindings.insert(Action::OpenPriorityFilter, vec![Keybinding::alt("p")]);
     bindings.insert(Action::OpenTypeFilter, vec![Keybinding::alt("t")]);
     bindings.insert(Action::OpenLabelsFilter, vec![Keybinding::alt("l")]);
-    bindings.insert(Action::Search, vec![Keybinding::new("/"), Keybinding::new("s"), Keybinding::new("f")]);
+    bindings.insert(Action::Search, vec![Keybinding::new("/"), Keybinding::new("s"), Keybinding::new("f"), Keybinding::ctrl("f")]);
     bindings.insert(Action::NextSearchResult, vec![Keybinding::shift("n")]);
-    bindings.insert(Action::PrevSearchResult, vec![Keybinding::alt("n")]);
+    bindings.insert(Action::PrevSearchResult, vec![Keybinding::shift("p")]);
     bindings.insert(Action::ToggleFuzzySearch, vec![Keybinding::alt("z")]);
     bindings.insert(Action::ToggleRegexSearch, vec![Keybinding::alt("r")]);
 
