@@ -49,7 +49,7 @@ struct Args {
     #[arg(long)]
     demo: bool,
 
-    /// Open specific view (0-10)
+    /// Open specific view (0-11)
     #[arg(long, value_name = "TAB_INDEX")]
     view: Option<usize>,
 
@@ -265,7 +265,8 @@ fn handle_mouse_event<B: ratatui::backend::Backend>(
                 6 => handle_pert_view_event(key, app),
                 7 => handle_molecular_view_event(key, app),
                 8 | 9 => handle_database_view_event(key, app),
-                10 => handle_help_view_event(key, app),
+                10 => handle_issues_view_event(key, app), // Record Detail
+                11 => handle_help_view_event(key, app),
                 _ => {}
             }
             app.mark_dirty();
@@ -289,7 +290,8 @@ fn handle_mouse_event<B: ratatui::backend::Backend>(
                 6 => handle_pert_view_event(key, app),
                 7 => handle_molecular_view_event(key, app),
                 8 | 9 => handle_database_view_event(key, app),
-                10 => handle_help_view_event(key, app),
+                10 => handle_issues_view_event(key, app), // Record Detail
+                11 => handle_help_view_event(key, app),
                 _ => {}
             }
             app.mark_dirty();
@@ -433,7 +435,8 @@ fn handle_mouse_click(col: u16, row: u16, _terminal_width: u16, terminal_height:
                 let shortcut = match i {
                     0..=8 => format!("{}:", i + 1),  // 1-9
                     9 => "0:".to_string(),            // 0 for Utilities
-                    10 => "H:".to_string(),           // H for Help
+                    10 => "R:".to_string(),           // R for Record
+                    11 => "H:".to_string(),           // H for Help
                     _ => "".to_string(),
                 };
                 let tab_text = format!(" {}{}", shortcut, name);
@@ -3553,7 +3556,8 @@ fn run_app<B: ratatui::backend::Backend>(
                     6 => handle_pert_view_event(key, app),       // Pert
                     7 => handle_molecular_view_event(key, app),  // Molecular
                     8 | 9 => handle_database_view_event(key, app), // Statistics & Utilities
-                    10 => handle_help_view_event(key, app),      // Help
+                    10 => handle_issues_view_event(key, app), // Record Detail
+                11 => handle_help_view_event(key, app),      // Help
                     _ => {}
                 }
 
@@ -3896,8 +3900,23 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
                 .daemon_running(app.daemon_running);
             f.render_stateful_widget(database_view, tabs_chunks[1], &mut app.database_view_state);
         }
+        10 => {
+            // Record Detail view - show detail of selected issue
+            use ui::views::IssueDetailView;
+            let mut detail_scroll = app.issues_view_state.detail_scroll;
+            if let Some(issue) = app.issues_view_state.selected_issue() {
+                let detail_view = IssueDetailView::new(issue);
+                f.render_stateful_widget(detail_view, tabs_chunks[1], &mut detail_scroll);
+                app.issues_view_state.detail_scroll = detail_scroll;
+            } else {
+                // No issue selected, show message
+                let placeholder = Paragraph::new("No issue selected. Press ESC to return to Issues view.")
+                    .block(Block::default().borders(Borders::ALL).title("Record Detail"));
+                f.render_widget(placeholder, tabs_chunks[1]);
+            }
+        }
         _ => {
-            // Help view (Index 10 and fallback)
+            // Help view (Index 11 and fallback)
             let help_view = HelpView::new().selected_section(app.help_section);
             let mut help_state = HelpViewState::new();
             help_state.set_scroll_offset(app.help_scroll_offset);
@@ -4363,6 +4382,18 @@ fn get_contextual_actions(app: &models::AppState) -> (String, Vec<String>) {
                 "F:Find".to_string(),
                 "O:Open".to_string(),
                 "X:Close".to_string(),
+            ]
+        }
+        10 => {
+            // Record Detail view
+            vec![
+                "E:Edit".to_string(),
+                "↑/↓:Scroll".to_string(),
+                "PgUp/Dn:Page".to_string(),
+                "Home/End:Top/Bot".to_string(),
+                "Esc:Back".to_string(),
+                "Tab:Sections".to_string(),
+                "?:Help".to_string(),
             ]
         }
         _ => {

@@ -71,6 +71,11 @@ pub fn all_views() -> Vec<ViewInfo> {
         },
         ViewInfo {
             index: 10,
+            name: "Record",
+            description: "Record detail view (full-screen issue details)",
+        },
+        ViewInfo {
+            index: 11,
             name: "Help",
             description: "Help and keyboard shortcuts",
         },
