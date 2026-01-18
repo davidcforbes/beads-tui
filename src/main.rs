@@ -1282,7 +1282,7 @@ fn run_app<B: ratatui::backend::Backend>(
                         continue;
                     }
                     // Letter shortcuts for tab navigation
-                    // i=Issues, r=Record, s/k=Kanban, d=Dependencies, l=Labels
+                    // i=Issues, r=Record Detail, s=Split, k=Kanban, d=Dependencies, l=Labels
                     // g=Gantt, p=Pert, m=Molecular, t=Statistics, u=Utilities, h=Help
                     KeyCode::Char('i') => {
                         // Issues view - same as '1' but always works
@@ -1306,15 +1306,16 @@ fn run_app<B: ratatui::backend::Backend>(
                         continue;
                     }
                     KeyCode::Char('r') => {
-                        // 'r' switches to Record tab (full-screen detail view)
-                        app.selected_tab = 1;
-                        app.tts_manager.announce("Record tab");
+                        // 'r' switches to Record Detail tab
+                        app.selected_tab = 10;
+                        app.tts_manager.announce("Record Detail tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('s') => {
-                        app.selected_tab = 2;
-                        app.tts_manager.announce("Kanban tab");
+                        // 's' switches to Split View tab
+                        app.selected_tab = 1;
+                        app.tts_manager.announce("Split View tab");
                         app.mark_dirty();
                         continue;
                     }
