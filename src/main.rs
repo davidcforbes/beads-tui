@@ -1806,6 +1806,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             .search_state_mut()
                             .list_state_mut()
                             .scroll_left();
+                        app.mark_dirty();
                     }
                     Some(Action::MoveRight) if !key.modifiers.contains(KeyModifiers::SHIFT) => {
                         // Horizontal scroll right by one column
@@ -1813,6 +1814,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             .search_state_mut()
                             .list_state_mut()
                             .scroll_right();
+                        app.mark_dirty();
                     }
                     Some(Action::MoveLeft) if key.modifiers.contains(KeyModifiers::SHIFT) => {
                         // Jump to first column (Shift+Left or Shift+Home)
@@ -1820,6 +1822,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             .search_state_mut()
                             .list_state_mut()
                             .scroll_to_column(0);
+                        app.mark_dirty();
                     }
                     Some(Action::MoveRight) if key.modifiers.contains(KeyModifiers::SHIFT) => {
                         // Jump to last column (Shift+Right or Shift+End)
@@ -1827,6 +1830,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                             .search_state_mut()
                             .list_state_mut()
                             .scroll_to_column(usize::MAX); // Will be clamped to last column
+                        app.mark_dirty();
                     }
                     Some(Action::PageDown) => {
                         // Scroll down by one page (viewport height)
