@@ -404,32 +404,34 @@ fn handle_mouse_click(col: u16, row: u16, _terminal_width: u16, terminal_height:
         // Handle tab bar clicks (row 1)
         if row == 1 {
             // Tab bar layout: " Issues | Record | Split | ..."
-            // Parse tab positions by finding the pipe separators
-            let mut current_col = 1u16; // Start after leading space
+            // Parse tab positions: leading space + tab name + trailing space + "|"
+            // Pattern for each tab: " TabName " + "|" (except last has no "|")
+            let mut current_col = 1u16; // Start after leading space (where first tab name begins)
 
-            // Tab names in order
-            let tab_names = vec![
-                "Issues", "Record", "Split", "Kanban", "Dependencies",
-                "Labels", "Ghant", "Pert", "Molecule", "Statistics",
-                "Utilities", "History", "Quit"
-            ];
+            for (i, &tab_name) in app.tabs.iter().enumerate() {
+                // Each tab occupies: name.len() characters starting at current_col
+                let tab_end = current_col + tab_name.len() as u16;
 
-            for (i, name) in tab_names.iter().enumerate() {
-                let tab_end = current_col + name.len() as u16;
+                // Check if click is within this tab's name
                 if col >= current_col && col < tab_end {
-                    tracing::info!("Fullscreen tab {} '{}' clicked at col {}", i, name, col);
+                    tracing::info!("Fullscreen tab {} '{}' clicked at col {}", i, tab_name, col);
 
                     // "Quit" tab should quit the app
-                    if i == 12 {
+                    if tab_name == "Quit" {
                         app.should_quit = true;
                     } else {
                         app.selected_tab = i;
-                        app.tts_manager.announce(&format!("{} tab", name));
+                        app.tts_manager.announce(&format!("{} tab", tab_name));
                     }
                     app.mark_dirty();
                     return;
                 }
-                // Move past tab name + separator " | " (3 chars)
+
+                // Move to next tab position:
+                // +1 for trailing space after tab name
+                // +1 for "|" separator
+                // +1 for leading space before next tab
+                // = +3 total
                 current_col = tab_end + 3;
             }
             return;
@@ -557,29 +559,29 @@ fn handle_mouse_click(col: u16, row: u16, _terminal_width: u16, terminal_height:
 
     // Hit test for list items (Issues view)
     if app.selected_tab == 0 || app.selected_tab == 1 {
-        // Calculate row offset based on filter bar visibility
-        let filter_bar_visible = app.issues_view_state.filter_bar_state.is_some();
-
-        // When filter bar is visible:
-        //   Row 6-8: Filter bar
-        //   Row 9: Table top border
-        //   Row 10: Table header
-        //   Row 11+: Table data rows
-        // When filter bar is NOT visible:
-        //   Row 6: Results info line
-        //   Row 7: Table top border
-        //   Row 8: Table header
-        //   Row 9+: Table data rows
-
-        let first_data_row = if filter_bar_visible { 11 } else { 9 };
+        // Calculate row offset based on layout type
+        let first_data_row = if app.selected_tab == 0 {
+            // FULLSCREEN Issues View layout:
+            // Row 0: Title bar
+            // Row 1: Tab bar
+            // Rows 2-3: FILTERS section
+            // Row 4: [ISSUES] header
+            // Row 5: Table header (column names)
+            // Row 6+: Table data rows
+            6
+        } else {
+            // Split view layout (tab 1): use old calculations
+            let filter_bar_visible = app.issues_view_state.filter_bar_state.is_some();
+            if filter_bar_visible { 11 } else { 9 }
+        };
 
         if row >= first_data_row {
             let item_index = (row - first_data_row) as usize;
             let filtered_issues_len = app.issues_view_state.search_state().filtered_issues().len();
 
             if item_index < filtered_issues_len {
-                tracing::info!("List item {} clicked at row {} (first_data_row: {}, filter_bar_visible: {})",
-                    item_index, row, first_data_row, filter_bar_visible);
+                tracing::info!("List item {} clicked at row {} (first_data_row: {}, tab: {})",
+                    item_index, row, first_data_row, app.selected_tab);
                 app.issues_view_state
                     .search_state_mut()
                     .list_state_mut()
