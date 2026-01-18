@@ -1281,15 +1281,9 @@ fn run_app<B: ratatui::backend::Backend>(
                         app.mark_dirty();
                         continue;
                     }
-                    KeyCode::Char('h') => {
-                        app.selected_tab = 11;
-                        app.tts_manager.announce("History tab");
-                        app.mark_dirty();
-                        continue;
-                    }
                     // Letter shortcuts for tab navigation
-                    // i=Issues, r=Record, s=Split, k=Kanban, d=Dependencies, l=Labels
-                    // g=Ghant, p=Pert, m=Molecule, t=Statistics, u=Utilities, h=History
+                    // i=Issues, r=Record, s/k=Kanban, d=Dependencies, l=Labels
+                    // g=Gantt, p=Pert, m=Molecular, t=Statistics, u=Utilities, h=Help
                     KeyCode::Char('i') => {
                         // Issues view - same as '1' but always works
                         app.selected_tab = 0;
@@ -1320,56 +1314,62 @@ fn run_app<B: ratatui::backend::Backend>(
                     }
                     KeyCode::Char('s') => {
                         app.selected_tab = 2;
-                        app.tts_manager.announce("Split tab");
+                        app.tts_manager.announce("Kanban tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('k') => {
                         // 'k' switches to Kanban tab
-                        app.selected_tab = 3;
+                        app.selected_tab = 2;
                         app.tts_manager.announce("Kanban tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('d') => {
-                        app.selected_tab = 4;
+                        app.selected_tab = 3;
                         app.tts_manager.announce("Dependencies tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('l') => {
-                        app.selected_tab = 5;
+                        app.selected_tab = 4;
                         app.tts_manager.announce("Labels tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('g') => {
-                        app.selected_tab = 6;
-                        app.tts_manager.announce("Ghant tab");
+                        app.selected_tab = 5;
+                        app.tts_manager.announce("Gantt tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('p') => {
-                        app.selected_tab = 7;
+                        app.selected_tab = 6;
                         app.tts_manager.announce("Pert tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('m') => {
-                        app.selected_tab = 8;
-                        app.tts_manager.announce("Molecule tab");
+                        app.selected_tab = 7;
+                        app.tts_manager.announce("Molecular tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('t') => {
-                        app.selected_tab = 9;
+                        app.selected_tab = 8;
                         app.tts_manager.announce("Statistics tab");
                         app.mark_dirty();
                         continue;
                     }
                     KeyCode::Char('u') => {
-                        app.selected_tab = 10;
+                        app.selected_tab = 9;
                         app.tts_manager.announce("Utilities tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('h') => {
+                        app.selected_tab = 11;
+                        app.tts_manager.announce("Help tab");
                         app.mark_dirty();
                         continue;
                     }
