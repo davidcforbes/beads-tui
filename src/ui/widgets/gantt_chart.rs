@@ -17,13 +17,13 @@ pub enum GroupingMode {
     /// No grouping - all issues in a single lane
     None,
     /// Group by issue status
-    #[default]
     Status,
     /// Group by issue priority
     Priority,
     /// Group by assignee
     Assignee,
-    /// Group by issue type
+    /// Group by issue type (epics, features, tasks, bugs, chores in separate swimlanes)
+    #[default]
     Type,
 }
 

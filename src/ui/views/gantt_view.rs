@@ -157,11 +157,11 @@ impl GanttViewState {
         let selected_id = self.selected_issue().map(|i| i.id.clone());
 
         self.config.grouping = match self.config.grouping {
-            GroupingMode::None => GroupingMode::Status,
+            GroupingMode::Type => GroupingMode::Status,
             GroupingMode::Status => GroupingMode::Priority,
             GroupingMode::Priority => GroupingMode::Assignee,
-            GroupingMode::Assignee => GroupingMode::Type,
-            GroupingMode::Type => GroupingMode::None,
+            GroupingMode::Assignee => GroupingMode::None,
+            GroupingMode::None => GroupingMode::Type,
         };
 
         // Try to restore selection to same issue after regrouping
@@ -601,6 +601,9 @@ mod tests {
     fn test_grouping() {
         let mut state = GanttViewState::new(vec![]);
 
+        assert_eq!(state.config.grouping, GroupingMode::Type);
+
+        state.cycle_grouping();
         assert_eq!(state.config.grouping, GroupingMode::Status);
 
         state.cycle_grouping();
