@@ -441,7 +441,7 @@ fn handle_mouse_click(col: u16, row: u16, _terminal_width: u16, terminal_height:
         if row == 3 && app.issues_view_state.filter_bar_state.is_some() {
             // Filter bar layout: "1:Status [ALL ▼] | 2:Type [ALL ▼] | ..."
             // Approximate click zones for each filter
-            if col >= 0 && col < 20 {
+            if col < 20 {
                 // Status filter
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Status);

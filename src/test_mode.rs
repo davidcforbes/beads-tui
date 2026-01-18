@@ -84,7 +84,7 @@ pub fn all_views() -> Vec<ViewInfo> {
 
 /// Run snapshot mode: render a view to text and save to file
 pub fn run_snapshot_mode<B, F>(
-    terminal: &mut Terminal<B>,
+    _terminal: &mut Terminal<B>,
     app: &mut AppState,
     view_index: usize,
     output_path: Option<String>,
@@ -108,7 +108,7 @@ where
 
     // Create a test backend with specified dimensions
     use ratatui::backend::TestBackend;
-    let mut test_backend = TestBackend::new(size.0, size.1);
+    let test_backend = TestBackend::new(size.0, size.1);
     let mut test_terminal = Terminal::new(test_backend)?;
 
     // Render the view

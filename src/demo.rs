@@ -71,8 +71,8 @@ impl DemoDataset {
         generator.set_priority(&bug2, Priority::P1);
 
         // Add some more diverse issues
-        let chore1 = generator.chore("Update documentation", &["docs"]);
-        let chore2 = generator.chore("Refactor auth module", &["backend", "refactor"]);
+        let _chore1 = generator.chore("Update documentation", &["docs"]);
+        let _chore2 = generator.chore("Refactor auth module", &["backend", "refactor"]);
 
         let feat3 = generator.feature("Password Reset Flow", &["frontend", "backend", "auth"]);
         generator.add_dependency(&bug2, &feat3);
@@ -409,8 +409,8 @@ impl DemoDataset {
         // Unicode and special characters
         let unicode1 = generator.feature("支持中文 Chinese Support", &["i18n", "unicode"]);
         let unicode2 = generator.feature("🚀 Emoji Support 🎉", &["i18n", "emoji"]);
-        let unicode3 = generator.task("Тестирование кириллицы", &["testing", "i18n"]);
-        let unicode4 = generator.bug("العربية Arabic RTL layout issue", &["bug", "rtl", "i18n"]);
+        let _unicode3 = generator.task("Тестирование кириллицы", &["testing", "i18n"]);
+        let _unicode4 = generator.bug("العربية Arabic RTL layout issue", &["bug", "rtl", "i18n"]);
 
         // Very long title
         let long_title = generator.task(
@@ -419,15 +419,15 @@ impl DemoDataset {
         );
 
         // Special characters in titles
-        let special1 = generator.bug("Error: `NULL` pointer exception in <Component/>", &["bug", "critical"]);
-        let special2 = generator.task("Implement \"quoted\" strings & ampersands", &["feature"]);
-        let special3 = generator.chore("Fix issues with \\ backslashes / slashes", &["chore"]);
+        let _special1 = generator.bug("Error: `NULL` pointer exception in <Component/>", &["bug", "critical"]);
+        let _special2 = generator.task("Implement \"quoted\" strings & ampersands", &["feature"]);
+        let _special3 = generator.chore("Fix issues with \\ backslashes / slashes", &["chore"]);
 
         // Empty-ish descriptions
-        let minimal = generator.task("Minimal task", &[]);
+        let _minimal = generator.task("Minimal task", &[]);
 
         // Issue with many labels
-        let many_labels = generator.feature(
+        let _many_labels = generator.feature(
             "Feature with many labels",
             &[
                 "label1", "label2", "label3", "label4", "label5",
@@ -437,7 +437,7 @@ impl DemoDataset {
         );
 
         // Very long label names
-        let long_labels = generator.task(
+        let _long_labels = generator.task(
             "Task with very long label names",
             &[
                 "this-is-a-very-long-label-name-that-tests-ui-wrapping",
@@ -473,9 +473,9 @@ impl DemoDataset {
         generator.add_dependency(&complex_deps, &long_title);
 
         // Duplicate titles (edge case for sorting/filtering)
-        let dup1 = generator.task("Duplicate Title", &["test"]);
-        let dup2 = generator.task("Duplicate Title", &["test"]);
-        let dup3 = generator.task("Duplicate Title", &["test"]);
+        let _dup1 = generator.task("Duplicate Title", &["test"]);
+        let _dup2 = generator.task("Duplicate Title", &["test"]);
+        let _dup3 = generator.task("Duplicate Title", &["test"]);
 
         // Issue with extreme estimates
         let short_estimate = generator.task("Very quick task", &["quick"]);
@@ -502,7 +502,7 @@ struct IssueGenerator {
     issues: HashMap<String, Issue>,
     next_id: usize,
     base_timestamp: DateTime<Utc>,
-    seed: u64,
+    _seed: u64,
 }
 
 impl IssueGenerator {
@@ -511,7 +511,7 @@ impl IssueGenerator {
             issues: HashMap::new(),
             next_id: 1,
             base_timestamp: Utc::now() - Duration::days(30), // Start 30 days ago
-            seed,
+            _seed: seed,
         }
     }
 
