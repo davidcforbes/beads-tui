@@ -821,118 +821,137 @@ impl ViewEventHandler for IssuesViewState {
     }
 
     // Handle filter dropdown hotkeys (1-7 for filters and reset)
-    if app.issues_view_state.filter_bar_state.is_some() {
-        match key_code {
-            KeyCode::Char('1') => {
-                // Toggle Status filter dropdown
-                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
-                    filter_bar_state.toggle_dropdown(crate::ui::widgets::FilterDropdownType::Status);
-                    app.mark_dirty();
-                }
-                return true;
-            }
-            KeyCode::Char('2') => {
-                // Toggle Type filter dropdown
-                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
-                    filter_bar_state.toggle_dropdown(crate::ui::widgets::FilterDropdownType::Type);
-                    app.mark_dirty();
-                }
-                return true;
-            }
-            KeyCode::Char('3') => {
-                // Toggle Priority filter dropdown
-                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
-                    filter_bar_state.toggle_dropdown(crate::ui::widgets::FilterDropdownType::Priority);
-                    app.mark_dirty();
-                }
-                return true;
-            }
-            KeyCode::Char('4') => {
-                // Toggle Labels filter dropdown
-                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
-                    filter_bar_state.toggle_dropdown(crate::ui::widgets::FilterDropdownType::Labels);
-                    app.mark_dirty();
-                }
-                return true;
-            }
-            KeyCode::Char('5') => {
-                // Toggle Created date filter dropdown
-                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
-                    filter_bar_state.toggle_dropdown(crate::ui::widgets::FilterDropdownType::Created);
-                    app.mark_dirty();
-                }
-                return true;
-            }
-            KeyCode::Char('6') => {
-                // Toggle Updated date filter dropdown
-                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
-                    filter_bar_state.toggle_dropdown(crate::ui::widgets::FilterDropdownType::Updated);
-                    app.mark_dirty();
-                }
-                return true;
-            }
-            KeyCode::Char('7') => {
-                // Reset all filters
-                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
-                    // Close any open dropdown
-                    filter_bar_state.close_dropdown();
-                    // Clear all selections (reset to "All")
-                    filter_bar_state.status_dropdown.clear_selection();
-                    filter_bar_state.priority_dropdown.clear_selection();
-                    filter_bar_state.type_dropdown.clear_selection();
-                    filter_bar_state.labels_dropdown.clear_selection();
-                    filter_bar_state.created_dropdown.clear_selection();
-                    filter_bar_state.updated_dropdown.clear_selection();
-                    app.mark_dirty();
-                }
-                return true;
-            }
-            _ => {}
-        }
-
-        // Handle filter dropdown navigation if a dropdown is open
-        if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
-            if filter_bar_state.active_dropdown.is_some() {
-                match action {
-                    Some(Action::MoveUp) => {
-                        if let Some(mut dropdown) = filter_bar_state.active_dropdown_mut() {
-                            dropdown.previous();
-                            app.mark_dirty();
-                        }
-                        return true;
-                    }
-                    Some(Action::MoveDown) => {
-                        if let Some(mut dropdown) = filter_bar_state.active_dropdown_mut() {
-                            dropdown.next();
-                            app.mark_dirty();
-                        }
-                        return true;
-                    }
-                    Some(Action::ToggleSelection) => {
-                        if let Some(mut dropdown) = filter_bar_state.active_dropdown_mut() {
-                            dropdown.toggle_selected();
-                            app.mark_dirty();
-                        }
-                        return true;
-                    }
-                    Some(Action::ConfirmDialog) => {
-                        // Apply filter and close dropdown
-                        filter_bar_state.close_dropdown();
-                        app.issues_view_state.apply_filter_bar_filters();
-                        app.mark_dirty();
-                        return true;
-                    }
-                    Some(Action::CancelDialog) => {
-                        // Close dropdown without applying
-                        filter_bar_state.close_dropdown();
-                        app.mark_dirty();
-                        return true;
-                    }
-                    _ => {}
-                }
+    // Initialize filter_bar_state if it doesn't exist yet
+    match key_code {
+        KeyCode::Char('1') | KeyCode::Char('2') | KeyCode::Char('3') |
+        KeyCode::Char('4') | KeyCode::Char('5') | KeyCode::Char('6') | KeyCode::Char('7') => {
+            if app.issues_view_state.filter_bar_state.is_none() {
+                let filter_bar_state = crate::ui::widgets::FilterBarState::new(
+                    crate::helpers::collect_unique_statuses(&app.issues_view_state),
+                    crate::helpers::collect_unique_priorities(&app.issues_view_state),
+                    crate::helpers::collect_unique_types(&app.issues_view_state),
+                    crate::helpers::collect_unique_labels(&app.issues_view_state),
+                    crate::helpers::collect_unique_assignees(&app.issues_view_state),
+                    crate::helpers::collect_unique_created_dates(&app.issues_view_state),
+                    crate::helpers::collect_unique_updated_dates(&app.issues_view_state),
+                    crate::helpers::collect_unique_closed_dates(&app.issues_view_state),
+                );
+                app.issues_view_state.filter_bar_state = Some(filter_bar_state);
             }
         }
+        _ => {}
     }
+
+    match key_code {
+        KeyCode::Char('1') => {
+            // Toggle Status filter dropdown
+            if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                filter_bar_state.toggle_dropdown(crate::ui::widgets::FilterDropdownType::Status);
+                app.mark_dirty();
+            }
+            return true;
+        }
+        KeyCode::Char('2') => {
+            // Toggle Type filter dropdown
+            if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                filter_bar_state.toggle_dropdown(crate::ui::widgets::FilterDropdownType::Type);
+                app.mark_dirty();
+            }
+            return true;
+        }
+        KeyCode::Char('3') => {
+            // Toggle Priority filter dropdown
+            if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                filter_bar_state.toggle_dropdown(crate::ui::widgets::FilterDropdownType::Priority);
+                app.mark_dirty();
+            }
+            return true;
+        }
+        KeyCode::Char('4') => {
+            // Toggle Labels filter dropdown
+            if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                filter_bar_state.toggle_dropdown(crate::ui::widgets::FilterDropdownType::Labels);
+                app.mark_dirty();
+            }
+            return true;
+        }
+        KeyCode::Char('5') => {
+            // Toggle Created date filter dropdown
+            if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                filter_bar_state.toggle_dropdown(crate::ui::widgets::FilterDropdownType::Created);
+                app.mark_dirty();
+            }
+            return true;
+        }
+        KeyCode::Char('6') => {
+            // Toggle Updated date filter dropdown
+            if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                filter_bar_state.toggle_dropdown(crate::ui::widgets::FilterDropdownType::Updated);
+                app.mark_dirty();
+            }
+            return true;
+        }
+        KeyCode::Char('7') => {
+            // Reset all filters
+            if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                // Close any open dropdown
+                filter_bar_state.close_dropdown();
+                // Clear all selections (reset to "All")
+                filter_bar_state.status_dropdown.clear_selection();
+                filter_bar_state.priority_dropdown.clear_selection();
+                filter_bar_state.type_dropdown.clear_selection();
+                filter_bar_state.labels_dropdown.clear_selection();
+                filter_bar_state.created_dropdown.clear_selection();
+                filter_bar_state.updated_dropdown.clear_selection();
+                app.mark_dirty();
+            }
+            return true;
+        }
+        _ => {}
+    }
+
+    // Handle filter dropdown navigation if a dropdown is open
+    if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+        if filter_bar_state.active_dropdown.is_some() {
+            match action {
+                Some(Action::MoveUp) => {
+                    if let Some(mut dropdown) = filter_bar_state.active_dropdown_mut() {
+                        dropdown.previous();
+                        app.mark_dirty();
+                    }
+                    return true;
+                }
+                Some(Action::MoveDown) => {
+                    if let Some(mut dropdown) = filter_bar_state.active_dropdown_mut() {
+                        dropdown.next();
+                        app.mark_dirty();
+                    }
+                    return true;
+                }
+                Some(Action::ToggleSelection) => {
+                    if let Some(mut dropdown) = filter_bar_state.active_dropdown_mut() {
+                        dropdown.toggle_selected();
+                        app.mark_dirty();
+                    }
+                    return true;
+                }
+                Some(Action::ConfirmDialog) => {
+                    // Apply filter and close dropdown
+                    filter_bar_state.close_dropdown();
+                    app.issues_view_state.apply_filter_bar_filters();
+                    app.mark_dirty();
+                    return true;
+                }
+                Some(Action::CancelDialog) => {
+                    // Close dropdown without applying
+                    filter_bar_state.close_dropdown();
+                    app.mark_dirty();
+                    return true;
+                }
+                _ => {}
+                }
+            }
+        }
 
     // Handle global actions
     match action {
