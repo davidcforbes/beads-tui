@@ -3679,7 +3679,193 @@ fn handle_molecular_view_event(key: KeyEvent, app: &mut models::AppState) {
     }
 }
 
+/// Render full-screen Issues View with new design (solid backgrounds, no borders)
+fn render_issues_view_fullscreen(f: &mut Frame, app: &mut models::AppState) {
+    let area = f.size();
+
+    // Layout: Title(1) | Tabs(1) | Filters(2) | Issues(min) | Actions(1)
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // Title bar
+            Constraint::Length(1), // Tab bar
+            Constraint::Length(2), // FILTERS section (2 lines)
+            Constraint::Min(5),    // Issues table
+            Constraint::Length(1), // Action bar
+        ])
+        .split(area);
+
+    // 1. TITLE BAR - Blue background, single line
+    let open_count = app.database_stats.open_issues;
+    let in_progress_count = app.database_stats.in_progress_issues;
+    let blocked_count = app.database_stats.blocked_issues;
+    let closed_count = app.database_stats.closed_issues;
+
+    let daemon_text = if app.daemon_running {
+        "{Daemon: Running}"
+    } else {
+        "{Daemon: Stopped}"
+    };
+
+    let title_text = format!(
+        "[BEADS-TUI v.1.6.0]—(Open: {}, In-Progress: {}, Blocked: {}, Closed: {}){}{}",
+        open_count, in_progress_count, blocked_count, closed_count,
+        "—".repeat(area.width.saturating_sub(100) as usize / 2),
+        daemon_text
+    );
+
+    let title = Paragraph::new(Line::from(Span::styled(
+        title_text,
+        Style::default()
+            .fg(Color::White)
+            .bg(Color::Blue)
+            .add_modifier(Modifier::BOLD)
+    )));
+    f.render_widget(title, chunks[0]);
+
+    // 2. TAB BAR - Cyan background with yellow for selected
+    let mut tab_spans = Vec::new();
+    for (i, &tab_name) in app.tabs.iter().enumerate() {
+        if i == app.selected_tab {
+            tab_spans.push(Span::styled(
+                format!(" {} ", tab_name),
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            ));
+        } else {
+            tab_spans.push(Span::styled(
+                format!(" {} ", tab_name),
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Cyan)
+            ));
+        }
+        if i < app.tabs.len() - 1 {
+            tab_spans.push(Span::styled(
+                "|",
+                Style::default().fg(Color::Black).bg(Color::Cyan)
+            ));
+        }
+    }
+
+    // Fill remaining space with cyan background
+    // Calculate how much space the tabs take
+    let tabs_text_len: usize = app.tabs.iter().enumerate().map(|(i, name)| {
+        let tab_len = name.len() + 2; // " tab "
+        let sep_len = if i < app.tabs.len() - 1 { 1 } else { 0 }; // "|"
+        tab_len + sep_len
+    }).sum();
+
+    // Add padding at the end to fill the line with cyan
+    if tabs_text_len < area.width as usize {
+        tab_spans.push(Span::styled(
+            " ".repeat(area.width as usize - tabs_text_len),
+            Style::default().bg(Color::Cyan)
+        ));
+    }
+
+    let tabs_line = Line::from(tab_spans);
+    let tabs = Paragraph::new(tabs_line);
+    f.render_widget(tabs, chunks[1]);
+
+    // 3. FILTERS SECTION - Green background, 2 lines
+    let filter_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // "FILTERS" label
+            Constraint::Length(1), // Filter controls
+        ])
+        .split(chunks[2]);
+
+    // Line 1: FILTERS label (no leading space, fill to end)
+    let filters_label_text = format!("FILTERS{}", " ".repeat(area.width.saturating_sub(7) as usize));
+    let filters_label = Paragraph::new(Line::from(Span::styled(
+        filters_label_text,
+        Style::default()
+            .fg(Color::White)
+            .bg(Color::Green)
+            .add_modifier(Modifier::BOLD)
+    )));
+    f.render_widget(filters_label, filter_chunks[0]);
+
+    // Line 2: Filter controls (no leading space, fill to end)
+    let filter_controls_text = "1:Status [ALL ▼] | 2:Type [ALL ▼] | 3:Priority [ALL ▼] | 4:Labels [ALL ▼] | 5:Created [ALL ▼] | 6:Updated [ALL ▼] | 7:Reset";
+    let padding_len = area.width.saturating_sub(filter_controls_text.len() as u16);
+    let filter_text = format!("{}{}", filter_controls_text, " ".repeat(padding_len as usize));
+    let filters_controls = Paragraph::new(Line::from(Span::styled(
+        filter_text,
+        Style::default()
+            .fg(Color::White)
+            .bg(Color::Green)
+    )));
+    f.render_widget(filters_controls, filter_chunks[1]);
+
+    // 4. ISSUES TABLE - Render using IssuesView but in a custom area
+    // For now, render a placeholder to see the layout
+    let issues_area = chunks[3];
+
+    // Issues header - Blue background
+    let issues_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // [ISSUES] header
+            Constraint::Min(0),    // Table content
+        ])
+        .split(issues_area);
+
+    let total_issues = app.issues_view_state.search_state().all_issues().len();
+    let filtered_issues = app.issues_view_state.search_state().result_count();
+    let issues_header_text = format!("[ISSUES] ({}/{}){}", filtered_issues, total_issues, "—".repeat(area.width.saturating_sub(30) as usize));
+
+    let issues_header = Paragraph::new(Line::from(Span::styled(
+        issues_header_text,
+        Style::default()
+            .fg(Color::White)
+            .bg(Color::Blue)
+            .add_modifier(Modifier::BOLD)
+    )));
+    f.render_widget(issues_header, issues_chunks[0]);
+
+    // Render actual issues list using borderless IssueList directly
+    use crate::ui::widgets::IssueList;
+
+    // Get issues from the search state
+    let issues = app.issues_view_state.search_state().filtered_issues();
+    let issue_refs: Vec<&beads::models::Issue> = issues.iter().collect();
+
+    // Create borderless issue list
+    let issue_list = IssueList::new(issue_refs)
+        .show_border(false)
+        .show_title(false);
+
+    f.render_stateful_widget(
+        issue_list,
+        issues_chunks[1],
+        app.issues_view_state.search_state_mut().list_state_mut()
+    );
+
+    // 5. ACTION BAR - Blue background (fill to end with spaces)
+    let action_bar_text = "↓:Up ↑:Down (row) PgUp/PgDn (page) →/←:Scroll-Right/Left | Ctrl+New | Ctrl+Delete | Ctrl+Find | Ctrl+Open | Ctrl+Close | ?:Help";
+    let action_padding_len = area.width.saturating_sub(action_bar_text.len() as u16);
+    let action_text = format!("{}{}", action_bar_text, " ".repeat(action_padding_len as usize));
+    let action_bar = Paragraph::new(Line::from(Span::styled(
+        action_text,
+        Style::default()
+            .fg(Color::White)
+            .bg(Color::Blue)
+    )));
+    f.render_widget(action_bar, chunks[4]);
+}
+
 fn ui(f: &mut Frame, app: &mut models::AppState) {
+    // Check if we're on Issues tab (tab 0) - render full-screen Issues view
+    if app.selected_tab == 0 {
+        render_issues_view_fullscreen(f, app);
+        return;
+    }
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([

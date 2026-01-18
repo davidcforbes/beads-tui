@@ -931,6 +931,8 @@ pub struct IssueList<'a> {
     row_height: u16,
     theme: Option<&'a crate::ui::themes::Theme>,
     columns: Option<Vec<ColumnDefinition>>,
+    show_border: bool,
+    show_title: bool,
 }
 
 impl<'a> IssueList<'a> {
@@ -950,6 +952,8 @@ impl<'a> IssueList<'a> {
             row_height: 1,
             theme: None,
             columns: None,
+            show_border: true,
+            show_title: true,
         }
     }
 
@@ -982,6 +986,16 @@ impl<'a> IssueList<'a> {
 
     pub fn columns(mut self, columns: Vec<ColumnDefinition>) -> Self {
         self.columns = Some(columns);
+        self
+    }
+
+    pub fn show_border(mut self, show: bool) -> Self {
+        self.show_border = show;
+        self
+    }
+
+    pub fn show_title(mut self, show: bool) -> Self {
+        self.show_title = show;
         self
     }
 
@@ -1591,9 +1605,9 @@ impl<'a> StatefulWidget for IssueList<'a> {
                 };
 
                 let label = if is_sorted {
-                    format!("{} {}", col.label, sort_indicator)
+                    format!("{} {}", col.label.to_uppercase(), sort_indicator)
                 } else {
-                    col.label.clone()
+                    col.label.to_uppercase()
                 };
 
                 // Use adjusted width for truncation
@@ -1657,13 +1671,8 @@ impl<'a> StatefulWidget for IssueList<'a> {
             .map(|(_id, width)| Constraint::Length(*width))
             .collect();
 
-        let table = Table::new(rows, widths)
+        let mut table = Table::new(rows, widths)
             .header(header)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(format!("ISSUES ({}/{})", total_issues, total_issues)),
-            )
             .column_spacing(1)
             .highlight_style(
                 Style::default()
@@ -1672,6 +1681,15 @@ impl<'a> StatefulWidget for IssueList<'a> {
             )
             .highlight_symbol("") // Empty - using background color for selection
             .highlight_spacing(HighlightSpacing::Never); // Never reserve space for highlight symbol
+
+        // Only add block/border if enabled
+        if self.show_border {
+            let mut block = Block::default().borders(Borders::ALL);
+            if self.show_title {
+                block = block.title(format!("ISSUES ({}/{})", total_issues, total_issues));
+            }
+            table = table.block(block);
+        }
 
         // Adjust TableState selection to be relative to the windowed view
         let original_selected = state.table_state.selected();
