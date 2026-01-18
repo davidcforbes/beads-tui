@@ -3707,10 +3707,24 @@ fn render_issues_view_fullscreen(f: &mut Frame, app: &mut models::AppState) {
         "{Daemon: Stopped}"
     };
 
+    // Build title with right-justified daemon status
+    let left_part = format!(
+        "[BEADS-TUI v.1.6.0]—(Open: {}, In-Progress: {}, Blocked: {}, Closed: {})",
+        open_count, in_progress_count, blocked_count, closed_count
+    );
+
+    // Calculate padding to push daemon status to the right edge
+    let total_content = left_part.len() + daemon_text.len();
+    let padding_len = if total_content < area.width as usize {
+        area.width as usize - total_content
+    } else {
+        1 // At least 1 character spacing
+    };
+
     let title_text = format!(
-        "[BEADS-TUI v.1.6.0]—(Open: {}, In-Progress: {}, Blocked: {}, Closed: {}){}{}",
-        open_count, in_progress_count, blocked_count, closed_count,
-        "—".repeat(area.width.saturating_sub(100) as usize / 2),
+        "{}{}{}",
+        left_part,
+        "—".repeat(padding_len),
         daemon_text
     );
 
@@ -3723,25 +3737,37 @@ fn render_issues_view_fullscreen(f: &mut Frame, app: &mut models::AppState) {
     )));
     f.render_widget(title, chunks[0]);
 
-    // 2. TAB BAR - Cyan background with yellow for selected
+    // 2. TAB BAR - Cyan background with yellow for selected, first letter bold+underlined
     let mut tab_spans = Vec::new();
     for (i, &tab_name) in app.tabs.iter().enumerate() {
-        if i == app.selected_tab {
+        let bg_color = if i == app.selected_tab { Color::Yellow } else { Color::Cyan };
+        let base_style = Style::default().fg(Color::Black).bg(bg_color);
+
+        // Add leading space
+        tab_spans.push(Span::styled(" ", base_style));
+
+        // Split tab name into first char (hotkey) and rest
+        if let Some((first_char, rest)) = tab_name.split_at_checked(1) {
+            // First character: bold and underlined
             tab_spans.push(Span::styled(
-                format!(" {} ", tab_name),
-                Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD)
+                first_char,
+                base_style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
             ));
+            // Rest of the name: normal (with bold for selected tab)
+            if i == app.selected_tab {
+                tab_spans.push(Span::styled(rest, base_style.add_modifier(Modifier::BOLD)));
+            } else {
+                tab_spans.push(Span::styled(rest, base_style));
+            }
         } else {
-            tab_spans.push(Span::styled(
-                format!(" {} ", tab_name),
-                Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Cyan)
-            ));
+            // Fallback if tab name is empty
+            tab_spans.push(Span::styled(tab_name, base_style));
         }
+
+        // Add trailing space
+        tab_spans.push(Span::styled(" ", base_style));
+
+        // Add separator
         if i < app.tabs.len() - 1 {
             tab_spans.push(Span::styled(
                 "|",
