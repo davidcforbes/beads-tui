@@ -218,6 +218,22 @@ fn main() -> Result<()> {
 
     // Normal interactive mode continues below...
 
+    // Initialize filter_bar_state for fullscreen Issues View (tab 0)
+    // This ensures it exists before the event loop starts
+    if app.selected_tab == 0 && app.issues_view_state.filter_bar_state.is_none() {
+        let filter_bar_state = ui::widgets::FilterBarState::new(
+            collect_unique_statuses(&app.issues_view_state),
+            collect_unique_priorities(&app.issues_view_state),
+            collect_unique_types(&app.issues_view_state),
+            collect_unique_labels(&app.issues_view_state),
+            collect_unique_assignees(&app.issues_view_state),
+            collect_unique_created_dates(&app.issues_view_state),
+            collect_unique_updated_dates(&app.issues_view_state),
+            collect_unique_closed_dates(&app.issues_view_state),
+        );
+        app.issues_view_state.filter_bar_state = Some(filter_bar_state);
+    }
+
     // Run the app
     let res = run_app(&mut terminal, &mut app);
 
@@ -3593,6 +3609,20 @@ fn run_app<B: ratatui::backend::Backend>(
                         if app.selected_tab != 0 {
                             app.selected_tab = 0;
                             app.tts_manager.announce("Issues tab");
+                            // Initialize filter_bar_state for fullscreen Issues View
+                            if app.issues_view_state.filter_bar_state.is_none() {
+                                let filter_bar_state = ui::widgets::FilterBarState::new(
+                                    collect_unique_statuses(&app.issues_view_state),
+                                    collect_unique_priorities(&app.issues_view_state),
+                                    collect_unique_types(&app.issues_view_state),
+                                    collect_unique_labels(&app.issues_view_state),
+                                    collect_unique_assignees(&app.issues_view_state),
+                                    collect_unique_created_dates(&app.issues_view_state),
+                                    collect_unique_updated_dates(&app.issues_view_state),
+                                    collect_unique_closed_dates(&app.issues_view_state),
+                                );
+                                app.issues_view_state.filter_bar_state = Some(filter_bar_state);
+                            }
                             app.mark_dirty();
                             continue;
                         }
