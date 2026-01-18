@@ -658,10 +658,10 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
         return;
     }
 
-    // Handle filter dropdown hotkeys (s, t, p, l, c, u - both lowercase and uppercase)
+    // Handle filter dropdown hotkeys (1-7 for filters and reset)
     if app.issues_view_state.filter_bar_state.is_some() {
         match key_code {
-            KeyCode::Char('S') | KeyCode::Char('s') => {
+            KeyCode::Char('1') => {
                 // Toggle Status filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Status);
@@ -669,7 +669,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('T') | KeyCode::Char('t') => {
+            KeyCode::Char('2') => {
                 // Toggle Type filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Type);
@@ -677,7 +677,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('P') | KeyCode::Char('p') => {
+            KeyCode::Char('3') => {
                 // Toggle Priority filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Priority);
@@ -685,7 +685,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('L') | KeyCode::Char('l') => {
+            KeyCode::Char('4') => {
                 // Toggle Labels filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Labels);
@@ -693,7 +693,7 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('C') | KeyCode::Char('c') => {
+            KeyCode::Char('5') => {
                 // Toggle Created date filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Created);
@@ -701,10 +701,26 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
                 }
                 return;
             }
-            KeyCode::Char('U') | KeyCode::Char('u') => {
+            KeyCode::Char('6') => {
                 // Toggle Updated date filter dropdown
                 if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
                     filter_bar_state.toggle_dropdown(ui::widgets::FilterDropdownType::Updated);
+                    app.mark_dirty();
+                }
+                return;
+            }
+            KeyCode::Char('7') => {
+                // Reset all filters
+                if let Some(ref mut filter_bar_state) = app.issues_view_state.filter_bar_state {
+                    // Close any open dropdown
+                    filter_bar_state.close_dropdown();
+                    // Clear all selections (reset to "All")
+                    filter_bar_state.status_dropdown.clear_selection();
+                    filter_bar_state.priority_dropdown.clear_selection();
+                    filter_bar_state.type_dropdown.clear_selection();
+                    filter_bar_state.labels_dropdown.clear_selection();
+                    filter_bar_state.created_dropdown.clear_selection();
+                    filter_bar_state.updated_dropdown.clear_selection();
                     app.mark_dirty();
                 }
                 return;
@@ -3709,7 +3725,7 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
 
     // Column 1: Beads-TUI version
     let version = Paragraph::new(Span::styled(
-        "Beads-TUI (v0.1.0)",
+        "BEADS-TUI v.1.6.0",
         Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
     ));
     f.render_widget(version, title_columns[0]);
@@ -3755,20 +3771,12 @@ fn ui(f: &mut Frame, app: &mut models::AppState) {
         .constraints([Constraint::Length(3), Constraint::Min(0)])
         .split(chunks[1]);
 
-    // Tab bar with numbered shortcuts
+    // Tab bar without numbered shortcuts
     let tabs: Vec<Line> = app
         .tabs
         .iter()
-        .enumerate()
-        .map(|(i, &name)| {
-            // Map indices to shortcut numbers
-            let shortcut = match i {
-                0..=8 => format!("{}:", i + 1),  // 1-9
-                9 => "0:".to_string(),            // 0 for Utilities
-                10 => "H:".to_string(),           // H for Help
-                _ => "".to_string(),
-            };
-            Line::from(format!(" {}{}", shortcut, name))
+        .map(|&name| {
+            Line::from(format!(" {}", name))
         })
         .collect();
 
@@ -4333,13 +4341,13 @@ fn render_action_bar(app: &models::AppState) -> Paragraph<'static> {
     
     Paragraph::new(action_text)
         .style(Style::default().fg(Color::Gray))
-        .block(Block::default().borders(Borders::ALL).title("[ACTIONS]"))
+        .block(Block::default().borders(Borders::ALL))
 }
 
 /// Get contextual actions for action bar
 fn get_contextual_actions(app: &models::AppState) -> (String, Vec<String>) {
     // Navigation actions (first column)
-    let nav = "↓:Up ↑:Down (row) PgUp/PgDn (page) →:Scroll-Right ←:Scroll-Left".to_string();
+    let nav = "↓:Up ↑:Down (row) PgUp/PgDn (page) →/←:Scroll-Right/Left".to_string();
     
     // Context-specific action items (remaining columns)
     let actions = match app.selected_tab {
