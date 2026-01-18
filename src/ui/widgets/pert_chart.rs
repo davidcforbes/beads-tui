@@ -515,19 +515,44 @@ impl<'a> Widget for PertChart<'a> {
             )
         };
 
-        // Render edges first (so they appear behind nodes)
-        for edge in &edges_to_render {
-            self.render_edge(edge, area, buf);
+        // Calculate how many lines at the top are reserved for instructions/legend
+        let mut top_reserved_lines = 0u16;
+
+        // Reserve line for cycle warning if present
+        if self.graph.cycle_detection.has_cycle {
+            top_reserved_lines += 1;
         }
 
-        // Render nodes
+        // Reserve line for legend if enabled
+        if self.config.show_legend && area.height > 3 {
+            top_reserved_lines += 1;
+        }
+
+        // Create constrained area for nodes/edges (exclude top reserved lines and bottom status line)
+        let chart_area = if area.height > top_reserved_lines + 1 {
+            Rect {
+                x: area.x,
+                y: area.y + top_reserved_lines,
+                width: area.width,
+                height: area.height.saturating_sub(top_reserved_lines + 1), // -1 for status line at bottom
+            }
+        } else {
+            area // Not enough space, use full area
+        };
+
+        // Render edges first (so they appear behind nodes) to constrained area
+        for edge in &edges_to_render {
+            self.render_edge(edge, chart_area, buf);
+        }
+
+        // Render nodes to constrained area
         for node_id in &nodes_to_render {
             if let Some(node) = self.graph.nodes.get(node_id) {
-                self.render_node(node, area, buf);
+                self.render_node(node, chart_area, buf);
             }
         }
 
-        // Render cycle warning if any
+        // Render cycle warning if any (at the very top)
         if self.graph.cycle_detection.has_cycle {
             let warning = format!(
                 "[!] {} cycle(s) detected",
@@ -543,9 +568,13 @@ impl<'a> Widget for PertChart<'a> {
             }
         }
 
-        // Render legend if enabled
+        // Render legend if enabled (below cycle warning)
         if self.config.show_legend && area.height > 3 {
-            let legend_y = area.y + 1;
+            let legend_y = if self.graph.cycle_detection.has_cycle {
+                area.y + 1
+            } else {
+                area.y
+            };
             let legend_items = vec![
                 ("->", "Dependency", self.config.edge_style),
                 ("->", "Critical Path", self.config.critical_edge_style),
