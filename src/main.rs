@@ -3704,8 +3704,94 @@ fn run_app<B: ratatui::backend::Backend>(
                         continue;
                     }
                     KeyCode::Char('h') => {
+                        app.selected_tab = 11;
+                        app.tts_manager.announce("History tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    // Letter shortcuts for tab navigation
+                    // i=Issues, r=Record, s=Split, k=Kanban, d=Dependencies, l=Labels
+                    // g=Ghant, p=Pert, m=Molecule, t=Statistics, u=Utilities, h=History
+                    KeyCode::Char('i') => {
+                        // Issues view - same as '1' but always works
+                        app.selected_tab = 0;
+                        app.tts_manager.announce("Issues tab");
+                        // Initialize filter_bar_state for fullscreen Issues View
+                        if app.issues_view_state.filter_bar_state.is_none() {
+                            let filter_bar_state = ui::widgets::FilterBarState::new(
+                                collect_unique_statuses(&app.issues_view_state),
+                                collect_unique_priorities(&app.issues_view_state),
+                                collect_unique_types(&app.issues_view_state),
+                                collect_unique_labels(&app.issues_view_state),
+                                collect_unique_assignees(&app.issues_view_state),
+                                collect_unique_created_dates(&app.issues_view_state),
+                                collect_unique_updated_dates(&app.issues_view_state),
+                                collect_unique_closed_dates(&app.issues_view_state),
+                            );
+                            app.issues_view_state.filter_bar_state = Some(filter_bar_state);
+                        }
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('r') => {
+                        // 'r' switches to Record tab (full-screen detail view)
+                        app.selected_tab = 1;
+                        app.tts_manager.announce("Record tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('s') => {
+                        app.selected_tab = 2;
+                        app.tts_manager.announce("Split tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('k') => {
+                        // 'k' switches to Kanban tab
+                        app.selected_tab = 3;
+                        app.tts_manager.announce("Kanban tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('d') => {
+                        app.selected_tab = 4;
+                        app.tts_manager.announce("Dependencies tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('l') => {
+                        app.selected_tab = 5;
+                        app.tts_manager.announce("Labels tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('g') => {
+                        app.selected_tab = 6;
+                        app.tts_manager.announce("Ghant tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('p') => {
+                        app.selected_tab = 7;
+                        app.tts_manager.announce("Pert tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('m') => {
+                        app.selected_tab = 8;
+                        app.tts_manager.announce("Molecule tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('t') => {
+                        app.selected_tab = 9;
+                        app.tts_manager.announce("Statistics tab");
+                        app.mark_dirty();
+                        continue;
+                    }
+                    KeyCode::Char('u') => {
                         app.selected_tab = 10;
-                        app.tts_manager.announce("Help tab");
+                        app.tts_manager.announce("Utilities tab");
                         app.mark_dirty();
                         continue;
                     }
