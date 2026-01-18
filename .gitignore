@@ -54,3 +54,19 @@ nul
 
 # Temporary Claude working directories
 tmpclaude-*-cwd
+
+# Test snapshots and screenshots
+snapshot_*.txt
+test_*.txt
+Screenshot*.jpg
+Issues_View*.txt
+Issues_View*.jpg
+Record_View.txt
+Screen_Draw.txt
+
+# Temporary documentation files
+*.rtf
+~$*.rtf
+~WRL*.tmp
+Architecture_Modular_UI.md
+Split_View.rtf
