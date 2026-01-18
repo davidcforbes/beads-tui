@@ -1511,7 +1511,8 @@ fn handle_issues_view_event(key: KeyEvent, app: &mut models::AppState) {
 
             let search_focused = issues_state.search_state().search_state().is_focused();
 
-            if search_focused {
+            // In fullscreen Issues View (tab 0), we don't show search box, so skip search-focused handling
+            if search_focused && app.selected_tab != 0 {
                 // Search input is focused - handle text input
                 match key_code {
                     KeyCode::Char(c) => {
@@ -3713,10 +3714,10 @@ fn render_issues_view_fullscreen(f: &mut Frame, app: &mut models::AppState) {
         open_count, in_progress_count, blocked_count, closed_count
     );
 
-    // Calculate padding to push daemon status to the right edge
+    // Calculate padding to push daemon status to the right edge (add 2 to move it 2 chars closer)
     let total_content = left_part.len() + daemon_text.len();
-    let padding_len = if total_content < area.width as usize {
-        area.width as usize - total_content
+    let padding_len = if total_content + 2 <= area.width as usize {
+        area.width as usize - total_content + 2
     } else {
         1 // At least 1 character spacing
     };
@@ -3816,7 +3817,7 @@ fn render_issues_view_fullscreen(f: &mut Frame, app: &mut models::AppState) {
     )));
     f.render_widget(filters_label, filter_chunks[0]);
 
-    // Line 2: Filter controls (no leading space, fill to end)
+    // Line 2: Filter controls (no leading space, fill to end with green background)
     let filter_controls_text = "1:Status [ALL ▼] | 2:Type [ALL ▼] | 3:Priority [ALL ▼] | 4:Labels [ALL ▼] | 5:Created [ALL ▼] | 6:Updated [ALL ▼] | 7:Reset";
     let padding_len = area.width.saturating_sub(filter_controls_text.len() as u16);
     let filter_text = format!("{}{}", filter_controls_text, " ".repeat(padding_len as usize));
@@ -3825,7 +3826,7 @@ fn render_issues_view_fullscreen(f: &mut Frame, app: &mut models::AppState) {
         Style::default()
             .fg(Color::White)
             .bg(Color::Green)
-    )));
+    ))).style(Style::default().bg(Color::Green)); // Ensure background fills entire line
     f.render_widget(filters_controls, filter_chunks[1]);
 
     // 4. ISSUES TABLE - Render using IssuesView but in a custom area
@@ -3843,7 +3844,11 @@ fn render_issues_view_fullscreen(f: &mut Frame, app: &mut models::AppState) {
 
     let total_issues = app.issues_view_state.search_state().all_issues().len();
     let filtered_issues = app.issues_view_state.search_state().result_count();
-    let issues_header_text = format!("[ISSUES] ({}/{}){}", filtered_issues, total_issues, "—".repeat(area.width.saturating_sub(30) as usize));
+
+    // Calculate exact length of prefix to fill rest of line with "—"
+    let issues_prefix = format!("[ISSUES] ({}/{})", filtered_issues, total_issues);
+    let dash_count = area.width.saturating_sub(issues_prefix.len() as u16);
+    let issues_header_text = format!("{}{}", issues_prefix, "—".repeat(dash_count as usize));
 
     let issues_header = Paragraph::new(Line::from(Span::styled(
         issues_header_text,
